@@ -11,11 +11,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getUserGoals, saveUserGoals, getUserProfile, saveUserProfile } from '@/lib/storage';
-import type { UserGoals, UserProfile } from '@/lib/types';
+import { getUserGoals, saveUserGoals, getUserProfile, saveUserProfile, resetOnboarding } from '@/lib/storage';
+import type { UserProfile } from '@/lib/types';
 
 type ActivityLevel = NonNullable<UserProfile['activity_level']>;
 
@@ -191,6 +192,28 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          <View style={[styles.section, { marginBottom: 16 }]}>
+            <TouchableOpacity
+              style={[styles.resetBtn, bg]}
+              onPress={() =>
+                Alert.alert('Reset Setup', 'This will restart the onboarding flow. Continue?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Reset',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await resetOnboarding();
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      router.replace('/onboarding' as any);
+                    },
+                  },
+                ])
+              }
+            >
+              <Text style={[styles.resetText, { color: '#e74c3c' }]}>Reset Setup</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         <View style={[styles.footer, { backgroundColor: colors.background }]}>
@@ -222,6 +245,8 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 14 },
   infoKey: { fontSize: 15 },
   infoVal: { fontSize: 15 },
+  resetBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  resetText: { fontSize: 16, fontWeight: '500' },
   footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   button: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
