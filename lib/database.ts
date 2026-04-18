@@ -166,3 +166,25 @@ export async function getFrequentFoods(limit = 10): Promise<Food[]> {
     [limit]
   );
 }
+
+export async function getLoggedDates(): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ date: string }>(
+    `SELECT DISTINCT date FROM food_logs ORDER BY date DESC LIMIT 365`
+  );
+  return rows.map((r) => r.date);
+}
+
+export async function addCustomFood(
+  food: Omit<Food, 'id' | 'updated_at'>
+): Promise<Food> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const id = Crypto.randomUUID();
+  await db.runAsync(
+    `INSERT INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, food.name, food.brand ?? null, food.serving_units, food.calories, food.protein, food.carbs, food.fat, 'custom', now]
+  );
+  return { ...food, id, updated_at: now };
+}
