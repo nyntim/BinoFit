@@ -36,3 +36,13 @@ export type UserProfile = {
   activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null;
   updated_at: string;
 };
+
+export type FoodLogWithFood = FoodLog & {
+  food_name: string;
+  food_brand: string | null;
+  food_calories: number;
+  food_protein: number;
+  food_carbs: number;
+  food_fat: number;
+  food_serving_units: string;
+};
