@@ -6,17 +6,19 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
-import { getFoodLogsWithFoodByDate, deleteFoodLog } from '@/lib/database';
+import { getFoodLogsWithFoodByDate, deleteFoodLog, getLoggedDates } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
+import { MonthCalendar } from '@/components/month-calendar';
 import type { FoodLogWithFood, UserGoals } from '@/lib/types';
 
 type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -47,14 +49,22 @@ export default function HomeScreen() {
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Calendar state
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(startOfMonth(new Date()));
+  const [loggedDates, setLoggedDates] = useState<string[]>([]);
 
   const loadData = useCallback(() => {
-    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(today)]).then(
-      ([userGoals, foodLogs]) => {
+    setLoading(true);
+    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(today), getLoggedDates()])
+      .then(([userGoals, foodLogs, dates]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
-      }
-    );
+        setLoggedDates(dates);
+      })
+      .finally(() => setLoading(false));
   }, [today]);
 
   useFocusEffect(loadData);
@@ -104,6 +114,19 @@ export default function HomeScreen() {
     ]);
   };
 
+  const handleCalendarDayPress = (date: string) => {
+    if (date === today) {
+      setCalendarOpen(false);
+      return;
+    }
+    setCalendarOpen(false);
+    router.push({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pathname: '/day-detail' as any,
+      params: { date },
+    });
+  };
+
   const remaining = Math.max(0, goals.calorie_goal - Math.round(consumed.calories));
 
   return (
@@ -114,141 +137,176 @@ export default function HomeScreen() {
             <Text style={[styles.dateLabel, { color: colors.icon }]}>{displayDate}</Text>
             <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => setCalendarOpen((v) => !v)}
+            style={[styles.calendarBtn, calendarOpen && { backgroundColor: colors.tint + '20' }]}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name={calendarOpen ? 'calendar-today' : 'calendar-month'}
+              size={22}
+              color={calendarOpen ? colors.tint : colors.icon}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* Calorie ring + remaining */}
-        <View style={[styles.calorieCard, { backgroundColor: cardBg }]}>
-          <View style={styles.ringRow}>
-            <CalorieRing
-              consumed={Math.round(consumed.calories)}
-              goal={goals.calorie_goal}
-              ringColor={colors.tint}
-              trackColor={colors.tint + '26'}
+        {/* Expandable calendar */}
+        {calendarOpen && (
+          <View style={[styles.calendarCard, { backgroundColor: cardBg }]}>
+            <MonthCalendar
+              currentMonth={calendarMonth}
+              markedDates={loggedDates}
+              selectedDate={today}
+              tintColor={colors.tint}
               textColor={colors.text}
               subTextColor={colors.icon}
+              onDayPress={handleCalendarDayPress}
+              onMonthChange={setCalendarMonth}
             />
-            <View style={styles.calorieSummary}>
-              <CalorieStat
-                label="Goal"
-                value={goals.calorie_goal}
+          </View>
+        )}
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={colors.tint} />
+          </View>
+        ) : (
+          <>
+            {/* Calorie ring + remaining */}
+            <View style={[styles.calorieCard, { backgroundColor: cardBg }]}>
+              <View style={styles.ringRow}>
+                <CalorieRing
+                  consumed={Math.round(consumed.calories)}
+                  goal={goals.calorie_goal}
+                  ringColor={colors.tint}
+                  trackColor={colors.tint + '26'}
+                  textColor={colors.text}
+                  subTextColor={colors.icon}
+                />
+                <View style={styles.calorieSummary}>
+                  <CalorieStat
+                    label="Goal"
+                    value={goals.calorie_goal}
+                    textColor={colors.text}
+                    subColor={colors.icon}
+                  />
+                  <CalorieStat
+                    label="Eaten"
+                    value={Math.round(consumed.calories)}
+                    textColor={colors.text}
+                    subColor={colors.icon}
+                  />
+                  <CalorieStat
+                    label="Remaining"
+                    value={remaining}
+                    textColor={remaining === 0 ? '#e74c3c' : colors.text}
+                    subColor={colors.icon}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Macro bars */}
+            <View style={[styles.macroCard, { backgroundColor: cardBg }]}>
+              <MacroBar
+                label="Protein"
+                consumed={Math.round(consumed.protein * 10) / 10}
+                goal={goals.protein_goal}
+                color="#e74c3c"
                 textColor={colors.text}
-                subColor={colors.icon}
+                subTextColor={colors.icon}
               />
-              <CalorieStat
-                label="Eaten"
-                value={Math.round(consumed.calories)}
+              <MacroBar
+                label="Carbs"
+                consumed={Math.round(consumed.carbs * 10) / 10}
+                goal={goals.carb_goal}
+                color="#f39c12"
                 textColor={colors.text}
-                subColor={colors.icon}
+                subTextColor={colors.icon}
               />
-              <CalorieStat
-                label="Remaining"
-                value={remaining}
-                textColor={remaining === 0 ? '#e74c3c' : colors.text}
-                subColor={colors.icon}
+              <MacroBar
+                label="Fat"
+                consumed={Math.round(consumed.fat * 10) / 10}
+                goal={goals.fat_goal}
+                color="#3498db"
+                textColor={colors.text}
+                subTextColor={colors.icon}
               />
             </View>
-          </View>
-        </View>
 
-        {/* Macro bars */}
-        <View style={[styles.macroCard, { backgroundColor: cardBg }]}>
-          <MacroBar
-            label="Protein"
-            consumed={Math.round(consumed.protein * 10) / 10}
-            goal={goals.protein_goal}
-            color="#e74c3c"
-            textColor={colors.text}
-            subTextColor={colors.icon}
-          />
-          <MacroBar
-            label="Carbs"
-            consumed={Math.round(consumed.carbs * 10) / 10}
-            goal={goals.carb_goal}
-            color="#f39c12"
-            textColor={colors.text}
-            subTextColor={colors.icon}
-          />
-          <MacroBar
-            label="Fat"
-            consumed={Math.round(consumed.fat * 10) / 10}
-            goal={goals.fat_goal}
-            color="#3498db"
-            textColor={colors.text}
-            subTextColor={colors.icon}
-          />
-        </View>
-
-        {/* Meal slots */}
-        {MEAL_SLOTS.map(({ key, label }) => {
-          const slotLogs = logsForSlot(key);
-          const slotCals = Math.round(slotCalories(key));
-          return (
-            <View key={key} style={[styles.slotCard, { backgroundColor: cardBg }]}>
-              <View style={styles.slotHeader}>
-                <View>
-                  <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
-                  {slotCals > 0 && (
-                    <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} kcal</Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
-                  onPress={() => handleAddToSlot(key)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="add" size={20} color={colors.tint} />
-                </TouchableOpacity>
-              </View>
-
-              {slotLogs.length > 0 && (
-                <View style={styles.logList}>
-                  {slotLogs.map((log) => (
+            {/* Meal slots */}
+            {MEAL_SLOTS.map(({ key, label }) => {
+              const slotLogs = logsForSlot(key);
+              const slotCals = Math.round(slotCalories(key));
+              return (
+                <View key={key} style={[styles.slotCard, { backgroundColor: cardBg }]}>
+                  <View style={styles.slotHeader}>
+                    <View>
+                      <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
+                      {slotCals > 0 && (
+                        <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} kcal</Text>
+                      )}
+                    </View>
                     <TouchableOpacity
-                      key={log.id}
-                      style={styles.logRow}
-                      onPress={() => handleEditLog(log)}
-                      onLongPress={() => handleDeleteLog(log)}
+                      style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
+                      onPress={() => handleAddToSlot(key)}
                       activeOpacity={0.7}
                     >
-                      <View style={styles.logInfo}>
-                        <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
-                          {log.food_name}
-                        </Text>
-                        <Text style={[styles.logMeta, { color: colors.icon }]}>
-                          {log.serving_amount} × {log.food_serving_units}
-                        </Text>
-                      </View>
-                      <View style={styles.logRight}>
-                        <Text style={[styles.logCals, { color: colors.text }]}>
-                          {Math.round(log.food_calories * log.serving_amount)}
-                        </Text>
-                        <Text style={[styles.logCalsUnit, { color: colors.icon }]}>kcal</Text>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteLog(log)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
-                        </TouchableOpacity>
-                      </View>
+                      <MaterialIcons name="add" size={20} color={colors.tint} />
                     </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+                  </View>
 
-              {slotLogs.length === 0 && (
-                <TouchableOpacity
-                  style={styles.emptySlot}
-                  onPress={() => handleAddToSlot(key)}
-                  activeOpacity={0.6}
-                >
-                  <Text style={[styles.emptySlotText, { color: colors.icon }]}>
-                    Tap to add food
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })}
+                  {slotLogs.length > 0 && (
+                    <View style={styles.logList}>
+                      {slotLogs.map((log) => (
+                        <TouchableOpacity
+                          key={log.id}
+                          style={styles.logRow}
+                          onPress={() => handleEditLog(log)}
+                          onLongPress={() => handleDeleteLog(log)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.logInfo}>
+                            <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
+                              {log.food_name}
+                            </Text>
+                            <Text style={[styles.logMeta, { color: colors.icon }]}>
+                              {log.serving_amount} × {log.food_serving_units}
+                            </Text>
+                          </View>
+                          <View style={styles.logRight}>
+                            <Text style={[styles.logCals, { color: colors.text }]}>
+                              {Math.round(log.food_calories * log.serving_amount)}
+                            </Text>
+                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>kcal</Text>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteLog(log)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
+                            </TouchableOpacity>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {slotLogs.length === 0 && (
+                    <TouchableOpacity
+                      style={styles.emptySlot}
+                      onPress={() => handleAddToSlot(key)}
+                      activeOpacity={0.6}
+                    >
+                      <Text style={[styles.emptySlotText, { color: colors.icon }]}>
+                        Tap to add food
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -279,6 +337,9 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 },
   dateLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   pageTitle: { fontSize: 28, fontWeight: '700' },
+  calendarBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  calendarCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
+  loadingContainer: { paddingTop: 60, alignItems: 'center' },
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   calorieSummary: { flex: 1, gap: 12 },

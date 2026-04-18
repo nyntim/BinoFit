@@ -144,6 +144,19 @@ export default function FoodSearchScreen() {
               Search for a food to get started
             </Text>
           )}
+          <TouchableOpacity
+            style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
+            onPress={() =>
+              router.replace({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                pathname: '/custom-food' as any,
+                params: { meal_slot, date },
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
+          </TouchableOpacity>
         </ScrollView>
       ) : (
         <FlatList
@@ -154,7 +167,7 @@ export default function FoodSearchScreen() {
           ListEmptyComponent={
             !loading ? (
               <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No results for "{query}"
+                No results for &quot;{query}&quot;
               </Text>
             ) : null
           }
@@ -209,4 +222,15 @@ const styles = StyleSheet.create({
   macroChips: { alignItems: 'flex-end', gap: 2 },
   chip: { fontSize: 11, fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 48, fontSize: 15 },
+  createFoodBtn: {
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderStyle: 'dashed',
+  },
+  createFoodText: { fontSize: 15, fontWeight: '500' },
 });
