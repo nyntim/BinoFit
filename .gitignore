@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# design tool context
+.impeccable.md
+
 # typescript
 *.tsbuildinfo
 
