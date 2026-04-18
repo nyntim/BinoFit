@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
+import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
 import { getFoodLogsWithFoodByDate } from '@/lib/database';
@@ -41,7 +41,6 @@ export default function DayDetailScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7';
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
@@ -101,7 +100,7 @@ export default function DayDetailScreen() {
           ) : (
             <>
               {/* Calorie ring */}
-              <View style={[styles.calorieCard, { backgroundColor: cardBg }]}>
+              <View style={[styles.calorieCard, { backgroundColor: colors.cardBackground }]}>
                 <View style={styles.ringRow}>
                   <CalorieRing
                     consumed={Math.round(consumed.calories)}
@@ -119,10 +118,10 @@ export default function DayDetailScreen() {
               </View>
 
               {/* Macro bars */}
-              <View style={[styles.macroCard, { backgroundColor: cardBg }]}>
-                <MacroBar label="Protein" consumed={Math.round(consumed.protein * 10) / 10} goal={goals.protein_goal} color="#e74c3c" textColor={colors.text} subTextColor={colors.icon} />
-                <MacroBar label="Carbs" consumed={Math.round(consumed.carbs * 10) / 10} goal={goals.carb_goal} color="#f39c12" textColor={colors.text} subTextColor={colors.icon} />
-                <MacroBar label="Fat" consumed={Math.round(consumed.fat * 10) / 10} goal={goals.fat_goal} color="#3498db" textColor={colors.text} subTextColor={colors.icon} />
+              <View style={[styles.macroCard, { backgroundColor: colors.cardBackground }]}>
+                <MacroBar label="Protein" consumed={Math.round(consumed.protein * 10) / 10} goal={goals.protein_goal} color={MacroColors.protein} textColor={colors.text} subTextColor={colors.icon} />
+                <MacroBar label="Carbs" consumed={Math.round(consumed.carbs * 10) / 10} goal={goals.carb_goal} color={MacroColors.carbs} textColor={colors.text} subTextColor={colors.icon} />
+                <MacroBar label="Fat" consumed={Math.round(consumed.fat * 10) / 10} goal={goals.fat_goal} color={MacroColors.fat} textColor={colors.text} subTextColor={colors.icon} />
               </View>
 
               {/* Meal slots (read-only) */}
@@ -131,14 +130,14 @@ export default function DayDetailScreen() {
                 if (slotLogs.length === 0) return null;
                 const slotCals = Math.round(slotCalories(key));
                 return (
-                  <View key={key} style={[styles.slotCard, { backgroundColor: cardBg }]}>
+                  <View key={key} style={[styles.slotCard, { backgroundColor: colors.cardBackground }]}>
                     <View style={styles.slotHeader}>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
                       <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} kcal</Text>
                     </View>
                     <View style={styles.logList}>
                       {slotLogs.map((log) => (
-                        <View key={log.id} style={styles.logRow}>
+                        <View key={log.id} style={[styles.logRow, { borderTopColor: colors.separator }]}>
                           <View style={styles.logInfo}>
                             <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
                               {log.food_name}
@@ -169,7 +168,7 @@ export default function DayDetailScreen() {
 
 function CalorieStat({ label, value, textColor, subColor }: { label: string; value: number; textColor: string; subColor: string }) {
   return (
-    <View style={styles.calorieStat}>
+    <View>
       <Text style={[styles.calorieStatValue, { color: textColor }]}>{value.toLocaleString()}</Text>
       <Text style={[styles.calorieStatLabel, { color: subColor }]}>{label}</Text>
     </View>
@@ -190,7 +189,6 @@ const styles = StyleSheet.create({
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   calorieSummary: { flex: 1, gap: 12 },
-  calorieStat: {},
   calorieStatValue: { fontSize: 18, fontWeight: '700' },
   calorieStatLabel: { fontSize: 12, marginTop: 1 },
   macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
@@ -204,7 +202,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc3',
   },
   logInfo: { flex: 1, marginRight: 8 },
   logName: { fontSize: 14, fontWeight: '500' },

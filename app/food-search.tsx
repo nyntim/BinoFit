@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
+import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { searchFoods, getRecentFoods, getFrequentFoods } from '@/lib/database';
 import type { Food } from '@/lib/types';
@@ -29,8 +29,6 @@ export default function FoodSearchScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7';
-  const borderColor = colorScheme === 'dark' ? '#2c2c2e' : '#e5e5ea';
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Food[]>([]);
@@ -73,7 +71,7 @@ export default function FoodSearchScreen() {
   const renderFood = (food: Food) => (
     <TouchableOpacity
       key={food.id}
-      style={[styles.foodItem, { borderBottomColor: borderColor }]}
+      style={[styles.foodItem, { borderBottomColor: colors.separator }]}
       onPress={() => selectFood(food)}
       activeOpacity={0.7}
     >
@@ -91,9 +89,9 @@ export default function FoodSearchScreen() {
         </Text>
       </View>
       <View style={styles.macroChips}>
-        <Text style={[styles.chip, { color: '#e74c3c' }]}>P {food.protein}g</Text>
-        <Text style={[styles.chip, { color: '#f39c12' }]}>C {food.carbs}g</Text>
-        <Text style={[styles.chip, { color: '#3498db' }]}>F {food.fat}g</Text>
+        <Text style={[styles.chip, { color: MacroColors.protein }]}>P {food.protein}g</Text>
+        <Text style={[styles.chip, { color: MacroColors.carbs }]}>C {food.carbs}g</Text>
+        <Text style={[styles.chip, { color: MacroColors.fat }]}>F {food.fat}g</Text>
       </View>
     </TouchableOpacity>
   );
@@ -110,7 +108,7 @@ export default function FoodSearchScreen() {
         <View style={styles.cancelBtn} />
       </View>
 
-      <View style={[styles.searchBar, { backgroundColor: cardBg }]}>
+      <View style={[styles.searchBar, { backgroundColor: colors.cardBackground }]}>
         <MaterialIcons name="search" size={20} color={colors.icon} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
