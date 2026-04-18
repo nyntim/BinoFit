@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format } from 'date-fns';
-import { Colors } from '@/constants/theme';
+import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate } from '@/lib/database';
 import type { Food } from '@/lib/types';
@@ -35,7 +34,6 @@ export default function ServingPickerScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7';
 
   const [food, setFood] = useState<Food | null>(null);
   const [servingAmount, setServingAmount] = useState('1');
@@ -117,7 +115,7 @@ export default function ServingPickerScreen() {
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
-          <View style={[styles.card, { backgroundColor: cardBg }]}>
+          <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
             <Text style={[styles.foodName, { color: colors.text }]}>{food.name}</Text>
             {food.brand ? (
               <Text style={[styles.foodBrand, { color: colors.icon }]}>{food.brand}</Text>
@@ -128,7 +126,7 @@ export default function ServingPickerScreen() {
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.icon }]}>SERVINGS</Text>
-          <View style={[styles.servingRow, { backgroundColor: cardBg }]}>
+          <View style={[styles.servingRow, { backgroundColor: colors.cardBackground }]}>
             <TouchableOpacity
               style={[styles.stepper, { borderColor: colors.icon + '40' }]}
               onPress={() => {
@@ -158,7 +156,7 @@ export default function ServingPickerScreen() {
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.icon }]}>NUTRITION</Text>
-          <View style={[styles.nutritionCard, { backgroundColor: cardBg }]}>
+          <View style={[styles.nutritionCard, { backgroundColor: colors.cardBackground }]}>
             <View style={[styles.nutritionRow, styles.calorieRow]}>
               <Text style={[styles.nutritionLabel, { color: colors.text, fontSize: 16, fontWeight: '600' }]}>
                 Calories
@@ -168,9 +166,9 @@ export default function ServingPickerScreen() {
               </Text>
             </View>
             <View style={styles.macroRow}>
-              <NutrientCell label="Protein" value={protein} color="#e74c3c" textColor={colors.text} subColor={colors.icon} />
-              <NutrientCell label="Carbs" value={carbs} color="#f39c12" textColor={colors.text} subColor={colors.icon} />
-              <NutrientCell label="Fat" value={fat} color="#3498db" textColor={colors.text} subColor={colors.icon} />
+              <NutrientCell label="Protein" value={protein} color={MacroColors.protein} textColor={colors.text} subColor={colors.icon} />
+              <NutrientCell label="Carbs" value={carbs} color={MacroColors.carbs} textColor={colors.text} subColor={colors.icon} />
+              <NutrientCell label="Fat" value={fat} color={MacroColors.fat} textColor={colors.text} subColor={colors.icon} />
             </View>
           </View>
 
