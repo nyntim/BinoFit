@@ -1,50 +1,84 @@
-# Welcome to your Expo app 👋
+# Science-Based Fitness
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A lightweight, USDA-backed meal and nutrition tracking app for iOS, Android, and web. Built with React Native and Expo — no account required, no ads, fully local.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Onboarding** — set daily calorie and macro goals on first launch
+- **Food search** — fast local search against a USDA FoodData Central dataset
+- **Meal logging** — log food across breakfast, lunch, dinner, and snacks; edit or delete entries
+- **Daily dashboard** — calorie ring, macro breakdown bar, and a full list of meals logged
+- **History** — scroll back to any previous day to review past logs
+- **Settings** — adjust calorie and macro targets at any time
+- **Fully local** — all data stored on-device via SQLite; no account or network required
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting started
 
 ```bash
-npm run reset-project
+npm install
+npm start          # interactive: choose iOS, Android, web, or Expo Go
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Platform shortcuts:
 
-## Learn more
+```bash
+npm run ios        # iOS simulator
+npm run android    # Android emulator
+npm run web        # browser
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Project structure
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+app/               # File-based routes (Expo Router)
+  (tabs)/          # Bottom-tab navigator (dashboard, settings)
+  onboarding/      # Welcome → goals → complete flow
+  food-search.tsx  # Food database search
+  serving-picker.tsx
+  custom-food.tsx
+  day-detail.tsx
+components/        # Reusable UI
+  calorie-ring.tsx
+  macro-bar.tsx
+  month-calendar.tsx
+  themed-text.tsx / themed-view.tsx
+  ui/              # Platform-specific icons (SF Symbols on iOS, Material Icons elsewhere)
+lib/
+  database.ts      # SQLite schema + queries
+  storage.ts       # AsyncStorage wrapper
+  types.ts         # Shared TypeScript types
+constants/
+  theme.ts         # Color palette and fonts (light + dark)
+hooks/
+  use-theme-color.ts        # Component-level theme accessor
+  use-color-scheme.ts/.web.ts
+docs/              # Phased implementation plans
+```
 
-## Join the community
+## Development commands
 
-Join our community of developers creating universal apps.
+| Command | Description |
+|---|---|
+| `npm start` | Start Metro dev server |
+| `npm run ios` | Open iOS simulator |
+| `npm run android` | Open Android emulator |
+| `npm run web` | Open in browser |
+| `npm run lint` | Run ESLint |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Architecture notes
+
+**Theming** — three-layer system: `constants/theme.ts` (palette) → `hooks/use-theme-color.ts` (accessor) → `ThemedText` / `ThemedView` (components). Use `useThemeColor` in components; don't read `Colors` directly.
+
+**Platform files** — `.ios.tsx` / `.web.ts` suffixes are resolved automatically by Metro. Use this pattern instead of `Platform.OS` branching when behaviors diverge meaningfully (see `icon-symbol.ios.tsx`, `use-color-scheme.web.ts`).
+
+**Path aliases** — `@/*` maps to the repo root. Use `@/components/...`, `@/lib/...`, `@/hooks/...` rather than relative paths.
+
+**New Architecture** — `newArchEnabled: true` in `app.json`; any native module added must be Fabric/TurboModules compatible.
+
+## Tech stack
+
+- React Native 0.81.5 + Expo ~54 (managed workflow)
+- Expo Router ~6 — file-based routing with typed routes
+- expo-sqlite ~16 — local relational storage
+- AsyncStorage — lightweight key-value preferences
+- TypeScript strict mode + React Compiler enabled
