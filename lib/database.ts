@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import { FOODS_SEED } from '@/assets/data/foods-seed';
-import type { Food, FoodLog } from '@/lib/types';
+import type { Food, FoodLog, FoodLogWithFood } from '@/lib/types';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -106,4 +106,63 @@ export async function getFoodLogsByDate(date: string): Promise<FoodLog[]> {
 export async function deleteFoodLog(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
+}
+
+export async function getFoodById(id: string): Promise<Food | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<Food>('SELECT * FROM foods WHERE id = ?', [id]);
+}
+
+export async function updateFoodLog(
+  id: string,
+  serving_amount: number,
+  serving_unit: string
+): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, updated_at = ? WHERE id = ?',
+    [serving_amount, serving_unit, now, id]
+  );
+}
+
+export async function getFoodLogsWithFoodByDate(date: string): Promise<FoodLogWithFood[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<FoodLogWithFood>(
+    `SELECT fl.*,
+       f.name as food_name, f.brand as food_brand,
+       f.calories as food_calories, f.protein as food_protein,
+       f.carbs as food_carbs, f.fat as food_fat,
+       f.serving_units as food_serving_units
+     FROM food_logs fl
+     JOIN foods f ON fl.food_id = f.id
+     WHERE fl.date = ?
+     ORDER BY fl.created_at`,
+    [date]
+  );
+}
+
+export async function getRecentFoods(limit = 10): Promise<Food[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<Food>(
+    `SELECT DISTINCT f.* FROM foods f
+     INNER JOIN (
+       SELECT food_id, MAX(created_at) as last_logged FROM food_logs GROUP BY food_id
+     ) latest ON f.id = latest.food_id
+     ORDER BY latest.last_logged DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+export async function getFrequentFoods(limit = 10): Promise<Food[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<Food>(
+    `SELECT f.*, COUNT(fl.id) as log_count FROM foods f
+     INNER JOIN food_logs fl ON f.id = fl.food_id
+     GROUP BY f.id
+     ORDER BY log_count DESC
+     LIMIT ?`,
+    [limit]
+  );
 }
