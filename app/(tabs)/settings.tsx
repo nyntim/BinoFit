@@ -84,7 +84,7 @@ export default function SettingsScreen() {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const bg = { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7' };
+  const bg = { backgroundColor: colors.cardBackground };
   const inputStyle = [styles.input, bg, { color: colors.text }];
   const labelStyle = [styles.label, { color: colors.text }];
 
@@ -169,12 +169,12 @@ export default function SettingsScreen() {
                     style={[
                       styles.activityChip,
                       {
-                        backgroundColor: selected ? colors.tint : colorScheme === 'dark' ? '#2c2c2e' : '#f2f2f7',
+                        backgroundColor: selected ? colors.tint : colors.cardBackground,
                       },
                     ]}
                     onPress={() => setActivityLevel(opt.value)}
                   >
-                    <Text style={[styles.chipText, { color: selected ? '#fff' : colors.text }]}>
+                    <Text style={[styles.chipText, { color: selected ? colors.background : colors.text }]}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>
@@ -211,17 +211,17 @@ export default function SettingsScreen() {
                 ])
               }
             >
-              <Text style={[styles.resetText, { color: '#e74c3c' }]}>Reset Setup</Text>
+              <Text style={[styles.resetText, { color: colors.danger }]}>Reset Setup</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
 
         <View style={[styles.footer, { backgroundColor: colors.background }]}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: saved ? '#27ae60' : colors.tint }]}
+            style={[styles.button, { backgroundColor: saved ? colors.success : colors.tint }]}
             onPress={handleSave}
           >
-            <Text style={styles.buttonText}>{saved ? 'Saved!' : 'Save Changes'}</Text>
+            <Text style={[styles.buttonText, { color: colors.background }]}>{saved ? 'Saved!' : 'Save Changes'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -249,5 +249,5 @@ const styles = StyleSheet.create({
   resetText: { fontSize: 16, fontWeight: '500' },
   footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   button: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  buttonText: { fontSize: 17, fontWeight: '600' },
 });
