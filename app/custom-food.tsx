@@ -21,7 +21,6 @@ export default function CustomFoodScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7';
 
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -81,7 +80,7 @@ export default function CustomFoodScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Basic info */}
           <Text style={[styles.sectionTitle, { color: colors.icon }]}>FOOD INFO</Text>
-          <View style={[styles.card, { backgroundColor: cardBg }]}>
+          <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
             <Field label="Name *" value={name} onChangeText={setName} placeholder="e.g. Greek Yogurt" colors={colors} />
             <Field label="Brand" value={brand} onChangeText={setBrand} placeholder="Optional" colors={colors} />
             <Field label="Serving size *" value={servingUnits} onChangeText={setServingUnits} placeholder="e.g. 1 cup (240g)" colors={colors} last />
@@ -89,7 +88,7 @@ export default function CustomFoodScreen() {
 
           {/* Nutrition */}
           <Text style={[styles.sectionTitle, { color: colors.icon }]}>NUTRITION PER SERVING</Text>
-          <View style={[styles.card, { backgroundColor: cardBg }]}>
+          <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
             <Field label="Calories *" value={calories} onChangeText={setCalories} placeholder="0" keyboardType="decimal-pad" colors={colors} />
             <Field label="Protein (g)" value={protein} onChangeText={setProtein} placeholder="0" keyboardType="decimal-pad" colors={colors} />
             <Field label="Carbs (g)" value={carbs} onChangeText={setCarbs} placeholder="0" keyboardType="decimal-pad" colors={colors} />
@@ -119,7 +118,7 @@ function Field({
   last?: boolean;
 }) {
   return (
-    <View style={[styles.fieldRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ccc3' }]}>
+    <View style={[styles.fieldRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
       <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text>
       <TextInput
         style={[styles.fieldInput, { color: colors.text }]}
