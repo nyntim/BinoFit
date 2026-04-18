@@ -25,7 +25,7 @@ export default function CompleteScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <Text style={styles.emoji}>✅</Text>
-        <Text style={[styles.title, { color: colors.text }]}>You're all set!</Text>
+        <Text style={[styles.title, { color: colors.text }]}>You&apos;re all set!</Text>
         <Text style={[styles.subtitle, { color: colors.icon }]}>
           Your goals have been saved. Start logging your food to track your progress.
         </Text>

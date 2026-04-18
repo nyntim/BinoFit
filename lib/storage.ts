@@ -16,6 +16,10 @@ export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(KEYS.ONBOARDING_COMPLETE, 'true');
 }
 
+export async function resetOnboarding(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.ONBOARDING_COMPLETE);
+}
+
 export async function getUserGoals(): Promise<UserGoals | null> {
   const val = await AsyncStorage.getItem(KEYS.USER_GOALS);
   return val ? (JSON.parse(val) as UserGoals) : null;
