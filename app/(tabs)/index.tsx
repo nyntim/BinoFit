@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format, startOfMonth } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors } from '@/constants/theme';
+import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
 import { getFoodLogsWithFoodByDate, deleteFoodLog, getLoggedDates } from '@/lib/database';
@@ -41,7 +41,6 @@ const DEFAULT_GOALS: UserGoals = {
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : '#f2f2f7';
   const router = useRouter();
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -152,7 +151,7 @@ export default function HomeScreen() {
 
         {/* Expandable calendar */}
         {calendarOpen && (
-          <View style={[styles.calendarCard, { backgroundColor: cardBg }]}>
+          <View style={[styles.calendarCard, { backgroundColor: colors.cardBackground }]}>
             <MonthCalendar
               currentMonth={calendarMonth}
               markedDates={loggedDates}
@@ -173,7 +172,7 @@ export default function HomeScreen() {
         ) : (
           <>
             {/* Calorie ring + remaining */}
-            <View style={[styles.calorieCard, { backgroundColor: cardBg }]}>
+            <View style={[styles.calorieCard, { backgroundColor: colors.cardBackground }]}>
               <View style={styles.ringRow}>
                 <CalorieRing
                   consumed={Math.round(consumed.calories)}
@@ -199,7 +198,7 @@ export default function HomeScreen() {
                   <CalorieStat
                     label="Remaining"
                     value={remaining}
-                    textColor={remaining === 0 ? '#e74c3c' : colors.text}
+                    textColor={remaining === 0 ? colors.danger : colors.text}
                     subColor={colors.icon}
                   />
                 </View>
@@ -207,12 +206,12 @@ export default function HomeScreen() {
             </View>
 
             {/* Macro bars */}
-            <View style={[styles.macroCard, { backgroundColor: cardBg }]}>
+            <View style={[styles.macroCard, { backgroundColor: colors.cardBackground }]}>
               <MacroBar
                 label="Protein"
                 consumed={Math.round(consumed.protein * 10) / 10}
                 goal={goals.protein_goal}
-                color="#e74c3c"
+                color={MacroColors.protein}
                 textColor={colors.text}
                 subTextColor={colors.icon}
               />
@@ -220,7 +219,7 @@ export default function HomeScreen() {
                 label="Carbs"
                 consumed={Math.round(consumed.carbs * 10) / 10}
                 goal={goals.carb_goal}
-                color="#f39c12"
+                color={MacroColors.carbs}
                 textColor={colors.text}
                 subTextColor={colors.icon}
               />
@@ -228,7 +227,7 @@ export default function HomeScreen() {
                 label="Fat"
                 consumed={Math.round(consumed.fat * 10) / 10}
                 goal={goals.fat_goal}
-                color="#3498db"
+                color={MacroColors.fat}
                 textColor={colors.text}
                 subTextColor={colors.icon}
               />
@@ -239,7 +238,7 @@ export default function HomeScreen() {
               const slotLogs = logsForSlot(key);
               const slotCals = Math.round(slotCalories(key));
               return (
-                <View key={key} style={[styles.slotCard, { backgroundColor: cardBg }]}>
+                <View key={key} style={[styles.slotCard, { backgroundColor: colors.cardBackground }]}>
                   <View style={styles.slotHeader}>
                     <View>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
@@ -261,7 +260,7 @@ export default function HomeScreen() {
                       {slotLogs.map((log) => (
                         <TouchableOpacity
                           key={log.id}
-                          style={styles.logRow}
+                          style={[styles.logRow, { borderTopColor: colors.separator }]}
                           onPress={() => handleEditLog(log)}
                           onLongPress={() => handleDeleteLog(log)}
                           activeOpacity={0.7}
@@ -324,7 +323,7 @@ function CalorieStat({
   subColor: string;
 }) {
   return (
-    <View style={styles.calorieStat}>
+    <View>
       <Text style={[styles.calorieStatValue, { color: textColor }]}>{value.toLocaleString()}</Text>
       <Text style={[styles.calorieStatLabel, { color: subColor }]}>{label}</Text>
     </View>
@@ -343,7 +342,6 @@ const styles = StyleSheet.create({
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   calorieSummary: { flex: 1, gap: 12 },
-  calorieStat: {},
   calorieStatValue: { fontSize: 18, fontWeight: '700' },
   calorieStatLabel: { fontSize: 12, marginTop: 1 },
   macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
@@ -358,7 +356,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc3',
   },
   logInfo: { flex: 1, marginRight: 8 },
   logName: { fontSize: 14, fontWeight: '500' },

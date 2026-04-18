@@ -68,7 +68,7 @@ export default function GoalsScreen() {
 
   const inputStyle = [
     styles.input,
-    { backgroundColor: colorScheme === 'dark' ? '#2c2c2e' : '#f2f2f7', color: colors.text },
+    { backgroundColor: colors.cardBackground, color: colors.text },
   ];
 
   const labelStyle = [styles.label, { color: colors.text }];
@@ -166,11 +166,7 @@ export default function GoalsScreen() {
                     style={[
                       styles.activityOption,
                       {
-                        backgroundColor: selected
-                          ? colors.tint
-                          : colorScheme === 'dark'
-                          ? '#2c2c2e'
-                          : '#f2f2f7',
+                        backgroundColor: selected ? colors.tint : colors.cardBackground,
                       },
                     ]}
                     onPress={() => setActivityLevel(opt.value)}
@@ -178,7 +174,7 @@ export default function GoalsScreen() {
                     <Text
                       style={[
                         styles.activityLabel,
-                        { color: selected ? '#fff' : colors.text },
+                        { color: selected ? colors.background : colors.text },
                       ]}
                     >
                       {opt.label}
@@ -186,7 +182,7 @@ export default function GoalsScreen() {
                     <Text
                       style={[
                         styles.activityDesc,
-                        { color: selected ? 'rgba(255,255,255,0.8)' : colors.icon },
+                        { color: selected ? colors.background : colors.icon },
                       ]}
                     >
                       {opt.description}
