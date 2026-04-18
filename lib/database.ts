@@ -175,6 +175,19 @@ export async function getLoggedDates(): Promise<string[]> {
   return rows.map((r) => r.date);
 }
 
+export async function getLoggedDatesInRange(startDate: string, endDate: string): Promise<string[]> {
+  try {
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<{ date: string }>(
+      `SELECT DISTINCT date FROM food_logs WHERE date >= ? AND date <= ? ORDER BY date`,
+      [startDate, endDate]
+    );
+    return rows.map((r) => r.date);
+  } catch {
+    return [];
+  }
+}
+
 export async function addCustomFood(
   food: Omit<Food, 'id' | 'updated_at'>
 ): Promise<Food> {

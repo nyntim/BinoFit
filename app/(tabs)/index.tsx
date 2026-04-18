@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,15 +10,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { format, startOfMonth } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
-import { getFoodLogsWithFoodByDate, deleteFoodLog, getLoggedDates } from '@/lib/database';
+import { getFoodLogsWithFoodByDate, deleteFoodLog } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
-import { MonthCalendar } from '@/components/month-calendar';
+import { CalendarWidget } from '@/components/CalendarWidget';
+import { useDate } from '@/context/DateContext';
+import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import type { FoodLogWithFood, UserGoals } from '@/lib/types';
 
 type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -42,31 +46,31 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
+  const { selectedDate } = useDate();
+  const { panGesture, animatedStyle } = useSwipeDayNavigation();
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const displayDate = format(new Date(), 'EEEE, MMM d');
+  const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Calendar state
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(startOfMonth(new Date()));
-  const [loggedDates, setLoggedDates] = useState<string[]>([]);
-
   const loadData = useCallback(() => {
     setLoading(true);
-    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(today), getLoggedDates()])
-      .then(([userGoals, foodLogs, dates]) => {
+    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(selectedDate)])
+      .then(([userGoals, foodLogs]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
-        setLoggedDates(dates);
       })
       .finally(() => setLoading(false));
-  }, [today]);
+  }, [selectedDate]);
 
   useFocusEffect(loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const consumed = logs.reduce(
     (acc, log) => ({
@@ -87,7 +91,7 @@ export default function HomeScreen() {
     router.push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: '/food-search' as any,
-      params: { meal_slot: slot, date: today },
+      params: { meal_slot: slot, date: selectedDate },
     });
   };
 
@@ -95,7 +99,7 @@ export default function HomeScreen() {
     router.push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: '/serving-picker' as any,
-      params: { food_id: log.food_id, meal_slot: log.meal_slot, date: today, log_id: log.id },
+      params: { food_id: log.food_id, meal_slot: log.meal_slot, date: selectedDate, log_id: log.id },
     });
   };
 
@@ -113,57 +117,21 @@ export default function HomeScreen() {
     ]);
   };
 
-  const handleCalendarDayPress = (date: string) => {
-    if (date === today) {
-      setCalendarOpen(false);
-      return;
-    }
-    setCalendarOpen(false);
-    router.push({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pathname: '/day-detail' as any,
-      params: { date },
-    });
-  };
-
   const remaining = Math.max(0, goals.calorie_goal - Math.round(consumed.calories));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <View>
-            <Text style={[styles.dateLabel, { color: colors.icon }]}>{displayDate}</Text>
-            <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => setCalendarOpen((v) => !v)}
-            style={[styles.calendarBtn, calendarOpen && { backgroundColor: colors.tint + '20' }]}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name={calendarOpen ? 'calendar-today' : 'calendar-month'}
-              size={22}
-              color={calendarOpen ? colors.tint : colors.icon}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Expandable calendar */}
-        {calendarOpen && (
-          <View style={[styles.calendarCard, { backgroundColor: colors.cardBackground }]}>
-            <MonthCalendar
-              currentMonth={calendarMonth}
-              markedDates={loggedDates}
-              selectedDate={today}
-              tintColor={colors.tint}
-              textColor={colors.text}
-              subTextColor={colors.icon}
-              onDayPress={handleCalendarDayPress}
-              onMonthChange={setCalendarMonth}
-            />
-          </View>
-        )}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <CalendarWidget />
+      <GestureDetector gesture={panGesture}>
+        <View style={styles.swipeOuter}>
+          <Animated.View style={[styles.swipeInner, animatedStyle]}>
+            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.topRow}>
+                <Text style={[styles.dateLabel, { color: colors.icon }]}>
+                  {displayDate}{selectedDate === today ? '  · Today' : ''}
+                </Text>
+                <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
+              </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -306,7 +274,10 @@ export default function HomeScreen() {
             })}
           </>
         )}
-      </ScrollView>
+        </ScrollView>
+          </Animated.View>
+        </View>
+      </GestureDetector>
     </SafeAreaView>
   );
 }
@@ -332,12 +303,12 @@ function CalorieStat({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  swipeOuter: { flex: 1, overflow: 'hidden' },
+  swipeInner: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 },
+  topRow: { marginBottom: 20 },
   dateLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   pageTitle: { fontSize: 28, fontWeight: '700' },
-  calendarBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  calendarCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   loadingContainer: { paddingTop: 60, alignItems: 'center' },
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
