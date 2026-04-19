@@ -36,6 +36,9 @@ yarn-error.*
 # design tool context
 .impeccable.md
 
+# local AI assistant instructions
+CLAUDE.md
+
 # typescript
 *.tsbuildinfo
 
