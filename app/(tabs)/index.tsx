@@ -107,7 +107,8 @@ export default function HomeScreen() {
   const isSlotConfirmed = useCallback(
     (slot: MealSlot) => {
       const conf = confirmations.find((c) => c.meal_slot === slot);
-      return conf ? conf.confirmed : false;
+      // If no confirmation record exists, treat as confirmed (Eaten) by default.
+      return conf ? conf.confirmed : true;
     },
     [confirmations]
   );
@@ -313,61 +314,66 @@ export default function HomeScreen() {
               const slotCals = Math.round(slotCalories(key));
               const confirmed = isSlotConfirmed(key);
               const hasLogs = slotLogs.length > 0;
-              const showToggle = hasLogs && !isPast && requireMealConfirmation;
+              const showToggle = hasLogs && !isPast && requirePlanMode;
+
+              // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state, 
+              // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
+              const isExplicitlyPlanned = confirmations.find(c => c.meal_slot === key)?.confirmed === false;
+              const displayConfirmed = !isExplicitlyPlanned;
+
 
               return (
                 <View
                   key={key}
                   style={[
-                    styles.slotCard,
-                    { backgroundColor: colors.cardBackground },
-                    hasLogs &&
-                      !confirmed && {
-                        opacity: 0.7,
-                        borderWidth: 1,
-                        borderStyle: 'dashed',
-                        borderColor: colors.icon + '40',
-                      },
+                  styles.slotCard,
+                  { backgroundColor: colors.cardBackground },
+                  hasLogs &&
+                    !displayConfirmed && {
+                      opacity: 0.7,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: colors.icon + '40',
+                    },
                   ]}
-                >
+                  >
                   <View style={styles.slotHeader}>
-                    <View style={styles.slotHeaderLeft}>
-                      <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
-                      {slotCals > 0 && (
-                        <Text style={[styles.slotCals, { color: colors.icon }]}>
-                          {slotCals} kcal
-                        </Text>
-                      )}
-                    </View>
+                  <View style={styles.slotHeaderLeft}>
+                    <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
+                    {slotCals > 0 && (
+                      <Text style={[styles.slotCals, { color: colors.icon }]}>
+                        {slotCals} kcal
+                      </Text>
+                    )}
+                  </View>
 
-                    <View style={styles.slotHeaderRight}>
-                      {showToggle && (
-                        <TouchableOpacity
+                  <View style={styles.slotHeaderRight}>
+                    {showToggle && (
+                      <TouchableOpacity
+                        style={[
+                          styles.confirmBtn,
+                          {
+                            backgroundColor: displayConfirmed ? colors.success + '18' : colors.icon + '12',
+                          },
+                        ]}
+                        onPress={() => handleToggleSlot(key)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons
+                          name={displayConfirmed ? 'check-circle' : 'radio-button-unchecked'}
+                          size={18}
+                          color={displayConfirmed ? colors.success : colors.icon}
+                        />
+                        <Text
                           style={[
-                            styles.confirmBtn,
-                            {
-                              backgroundColor: confirmed ? colors.success + '18' : colors.icon + '12',
-                            },
+                            styles.confirmBtnText,
+                            { color: displayConfirmed ? colors.success : colors.icon },
                           ]}
-                          onPress={() => handleToggleSlot(key)}
-                          activeOpacity={0.7}
                         >
-                          <MaterialIcons
-                            name={confirmed ? 'check-circle' : 'radio-button-unchecked'}
-                            size={18}
-                            color={confirmed ? colors.success : colors.icon}
-                          />
-                          <Text
-                            style={[
-                              styles.confirmBtnText,
-                              { color: confirmed ? colors.success : colors.icon },
-                            ]}
-                          >
-                            {confirmed ? 'Eaten' : 'Planned'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
+                          {displayConfirmed ? 'Eaten' : 'Planned'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                       <TouchableOpacity
                         style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
                         onPress={() => handleAddToSlot(key)}
