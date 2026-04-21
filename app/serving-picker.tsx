@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate } from '@/lib/database';
+import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food } from '@/lib/types';
 
 const SLOT_LABELS: Record<string, string> = {
@@ -82,6 +83,10 @@ export default function ServingPickerScreen() {
           serving_unit: food.serving_units,
         });
       }
+
+      // Background side effect to Apple Health
+      writeNutritionLog(date, calories, protein, carbs, fat);
+
       router.back();
     } finally {
       setSaving(false);

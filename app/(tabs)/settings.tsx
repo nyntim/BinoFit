@@ -10,12 +10,14 @@ import {
   Platform,
   Alert,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useHealthKit } from '@/hooks/use-health-kit';
 import {
   getUserGoals,
   saveUserGoals,
@@ -50,6 +52,8 @@ export default function SettingsScreen() {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [requireConfirmation, setRequireConfirmation] = useState(true);
   const [saved, setSaved] = useState(false);
+
+  const { available, writeGranted, initHealthKit } = useHealthKit();
 
   const loadData = useCallback(async () => {
     const [goals, profile, reqConf] = await Promise.all([
@@ -178,6 +182,30 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          {Platform.OS === 'ios' && available && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Apple Health</Text>
+              <View style={[styles.preferenceRow, bg]}>
+                <View style={styles.preferenceInfo}>
+                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>
+                    Sync nutrition data
+                  </Text>
+                  <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
+                    {writeGranted ? 'Connected' : 'Not connected'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.connectBtn, { backgroundColor: colors.tint + '12' }]}
+                  onPress={writeGranted ? () => Linking.openURL('x-apple-health://') : initHealthKit}
+                >
+                  <Text style={[styles.connectBtnText, { color: colors.tint }]}>
+                    {writeGranted ? 'Manage' : 'Connect'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Stats</Text>
 
@@ -295,6 +323,15 @@ const styles = StyleSheet.create({
   preferenceInfo: { flex: 1, marginRight: 16 },
   preferenceLabel: { fontSize: 16, fontWeight: '500' },
   preferenceSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+  connectBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  connectBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   resetBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   resetText: { fontSize: 16, fontWeight: '500' },
   footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },

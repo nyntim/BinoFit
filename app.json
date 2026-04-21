@@ -9,7 +9,14 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      },
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Used to read your activity data",
+        "NSHealthUpdateUsageDescription": "Used to save your nutrition data"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,7 +45,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "react-native-health"
     ],
     "experiments": {
       "typedRoutes": true,
