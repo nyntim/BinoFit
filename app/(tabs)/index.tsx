@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -16,16 +16,23 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getUserGoals } from '@/lib/storage';
-import { getFoodLogsWithFoodByDate, deleteFoodLog } from '@/lib/database';
+import {
+  getUserGoals,
+  getRequireMealConfirmation,
+} from '@/lib/storage';
+import {
+  getFoodLogsWithFoodByDate,
+  deleteFoodLog,
+  getMealSlotConfirmationsByDate,
+  upsertMealSlotConfirmation,
+  deleteMealSlotConfirmation,
+} from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
-import type { FoodLogWithFood, UserGoals } from '@/lib/types';
-
-type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -51,17 +58,27 @@ export default function HomeScreen() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
+  const isPast = selectedDate < today;
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
+  const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
+  const [requireMealConfirmation, setRequireMealConfirmation] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(() => {
     setLoading(true);
-    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(selectedDate)])
-      .then(([userGoals, foodLogs]) => {
+    Promise.all([
+      getUserGoals(),
+      getFoodLogsWithFoodByDate(selectedDate),
+      getMealSlotConfirmationsByDate(selectedDate),
+      getRequireMealConfirmation(),
+    ])
+      .then(([userGoals, foodLogs, slotConfirmations, reqConf]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
+        setConfirmations(slotConfirmations);
+        setRequireMealConfirmation(reqConf);
       })
       .finally(() => setLoading(false));
   }, [selectedDate]);
@@ -72,20 +89,66 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
-  const consumed = logs.reduce(
-    (acc, log) => ({
-      calories: acc.calories + log.food_calories * log.serving_amount,
-      protein: acc.protein + log.food_protein * log.serving_amount,
-      carbs: acc.carbs + log.food_carbs * log.serving_amount,
-      fat: acc.fat + log.food_fat * log.serving_amount,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  const isSlotConfirmed = useCallback(
+    (slot: MealSlot) => {
+      const conf = confirmations.find((c) => c.meal_slot === slot);
+      return conf ? conf.confirmed : false;
+    },
+    [confirmations]
   );
+
+  const consumed = useMemo(() => {
+    return logs.reduce(
+      (acc, log) => {
+        const confirmed = isSlotConfirmed(log.meal_slot);
+        const shouldCount = !requireMealConfirmation || confirmed;
+        if (!shouldCount) return acc;
+
+        return {
+          calories: acc.calories + log.food_calories * log.serving_amount,
+          protein: acc.protein + log.food_protein * log.serving_amount,
+          carbs: acc.carbs + log.food_carbs * log.serving_amount,
+          fat: acc.fat + log.food_fat * log.serving_amount,
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  }, [logs, isSlotConfirmed, requireMealConfirmation]);
 
   const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
 
   const slotCalories = (slot: MealSlot) =>
     logsForSlot(slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
+
+  const handleToggleSlot = async (slot: MealSlot) => {
+    const currentStatus = isSlotConfirmed(slot);
+    const newStatus = !currentStatus;
+
+    // Optimistic UI update
+    const tempConfirmations = [...confirmations];
+    const index = tempConfirmations.findIndex((c) => c.meal_slot === slot);
+    if (index > -1) {
+      tempConfirmations[index] = { ...tempConfirmations[index], confirmed: newStatus };
+    } else {
+      tempConfirmations.push({
+        id: 'temp',
+        date: selectedDate,
+        meal_slot: slot,
+        confirmed: newStatus,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    setConfirmations(tempConfirmations);
+
+    try {
+      await upsertMealSlotConfirmation(selectedDate, slot, newStatus);
+    } catch (error) {
+      console.error('Failed to update confirmation:', error);
+      Alert.alert('Error', 'Failed to save confirmation. Please try again.');
+      // Revert optimistic update
+      setConfirmations(confirmations);
+    }
+  };
 
   const handleAddToSlot = (slot: MealSlot) => {
     router.push({
@@ -111,6 +174,10 @@ export default function HomeScreen() {
         style: 'destructive',
         onPress: async () => {
           await deleteFoodLog(log.id);
+          const remainingLogsInSlot = logsForSlot(log.meal_slot).filter((l) => l.id !== log.id);
+          if (remainingLogsInSlot.length === 0) {
+            await deleteMealSlotConfirmation(selectedDate, log.meal_slot);
+          }
           loadData();
         },
       },
@@ -205,25 +272,74 @@ export default function HomeScreen() {
             {MEAL_SLOTS.map(({ key, label }) => {
               const slotLogs = logsForSlot(key);
               const slotCals = Math.round(slotCalories(key));
+              const confirmed = isSlotConfirmed(key);
+              const hasLogs = slotLogs.length > 0;
+              const showToggle = hasLogs && !isPast;
+
               return (
-                <View key={key} style={[styles.slotCard, { backgroundColor: colors.cardBackground }]}>
+                <View
+                  key={key}
+                  style={[
+                    styles.slotCard,
+                    { backgroundColor: colors.cardBackground },
+                    hasLogs &&
+                      !confirmed && {
+                        opacity: 0.7,
+                        borderWidth: 1,
+                        borderStyle: 'dashed',
+                        borderColor: colors.icon + '40',
+                      },
+                  ]}
+                >
                   <View style={styles.slotHeader}>
-                    <View>
+                    <View style={styles.slotHeaderLeft}>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
                       {slotCals > 0 && (
-                        <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} kcal</Text>
+                        <Text style={[styles.slotCals, { color: colors.icon }]}>
+                          {slotCals} kcal
+                        </Text>
                       )}
                     </View>
-                    <TouchableOpacity
-                      style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
-                      onPress={() => handleAddToSlot(key)}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialIcons name="add" size={20} color={colors.tint} />
-                    </TouchableOpacity>
+
+                    <View style={styles.slotHeaderRight}>
+                      {showToggle && (
+                        <TouchableOpacity
+                          style={[
+                            styles.confirmBtn,
+                            {
+                              backgroundColor: confirmed ? colors.success + '18' : colors.icon + '12',
+                            },
+                          ]}
+                          onPress={() => handleToggleSlot(key)}
+                          activeOpacity={0.7}
+                        >
+                          <MaterialIcons
+                            name={confirmed ? 'check-circle' : 'radio-button-unchecked'}
+                            size={18}
+                            color={confirmed ? colors.success : colors.icon}
+                          />
+                          <Text
+                            style={[
+                              styles.confirmBtnText,
+                              { color: confirmed ? colors.success : colors.icon },
+                            ]}
+                          >
+                            {confirmed ? 'Eaten' : 'Planned'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      <TouchableOpacity
+                        style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
+                        onPress={() => handleAddToSlot(key)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons name="add" size={20} color={colors.tint} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
-                  {slotLogs.length > 0 && (
+                  {hasLogs && (
                     <View style={styles.logList}>
                       {slotLogs.map((log) => (
                         <TouchableOpacity
@@ -258,7 +374,7 @@ export default function HomeScreen() {
                     </View>
                   )}
 
-                  {slotLogs.length === 0 && (
+                  {!hasLogs && (
                     <TouchableOpacity
                       style={styles.emptySlot}
                       onPress={() => handleAddToSlot(key)}
@@ -318,6 +434,17 @@ const styles = StyleSheet.create({
   macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  slotHeaderLeft: { flex: 1 },
+  slotHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  confirmBtnText: { fontSize: 12, fontWeight: '600' },
   slotLabel: { fontSize: 16, fontWeight: '600' },
   slotCals: { fontSize: 13, marginTop: 2 },
   addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
