@@ -32,6 +32,7 @@ import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
+import { useHealthKit } from '@/hooks/use-health-kit';
 import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
@@ -65,9 +66,22 @@ export default function HomeScreen() {
   const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
   const [requireMealConfirmation, setRequireMealConfirmation] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
+
+  const { readGranted, available, fetchTodayActivity } = useHealthKit();
+
+  const loadActivity = useCallback(async () => {
+    if (selectedDate === today && readGranted) {
+      const data = await fetchTodayActivity();
+      setActivity(data);
+    } else {
+      setActivity({ steps: 0, activeCalories: 0 });
+    }
+  }, [selectedDate, today, readGranted, fetchTodayActivity]);
 
   const loadData = useCallback(() => {
     setLoading(true);
+    loadActivity();
     Promise.all([
       getUserGoals(),
       getFoodLogsWithFoodByDate(selectedDate),
@@ -268,6 +282,27 @@ export default function HomeScreen() {
               />
             </View>
 
+            {/* Activity Row */}
+            {available && readGranted && selectedDate === today && (
+              <View style={[styles.activityCard, { backgroundColor: colors.cardBackground }]}>
+                <View style={styles.activityRow}>
+                  <View style={styles.activityItem}>
+                    <MaterialIcons name="directions-walk" size={20} color={colors.tint} />
+                    <Text style={[styles.activityText, { color: colors.text }]}>
+                      {activity.steps.toLocaleString()} steps
+                    </Text>
+                  </View>
+                  <View style={[styles.activityDivider, { backgroundColor: colors.separator }]} />
+                  <View style={styles.activityItem}>
+                    <MaterialIcons name="local-fire-department" size={20} color={MacroColors.protein} />
+                    <Text style={[styles.activityText, { color: colors.text }]}>
+                      {Math.round(activity.activeCalories)} kcal
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Meal slots */}
             {MEAL_SLOTS.map(({ key, label }) => {
               const slotLogs = logsForSlot(key);
@@ -432,6 +467,11 @@ const styles = StyleSheet.create({
   calorieStatValue: { fontSize: 18, fontWeight: '700' },
   calorieStatLabel: { fontSize: 12, marginTop: 1 },
   macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
+  activityCard: { borderRadius: 18, padding: 14, marginBottom: 14 },
+  activityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  activityItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activityText: { fontSize: 14, fontWeight: '600' },
+  activityDivider: { width: 1, height: 20 },
   slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   slotHeaderLeft: { flex: 1 },
