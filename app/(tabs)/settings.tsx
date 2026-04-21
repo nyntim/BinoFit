@@ -24,8 +24,8 @@ import {
   getUserProfile,
   saveUserProfile,
   resetOnboarding,
-  getRequireMealConfirmation,
-  setRequireMealConfirmation,
+  getRequirePlanMode,
+  setRequirePlanMode,
 } from '@/lib/storage';
 import type { UserProfile } from '@/lib/types';
 
@@ -50,16 +50,16 @@ export default function SettingsScreen() {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
-  const [requireConfirmation, setRequireConfirmation] = useState(true);
+  const [planMode, setPlanMode] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const { available, writeGranted, initHealthKit } = useHealthKit();
 
   const loadData = useCallback(async () => {
-    const [goals, profile, reqConf] = await Promise.all([
+    const [goals, profile, reqPlan] = await Promise.all([
       getUserGoals(),
       getUserProfile(),
-      getRequireMealConfirmation(),
+      getRequirePlanMode(),
     ]);
     if (goals) {
       setCalories(String(goals.calorie_goal));
@@ -72,16 +72,16 @@ export default function SettingsScreen() {
       setHeight(profile.height ? String(profile.height) : '');
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
-    setRequireConfirmation(reqConf);
+    setPlanMode(reqPlan);
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  async function handleToggleConfirmation(value: boolean) {
-    setRequireConfirmation(value);
-    await setRequireMealConfirmation(value);
+  async function handleTogglePlanMode(value: boolean) {
+    setPlanMode(value);
+    await setRequirePlanMode(value);
   }
 
   async function handleSave() {
@@ -167,17 +167,17 @@ export default function SettingsScreen() {
             <View style={[styles.preferenceRow, bg]}>
               <View style={styles.preferenceInfo}>
                 <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                  Require meal confirmation
+                  Plan Mode
                 </Text>
                 <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
                   When on, only meals marked as Eaten count toward your daily totals
                 </Text>
               </View>
               <Switch
-                value={requireConfirmation}
-                onValueChange={handleToggleConfirmation}
+                value={planMode}
+                onValueChange={handleTogglePlanMode}
                 trackColor={{ false: colors.separator, true: colors.tint + '80' }}
-                thumbColor={requireConfirmation ? colors.tint : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
+                thumbColor={planMode ? colors.tint : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
               />
             </View>
           </View>
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resetBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  resetText: { fontSize: 16, fontWeight: '500' },
+  resetText: { fontSize: 16, fontWeight: '600' },
   footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
   button: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   buttonText: { fontSize: 17, fontWeight: '600' },

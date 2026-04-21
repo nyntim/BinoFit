@@ -5,7 +5,7 @@ const KEYS = {
   USER_GOALS: 'user_goals',
   USER_PROFILE: 'user_profile',
   ONBOARDING_COMPLETE: 'onboarding_complete',
-  REQUIRE_MEAL_CONFIRMATION: 'require_meal_confirmation',
+  REQUIRE_PLAN_MODE: 'require_plan_mode',
 } as const;
 
 export async function getOnboardingComplete(): Promise<boolean> {
@@ -41,12 +41,12 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'updated_at'>):
   await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(data));
 }
 
-export async function getRequireMealConfirmation(): Promise<boolean> {
-  const val = await AsyncStorage.getItem(KEYS.REQUIRE_MEAL_CONFIRMATION);
+export async function getRequirePlanMode(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(KEYS.REQUIRE_PLAN_MODE);
   if (val === null) return false;
   return val === 'true';
 }
 
-export async function setRequireMealConfirmation(value: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEYS.REQUIRE_MEAL_CONFIRMATION, String(value));
+export async function setRequirePlanMode(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.REQUIRE_PLAN_MODE, String(value));
 }
