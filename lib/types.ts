@@ -11,14 +11,24 @@ export type Food = {
   updated_at: string;
 };
 
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
 export type FoodLog = {
   id: string;
   date: string;
-  meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  meal_slot: MealSlot;
   food_id: string;
   serving_amount: number;
   serving_unit: string;
   created_at: string;
+  updated_at: string;
+};
+
+export type MealSlotConfirmation = {
+  id: string;
+  date: string;
+  meal_slot: MealSlot;
+  confirmed: boolean;
   updated_at: string;
 };
 
