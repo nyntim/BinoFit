@@ -18,7 +18,7 @@ import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getUserGoals,
-  getRequireMealConfirmation,
+  getRequirePlanMode,
 } from '@/lib/storage';
 import {
   getFoodLogsWithFoodByDate,
@@ -65,7 +65,7 @@ export default function HomeScreen() {
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
   const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
-  const [requireMealConfirmation, setRequireMealConfirmation] = useState(true);
+  const [requirePlanMode, setRequirePlanMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
 
@@ -87,13 +87,13 @@ export default function HomeScreen() {
       getUserGoals(),
       getFoodLogsWithFoodByDate(selectedDate),
       getMealSlotConfirmationsByDate(selectedDate),
-      getRequireMealConfirmation(),
+      getRequirePlanMode(),
     ])
-      .then(([userGoals, foodLogs, slotConfirmations, reqConf]) => {
+      .then(([userGoals, foodLogs, slotConfirmations, reqPlan]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
         setConfirmations(slotConfirmations);
-        setRequireMealConfirmation(reqConf);
+        setRequirePlanMode(reqPlan);
       })
       .finally(() => setLoading(false));
   }, [selectedDate]);
@@ -116,7 +116,7 @@ export default function HomeScreen() {
     return logs.reduce(
       (acc, log) => {
         const confirmed = isSlotConfirmed(log.meal_slot);
-        const shouldCount = !requireMealConfirmation || confirmed;
+        const shouldCount = !requirePlanMode || confirmed;
         if (!shouldCount) return acc;
 
         return {
@@ -128,7 +128,7 @@ export default function HomeScreen() {
       },
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
-  }, [logs, isSlotConfirmed, requireMealConfirmation]);
+  }, [logs, isSlotConfirmed, requirePlanMode]);
 
   const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
 
@@ -313,7 +313,7 @@ export default function HomeScreen() {
               const slotCals = Math.round(slotCalories(key));
               const confirmed = isSlotConfirmed(key);
               const hasLogs = slotLogs.length > 0;
-              const showToggle = hasLogs && !isPast && requireMealConfirmation;
+              const showToggle = hasLogs && !isPast && requirePlanMode;
 
               return (
                 <View
