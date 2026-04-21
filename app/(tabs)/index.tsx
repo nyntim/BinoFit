@@ -30,6 +30,7 @@ import {
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
+import { StreakBadge } from '@/components/StreakBadge';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation } from '@/lib/types';
@@ -194,9 +195,12 @@ export default function HomeScreen() {
           <Animated.View style={[styles.swipeInner, animatedStyle]}>
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
               <View style={styles.topRow}>
-                <Text style={[styles.dateLabel, { color: colors.icon }]}>
-                  {displayDate}{selectedDate === today ? '  · Today' : ''}
-                </Text>
+                <View style={styles.headerTop}>
+                  <Text style={[styles.dateLabel, { color: colors.icon }]}>
+                    {displayDate}{selectedDate === today ? '  · Today' : ''}
+                  </Text>
+                  <StreakBadge trigger={logs.length} />
+                </View>
                 <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
               </View>
 
@@ -423,7 +427,13 @@ const styles = StyleSheet.create({
   swipeInner: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
   topRow: { marginBottom: 20 },
-  dateLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dateLabel: { fontSize: 13, fontWeight: '500' },
   pageTitle: { fontSize: 28, fontWeight: '700' },
   loadingContainer: { paddingTop: 60, alignItems: 'center' },
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
