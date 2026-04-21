@@ -9,13 +9,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getUserGoals, saveUserGoals, getUserProfile, saveUserProfile, resetOnboarding } from '@/lib/storage';
+import {
+  getUserGoals,
+  saveUserGoals,
+  getUserProfile,
+  saveUserProfile,
+  resetOnboarding,
+  getRequireMealConfirmation,
+  setRequireMealConfirmation,
+} from '@/lib/storage';
 import type { UserProfile } from '@/lib/types';
 
 type ActivityLevel = NonNullable<UserProfile['activity_level']>;
@@ -39,10 +48,15 @@ export default function SettingsScreen() {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
+  const [requireConfirmation, setRequireConfirmation] = useState(true);
   const [saved, setSaved] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [goals, profile] = await Promise.all([getUserGoals(), getUserProfile()]);
+    const [goals, profile, reqConf] = await Promise.all([
+      getUserGoals(),
+      getUserProfile(),
+      getRequireMealConfirmation(),
+    ]);
     if (goals) {
       setCalories(String(goals.calorie_goal));
       setProtein(String(goals.protein_goal));
@@ -54,11 +68,17 @@ export default function SettingsScreen() {
       setHeight(profile.height ? String(profile.height) : '');
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
+    setRequireConfirmation(reqConf);
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  async function handleToggleConfirmation(value: boolean) {
+    setRequireConfirmation(value);
+    await setRequireMealConfirmation(value);
+  }
 
   async function handleSave() {
     const cal = parseInt(calories, 10);
@@ -136,6 +156,26 @@ export default function SettingsScreen() {
               keyboardType="numeric"
               placeholderTextColor={colors.icon}
             />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
+            <View style={[styles.preferenceRow, bg]}>
+              <View style={styles.preferenceInfo}>
+                <Text style={[styles.preferenceLabel, { color: colors.text }]}>
+                  Require meal confirmation
+                </Text>
+                <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
+                  When on, only meals marked as Eaten count toward your daily totals
+                </Text>
+              </View>
+              <Switch
+                value={requireConfirmation}
+                onValueChange={handleToggleConfirmation}
+                trackColor={{ false: colors.separator, true: colors.tint + '80' }}
+                thumbColor={requireConfirmation ? colors.tint : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -245,6 +285,16 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 14 },
   infoKey: { fontSize: 15 },
   infoVal: { fontSize: 15 },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  preferenceInfo: { flex: 1, marginRight: 16 },
+  preferenceLabel: { fontSize: 16, fontWeight: '500' },
+  preferenceSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
   resetBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   resetText: { fontSize: 16, fontWeight: '500' },
   footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 },
