@@ -325,16 +325,18 @@ export default function HomeScreen() {
                 <View
                   key={key}
                   style={[
-                  styles.slotCard,
-                  { backgroundColor: colors.cardBackground },
-                  hasLogs &&
-                    !displayConfirmed && {
-                      opacity: 0.7,
-                      borderWidth: 1,
-                      borderStyle: 'dashed',
-                      borderColor: colors.icon + '40',
-                    },
+                    styles.slotCard,
+                    { backgroundColor: colors.cardBackground },
+                    hasLogs &&
+                      !displayConfirmed &&
+                      requirePlanMode && {
+                        opacity: 0.7,
+                        borderWidth: 1,
+                        borderStyle: 'dashed',
+                        borderColor: colors.icon + '40',
+                      },
                   ]}
+
                   >
                   <View style={styles.slotHeader}>
                   <View style={styles.slotHeaderLeft}>
