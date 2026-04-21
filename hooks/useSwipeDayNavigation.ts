@@ -12,11 +12,11 @@ import { format, addDays, subDays, parseISO } from 'date-fns';
 import { useDate } from '@/context/DateContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const H_DISTANCE_THRESHOLD = 50;
+const H_DISTANCE_THRESHOLD = 40;
 const VELOCITY_THRESHOLD = 500;
-// Activate after 15px horizontal; fail (let scroll win) if 10px vertical comes first
+// Activate after 15px horizontal; fail (let scroll win) if 30px vertical comes first
 const ACTIVE_OFFSET_X = 15;
-const FAIL_OFFSET_Y = 10;
+const FAIL_OFFSET_Y = 30;
 
 export function useSwipeDayNavigation() {
   const { selectedDate, setSelectedDate } = useDate();
@@ -25,8 +25,10 @@ export function useSwipeDayNavigation() {
 
   function animateDay(direction: 'forward' | 'back', newDate: string) {
     isAnimating.value = true;
-    const exitX = direction === 'forward' ? -SCREEN_WIDTH : SCREEN_WIDTH;
-    const enterX = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+    // If forward (next day), view moves according to gesture or standard direction.
+    // User requested Swipe Right = Next. So exitX should be SCREEN_WIDTH.
+    const exitX = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+    const enterX = direction === 'forward' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
     translateX.value = withTiming(
       exitX,
@@ -51,18 +53,19 @@ export function useSwipeDayNavigation() {
 
   // Runs on JS thread — can safely read selectedDate closure and call animateDay
   function handleSwipeEnd(translationX: number) {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const minDate = format(subDays(new Date(), 365), 'yyyy-MM-dd');
+    const today = new Date();
+    const maxPlanningDate = format(addDays(today, 7), 'yyyy-MM-dd');
+    const minDate = format(subDays(today, 365), 'yyyy-MM-dd');
 
-    if (translationX < 0) {
-      // swipe left → forward one day
-      if (selectedDate >= today) {
+    if (translationX > 0) {
+      // swipe right → forward one day (towards future)
+      if (selectedDate >= maxPlanningDate) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         return;
       }
       animateDay('forward', format(addDays(parseISO(selectedDate), 1), 'yyyy-MM-dd'));
     } else {
-      // swipe right → back one day
+      // swipe left → back one day (towards past)
       if (selectedDate <= minDate) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         return;
