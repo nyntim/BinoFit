@@ -1,6 +1,6 @@
 // v1.1.0 - Apple Health Integration
 import { Platform } from 'react-native';
-import AppleHealthKit, { HealthValue } from 'react-native-health';
+import AppleHealthKit from 'react-native-health';
 
 export async function writeNutritionLog(
   date: string,
@@ -10,6 +10,14 @@ export async function writeNutritionLog(
   fat: number
 ): Promise<void> {
   if (Platform.OS !== 'ios') return;
+
+  // Handle both default and namespace imports for interop
+  const hk = (AppleHealthKit as any)?.default || AppleHealthKit;
+  
+  if (!hk.saveDietaryEnergyConsumed) {
+    console.warn('HealthKit save methods not available (likely running in Expo Go)');
+    return;
+  }
 
   // HealthKit requires date in ISO format.
   // Using noon local time to avoid aggregation issues.
