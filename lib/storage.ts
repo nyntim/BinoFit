@@ -43,7 +43,7 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'updated_at'>):
 
 export async function getRequireMealConfirmation(): Promise<boolean> {
   const val = await AsyncStorage.getItem(KEYS.REQUIRE_MEAL_CONFIRMATION);
-  if (val === null) return true;
+  if (val === null) return false;
   return val === 'true';
 }
 
