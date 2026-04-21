@@ -1,22 +1,26 @@
 // v1.1.0 - Apple Health Integration
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
-import AppleHealthKit, { HealthKitPermissions, HealthValue } from 'react-native-health';
+import AppleHealthKit from 'react-native-health';
+import type { HealthKitPermissions } from 'react-native-health';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HEALTH_KIT_INITIALIZED_KEY = 'healthKitInitialized';
 
+// Handle both default and namespace imports for interop
+const HK = (AppleHealthKit as any)?.default || AppleHealthKit;
+
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
     read: [
-      AppleHealthKit.Constants.Permissions.StepCount,
-      AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
+      HK.Constants?.Permissions?.StepCount,
+      HK.Constants?.Permissions?.ActiveEnergyBurned,
     ],
     write: [
-      AppleHealthKit.Constants.Permissions.EnergyConsumed,
-      AppleHealthKit.Constants.Permissions.Protein,
-      AppleHealthKit.Constants.Permissions.Carbohydrates,
-      AppleHealthKit.Constants.Permissions.FatTotal,
+      HK.Constants?.Permissions?.EnergyConsumed,
+      HK.Constants?.Permissions?.Protein,
+      HK.Constants?.Permissions?.Carbohydrates,
+      HK.Constants?.Permissions?.FatTotal,
     ],
   },
 };
@@ -32,24 +36,30 @@ export function useHealthKit() {
 
   const checkAvailability = useCallback(() => {
     if (Platform.OS !== 'ios') return;
-    AppleHealthKit.isAvailable((err, isAvailable) => {
-      if (err) return;
-      setAvailable(isAvailable);
-    });
+    if (typeof HK.isAvailable === 'function') {
+      HK.isAvailable((err: any, isAvailable: boolean) => {
+        if (err) return;
+        setAvailable(isAvailable);
+      });
+    } else {
+      setAvailable(false);
+    }
   }, []);
 
   const initHealthKit = useCallback(async () => {
     if (Platform.OS !== 'ios') return;
     
-    AppleHealthKit.initHealthKit(PERMISSIONS, (err) => {
-      if (err) {
-        console.warn('Error initializing HealthKit:', err);
-        return;
-      }
-      setReadGranted(true);
-      setWriteGranted(true);
-      AsyncStorage.setItem(HEALTH_KIT_INITIALIZED_KEY, 'true');
-    });
+    if (typeof HK.initHealthKit === 'function') {
+      HK.initHealthKit(PERMISSIONS, (err: any) => {
+        if (err) {
+          console.warn('Error initializing HealthKit:', err);
+          return;
+        }
+        setReadGranted(true);
+        setWriteGranted(true);
+        AsyncStorage.setItem(HEALTH_KIT_INITIALIZED_KEY, 'true');
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -79,17 +89,25 @@ export function useHealthKit() {
     };
 
     const getSteps = (): Promise<number> => new Promise((resolve) => {
-      AppleHealthKit.getStepCount(options, (err, results) => {
+      if (typeof HK.getStepCount !== 'function') {
+        resolve(0);
+        return;
+      }
+      HK.getStepCount(options, (err: any, results: any) => {
         if (err || !results) resolve(0);
         else resolve(results.value);
       });
     });
 
     const getActiveCalories = (): Promise<number> => new Promise((resolve) => {
-      AppleHealthKit.getActiveEnergyBurned(options, (err, results) => {
+      if (typeof HK.getActiveEnergyBurned !== 'function') {
+        resolve(0);
+        return;
+      }
+      HK.getActiveEnergyBurned(options, (err: any, results: any) => {
         if (err || !results || results.length === 0) resolve(0);
         else {
-          const total = results.reduce((acc, cur) => acc + (cur.value || 0), 0);
+          const total = results.reduce((acc: number, cur: any) => acc + (cur.value || 0), 0);
           resolve(total);
         }
       });
