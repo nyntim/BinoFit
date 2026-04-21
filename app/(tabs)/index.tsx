@@ -313,7 +313,7 @@ export default function HomeScreen() {
               const slotCals = Math.round(slotCalories(key));
               const confirmed = isSlotConfirmed(key);
               const hasLogs = slotLogs.length > 0;
-              const showToggle = hasLogs && !isPast;
+              const showToggle = hasLogs && !isPast && requireMealConfirmation;
 
               return (
                 <View
