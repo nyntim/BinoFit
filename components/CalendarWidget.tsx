@@ -27,7 +27,7 @@ export function CalendarWidget() {
   const [allLoggedDates, setAllLoggedDates] = useState<string[]>([]);
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+  const maxPlanningDate = format(addDays(new Date(), 7), 'yyyy-MM-dd');
 
   const weekStart = startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 });
   const weekStartStr = format(weekStart, 'yyyy-MM-dd');
@@ -65,12 +65,12 @@ export function CalendarWidget() {
   }, [modalVisible, loadAllDates]);
 
   const handleWeekDayPress = (dateStr: string) => {
-    if (dateStr > tomorrow) return;
+    if (dateStr > maxPlanningDate) return;
     setSelectedDate(dateStr);
   };
 
   const handleCalendarDayPress = (dateStr: string) => {
-    if (dateStr > tomorrow) return;
+    if (dateStr > maxPlanningDate) return;
     setSelectedDate(dateStr);
     setModalVisible(false);
   };
@@ -84,7 +84,7 @@ export function CalendarWidget() {
       ...(markedDates[selectedDate] as object),
       selected: true,
       selectedColor: colors.tint,
-      dotColor: '#fff',
+      dotColor: colors.background,
     };
   } else {
     markedDates[selectedDate] = { selected: true, selectedColor: colors.tint };
@@ -103,7 +103,7 @@ export function CalendarWidget() {
           const isSelected = dayStr === selectedDate;
           const isToday = dayStr === today;
           const hasDot = weekDots.has(dayStr);
-          const isFuture = dayStr > tomorrow;
+          const isFuture = dayStr > maxPlanningDate;
 
           return (
             <TouchableOpacity
@@ -127,7 +127,7 @@ export function CalendarWidget() {
               ]}>
                 <Text style={[
                   styles.dayNumber,
-                  { color: isSelected ? '#fff' : isToday ? colors.tint : colors.text },
+                  { color: isSelected ? colors.background : isToday ? colors.tint : colors.text },
                   isFuture && styles.dimmed,
                 ]}>
                   {format(dayDate, 'd')}
@@ -177,7 +177,7 @@ export function CalendarWidget() {
             </View>
             <Calendar
               current={selectedDate}
-              maxDate={tomorrow}
+              maxDate={maxPlanningDate}
               markedDates={markedDates}
               onDayPress={(day) => handleCalendarDayPress(day.dateString)}
               theme={{
@@ -187,9 +187,9 @@ export function CalendarWidget() {
                 dayTextColor: colors.text,
                 todayTextColor: colors.tint,
                 selectedDayBackgroundColor: colors.tint,
-                selectedDayTextColor: '#fff',
+                selectedDayTextColor: colors.background,
                 dotColor: colors.tint,
-                selectedDotColor: '#fff',
+                selectedDotColor: colors.background,
                 arrowColor: colors.tint,
                 monthTextColor: colors.text,
                 textDisabledColor: colors.icon + '40',
