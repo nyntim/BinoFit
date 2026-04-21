@@ -198,6 +198,20 @@ export async function getLoggedDatesInRange(startDate: string, endDate: string):
   }
 }
 
+export async function getAllLoggedDates(): Promise<string[]> {
+  try {
+    const db = await getDatabase();
+    const today = new Date().toISOString().split('T')[0];
+    const rows = await db.getAllAsync<{ date: string }>(
+      `SELECT DISTINCT date FROM food_logs WHERE date <= ? ORDER BY date DESC`,
+      [today]
+    );
+    return rows.map((r) => r.date);
+  } catch {
+    return [];
+  }
+}
+
 export async function addCustomFood(
   food: Omit<Food, 'id' | 'updated_at'>
 ): Promise<Food> {
