@@ -176,8 +176,8 @@ export default function SettingsScreen() {
               <Switch
                 value={planMode}
                 onValueChange={handleTogglePlanMode}
-                trackColor={{ false: colors.separator, true: colors.tint + '80' }}
-                thumbColor={planMode ? colors.tint : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
+                trackColor={{ false: colors.separator, true: colors.success + '80' }}
+                thumbColor={planMode ? colors.success : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
               />
             </View>
           </View>
