@@ -5,6 +5,7 @@ const KEYS = {
   USER_GOALS: 'user_goals',
   USER_PROFILE: 'user_profile',
   ONBOARDING_COMPLETE: 'onboarding_complete',
+  REQUIRE_MEAL_CONFIRMATION: 'require_meal_confirmation',
 } as const;
 
 export async function getOnboardingComplete(): Promise<boolean> {
@@ -38,4 +39,14 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 export async function saveUserProfile(profile: Omit<UserProfile, 'updated_at'>): Promise<void> {
   const data: UserProfile = { ...profile, updated_at: new Date().toISOString() };
   await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(data));
+}
+
+export async function getRequireMealConfirmation(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(KEYS.REQUIRE_MEAL_CONFIRMATION);
+  if (val === null) return false;
+  return val === 'true';
+}
+
+export async function setRequireMealConfirmation(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.REQUIRE_MEAL_CONFIRMATION, String(value));
 }
