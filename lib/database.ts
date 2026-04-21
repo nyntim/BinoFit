@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import { FOODS_SEED } from '@/assets/data/foods-seed';
-import type { Food, FoodLog, FoodLogWithFood } from '@/lib/types';
+import type { Food, FoodLog, FoodLogWithFood, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -41,8 +41,18 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       FOREIGN KEY (food_id) REFERENCES foods(id)
     );
 
+    CREATE TABLE IF NOT EXISTS meal_slot_confirmations (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      meal_slot TEXT NOT NULL,
+      confirmed INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      UNIQUE(date, meal_slot)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(date);
     CREATE INDEX IF NOT EXISTS idx_foods_name ON foods(name);
+    CREATE INDEX IF NOT EXISTS idx_meal_slot_confirmations_date ON meal_slot_confirmations(date);
   `);
 
   await seedFoods(db);
@@ -200,4 +210,47 @@ export async function addCustomFood(
     [id, food.name, food.brand ?? null, food.serving_units, food.calories, food.protein, food.carbs, food.fat, 'custom', now]
   );
   return { ...food, id, updated_at: now };
+}
+
+export async function getMealSlotConfirmationsByDate(date: string): Promise<MealSlotConfirmation[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{
+    id: string;
+    date: string;
+    meal_slot: MealSlot;
+    confirmed: number;
+    updated_at: string;
+  }>('SELECT * FROM meal_slot_confirmations WHERE date = ?', [date]);
+  return rows.map((r) => ({
+    ...r,
+    confirmed: r.confirmed === 1,
+  }));
+}
+
+export async function upsertMealSlotConfirmation(
+  date: string,
+  meal_slot: MealSlot,
+  confirmed: boolean
+): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const id = Crypto.randomUUID();
+  const confirmedInt = confirmed ? 1 : 0;
+
+  await db.runAsync(
+    `INSERT INTO meal_slot_confirmations (id, date, meal_slot, confirmed, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(date, meal_slot) DO UPDATE SET
+       confirmed = EXCLUDED.confirmed,
+       updated_at = EXCLUDED.updated_at`,
+    [id, date, meal_slot, confirmedInt, now]
+  );
+}
+
+export async function deleteMealSlotConfirmation(date: string, meal_slot: MealSlot): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM meal_slot_confirmations WHERE date = ? AND meal_slot = ?',
+    [date, meal_slot]
+  );
 }
