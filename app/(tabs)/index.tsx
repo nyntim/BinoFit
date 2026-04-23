@@ -21,6 +21,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getUserGoals,
   getRequirePlanMode,
+  getQuickAddDrinks,
+  saveQuickAddDrinks,
 } from '@/lib/storage';
 import {
   getFoodLogsWithFoodByDate,
@@ -31,6 +33,7 @@ import {
   addWaterLog,
   getWaterLogsByDate,
   deleteWaterLog,
+  searchLiquids,
 } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
@@ -39,7 +42,7 @@ import { StreakBadge } from '@/components/StreakBadge';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
-import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog } from '@/lib/types';
+import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -55,6 +58,12 @@ const DEFAULT_GOALS: UserGoals = {
   fat_goal: 65,
   updated_at: '',
 };
+
+const DEFAULT_QUICK_DRINKS: QuickAddDrink[] = [
+  { id: '1', name: '8 oz Water', amount: 8 },
+  { id: '2', name: '12 oz Coke Zero', amount: 12 },
+  { id: '3', name: '16 oz Coffee', amount: 16 },
+];
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -75,6 +84,9 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
   const [waterModalVisible, setWaterModalVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [quickAddDrinks, setQuickAddDrinks] = useState<QuickAddDrink[]>(DEFAULT_QUICK_DRINKS);
+  const [isAddingQuickAdd, setIsAddingQuickAdd] = useState(false);
 
   const { readGranted, available, fetchTodayActivity } = useHealthKit();
 
@@ -96,13 +108,15 @@ export default function HomeScreen() {
       getMealSlotConfirmationsByDate(selectedDate),
       getRequirePlanMode(),
       getWaterLogsByDate(selectedDate),
+      getQuickAddDrinks(),
     ])
-      .then(([userGoals, foodLogs, slotConfirmations, reqPlan, wLogs]) => {
+      .then(([userGoals, foodLogs, slotConfirmations, reqPlan, wLogs, storedQuickDrinks]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
         setConfirmations(slotConfirmations);
         setRequirePlanMode(reqPlan);
         setWaterLogs(wLogs);
+        if (storedQuickDrinks) setQuickAddDrinks(storedQuickDrinks);
       })
       .finally(() => setLoading(false));
   }, [selectedDate, loadActivity]);
@@ -117,7 +131,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
-  }, [selectedDate]); // Re-trigger only when date changes
+  }, [selectedDate, loadData]); // Re-trigger only when date changes
 
   const isSlotConfirmed = useCallback(
     (slot: MealSlot) => {
@@ -167,6 +181,19 @@ export default function HomeScreen() {
       console.error('Failed to add water log:', error);
       Alert.alert('Error', 'Failed to log water intake.');
     }
+  };
+
+  const handleRemoveQuickAdd = async (id: string) => {
+    const updated = quickAddDrinks.filter(d => d.id !== id);
+    setQuickAddDrinks(updated);
+    await saveQuickAddDrinks(updated);
+  };
+
+  const handleAddQuickAdd = async (drink: QuickAddDrink) => {
+    const updated = [...quickAddDrinks, drink].slice(0, 3);
+    setQuickAddDrinks(updated);
+    await saveQuickAddDrinks(updated);
+    setIsAddingQuickAdd(false);
   };
 
   const handleDeleteWaterLog = async (log: WaterLog) => {
@@ -259,7 +286,17 @@ export default function HomeScreen() {
                   </Text>
                   <StreakBadge trigger={logs.length} />
                 </View>
-                <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsEditing(!isEditing)}
+                    style={[styles.editModeBtn, { backgroundColor: isEditing ? colors.tint : colors.cardSecondary }]}
+                  >
+                    <Text style={[styles.editModeBtnText, { color: isEditing ? (colorScheme === 'dark' ? '#000' : '#fff') : colors.text }]}>
+                      {isEditing ? 'Done' : 'Edit'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
         {loading ? (
@@ -361,21 +398,24 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.quickAddRow}>
-                <QuickAddButton
-                  label="8 oz Water"
-                  onPress={() => handleAddWater(8, 'Water')}
-                  colors={colors}
-                />
-                <QuickAddButton
-                  label="12 oz Coke Zero"
-                  onPress={() => handleAddWater(12, 'Coke Zero')}
-                  colors={colors}
-                />
-                <QuickAddButton
-                  label="16 oz Coffee"
-                  onPress={() => handleAddWater(16, 'Coffee')}
-                  colors={colors}
-                />
+                {quickAddDrinks.map((drink) => (
+                  <QuickAddButton
+                    key={drink.id}
+                    label={drink.name}
+                    onPress={() => handleAddWater(drink.amount, drink.name)}
+                    colors={colors}
+                    isEditing={isEditing}
+                    onRemove={() => handleRemoveQuickAdd(drink.id)}
+                  />
+                ))}
+                {isEditing && quickAddDrinks.length < 3 && (
+                  <TouchableOpacity
+                    style={[styles.addQuickAddBtn, { backgroundColor: colors.cardSecondary, borderColor: colors.separator }]}
+                    onPress={() => setIsAddingQuickAdd(true)}
+                  >
+                    <MaterialIcons name="edit" size={18} color={colors.tint} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               {waterLogs.length > 0 && (
@@ -569,6 +609,13 @@ export default function HomeScreen() {
         onAdd={handleAddWater}
         colors={colors}
       />
+
+      <QuickAddSearchModal
+        visible={isAddingQuickAdd}
+        onClose={() => setIsAddingQuickAdd(false)}
+        onSelect={handleAddQuickAdd}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 }
@@ -596,24 +643,39 @@ function QuickAddButton({
   label,
   onPress,
   colors,
+  isEditing,
+  onRemove,
 }: {
   label: string;
   onPress: () => void;
   colors: any;
+  isEditing?: boolean;
+  onRemove?: () => void;
 }) {
+  const colorScheme = useColorScheme();
   return (
-    <TouchableOpacity
-      style={[
-        styles.quickAddBtn,
-        { backgroundColor: colors.cardSecondary, borderColor: colors.separator },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Text style={[styles.quickAddBtnText, { color: colors.text }]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <View style={styles.quickAddBtnWrapper}>
+      <TouchableOpacity
+        style={[
+          styles.quickAddBtn,
+          { backgroundColor: colors.cardSecondary, borderColor: colors.separator },
+        ]}
+        onPress={isEditing ? undefined : onPress}
+        activeOpacity={isEditing ? 1 : 0.7}
+      >
+        <Text style={[styles.quickAddBtnText, { color: colors.text }]} numberOfLines={1}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+      {isEditing && (
+        <TouchableOpacity
+          style={[styles.removeQuickAddBtn, { backgroundColor: Colors[colorScheme ?? 'light'].danger }]}
+          onPress={onRemove}
+        >
+          <MaterialIcons name="close" size={12} color="#fff" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -700,6 +762,130 @@ function CustomWaterModal({
   );
 }
 
+function QuickAddSearchModal({
+  visible,
+  onClose,
+  onSelect,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (drink: QuickAddDrink) => void;
+  colors: any;
+}) {
+  const colorScheme = useColorScheme();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Food[]>([]);
+  const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+  const [amount, setAmount] = useState('8');
+
+  useEffect(() => {
+    if (visible && query.length > 1) {
+      searchLiquids(query).then(setResults);
+    } else if (query.length <= 1) {
+      setResults([]);
+    }
+  }, [query, visible]);
+
+  const handleSelect = (food: Food) => {
+    setSelectedFood(food);
+  };
+
+  const handleConfirm = () => {
+    if (!selectedFood) return;
+    const val = parseFloat(amount);
+    if (isNaN(val) || val <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+      return;
+    }
+    onSelect({
+      id: Crypto.randomUUID(),
+      name: `${val} oz ${selectedFood.name}`,
+      amount: val,
+      food_id: selectedFood.id,
+    });
+    setQuery('');
+    setResults([]);
+    setSelectedFood(null);
+    setAmount('8');
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background, height: '80%' }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Quick-Add Drink</Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialIcons name="close" size={24} color={colors.icon} />
+            </TouchableOpacity>
+          </View>
+
+          {selectedFood ? (
+            <View style={{ gap: 20 }}>
+              <View>
+                <Text style={[styles.inputLabel, { color: colors.icon }]}>Selected Drink</Text>
+                <Text style={[styles.selectedFoodName, { color: colors.text }]}>{selectedFood.name}</Text>
+                <TouchableOpacity onPress={() => setSelectedFood(null)}>
+                  <Text style={{ color: colors.tint, marginTop: 4 }}>Change</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.icon }]}>Quick-Add Amount (oz)</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  placeholder="8"
+                  autoFocus
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.tint }]}
+                onPress={handleConfirm}
+              >
+                <Text style={[styles.modalBtnText, { color: colorScheme === 'dark' ? '#000' : '#fff', fontWeight: '700' }]}>
+                  Confirm
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search for water, coffee, soda..."
+                placeholderTextColor={colors.icon}
+                autoFocus
+              />
+
+              <ScrollView style={{ flex: 1, marginTop: 12 }}>
+                {results.map((food) => (
+                  <TouchableOpacity
+                    key={food.id}
+                    style={[styles.searchResultItem, { borderBottomColor: colors.separator }]}
+                    onPress={() => handleSelect(food)}
+                  >
+                    <Text style={[styles.resultName, { color: colors.text }]}>{food.name}</Text>
+                    {food.brand && <Text style={[styles.resultBrand, { color: colors.icon }]}>{food.brand}</Text>}
+                  </TouchableOpacity>
+                ))}
+                {query.length > 1 && results.length === 0 && (
+                  <Text style={{ textAlign: 'center', color: colors.icon, marginTop: 20 }}>No liquids found matching &quot;{query}&quot;</Text>
+                )}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   swipeOuter: { flex: 1, overflow: 'hidden' },
@@ -714,6 +900,20 @@ const styles = StyleSheet.create({
   },
   dateLabel: { fontSize: 13, fontWeight: '500' },
   pageTitle: { fontSize: 28, fontWeight: '700' },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editModeBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  editModeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   loadingContainer: { paddingTop: 60, alignItems: 'center' },
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
@@ -782,6 +982,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickAddBtnText: { fontSize: 13, fontWeight: '500' },
+  quickAddBtnWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  removeQuickAddBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  addQuickAddBtn: {
+    width: 40,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderStyle: 'dashed',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -800,6 +1029,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedFoodName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  searchResultItem: {
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  resultName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  resultBrand: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   modalBtn: {
     flex: 1,
     height: 48,
