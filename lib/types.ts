@@ -64,3 +64,10 @@ export type WaterLog = {
   drink_name: string;
   created_at: string;
 };
+
+export type QuickAddDrink = {
+  id: string;
+  name: string;
+  amount: number;
+  food_id?: string;
+};
