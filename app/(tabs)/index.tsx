@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -26,6 +28,9 @@ import {
   getMealSlotConfirmationsByDate,
   upsertMealSlotConfirmation,
   deleteMealSlotConfirmation,
+  addWaterLog,
+  getWaterLogsByDate,
+  deleteWaterLog,
 } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
@@ -34,7 +39,7 @@ import { StreakBadge } from '@/components/StreakBadge';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
-import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation } from '@/lib/types';
+import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -64,10 +69,12 @@ export default function HomeScreen() {
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
+  const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
   const [requirePlanMode, setRequirePlanMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
+  const [waterModalVisible, setWaterModalVisible] = useState(false);
 
   const { readGranted, available, fetchTodayActivity } = useHealthKit();
 
@@ -80,29 +87,37 @@ export default function HomeScreen() {
     }
   }, [selectedDate, today, readGranted, fetchTodayActivity]);
 
-  const loadData = useCallback(() => {
-    setLoading(true);
+  const loadData = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     loadActivity();
     Promise.all([
       getUserGoals(),
       getFoodLogsWithFoodByDate(selectedDate),
       getMealSlotConfirmationsByDate(selectedDate),
       getRequirePlanMode(),
+      getWaterLogsByDate(selectedDate),
     ])
-      .then(([userGoals, foodLogs, slotConfirmations, reqPlan]) => {
+      .then(([userGoals, foodLogs, slotConfirmations, reqPlan, wLogs]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
         setConfirmations(slotConfirmations);
         setRequirePlanMode(reqPlan);
+        setWaterLogs(wLogs);
       })
       .finally(() => setLoading(false));
   }, [selectedDate, loadActivity]);
 
-  useFocusEffect(loadData);
+  useFocusEffect(
+    useCallback(() => {
+      // Use silent reload if we already have some data, to avoid scroll-to-top
+      const hasData = logs.length > 0 || waterLogs.length > 0;
+      loadData(hasData);
+    }, [loadData, logs.length, waterLogs.length])
+  );
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [selectedDate]); // Re-trigger only when date changes
 
   const isSlotConfirmed = useCallback(
     (slot: MealSlot) => {
@@ -131,10 +146,38 @@ export default function HomeScreen() {
     );
   }, [logs, isSlotConfirmed, requirePlanMode]);
 
+  const waterConsumed = useMemo(() => {
+    return waterLogs.reduce((sum, log) => sum + (log.amount || 0), 0) || 0;
+  }, [waterLogs]);
+
   const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
 
   const slotCalories = (slot: MealSlot) =>
     logsForSlot(slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
+
+  const handleAddWater = async (amount: number, name: string) => {
+    try {
+      await addWaterLog({
+        date: selectedDate,
+        amount,
+        drink_name: name,
+      });
+      loadData(true);
+    } catch (error) {
+      console.error('Failed to add water log:', error);
+      Alert.alert('Error', 'Failed to log water intake.');
+    }
+  };
+
+  const handleDeleteWaterLog = async (log: WaterLog) => {
+    try {
+      await deleteWaterLog(log.id);
+      loadData(true);
+    } catch (error) {
+      console.error('Failed to delete water log:', error);
+      Alert.alert('Error', 'Failed to delete drink entry.');
+    }
+  };
 
   const handleToggleSlot = async (slot: MealSlot) => {
     const currentStatus = isSlotConfirmed(slot);
@@ -194,7 +237,7 @@ export default function HomeScreen() {
           if (remainingLogsInSlot.length === 0) {
             await deleteMealSlotConfirmation(selectedDate, log.meal_slot);
           }
-          loadData();
+          loadData(true);
         },
       },
     ]);
@@ -287,6 +330,86 @@ export default function HomeScreen() {
               />
             </View>
 
+            {/* Water Card */}
+            <View style={[styles.waterCard, { backgroundColor: colors.cardBackground }]}>
+              <View style={styles.waterHeader}>
+                <View style={styles.waterHeaderLeft}>
+                  <Text style={[styles.waterLabel, { color: colors.text }]}>Water</Text>
+                  <Text style={[styles.waterProgress, { color: colors.icon }]}>
+                    {Math.round(waterConsumed)} / 128 oz
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.addWaterBtn, { backgroundColor: colors.tint + '18' }]}
+                  onPress={() => setWaterModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="add" size={20} color={colors.tint} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.waterBarBg, { backgroundColor: colors.cardSecondary, borderColor: colors.separator }]}>
+                <View
+                  style={[
+                    styles.waterBarFill,
+                    {
+                      backgroundColor: colors.tint + '50',
+                      width: `${Math.min(100, Math.max(0, (waterConsumed / 128) * 100)) || 0}%`,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.quickAddRow}>
+                <QuickAddButton
+                  label="8 oz Water"
+                  onPress={() => handleAddWater(8, 'Water')}
+                  colors={colors}
+                />
+                <QuickAddButton
+                  label="12 oz Coke Zero"
+                  onPress={() => handleAddWater(12, 'Coke Zero')}
+                  colors={colors}
+                />
+                <QuickAddButton
+                  label="16 oz Coffee"
+                  onPress={() => handleAddWater(16, 'Coffee')}
+                  colors={colors}
+                />
+              </View>
+
+              {waterLogs.length > 0 && (
+                <View style={styles.logList}>
+                  {waterLogs.map((log) => (
+                    <TouchableOpacity
+                      key={log.id}
+                      style={[styles.logRow, { borderTopColor: colors.separator }]}
+                      onLongPress={() => handleDeleteWaterLog(log)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.logInfo}>
+                        <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
+                          {log.drink_name}
+                        </Text>
+                      </View>
+                      <View style={styles.logRight}>
+                        <Text style={[styles.logCals, { color: colors.text }]}>
+                          {log.amount}
+                        </Text>
+                        <Text style={[styles.logCalsUnit, { color: colors.icon }]}>oz</Text>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteWaterLog(log)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
             {/* Activity Row */}
             {available && readGranted && selectedDate === today && (
               <View style={[styles.activityCard, { backgroundColor: colors.cardBackground }]}>
@@ -312,7 +435,6 @@ export default function HomeScreen() {
             {MEAL_SLOTS.map(({ key, label }) => {
               const slotLogs = logsForSlot(key);
               const slotCals = Math.round(slotCalories(key));
-              const confirmed = isSlotConfirmed(key);
               const hasLogs = slotLogs.length > 0;
               const showToggle = hasLogs && !isPast && requirePlanMode;
 
@@ -440,6 +562,13 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
       </GestureDetector>
+
+      <CustomWaterModal
+        visible={waterModalVisible}
+        onClose={() => setWaterModalVisible(false)}
+        onAdd={handleAddWater}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 }
@@ -460,6 +589,114 @@ function CalorieStat({
       <Text style={[styles.calorieStatValue, { color: textColor }]}>{value.toLocaleString()}</Text>
       <Text style={[styles.calorieStatLabel, { color: subColor }]}>{label}</Text>
     </View>
+  );
+}
+
+function QuickAddButton({
+  label,
+  onPress,
+  colors,
+}: {
+  label: string;
+  onPress: () => void;
+  colors: any;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.quickAddBtn,
+        { backgroundColor: colors.cardSecondary, borderColor: colors.separator },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text style={[styles.quickAddBtnText, { color: colors.text }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function CustomWaterModal({
+  visible,
+  onClose,
+  onAdd,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onAdd: (amount: number, name: string) => void;
+  colors: any;
+}) {
+  const colorScheme = useColorScheme();
+  const [amount, setAmount] = useState('8');
+  const [name, setName] = useState('Water');
+
+  const handleAdd = () => {
+    const val = parseFloat(amount);
+    if (isNaN(val) || val <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount in oz.');
+      return;
+    }
+    onAdd(val, name || 'Water');
+    onClose();
+    setAmount('8');
+    setName('Water');
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Add Custom Drink</Text>
+          
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.icon }]}>Drink Name</Text>
+            <TextInput
+              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Water, Coffee, etc."
+              placeholderTextColor={colors.icon}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: colors.icon }]}>Amount (oz)</Text>
+            <TextInput
+              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="8"
+              placeholderTextColor={colors.icon}
+            />
+          </View>
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: colors.cardSecondary }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.modalBtnText, { color: colors.text }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: colors.tint }]}
+              onPress={handleAdd}
+            >
+              <Text
+                style={[
+                  styles.modalBtnText,
+                  { color: colorScheme === 'dark' ? '#000' : '#fff', fontWeight: '700' },
+                ]}
+              >
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -520,4 +757,55 @@ const styles = StyleSheet.create({
   logCalsUnit: { fontSize: 12, marginRight: 6 },
   emptySlot: { marginTop: 10, paddingVertical: 8, alignItems: 'center' },
   emptySlotText: { fontSize: 14 },
+  waterCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
+  waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  waterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  waterLabel: { fontSize: 16, fontWeight: '600' },
+  waterProgress: { fontSize: 16 },
+  addWaterBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waterBarBg: { height: 32, borderRadius: 10, borderWidth: 2, overflow: 'hidden' },
+  waterBarFill: { height: '100%', borderRadius: 8 },
+  quickAddRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  quickAddBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickAddBtnText: { fontSize: 13, fontWeight: '500' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: { width: '100%', borderRadius: 20, padding: 24, gap: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  inputGroup: { gap: 8 },
+  inputLabel: { fontSize: 14, fontWeight: '500' },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnText: { fontSize: 16, fontWeight: '600' },
 });
