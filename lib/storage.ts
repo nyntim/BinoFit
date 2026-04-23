@@ -6,6 +6,7 @@ const KEYS = {
   USER_PROFILE: 'user_profile',
   ONBOARDING_COMPLETE: 'onboarding_complete',
   REQUIRE_PLAN_MODE: 'require_plan_mode',
+  QUICK_ADD_DRINKS: 'quick_add_drinks',
 } as const;
 
 export async function getOnboardingComplete(): Promise<boolean> {
@@ -49,4 +50,13 @@ export async function getRequirePlanMode(): Promise<boolean> {
 
 export async function setRequirePlanMode(value: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.REQUIRE_PLAN_MODE, String(value));
+}
+
+export async function getQuickAddDrinks(): Promise<any[] | null> {
+  const val = await AsyncStorage.getItem(KEYS.QUICK_ADD_DRINKS);
+  return val ? JSON.parse(val) : null;
+}
+
+export async function saveQuickAddDrinks(drinks: any[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.QUICK_ADD_DRINKS, JSON.stringify(drinks));
 }
