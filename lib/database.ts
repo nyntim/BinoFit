@@ -103,6 +103,26 @@ export async function searchFoods(query: string): Promise<Food[]> {
   );
 }
 
+export async function searchLiquids(query: string): Promise<Food[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<Food>(
+    `SELECT * FROM foods 
+     WHERE (name LIKE ? OR brand LIKE ?)
+     AND (serving_units LIKE '%ml%' 
+          OR serving_units LIKE '%fl oz%' 
+          OR serving_units LIKE '%cup%' 
+          OR serving_units LIKE '%oz%' 
+          OR name LIKE '%Water%'
+          OR name LIKE '%Coffee%'
+          OR name LIKE '%Milk%'
+          OR name LIKE '%Soda%'
+          OR name LIKE '%Drink%'
+          OR name LIKE '%Juice%')
+     ORDER BY name LIMIT 50`,
+    [`%${query}%`, `%${query}%`]
+  );
+}
+
 export async function addFoodLog(
   entry: Omit<FoodLog, 'id' | 'created_at' | 'updated_at'>
 ): Promise<FoodLog> {
