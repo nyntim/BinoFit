@@ -56,3 +56,11 @@ export type FoodLogWithFood = FoodLog & {
   food_fat: number;
   food_serving_units: string;
 };
+
+export type WaterLog = {
+  id: string;
+  date: string;
+  amount: number;
+  drink_name: string;
+  created_at: string;
+};
