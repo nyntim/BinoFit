@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import { FOODS_SEED } from '@/assets/data/foods-seed';
-import type { Food, FoodLog, FoodLogWithFood, MealSlot, MealSlotConfirmation } from '@/lib/types';
+import type { Food, FoodLog, FoodLogWithFood, MealSlot, MealSlotConfirmation, WaterLog } from '@/lib/types';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -50,9 +50,18 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       UNIQUE(date, meal_slot)
     );
 
+    CREATE TABLE IF NOT EXISTS water_logs (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      drink_name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(date);
     CREATE INDEX IF NOT EXISTS idx_foods_name ON foods(name);
     CREATE INDEX IF NOT EXISTS idx_meal_slot_confirmations_date ON meal_slot_confirmations(date);
+    CREATE INDEX IF NOT EXISTS idx_water_logs_date ON water_logs(date);
   `);
 
   await seedFoods(db);
@@ -267,4 +276,31 @@ export async function deleteMealSlotConfirmation(date: string, meal_slot: MealSl
     'DELETE FROM meal_slot_confirmations WHERE date = ? AND meal_slot = ?',
     [date, meal_slot]
   );
+}
+
+export async function addWaterLog(
+  entry: Omit<WaterLog, 'id' | 'created_at'>
+): Promise<WaterLog> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const id = Crypto.randomUUID();
+  await db.runAsync(
+    `INSERT INTO water_logs (id, date, amount, drink_name, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [id, entry.date, entry.amount, entry.drink_name, now]
+  );
+  return { ...entry, id, created_at: now };
+}
+
+export async function getWaterLogsByDate(date: string): Promise<WaterLog[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<WaterLog>(
+    'SELECT * FROM water_logs WHERE date = ? ORDER BY created_at',
+    [date]
+  );
+}
+
+export async function deleteWaterLog(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM water_logs WHERE id = ?', [id]);
 }
