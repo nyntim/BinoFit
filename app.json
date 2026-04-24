@@ -16,7 +16,8 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "Used to read your activity data",
         "NSHealthUpdateUsageDescription": "Used to save your nutrition data"
-      }
+      },
+      "bundleIdentifier": "com.nyn.tim.binofit"
     },
     "android": {
       "adaptiveIcon": {
