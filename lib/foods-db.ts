@@ -18,7 +18,6 @@ type USDARow = {
 async function getFoodsDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_foodsDb) return _foodsDb;
   _foodsDb = await SQLite.openDatabaseAsync('foods.db', {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     assetSource: require('@/assets/data/foods.db'),
   });
   return _foodsDb;
@@ -44,6 +43,20 @@ function mapUSDARow(row: USDARow): Food {
     source: 'usda_sr_legacy',
     updated_at: row.updated_at,
   };
+}
+
+export async function getUSDAFoodById(id: string): Promise<Food | null> {
+  try {
+    const db = await getFoodsDatabase();
+    const row = await db.getFirstAsync<USDARow>(
+      `SELECT id, name, serving_size, serving_unit, calories, protein, carbs, fat, updated_at
+       FROM foods WHERE id = ?`,
+      [id]
+    );
+    return row ? mapUSDARow(row) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function searchUSDAFoods(query: string): Promise<Food[]> {
