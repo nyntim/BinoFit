@@ -1,4 +1,4 @@
-import { searchFoods, cacheRemoteFood } from '@/lib/database';
+import { getDatabase, searchFoods, cacheRemoteFood } from '@/lib/database';
 import { searchUSDAFoods } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
@@ -30,6 +30,7 @@ export async function searchLocal(query: string): Promise<Food[]> {
 
 /**
  * Query Supabase for branded foods, excluding any IDs already in local results.
+ * Uses strict column selection to minimize egress and background caches results.
  */
 export async function searchBranded(
   query: string,
@@ -38,16 +39,38 @@ export async function searchBranded(
   const trimmed = query.trim();
   if (trimmed.length < MIN_BRANDED_QUERY_LENGTH) return [];
 
-  const { data, error } = await supabase
-    .from('foods')
-    .select('*')
-    .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
-    .limit(BRANDED_LIMIT);
+  try {
+    let queryBuilder = supabase
+      .from('foods')
+      .select('id, name, brand, calories, protein, carbs, fat, serving_units')
+      .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
+      .limit(BRANDED_LIMIT);
 
-  if (error || !data) return [];
+    if (excludeIds.length > 0) {
+      queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
 
-  const exclude = new Set(excludeIds);
-  return (data as Food[]).filter((f) => !exclude.has(f.id));
+    const { data, error } = await queryBuilder;
+
+    if (error || !data) return [];
+
+    const branded = data as Food[];
+
+    // Background caching of partial results to speed up future local searches
+    Promise.all(
+      branded.map((food) =>
+        cacheRemoteFood({
+          ...food,
+          source: 'branded',
+          updated_at: new Date().toISOString(),
+        }).catch(() => {})
+      )
+    );
+
+    return branded;
+  } catch {
+    return []; // Silent failure
+  }
 }
 
 /**
@@ -63,17 +86,40 @@ export function shouldAutoFetchBranded(localCount: number): boolean {
  * Use when the user taps a branded result that hasn't been cached yet.
  */
 export async function getFullBrandedFood(id: string): Promise<Food | null> {
-  const { data, error } = await supabase
-    .from('foods')
-    .select('*')
-    .eq('id', id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (error || !data) return null;
+    if (error || !data) return null;
 
-  const food = data as Food;
-  await cacheRemoteFood(food).catch(() => {});
-  return food;
+    const fullFood = data as Food;
+
+    // Cache/Overwrite with complete row using REPLACE logic for full profile
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        fullFood.id,
+        fullFood.name,
+        fullFood.brand,
+        fullFood.serving_units,
+        fullFood.calories,
+        fullFood.protein,
+        fullFood.carbs,
+        fullFood.fat,
+        fullFood.source || 'branded',
+        fullFood.updated_at || new Date().toISOString(),
+      ]
+    );
+
+    return fullFood;
+  } catch {
+    return null; // Silent failure
+  }
 }
 
 /**

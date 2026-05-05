@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getRecentFoods, getFrequentFoods, cacheRemoteFood } from '@/lib/database';
+import { getRecentFoods, getFrequentFoods } from '@/lib/database';
 import {
   searchLocal,
   searchBranded,
@@ -43,6 +43,7 @@ export default function FoodSearchScreen() {
   const [localLoading, setLocalLoading] = useState(false);
   const [brandedLoading, setBrandedLoading] = useState(false);
   const [brandedRequested, setBrandedRequested] = useState(false);
+  const [selecting, setSelecting] = useState(false);
 
   const searchIdRef = useRef(0);
 
@@ -109,17 +110,19 @@ export default function FoodSearchScreen() {
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
   const selectFood = async (food: Food) => {
-    if (food.source === 'branded' || (!food.source?.startsWith('usda') && !food.source?.startsWith('custom') && food.brand)) {
-      const cached = await getFullBrandedFood(food.id);
-      if (cached) {
-        await cacheRemoteFood(cached);
+    if (selecting) return;
+    setSelecting(true);
+    try {
+      if (food.source === 'branded' || (!food.source?.startsWith('usda') && !food.source?.startsWith('custom') && food.brand)) {
+        await getFullBrandedFood(food.id);
       }
+      router.replace({
+        pathname: '/serving-picker' as any,
+        params: { food_id: food.id, meal_slot, date },
+      });
+    } finally {
+      setSelecting(false);
     }
-    router.replace({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pathname: '/serving-picker' as any,
-      params: { food_id: food.id, meal_slot, date },
-    });
   };
 
   const renderFood = (food: Food) => (
@@ -128,6 +131,7 @@ export default function FoodSearchScreen() {
       style={[styles.foodItem, { borderBottomColor: colors.separator }]}
       onPress={() => selectFood(food)}
       activeOpacity={0.7}
+      disabled={selecting}
     >
       <View style={styles.foodInfo}>
         <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
@@ -179,7 +183,9 @@ export default function FoodSearchScreen() {
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        {localLoading && <ActivityIndicator size="small" color={colors.tint} />}
+        {(localLoading || brandedLoading || selecting) && (
+          <ActivityIndicator size="small" color={colors.tint} />
+        )}
       </View>
 
       {showSuggestions ? (
@@ -205,7 +211,6 @@ export default function FoodSearchScreen() {
             style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
             onPress={() =>
               router.replace({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pathname: '/custom-food' as any,
                 params: { meal_slot, date },
               })
@@ -256,9 +261,10 @@ export default function FoodSearchScreen() {
               style={[styles.loadBrandedBtn, { borderColor: colors.tint + '50' }]}
               onPress={handleLoadBranded}
               activeOpacity={0.7}
+              disabled={brandedLoading}
             >
               <Text style={[styles.loadBrandedText, { color: colors.tint }]}>
-                Load branded foods
+                {brandedLoading ? 'Loading branded foods...' : 'Load branded foods'}
               </Text>
             </TouchableOpacity>
           )}
@@ -268,7 +274,6 @@ export default function FoodSearchScreen() {
             style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
             onPress={() =>
               router.replace({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pathname: '/custom-food' as any,
                 params: { meal_slot, date },
               })
