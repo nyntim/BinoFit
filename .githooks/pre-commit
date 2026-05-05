@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# Auto-bump patch version on every commit.
+# Skipped when SKIP_VERSION_BUMP=1 (e.g. merge commits, CI).
+set -e
+
+if [ "${SKIP_VERSION_BUMP:-0}" = "1" ]; then
+  exit 0
+fi
+
+npm version patch --no-git-tag-version --no-commit-hooks > /dev/null
+git add package.json package-lock.json
