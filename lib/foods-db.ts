@@ -24,7 +24,7 @@ async function getFoodsDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_foodsDb) return _foodsDb;
 
   if (!_imported) {
-    await importDatabaseFromAssetAsync(FOODS_DB_NAME, { assetId: ASSET_ID });
+    await importDatabaseFromAssetAsync(FOODS_DB_NAME, { assetId: ASSET_ID, forceOverwrite: true });
     _imported = true;
   }
 

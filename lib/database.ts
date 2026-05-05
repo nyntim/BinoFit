@@ -1,6 +1,5 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
-import { FOODS_SEED } from '@/assets/data/foods-seed';
 import type { Food, FoodLog, FoodLogWithFood, MealSlot, MealSlotConfirmation, WaterLog } from '@/lib/types';
 
 let _db: SQLite.SQLiteDatabase | null = null;
@@ -69,36 +68,6 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     ALTER TABLE food_logs ADD COLUMN synced_at TEXT;
   `).catch(() => {
     // Column already exists — safe to ignore
-  });
-
-  await seedFoods(db);
-}
-
-async function seedFoods(db: SQLite.SQLiteDatabase): Promise<void> {
-  const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM foods');
-  if (row && row.count > 0) return;
-
-  const now = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
-    for (const food of FOODS_SEED) {
-      await db.runAsync(
-        `INSERT OR IGNORE INTO foods
-          (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          Crypto.randomUUID(),
-          food.name,
-          food.brand ?? null,
-          food.serving_units,
-          food.calories,
-          food.protein,
-          food.carbs,
-          food.fat,
-          food.source ?? null,
-          now,
-        ]
-      );
-    }
   });
 }
 
