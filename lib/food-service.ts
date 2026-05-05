@@ -1,21 +1,31 @@
-import { searchFoods } from '@/lib/database';
-import { cacheRemoteFood } from '@/lib/database';
+import { searchFoods, cacheRemoteFood } from '@/lib/database';
+import { searchUSDAFoods } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
 
 const MIN_REMOTE_QUERY_LENGTH = 4;
 
+function dedup(existing: Food[], additions: Food[]): Food[] {
+  const ids = new Set(existing.map((f) => f.id));
+  return additions.filter((f) => !ids.has(f.id));
+}
+
 /**
- * Search foods locally first. Falls back to Supabase only when local returns
- * zero results and the query is at least 4 characters. Any remote results are
- * cached into local SQLite so the next search is free.
+ * Three-tier search: user-local DB → bundled USDA dataset → Supabase remote.
+ * Each tier only fires when previous tiers returned nothing.
+ * Remote results are cached locally so subsequent searches are instant.
  */
 export async function searchFoodsWithFallback(query: string): Promise<Food[]> {
-  const localResults = await searchFoods(query);
+  const trimmed = query.trim();
+  if (!trimmed) return [];
 
-  if (localResults.length > 0 || query.trim().length < MIN_REMOTE_QUERY_LENGTH) {
-    return localResults;
-  }
+  const localResults = await searchFoods(trimmed);
+  if (localResults.length > 0) return localResults;
+
+  const usdaResults = await searchUSDAFoods(trimmed);
+  if (usdaResults.length > 0) return usdaResults;
+
+  if (trimmed.length < MIN_REMOTE_QUERY_LENGTH) return [];
 
   const { data, error } = await supabase
     .from('foods')
@@ -23,21 +33,13 @@ export async function searchFoodsWithFallback(query: string): Promise<Food[]> {
     .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
     .limit(20);
 
-  if (error || !data) return localResults;
+  if (error || !data) return [];
 
   const remoteResults = data as Food[];
 
-  // Cache each new remote food locally (INSERT OR IGNORE so existing rows are not overwritten)
   await Promise.all(remoteResults.map((food) => cacheRemoteFood(food).catch(() => {})));
 
-  // Deduplicate by id against local results (which may be empty here, but keeps it safe)
-  const localIds = new Set(localResults.map((f) => f.id));
-  const merged = [
-    ...localResults,
-    ...remoteResults.filter((f) => !localIds.has(f.id)),
-  ];
-
-  return merged;
+  return dedup(localResults, remoteResults);
 }
 
 /**
