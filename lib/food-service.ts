@@ -3,43 +3,77 @@ import { searchUSDAFoods } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
 
-const MIN_REMOTE_QUERY_LENGTH = 4;
+const MIN_BRANDED_QUERY_LENGTH = 3;
+const BRANDED_LIMIT = 8;
+const AUTO_FETCH_THRESHOLD = 8;
 
-function dedup(existing: Food[], additions: Food[]): Food[] {
-  const ids = new Set(existing.map((f) => f.id));
-  return additions.filter((f) => !ids.has(f.id));
+function dedup(primary: Food[], secondary: Food[]): Food[] {
+  const ids = new Set(primary.map((f) => f.id));
+  return secondary.filter((f) => !ids.has(f.id));
 }
 
 /**
- * Three-tier search: user-local DB → bundled USDA dataset → Supabase remote.
- * Each tier only fires when previous tiers returned nothing.
- * Remote results are cached locally so subsequent searches are instant.
+ * Run fitness.db + foods.db searches in parallel and merge results.
+ * fitness.db results take priority (user's own foods first).
  */
-export async function searchFoodsWithFallback(query: string): Promise<Food[]> {
+export async function searchLocal(query: string): Promise<Food[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const localResults = await searchFoods(trimmed);
-  if (localResults.length > 0) return localResults;
+  const [userFoods, usdaFoods] = await Promise.all([
+    searchFoods(trimmed),
+    searchUSDAFoods(trimmed),
+  ]);
 
-  const usdaResults = await searchUSDAFoods(trimmed);
-  if (usdaResults.length > 0) return usdaResults;
+  return [...userFoods, ...dedup(userFoods, usdaFoods)];
+}
 
-  if (trimmed.length < MIN_REMOTE_QUERY_LENGTH) return [];
+/**
+ * Query Supabase for branded foods, excluding any IDs already in local results.
+ */
+export async function searchBranded(
+  query: string,
+  excludeIds: string[] = []
+): Promise<Food[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < MIN_BRANDED_QUERY_LENGTH) return [];
 
   const { data, error } = await supabase
     .from('foods')
     .select('*')
-    .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
-    .limit(20);
+    .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
+    .limit(BRANDED_LIMIT);
 
   if (error || !data) return [];
 
-  const remoteResults = data as Food[];
+  const exclude = new Set(excludeIds);
+  return (data as Food[]).filter((f) => !exclude.has(f.id));
+}
 
-  await Promise.all(remoteResults.map((food) => cacheRemoteFood(food).catch(() => {})));
+/**
+ * Whether the UI should automatically fetch branded results
+ * (only when local results are sparse).
+ */
+export function shouldAutoFetchBranded(localCount: number): boolean {
+  return localCount < AUTO_FETCH_THRESHOLD;
+}
 
-  return dedup(localResults, remoteResults);
+/**
+ * Fetch full food profile from Supabase by ID and cache it locally.
+ * Use when the user taps a branded result that hasn't been cached yet.
+ */
+export async function getFullBrandedFood(id: string): Promise<Food | null> {
+  const { data, error } = await supabase
+    .from('foods')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+
+  const food = data as Food;
+  await cacheRemoteFood(food).catch(() => {});
+  return food;
 }
 
 /**
