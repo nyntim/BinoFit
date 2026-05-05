@@ -117,7 +117,6 @@ export default function FoodSearchScreen() {
         await getFullBrandedFood(food.id);
       }
       router.replace({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pathname: '/serving-picker' as any,
         params: { food_id: food.id, meal_slot, date },
       });
@@ -212,7 +211,6 @@ export default function FoodSearchScreen() {
             style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
             onPress={() =>
               router.replace({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pathname: '/custom-food' as any,
                 params: { meal_slot, date },
               })
@@ -276,7 +274,6 @@ export default function FoodSearchScreen() {
             style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
             onPress={() =>
               router.replace({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pathname: '/custom-food' as any,
                 params: { meal_slot, date },
               })
