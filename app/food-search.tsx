@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -14,8 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getRecentFoods, getFrequentFoods } from '@/lib/database';
-import { searchFoodsWithFallback } from '@/lib/food-service';
+import { getRecentFoods, getFrequentFoods, cacheRemoteFood } from '@/lib/database';
+import {
+  searchLocal,
+  searchBranded,
+  shouldAutoFetchBranded,
+  getFullBrandedFood,
+} from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
 const SLOT_LABELS: Record<string, string> = {
@@ -32,10 +36,15 @@ export default function FoodSearchScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Food[]>([]);
+  const [localResults, setLocalResults] = useState<Food[]>([]);
+  const [brandedResults, setBrandedResults] = useState<Food[]>([]);
   const [recentFoods, setRecentFoods] = useState<Food[]>([]);
   const [frequentFoods, setFrequentFoods] = useState<Food[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [brandedLoading, setBrandedLoading] = useState(false);
+  const [brandedRequested, setBrandedRequested] = useState(false);
+
+  const searchIdRef = useRef(0);
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -44,24 +53,68 @@ export default function FoodSearchScreen() {
     });
   }, []);
 
+  const fetchBranded = useCallback(
+    async (q: string, excludeIds: string[], id: number) => {
+      setBrandedLoading(true);
+      try {
+        const branded = await searchBranded(q, excludeIds);
+        if (id === searchIdRef.current) {
+          setBrandedResults(branded);
+        }
+      } finally {
+        if (id === searchIdRef.current) {
+          setBrandedLoading(false);
+        }
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setLocalResults([]);
+      setBrandedResults([]);
+      setBrandedRequested(false);
       return;
     }
-    setLoading(true);
-    const timer = setTimeout(() => {
-      searchFoodsWithFallback(query).then((foods) => {
-        setResults(foods);
-        setLoading(false);
-      });
+
+    setLocalLoading(true);
+    setBrandedResults([]);
+    setBrandedRequested(false);
+
+    const id = ++searchIdRef.current;
+
+    const timer = setTimeout(async () => {
+      const local = await searchLocal(trimmed);
+      if (id !== searchIdRef.current) return;
+
+      setLocalResults(local);
+      setLocalLoading(false);
+
+      if (shouldAutoFetchBranded(local.length)) {
+        setBrandedRequested(true);
+        fetchBranded(trimmed, local.map((f) => f.id), id);
+      }
     }, 200);
+
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, fetchBranded]);
+
+  const handleLoadBranded = () => {
+    setBrandedRequested(true);
+    fetchBranded(query, localResults.map((f) => f.id), searchIdRef.current);
+  };
 
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
-  const selectFood = (food: Food) => {
+  const selectFood = async (food: Food) => {
+    if (food.source === 'branded' || (!food.source?.startsWith('usda') && !food.source?.startsWith('custom') && food.brand)) {
+      const cached = await getFullBrandedFood(food.id);
+      if (cached) {
+        await cacheRemoteFood(cached);
+      }
+    }
     router.replace({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: '/serving-picker' as any,
@@ -98,6 +151,11 @@ export default function FoodSearchScreen() {
   );
 
   const showSuggestions = !query.trim();
+  const showBrandedButton =
+    !showSuggestions &&
+    !brandedRequested &&
+    localResults.length >= 8 &&
+    query.trim().length >= 3;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -121,7 +179,7 @@ export default function FoodSearchScreen() {
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        {loading && <ActivityIndicator size="small" color={colors.tint} />}
+        {localLoading && <ActivityIndicator size="small" color={colors.tint} />}
       </View>
 
       {showSuggestions ? (
@@ -158,19 +216,68 @@ export default function FoodSearchScreen() {
           </TouchableOpacity>
         </ScrollView>
       ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => renderFood(item)}
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No results for &quot;{query}&quot;
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.resultsScroll}>
+          {/* Local results */}
+          {localResults.map(renderFood)}
+
+          {localResults.length === 0 && !localLoading && (
+            <Text style={[styles.emptyText, { color: colors.icon }]}>
+              No local results for &quot;{query}&quot;
+            </Text>
+          )}
+
+          {/* Branded section */}
+          {brandedRequested && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+              <Text style={[styles.sectionTitle, { color: colors.icon }]}>BRANDED</Text>
+
+              {brandedLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.tint}
+                  style={styles.brandedSpinner}
+                />
+              )}
+
+              {!brandedLoading && brandedResults.length === 0 && (
+                <Text style={[styles.emptyHint, { color: colors.icon }]}>
+                  No branded results found
+                </Text>
+              )}
+
+              {brandedResults.map(renderFood)}
+            </>
+          )}
+
+          {/* Load branded button */}
+          {showBrandedButton && (
+            <TouchableOpacity
+              style={[styles.loadBrandedBtn, { borderColor: colors.tint + '50' }]}
+              onPress={handleLoadBranded}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.loadBrandedText, { color: colors.tint }]}>
+                Load branded foods
               </Text>
-            ) : null
-          }
-        />
+            </TouchableOpacity>
+          )}
+
+          {/* Create custom */}
+          <TouchableOpacity
+            style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
+            onPress={() =>
+              router.replace({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                pathname: '/custom-food' as any,
+                params: { meal_slot, date },
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
+          </TouchableOpacity>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -207,6 +314,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 6,
   },
+  resultsScroll: { paddingBottom: 40 },
   foodItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,9 +329,21 @@ const styles = StyleSheet.create({
   macroChips: { alignItems: 'flex-end', gap: 2 },
   chip: { fontSize: 11, fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 48, fontSize: 15 },
+  emptyHint: { textAlign: 'center', paddingVertical: 12, fontSize: 14 },
+  divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16, marginTop: 8 },
+  brandedSpinner: { paddingVertical: 16 },
+  loadBrandedBtn: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  loadBrandedText: { fontSize: 14, fontWeight: '500' },
   createFoodBtn: {
     marginHorizontal: 16,
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 32,
     borderWidth: 1,
     borderRadius: 12,
