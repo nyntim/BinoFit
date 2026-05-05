@@ -14,7 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { searchFoods, getRecentFoods, getFrequentFoods } from '@/lib/database';
+import { getRecentFoods, getFrequentFoods } from '@/lib/database';
+import { searchFoodsWithFallback } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
 const SLOT_LABELS: Record<string, string> = {
@@ -50,7 +51,7 @@ export default function FoodSearchScreen() {
     }
     setLoading(true);
     const timer = setTimeout(() => {
-      searchFoods(query).then((foods) => {
+      searchFoodsWithFallback(query).then((foods) => {
         setResults(foods);
         setLoading(false);
       });
