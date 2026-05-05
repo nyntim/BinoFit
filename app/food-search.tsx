@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -15,7 +14,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
-import { searchFoodsWithFallback, fetchBrandedFoods, fetchFullFoodProfile, type SearchResults } from '@/lib/food-service';
+import {
+  searchLocal,
+  searchBranded,
+  shouldAutoFetchBranded,
+  getFullBrandedFood,
+} from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
 const SLOT_LABELS: Record<string, string> = {
@@ -32,11 +36,16 @@ export default function FoodSearchScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResults>({ local: [], branded: [], shouldAutoFetch: false });
+  const [localResults, setLocalResults] = useState<Food[]>([]);
+  const [brandedResults, setBrandedResults] = useState<Food[]>([]);
   const [recentFoods, setRecentFoods] = useState<Food[]>([]);
   const [frequentFoods, setFrequentFoods] = useState<Food[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchingBranded, setFetchingBranded] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [brandedLoading, setBrandedLoading] = useState(false);
+  const [brandedRequested, setBrandedRequested] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+
+  const searchIdRef = useRef(0);
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -45,46 +54,76 @@ export default function FoodSearchScreen() {
     });
   }, []);
 
+  const fetchBranded = useCallback(
+    async (q: string, excludeIds: string[], id: number) => {
+      setBrandedLoading(true);
+      try {
+        const branded = await searchBranded(q, excludeIds);
+        if (id === searchIdRef.current) {
+          setBrandedResults(branded);
+        }
+      } finally {
+        if (id === searchIdRef.current) {
+          setBrandedLoading(false);
+        }
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    if (!query.trim()) {
-      setResults({ local: [], branded: [], shouldAutoFetch: false });
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setLocalResults([]);
+      setBrandedResults([]);
+      setBrandedRequested(false);
       return;
     }
-    setLoading(true);
-    const timer = setTimeout(() => {
-      searchFoodsWithFallback(query).then((res) => {
-        setResults(res);
-        setLoading(false);
-      });
+
+    setLocalLoading(true);
+    setBrandedResults([]);
+    setBrandedRequested(false);
+
+    const id = ++searchIdRef.current;
+
+    const timer = setTimeout(async () => {
+      const local = await searchLocal(trimmed);
+      if (id !== searchIdRef.current) return;
+
+      setLocalResults(local);
+      setLocalLoading(false);
+
+      if (shouldAutoFetchBranded(local.length)) {
+        setBrandedRequested(true);
+        fetchBranded(trimmed, local.map((f) => f.id), id);
+      }
     }, 200);
+
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, fetchBranded]);
+
+  const handleLoadBranded = () => {
+    setBrandedRequested(true);
+    fetchBranded(query, localResults.map((f) => f.id), searchIdRef.current);
+  };
 
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
-  const handleLoadBranded = async () => {
-    if (fetchingBranded) return;
-    setFetchingBranded(true);
-    const branded = await fetchBrandedFoods(query, results.local.map(f => f.id));
-    setResults(prev => ({
-      ...prev,
-      branded,
-      shouldAutoFetch: false
-    }));
-    setFetchingBranded(false);
-  };
-
   const selectFood = async (food: Food) => {
-    setLoading(true);
-    if (food.source === 'branded') {
-      await fetchFullFoodProfile(food.id);
+    if (selecting) return;
+    setSelecting(true);
+    try {
+      if (food.source === 'branded' || (!food.source?.startsWith('usda') && !food.source?.startsWith('custom') && food.brand)) {
+        await getFullBrandedFood(food.id);
+      }
+      router.replace({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pathname: '/serving-picker' as any,
+        params: { food_id: food.id, meal_slot, date },
+      });
+    } finally {
+      setSelecting(false);
     }
-    setLoading(false);
-    router.replace({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pathname: '/serving-picker' as any,
-      params: { food_id: food.id, meal_slot, date },
-    });
   };
 
   const renderFood = (food: Food) => (
@@ -93,6 +132,7 @@ export default function FoodSearchScreen() {
       style={[styles.foodItem, { borderBottomColor: colors.separator }]}
       onPress={() => selectFood(food)}
       activeOpacity={0.7}
+      disabled={selecting}
     >
       <View style={styles.foodInfo}>
         <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
@@ -116,7 +156,11 @@ export default function FoodSearchScreen() {
   );
 
   const showSuggestions = !query.trim();
-  const allResults = [...results.local, ...results.branded];
+  const showBrandedButton =
+    !showSuggestions &&
+    !brandedRequested &&
+    localResults.length >= 8 &&
+    query.trim().length >= 3;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -140,7 +184,9 @@ export default function FoodSearchScreen() {
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        {(loading || fetchingBranded) && <ActivityIndicator size="small" color={colors.tint} />}
+        {(localLoading || brandedLoading || selecting) && (
+          <ActivityIndicator size="small" color={colors.tint} />
+        )}
       </View>
 
       {showSuggestions ? (
@@ -177,47 +223,69 @@ export default function FoodSearchScreen() {
           </TouchableOpacity>
         </ScrollView>
       ) : (
-        <FlatList
-          data={allResults}
-          keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => renderFood(item)}
-          ListFooterComponent={() => (
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.resultsScroll}>
+          {/* Local results */}
+          {localResults.map(renderFood)}
+
+          {localResults.length === 0 && !localLoading && (
+            <Text style={[styles.emptyText, { color: colors.icon }]}>
+              No local results for &quot;{query}&quot;
+            </Text>
+          )}
+
+          {/* Branded section */}
+          {brandedRequested && (
             <>
-              {results.shouldAutoFetch && (
-                <TouchableOpacity 
-                  style={styles.loadMoreBtn} 
-                  onPress={handleLoadBranded}
-                  disabled={fetchingBranded}
-                >
-                  <Text style={[styles.loadMoreText, { color: colors.tint }]}>
-                    {fetchingBranded ? 'Searching branded foods...' : 'Search branded foods'}
-                  </Text>
-                </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+              <Text style={[styles.sectionTitle, { color: colors.icon }]}>BRANDED</Text>
+
+              {brandedLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.tint}
+                  style={styles.brandedSpinner}
+                />
               )}
-              <TouchableOpacity
-                style={[styles.createFoodBtn, { borderColor: colors.tint + '50', marginTop: 16 }]}
-                onPress={() =>
-                  router.replace({
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    pathname: '/custom-food' as any,
-                    params: { meal_slot, date },
-                  })
-                }
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
-              </TouchableOpacity>
+
+              {!brandedLoading && brandedResults.length === 0 && (
+                <Text style={[styles.emptyHint, { color: colors.icon }]}>
+                  No branded results found
+                </Text>
+              )}
+
+              {brandedResults.map(renderFood)}
             </>
           )}
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No results for &quot;{query}&quot;
+
+          {/* Load branded button */}
+          {showBrandedButton && (
+            <TouchableOpacity
+              style={[styles.loadBrandedBtn, { borderColor: colors.tint + '50' }]}
+              onPress={handleLoadBranded}
+              activeOpacity={0.7}
+              disabled={brandedLoading}
+            >
+              <Text style={[styles.loadBrandedText, { color: colors.tint }]}>
+                {brandedLoading ? 'Loading branded foods...' : 'Load branded foods'}
               </Text>
-            ) : null
-          }
-        />
+            </TouchableOpacity>
+          )}
+
+          {/* Create custom */}
+          <TouchableOpacity
+            style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
+            onPress={() =>
+              router.replace({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                pathname: '/custom-food' as any,
+                params: { meal_slot, date },
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
+          </TouchableOpacity>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -254,6 +322,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 6,
   },
+  resultsScroll: { paddingBottom: 40 },
   foodItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,9 +337,21 @@ const styles = StyleSheet.create({
   macroChips: { alignItems: 'flex-end', gap: 2 },
   chip: { fontSize: 11, fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 48, fontSize: 15 },
+  emptyHint: { textAlign: 'center', paddingVertical: 12, fontSize: 14 },
+  divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16, marginTop: 8 },
+  brandedSpinner: { paddingVertical: 16 },
+  loadBrandedBtn: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  loadBrandedText: { fontSize: 14, fontWeight: '500' },
   createFoodBtn: {
     marginHorizontal: 16,
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 32,
     borderWidth: 1,
     borderRadius: 12,
@@ -279,13 +360,4 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   createFoodText: { fontSize: 15, fontWeight: '500' },
-  loadMoreBtn: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginHorizontal: 16,
-  },
-  loadMoreText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
 });

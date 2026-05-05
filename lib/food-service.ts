@@ -3,64 +3,48 @@ import { searchUSDAFoods } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
 
-const MIN_REMOTE_QUERY_LENGTH = 3;
+const MIN_BRANDED_QUERY_LENGTH = 3;
+const BRANDED_LIMIT = 8;
+const AUTO_FETCH_THRESHOLD = 8;
 
-export interface SearchResults {
-  local: Food[];
-  branded: Food[];
-  shouldAutoFetch: boolean;
-}
-
-function dedup(existing: Food[], additions: Food[]): Food[] {
-  const ids = new Set(existing.map((f) => f.id));
-  return additions.filter((f) => !ids.has(f.id));
+function dedup(primary: Food[], secondary: Food[]): Food[] {
+  const ids = new Set(primary.map((f) => f.id));
+  return secondary.filter((f) => !ids.has(f.id));
 }
 
 /**
- * Enhanced search system:
- * 1. Parallel local search (personal/cached + USDA).
- * 2. Auto-fetch from Supabase only if local results < 8 and query >= 3 chars.
- * 3. Strict column selection for branded search to minimize egress.
- * 4. Silent failure for remote queries.
+ * Run fitness.db + foods.db searches in parallel and merge results.
+ * fitness.db results take priority (user's own foods first).
  */
-export async function searchFoodsWithFallback(query: string): Promise<SearchResults> {
+export async function searchLocal(query: string): Promise<Food[]> {
   const trimmed = query.trim();
-  if (!trimmed) return { local: [], branded: [], shouldAutoFetch: false };
+  if (!trimmed) return [];
 
-  // 1. Parallel local search (fitness.db + foods.db)
-  const [personalResults, usdaResults] = await Promise.all([
+  const [userFoods, usdaFoods] = await Promise.all([
     searchFoods(trimmed),
     searchUSDAFoods(trimmed),
   ]);
 
-  const localResults = dedup(personalResults, usdaResults);
-  
-  const canFetchBranded = trimmed.length >= MIN_REMOTE_QUERY_LENGTH;
-  const shouldAutoFetch = canFetchBranded && localResults.length < 8;
-
-  let branded: Food[] = [];
-  if (shouldAutoFetch) {
-    branded = await fetchBrandedFoods(trimmed, localResults.map((f) => f.id));
-  }
-
-  return {
-    local: localResults,
-    branded,
-    shouldAutoFetch: canFetchBranded && localResults.length >= 8,
-  };
+  return [...userFoods, ...dedup(userFoods, usdaFoods)];
 }
 
 /**
- * Fetch branded foods from Supabase with strict column selection.
- * Limits to 8 results and excludes already found local IDs.
+ * Query Supabase for branded foods, excluding any IDs already in local results.
+ * Uses strict column selection to minimize egress and background caches results.
  */
-export async function fetchBrandedFoods(query: string, excludeIds: string[]): Promise<Food[]> {
+export async function searchBranded(
+  query: string,
+  excludeIds: string[] = []
+): Promise<Food[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < MIN_BRANDED_QUERY_LENGTH) return [];
+
   try {
     let queryBuilder = supabase
       .from('foods')
       .select('id, name, brand, calories, protein, carbs, fat, serving_units')
-      .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
-      .limit(8);
+      .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
+      .limit(BRANDED_LIMIT);
 
     if (excludeIds.length > 0) {
       queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
@@ -72,7 +56,7 @@ export async function fetchBrandedFoods(query: string, excludeIds: string[]): Pr
 
     const branded = data as Food[];
 
-    // Background caching of partial results
+    // Background caching of partial results to speed up future local searches
     Promise.all(
       branded.map((food) =>
         cacheRemoteFood({
@@ -90,22 +74,30 @@ export async function fetchBrandedFoods(query: string, excludeIds: string[]): Pr
 }
 
 /**
- * Fetch the complete nutrient profile for a single food and cache it.
- * Called only when a branded food is selected.
+ * Whether the UI should automatically fetch branded results
+ * (only when local results are sparse).
  */
-export async function fetchFullFoodProfile(foodId: string): Promise<Food | null> {
+export function shouldAutoFetchBranded(localCount: number): boolean {
+  return localCount < AUTO_FETCH_THRESHOLD;
+}
+
+/**
+ * Fetch full food profile from Supabase by ID and cache it locally.
+ * Use when the user taps a branded result that hasn't been cached yet.
+ */
+export async function getFullBrandedFood(id: string): Promise<Food | null> {
   try {
     const { data, error } = await supabase
       .from('foods')
       .select('*')
-      .eq('id', foodId)
+      .eq('id', id)
       .single();
 
     if (error || !data) return null;
 
     const fullFood = data as Food;
 
-    // Cache/Overwrite with complete row
+    // Cache/Overwrite with complete row using REPLACE logic for full profile
     const db = await getDatabase();
     await db.runAsync(
       `INSERT OR REPLACE INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
@@ -119,8 +111,8 @@ export async function fetchFullFoodProfile(foodId: string): Promise<Food | null>
         fullFood.protein,
         fullFood.carbs,
         fullFood.fat,
-        fullFood.source,
-        fullFood.updated_at,
+        fullFood.source || 'branded',
+        fullFood.updated_at || new Date().toISOString(),
       ]
     );
 
