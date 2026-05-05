@@ -41,6 +41,7 @@ export async function searchBranded(
 
   try {
     let queryBuilder = supabase
+      // TODO: Change to 'branded_foods' when branded data is loaded
       .from('foods')
       .select('id, name, brand, calories, protein, carbs, fat, serving_units')
       .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
@@ -88,6 +89,7 @@ export function shouldAutoFetchBranded(localCount: number): boolean {
 export async function getFullBrandedFood(id: string): Promise<Food | null> {
   try {
     const { data, error } = await supabase
+      // TODO: Change to 'branded_foods' when branded data is loaded
       .from('foods')
       .select('*')
       .eq('id', id)
@@ -127,6 +129,7 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
  * Fire-and-forget — callers must NOT await this.
  */
 export async function saveCustomFoodToSupabase(food: Food, deviceId: string): Promise<void> {
+  // TODO: Verify if this should also change if 'foods' table is renamed
   await supabase.from('foods').upsert(
     {
       id: food.id,
