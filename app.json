@@ -2,7 +2,7 @@
   "expo": {
     "name": "BinoFit",
     "slug": "binofit",
-    "version": "2.0.7",
+    "version": "2.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",
@@ -46,6 +46,12 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
         }
       ],
       "react-native-health"
