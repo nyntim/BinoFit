@@ -1,9 +1,15 @@
-import { searchFoods, cacheRemoteFood } from '@/lib/database';
+import { getDatabase, searchFoods, cacheRemoteFood } from '@/lib/database';
 import { searchUSDAFoods } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
 
-const MIN_REMOTE_QUERY_LENGTH = 4;
+const MIN_REMOTE_QUERY_LENGTH = 3;
+
+export interface SearchResults {
+  local: Food[];
+  branded: Food[];
+  shouldAutoFetch: boolean;
+}
 
 function dedup(existing: Food[], additions: Food[]): Food[] {
   const ids = new Set(existing.map((f) => f.id));
@@ -11,35 +17,117 @@ function dedup(existing: Food[], additions: Food[]): Food[] {
 }
 
 /**
- * Three-tier search: user-local DB → bundled USDA dataset → Supabase remote.
- * Each tier only fires when previous tiers returned nothing.
- * Remote results are cached locally so subsequent searches are instant.
+ * Enhanced search system:
+ * 1. Parallel local search (personal/cached + USDA).
+ * 2. Auto-fetch from Supabase only if local results < 8 and query >= 3 chars.
+ * 3. Strict column selection for branded search to minimize egress.
+ * 4. Silent failure for remote queries.
  */
-export async function searchFoodsWithFallback(query: string): Promise<Food[]> {
+export async function searchFoodsWithFallback(query: string): Promise<SearchResults> {
   const trimmed = query.trim();
-  if (!trimmed) return [];
+  if (!trimmed) return { local: [], branded: [], shouldAutoFetch: false };
 
-  const localResults = await searchFoods(trimmed);
-  if (localResults.length > 0) return localResults;
+  // 1. Parallel local search (fitness.db + foods.db)
+  const [personalResults, usdaResults] = await Promise.all([
+    searchFoods(trimmed),
+    searchUSDAFoods(trimmed),
+  ]);
 
-  const usdaResults = await searchUSDAFoods(trimmed);
-  if (usdaResults.length > 0) return usdaResults;
+  const localResults = dedup(personalResults, usdaResults);
+  
+  const canFetchBranded = trimmed.length >= MIN_REMOTE_QUERY_LENGTH;
+  const shouldAutoFetch = canFetchBranded && localResults.length < 8;
 
-  if (trimmed.length < MIN_REMOTE_QUERY_LENGTH) return [];
+  let branded: Food[] = [];
+  if (shouldAutoFetch) {
+    branded = await fetchBrandedFoods(trimmed, localResults.map((f) => f.id));
+  }
 
-  const { data, error } = await supabase
-    .from('foods')
-    .select('*')
-    .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
-    .limit(20);
+  return {
+    local: localResults,
+    branded,
+    shouldAutoFetch: canFetchBranded && localResults.length >= 8,
+  };
+}
 
-  if (error || !data) return [];
+/**
+ * Fetch branded foods from Supabase with strict column selection.
+ * Limits to 8 results and excludes already found local IDs.
+ */
+export async function fetchBrandedFoods(query: string, excludeIds: string[]): Promise<Food[]> {
+  try {
+    let queryBuilder = supabase
+      .from('foods')
+      .select('id, name, brand, calories, protein, carbs, fat, serving_units')
+      .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
+      .limit(8);
 
-  const remoteResults = data as Food[];
+    if (excludeIds.length > 0) {
+      queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
 
-  await Promise.all(remoteResults.map((food) => cacheRemoteFood(food).catch(() => {})));
+    const { data, error } = await queryBuilder;
 
-  return dedup(localResults, remoteResults);
+    if (error || !data) return [];
+
+    const branded = data as Food[];
+
+    // Background caching of partial results
+    Promise.all(
+      branded.map((food) =>
+        cacheRemoteFood({
+          ...food,
+          source: 'branded',
+          updated_at: new Date().toISOString(),
+        }).catch(() => {})
+      )
+    );
+
+    return branded;
+  } catch {
+    return []; // Silent failure
+  }
+}
+
+/**
+ * Fetch the complete nutrient profile for a single food and cache it.
+ * Called only when a branded food is selected.
+ */
+export async function fetchFullFoodProfile(foodId: string): Promise<Food | null> {
+  try {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('*')
+      .eq('id', foodId)
+      .single();
+
+    if (error || !data) return null;
+
+    const fullFood = data as Food;
+
+    // Cache/Overwrite with complete row
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        fullFood.id,
+        fullFood.name,
+        fullFood.brand,
+        fullFood.serving_units,
+        fullFood.calories,
+        fullFood.protein,
+        fullFood.carbs,
+        fullFood.fat,
+        fullFood.source,
+        fullFood.updated_at,
+      ]
+    );
+
+    return fullFood;
+  } catch {
+    return null; // Silent failure
+  }
 }
 
 /**

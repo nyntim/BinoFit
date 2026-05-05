@@ -15,7 +15,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
-import { searchFoodsWithFallback } from '@/lib/food-service';
+import { searchFoodsWithFallback, fetchBrandedFoods, fetchFullFoodProfile, type SearchResults } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
 const SLOT_LABELS: Record<string, string> = {
@@ -32,10 +32,11 @@ export default function FoodSearchScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Food[]>([]);
+  const [results, setResults] = useState<SearchResults>({ local: [], branded: [], shouldAutoFetch: false });
   const [recentFoods, setRecentFoods] = useState<Food[]>([]);
   const [frequentFoods, setFrequentFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingBranded, setFetchingBranded] = useState(false);
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -46,13 +47,13 @@ export default function FoodSearchScreen() {
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
+      setResults({ local: [], branded: [], shouldAutoFetch: false });
       return;
     }
     setLoading(true);
     const timer = setTimeout(() => {
-      searchFoodsWithFallback(query).then((foods) => {
-        setResults(foods);
+      searchFoodsWithFallback(query).then((res) => {
+        setResults(res);
         setLoading(false);
       });
     }, 200);
@@ -61,7 +62,24 @@ export default function FoodSearchScreen() {
 
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
-  const selectFood = (food: Food) => {
+  const handleLoadBranded = async () => {
+    if (fetchingBranded) return;
+    setFetchingBranded(true);
+    const branded = await fetchBrandedFoods(query, results.local.map(f => f.id));
+    setResults(prev => ({
+      ...prev,
+      branded,
+      shouldAutoFetch: false
+    }));
+    setFetchingBranded(false);
+  };
+
+  const selectFood = async (food: Food) => {
+    setLoading(true);
+    if (food.source === 'branded') {
+      await fetchFullFoodProfile(food.id);
+    }
+    setLoading(false);
     router.replace({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: '/serving-picker' as any,
@@ -98,6 +116,7 @@ export default function FoodSearchScreen() {
   );
 
   const showSuggestions = !query.trim();
+  const allResults = [...results.local, ...results.branded];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -121,7 +140,7 @@ export default function FoodSearchScreen() {
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        {loading && <ActivityIndicator size="small" color={colors.tint} />}
+        {(loading || fetchingBranded) && <ActivityIndicator size="small" color={colors.tint} />}
       </View>
 
       {showSuggestions ? (
@@ -159,10 +178,38 @@ export default function FoodSearchScreen() {
         </ScrollView>
       ) : (
         <FlatList
-          data={results}
+          data={allResults}
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => renderFood(item)}
+          ListFooterComponent={() => (
+            <>
+              {results.shouldAutoFetch && (
+                <TouchableOpacity 
+                  style={styles.loadMoreBtn} 
+                  onPress={handleLoadBranded}
+                  disabled={fetchingBranded}
+                >
+                  <Text style={[styles.loadMoreText, { color: colors.tint }]}>
+                    {fetchingBranded ? 'Searching branded foods...' : 'Search branded foods'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.createFoodBtn, { borderColor: colors.tint + '50', marginTop: 16 }]}
+                onPress={() =>
+                  router.replace({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    pathname: '/custom-food' as any,
+                    params: { meal_slot, date },
+                  })
+                }
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
+              </TouchableOpacity>
+            </>
+          )}
           ListEmptyComponent={
             !loading ? (
               <Text style={[styles.emptyText, { color: colors.icon }]}>
@@ -232,4 +279,13 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   createFoodText: { fontSize: 15, fontWeight: '500' },
+  loadMoreBtn: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginHorizontal: 16,
+  },
+  loadMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });
