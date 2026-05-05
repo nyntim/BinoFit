@@ -14,7 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate } from '@/lib/database';
+import { getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate, cacheRemoteFood } from '@/lib/database';
+import { getUSDAFoodById } from '@/lib/foods-db';
 import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food } from '@/lib/types';
 
@@ -46,7 +47,18 @@ export default function ServingPickerScreen() {
 
   useEffect(() => {
     if (!food_id) return;
-    getFoodById(food_id).then(setFood);
+
+    (async () => {
+      let found = await getFoodById(food_id);
+      if (!found) {
+        const usda = await getUSDAFoodById(food_id);
+        if (usda) {
+          await cacheRemoteFood(usda);
+          found = usda;
+        }
+      }
+      setFood(found);
+    })();
 
     if (log_id && date) {
       getFoodLogsWithFoodByDate(date).then((logs) => {
