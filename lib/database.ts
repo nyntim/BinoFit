@@ -64,6 +64,13 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_water_logs_date ON water_logs(date);
   `);
 
+  // Migrations for existing databases
+  await db.execAsync(`
+    ALTER TABLE food_logs ADD COLUMN synced_at TEXT;
+  `).catch(() => {
+    // Column already exists — safe to ignore
+  });
+
   await seedFoods(db);
 }
 
@@ -124,17 +131,17 @@ export async function searchLiquids(query: string): Promise<Food[]> {
 }
 
 export async function addFoodLog(
-  entry: Omit<FoodLog, 'id' | 'created_at' | 'updated_at'>
+  entry: Omit<FoodLog, 'id' | 'created_at' | 'updated_at' | 'synced_at'>
 ): Promise<FoodLog> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const id = Crypto.randomUUID();
   await db.runAsync(
-    `INSERT INTO food_logs (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO food_logs (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
     [id, entry.date, entry.meal_slot, entry.food_id, entry.serving_amount, entry.serving_unit, now, now]
   );
-  return { ...entry, id, created_at: now, updated_at: now };
+  return { ...entry, id, created_at: now, updated_at: now, synced_at: null };
 }
 
 export async function getFoodLogsByDate(date: string): Promise<FoodLog[]> {
@@ -144,7 +151,54 @@ export async function getFoodLogsByDate(date: string): Promise<FoodLog[]> {
 
 export async function deleteFoodLog(id: string): Promise<void> {
   const db = await getDatabase();
+  const row = await db.getFirstAsync<{ synced_at: string | null }>(
+    'SELECT synced_at FROM food_logs WHERE id = ?',
+    [id]
+  );
   await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
+  if (row?.synced_at) {
+    // Row was previously synced — remove from Supabase too (fire-and-forget)
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.from('food_logs').delete().eq('id', id).then(() => {});
+    });
+  }
+}
+
+export async function getUnsyncedFoodLogs(): Promise<FoodLog[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE synced_at IS NULL');
+}
+
+export async function markFoodLogsSynced(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const placeholders = ids.map(() => '?').join(', ');
+  await db.runAsync(
+    `UPDATE food_logs SET synced_at = ? WHERE id IN (${placeholders})`,
+    [now, ...ids]
+  );
+}
+
+export async function cacheRemoteFood(food: Food): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO foods
+      (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      food.id,
+      food.name,
+      food.brand ?? null,
+      food.serving_units,
+      food.calories,
+      food.protein,
+      food.carbs,
+      food.fat,
+      food.source ?? null,
+      food.updated_at,
+    ]
+  );
 }
 
 export async function getFoodById(id: string): Promise<Food | null> {
@@ -160,7 +214,7 @@ export async function updateFoodLog(
   const db = await getDatabase();
   const now = new Date().toISOString();
   await db.runAsync(
-    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, updated_at = ? WHERE id = ?',
+    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, updated_at = ?, synced_at = NULL WHERE id = ?',
     [serving_amount, serving_unit, now, id]
   );
 }
