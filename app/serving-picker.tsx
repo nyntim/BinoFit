@@ -16,6 +16,7 @@ import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate, cacheRemoteFood } from '@/lib/database';
 import { getUSDAFoodById } from '@/lib/foods-db';
+import { getFullBrandedFood } from '@/lib/food-service';
 import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food } from '@/lib/types';
 
@@ -56,6 +57,9 @@ export default function ServingPickerScreen() {
           await cacheRemoteFood(usda);
           found = usda;
         }
+      }
+      if (!found) {
+        found = await getFullBrandedFood(food_id);
       }
       setFood(found);
     })();
