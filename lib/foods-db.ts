@@ -24,11 +24,15 @@ async function getFoodsDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_foodsDb) return _foodsDb;
 
   if (!_imported) {
+    console.log('[foods-db] Importing asset database...');
     await importDatabaseFromAssetAsync(FOODS_DB_NAME, { assetId: ASSET_ID, forceOverwrite: true });
+    console.log('[foods-db] Import complete, opening...');
     _imported = true;
   }
 
   _foodsDb = await SQLite.openDatabaseAsync(FOODS_DB_NAME);
+  const count = await _foodsDb.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM foods');
+  console.log(`[foods-db] Opened foods.db — ${count?.c ?? 0} rows`);
   return _foodsDb;
 }
 
@@ -79,8 +83,10 @@ export async function searchUSDAFoods(query: string): Promise<Food[]> {
        LIMIT 50`,
       [`%${query}%`]
     );
+    console.log(`[foods-db] searchUSDAFoods("${query}") → ${rows.length} results`);
     return rows.map(mapUSDARow);
-  } catch {
+  } catch (e) {
+    console.error('[foods-db] searchUSDAFoods error:', e);
     return [];
   }
 }
