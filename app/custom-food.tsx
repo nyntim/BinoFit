@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addCustomFood } from '@/lib/database';
+import { saveCustomFoodToSupabase } from '@/lib/food-service';
+import { getDeviceId } from '@/lib/device-id';
 
 export default function CustomFoodScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
@@ -50,6 +52,10 @@ export default function CustomFoodScreen() {
         fat: parseFloat(fat) || 0,
         source: 'custom',
       });
+
+      // Fire-and-forget — custom foods live in Supabase as source of truth
+      getDeviceId().then((deviceId) => saveCustomFoodToSupabase(food, deviceId));
+
       router.replace({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pathname: '/serving-picker' as any,

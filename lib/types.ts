@@ -22,6 +22,7 @@ export type FoodLog = {
   serving_unit: string;
   created_at: string;
   updated_at: string;
+  synced_at?: string | null;
 };
 
 export type MealSlotConfirmation = {
