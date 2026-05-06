@@ -97,7 +97,7 @@ export default function FoodSearchScreen() {
         setBrandedRequested(true);
         fetchBranded(trimmed, local.map((f) => f.id), id);
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query, fetchBranded]);
@@ -226,9 +226,14 @@ export default function FoodSearchScreen() {
           {localResults.map(renderFood)}
 
           {localResults.length === 0 && !localLoading && (
-            <Text style={[styles.emptyText, { color: colors.icon }]}>
-              No local results for &quot;{query}&quot;
-            </Text>
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: colors.icon }]}>
+                No results for &quot;{query}&quot;
+              </Text>
+              <Text style={[styles.emptyHint, { color: colors.icon }]}>
+                Try different words or check the spelling
+              </Text>
+            </View>
           )}
 
           {/* Branded section */}
@@ -333,8 +338,9 @@ const styles = StyleSheet.create({
   foodMeta: { fontSize: 12, marginTop: 2 },
   macroChips: { alignItems: 'flex-end', gap: 2 },
   chip: { fontSize: 11, fontWeight: '600' },
-  emptyText: { textAlign: 'center', marginTop: 48, fontSize: 15 },
-  emptyHint: { textAlign: 'center', paddingVertical: 12, fontSize: 14 },
+  emptyState: { alignItems: 'center', marginTop: 48 },
+  emptyText: { textAlign: 'center', fontSize: 15 },
+  emptyHint: { textAlign: 'center', paddingVertical: 6, fontSize: 13 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16, marginTop: 8 },
   brandedSpinner: { paddingVertical: 16 },
   loadBrandedBtn: {
