@@ -75,13 +75,26 @@ export async function getUSDAFoodById(id: string): Promise<Food | null> {
 export async function searchUSDAFoods(query: string): Promise<Food[]> {
   try {
     const db = await getFoodsDatabase();
+    const words = query.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return [];
+
+    // Each word must appear in name (AND between words)
+    const wordConditions = words.map(() => `name LIKE ?`).join(' AND ');
+    const wordParams = words.map((w) => `%${w}%`);
+
     const rows = await db.getAllAsync<USDARow>(
       `SELECT id, name, serving_size, serving_unit, calories, protein, carbs, fat, updated_at
        FROM foods
-       WHERE name LIKE ?
-       ORDER BY name
+       WHERE ${wordConditions}
+       ORDER BY
+         CASE
+           WHEN lower(name) = lower(?) THEN 0
+           WHEN lower(name) LIKE lower(?) THEN 1
+           ELSE 2
+         END,
+         length(name)
        LIMIT 50`,
-      [`%${query}%`]
+      [...wordParams, query, `${query}%`]
     );
     console.log(`[foods-db] searchUSDAFoods("${query}") → ${rows.length} results`);
     return rows.map(mapUSDARow);
