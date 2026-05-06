@@ -40,12 +40,19 @@ export async function searchBranded(
   if (trimmed.length < MIN_BRANDED_QUERY_LENGTH) return [];
 
   try {
+    const words = trimmed.split(/\s+/).filter(Boolean);
+
     let queryBuilder = supabase
       // TODO: Change to 'branded_foods' when branded data is loaded
       .from('foods')
-      .select('id, name, brand, calories, protein, carbs, fat, serving_units')
-      .or(`name.ilike.%${trimmed}%,brand.ilike.%${trimmed}%`)
-      .limit(BRANDED_LIMIT);
+      .select('id, name, brand, calories, protein, carbs, fat, serving_units');
+
+    // Each word must appear in name OR brand (chained .or() = AND between words)
+    for (const word of words) {
+      queryBuilder = queryBuilder.or(`name.ilike.%${word}%,brand.ilike.%${word}%`);
+    }
+
+    queryBuilder = queryBuilder.limit(BRANDED_LIMIT);
 
     if (excludeIds.length > 0) {
       queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
