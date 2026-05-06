@@ -25,7 +25,17 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       carbs REAL NOT NULL,
       fat REAL NOT NULL,
       source TEXT,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      fiber REAL,
+      sugar REAL,
+      sodium REAL,
+      cholesterol REAL,
+      saturated_fat REAL,
+      trans_fat REAL,
+      vitamin_d REAL,
+      calcium REAL,
+      iron REAL,
+      potassium REAL
     );
 
     CREATE TABLE IF NOT EXISTS food_logs (
@@ -64,11 +74,17 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   `);
 
   // Migrations for existing databases
-  await db.execAsync(`
-    ALTER TABLE food_logs ADD COLUMN synced_at TEXT;
-  `).catch(() => {
-    // Column already exists — safe to ignore
-  });
+  await db.execAsync(`ALTER TABLE food_logs ADD COLUMN synced_at TEXT;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN sodium REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN cholesterol REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN saturated_fat REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN trans_fat REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN vitamin_d REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN calcium REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN iron REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
 }
 
 export async function searchFoods(query: string): Promise<Food[]> {

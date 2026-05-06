@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working Style
+
+- **Complex tasks**: Always create a todo list using `TaskCreate` at the start, update each task to `in_progress` when starting it, and mark `completed` when done.
+
 ## Development Commands
 
 | Command | Description |

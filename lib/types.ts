@@ -9,6 +9,17 @@ export type Food = {
   fat: number;
   source: string | null;
   updated_at: string;
+  // micronutrients (all in standard label units; null = not available)
+  fiber?: number | null;
+  sugar?: number | null;
+  sodium?: number | null;
+  cholesterol?: number | null;
+  saturated_fat?: number | null;
+  trans_fat?: number | null;
+  vitamin_d?: number | null;
+  calcium?: number | null;
+  iron?: number | null;
+  potassium?: number | null;
 };
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
