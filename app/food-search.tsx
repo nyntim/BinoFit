@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
 import {
   searchLocal,
@@ -46,6 +47,18 @@ export default function FoodSearchScreen() {
   const [selecting, setSelecting] = useState(false);
 
   const searchIdRef = useRef(0);
+
+  const {
+    scrollRef: suggestionsScrollRef,
+    onScroll: onSuggestionsScroll,
+    onContentSizeChange: onSuggestionsContentSizeChange,
+  } = useScrollRestore('food-search-suggestions');
+
+  const {
+    scrollRef: resultsScrollRef,
+    onScroll: onResultsScroll,
+    onContentSizeChange: onResultsContentSizeChange,
+  } = useScrollRestore('food-search-results');
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -189,7 +202,13 @@ export default function FoodSearchScreen() {
       </View>
 
       {showSuggestions ? (
-        <ScrollView keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={suggestionsScrollRef}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          onScroll={onSuggestionsScroll}
+          onContentSizeChange={onSuggestionsContentSizeChange}
+        >
           {recentFoods.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.icon }]}>RECENT</Text>
@@ -221,7 +240,14 @@ export default function FoodSearchScreen() {
           </TouchableOpacity>
         </ScrollView>
       ) : (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.resultsScroll}>
+        <ScrollView
+          ref={resultsScrollRef}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.resultsScroll}
+          scrollEventThrottle={16}
+          onScroll={onResultsScroll}
+          onContentSizeChange={onResultsContentSizeChange}
+        >
           {/* Local results */}
           {localResults.map(renderFood)}
 

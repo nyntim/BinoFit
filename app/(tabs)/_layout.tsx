@@ -24,6 +24,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          unmountOnBlur: false,
         }}
       />
       <Tabs.Screen
@@ -31,6 +32,7 @@ export default function TabLayout() {
         options={{
           title: 'Exercise',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="figure.run" color={color} />,
+          unmountOnBlur: false,
         }}
       />
       <Tabs.Screen
@@ -38,6 +40,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+          unmountOnBlur: false,
         }}
       />
       <Tabs.Screen
@@ -45,6 +48,7 @@ export default function TabLayout() {
         options={{
           title: 'More',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="ellipsis" color={color} />,
+          unmountOnBlur: false,
         }}
       />
     </Tabs>
