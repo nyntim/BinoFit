@@ -5,6 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Working Style
 
 - **Complex tasks**: Always create a todo list using `TaskCreate` at the start, update each task to `in_progress` when starting it, and mark `completed` when done.
+- **Commit messages**: Never include any reference to Claude, AI, or assistant-generated content (no "Claude", no `claude.ai` URLs, no session links) in commit messages.
+- **Branch names**: Never include "claude" or any AI/assistant reference in branch names.
+- **Commit author**: Never use "Claude" or any AI identity as the git commit author. Always use the repo owner's identity.
 
 ## Development Commands
 

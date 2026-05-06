@@ -89,9 +89,25 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
 
 export async function searchFoods(query: string): Promise<Food[]> {
   const db = await getDatabase();
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+
+  // Each word must appear in name or brand (AND between words, OR within each word across fields)
+  const wordConditions = words.map(() => `(name LIKE ? OR brand LIKE ?)`).join(' AND ');
+  const wordParams = words.flatMap((w) => [`%${w}%`, `%${w}%`]);
+
   return db.getAllAsync<Food>(
-    `SELECT * FROM foods WHERE name LIKE ? OR brand LIKE ? ORDER BY name LIMIT 50`,
-    [`%${query}%`, `%${query}%`]
+    `SELECT * FROM foods
+     WHERE ${wordConditions}
+     ORDER BY
+       CASE
+         WHEN lower(name) = lower(?) THEN 0
+         WHEN lower(name) LIKE lower(?) THEN 1
+         ELSE 2
+       END,
+       length(name)
+     LIMIT 50`,
+    [...wordParams, query, `${query}%`]
   );
 }
 
