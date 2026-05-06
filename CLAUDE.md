@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Working Style
 
 - **Complex tasks**: Always create a todo list using `TaskCreate` at the start, update each task to `in_progress` when starting it, and mark `completed` when done.
+- **Commit messages**: Never include any reference to Claude, AI, or assistant-generated content (no "Claude", no `claude.ai` URLs, no session links) in commit messages.
 
 ## Development Commands
 
