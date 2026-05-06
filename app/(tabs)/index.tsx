@@ -42,6 +42,7 @@ import { StreakBadge } from '@/components/StreakBadge';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
+import { useScrollRestore } from '@/hooks/useScrollRestore';
 import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
@@ -71,6 +72,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { selectedDate } = useDate();
   const { panGesture, animatedStyle } = useSwipeDayNavigation();
+  const { scrollRef: dashScrollRef, onScroll: onDashScroll, onContentSizeChange: onDashContentSizeChange } = useScrollRestore('dashboard');
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
@@ -278,7 +280,14 @@ export default function HomeScreen() {
       <GestureDetector gesture={panGesture}>
         <View style={styles.swipeOuter}>
           <Animated.View style={[styles.swipeInner, animatedStyle]}>
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              ref={dashScrollRef}
+              contentContainerStyle={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={onDashScroll}
+              onContentSizeChange={onDashContentSizeChange}
+            >
               <View style={styles.topRow}>
                 <View style={styles.headerTop}>
                   <Text style={[styles.dateLabel, { color: colors.icon }]}>
