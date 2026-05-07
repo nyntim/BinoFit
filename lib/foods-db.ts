@@ -88,13 +88,13 @@ export async function searchUSDAFoods(query: string): Promise<Food[]> {
        WHERE ${wordConditions}
        ORDER BY
          CASE
-           WHEN lower(name) = lower(?) THEN 0
-           WHEN lower(name) LIKE lower(?) THEN 1
-           ELSE 2
-         END,
-         length(name)
+           WHEN lower(name) = lower(?)           THEN 0
+           WHEN lower(name) LIKE lower(? || '%') THEN 1
+           ELSE                                       2
+         END ASC,
+         length(name) ASC
        LIMIT 50`,
-      [...wordParams, query, `${query}%`]
+      [...wordParams, query, query]
     );
     console.log(`[foods-db] searchUSDAFoods("${query}") → ${rows.length} results`);
     return rows.map(mapUSDARow);
