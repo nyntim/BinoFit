@@ -87,7 +87,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
 }
 
-export async function searchFoods(query: string): Promise<Food[]> {
+export async function searchFoods(query: string, limit = 50): Promise<Food[]> {
   const db = await getDatabase();
   const words = query.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
@@ -97,17 +97,43 @@ export async function searchFoods(query: string): Promise<Food[]> {
   const wordParams = words.flatMap((w) => [`%${w}%`, `%${w}%`]);
 
   return db.getAllAsync<Food>(
-    `SELECT * FROM foods
-     WHERE ${wordConditions}
-     ORDER BY
+    `SELECT *, 
        CASE
-         WHEN lower(name) = lower(?)           THEN 0
-         WHEN lower(name) LIKE lower(? || '%') THEN 1
-         ELSE                                       2
-       END ASC,
-       length(name) ASC
-     LIMIT 50`,
-    [...wordParams, query, query]
+         WHEN lower(name) = lower(?)           THEN 1
+         WHEN lower(name) LIKE lower(? || '%') THEN 2
+         ELSE                                       3
+       END as matchTier
+     FROM foods
+     WHERE ${wordConditions}
+     ORDER BY matchTier ASC, length(name) ASC
+     LIMIT ?`,
+    [...wordParams, query, query, limit]
+  );
+}
+
+export async function searchFoodsByTokens(tokens: string[], limit = 50): Promise<Food[]> {
+  if (tokens.length === 0) return [];
+  const db = await getDatabase();
+  const wordConditions = tokens.map(() => `(name LIKE ? OR brand LIKE ?)`).join(' AND ');
+  const wordParams = tokens.flatMap((w) => [`%${w}%`, `%${w}%`]);
+
+  return db.getAllAsync<Food>(
+    `SELECT *, 3 as matchTier FROM foods
+     WHERE ${wordConditions}
+     ORDER BY length(name) ASC
+     LIMIT ?`,
+    [...wordParams, limit]
+  );
+}
+
+export async function searchFoodsBySingleToken(token: string, limit = 50): Promise<Food[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<Food>(
+    `SELECT *, 4 as matchTier FROM foods
+     WHERE name LIKE ? OR brand LIKE ?
+     ORDER BY length(name) ASC
+     LIMIT ?`,
+    [`%${token}%`, `%${token}%`, limit]
   );
 }
 

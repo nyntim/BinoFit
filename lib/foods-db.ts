@@ -15,6 +15,7 @@ type USDARow = {
   carbs: number | null;
   fat: number | null;
   updated_at: string;
+  matchTier?: number;
 };
 
 const FOODS_DB_NAME = 'foods.db';
@@ -55,6 +56,7 @@ function mapUSDARow(row: USDARow): Food {
     fat: Math.round((row.fat ?? 0) * scale * 10) / 10,
     source: 'usda_sr_legacy',
     updated_at: row.updated_at,
+    matchTier: row.matchTier,
   };
 }
 
@@ -72,7 +74,7 @@ export async function getUSDAFoodById(id: string): Promise<Food | null> {
   }
 }
 
-export async function searchUSDAFoods(query: string): Promise<Food[]> {
+export async function searchUSDAFoods(query: string, limit = 50): Promise<Food[]> {
   try {
     const db = await getFoodsDatabase();
     const words = query.trim().split(/\s+/).filter(Boolean);
@@ -83,23 +85,56 @@ export async function searchUSDAFoods(query: string): Promise<Food[]> {
     const wordParams = words.map((w) => `%${w}%`);
 
     const rows = await db.getAllAsync<USDARow>(
-      `SELECT id, name, serving_size, serving_unit, calories, protein, carbs, fat, updated_at
+      `SELECT *,
+         CASE
+           WHEN lower(name) = lower(?)           THEN 1
+           WHEN lower(name) LIKE lower(? || '%') THEN 2
+           ELSE                                       3
+         END as matchTier
        FROM foods
        WHERE ${wordConditions}
-       ORDER BY
-         CASE
-           WHEN lower(name) = lower(?)           THEN 0
-           WHEN lower(name) LIKE lower(? || '%') THEN 1
-           ELSE                                       2
-         END ASC,
-         length(name) ASC
-       LIMIT 50`,
-      [...wordParams, query, query]
+       ORDER BY matchTier ASC, length(name) ASC
+       LIMIT ?`,
+      [...wordParams, query, query, limit]
     );
-    console.log(`[foods-db] searchUSDAFoods("${query}") → ${rows.length} results`);
     return rows.map(mapUSDARow);
   } catch (e) {
     console.error('[foods-db] searchUSDAFoods error:', e);
+    return [];
+  }
+}
+
+export async function searchUSDAFoodsByTokens(tokens: string[], limit = 50): Promise<Food[]> {
+  try {
+    const db = await getFoodsDatabase();
+    const wordConditions = tokens.map(() => `name LIKE ?`).join(' AND ');
+    const wordParams = tokens.map((w) => `%${w}%`);
+
+    const rows = await db.getAllAsync<USDARow>(
+      `SELECT *, 3 as matchTier FROM foods
+       WHERE ${wordConditions}
+       ORDER BY length(name) ASC
+       LIMIT ?`,
+      [...wordParams, limit]
+    );
+    return rows.map(mapUSDARow);
+  } catch {
+    return [];
+  }
+}
+
+export async function searchUSDAFoodsBySingleToken(token: string, limit = 50): Promise<Food[]> {
+  try {
+    const db = await getFoodsDatabase();
+    const rows = await db.getAllAsync<USDARow>(
+      `SELECT *, 4 as matchTier FROM foods
+       WHERE name LIKE ?
+       ORDER BY length(name) ASC
+       LIMIT ?`,
+      [`%${token}%`, limit]
+    );
+    return rows.map(mapUSDARow);
+  } catch {
     return [];
   }
 }
