@@ -101,13 +101,13 @@ export async function searchFoods(query: string): Promise<Food[]> {
      WHERE ${wordConditions}
      ORDER BY
        CASE
-         WHEN lower(name) = lower(?) THEN 0
-         WHEN lower(name) LIKE lower(?) THEN 1
-         ELSE 2
-       END,
-       length(name)
+         WHEN lower(name) = lower(?)           THEN 0
+         WHEN lower(name) LIKE lower(? || '%') THEN 1
+         ELSE                                       2
+       END ASC,
+       length(name) ASC
      LIMIT 50`,
-    [...wordParams, query, `${query}%`]
+    [...wordParams, query, query]
   );
 }
 
@@ -126,8 +126,15 @@ export async function searchLiquids(query: string): Promise<Food[]> {
           OR name LIKE '%Soda%'
           OR name LIKE '%Drink%'
           OR name LIKE '%Juice%')
-     ORDER BY name LIMIT 50`,
-    [`%${query}%`, `%${query}%`]
+     ORDER BY
+       CASE
+         WHEN lower(name) = lower(?)           THEN 0
+         WHEN lower(name) LIKE lower(? || '%') THEN 1
+         ELSE                                       2
+       END ASC,
+       length(name) ASC
+     LIMIT 50`,
+    [`%${query}%`, `%${query}%`, query, query]
   );
 }
 
