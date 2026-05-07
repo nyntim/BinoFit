@@ -9,6 +9,7 @@ export type Food = {
   fat: number;
   source: string | null;
   updated_at: string;
+  matchTier?: number;
   // micronutrients (all in standard label units; null = not available)
   fiber?: number | null;
   sugar?: number | null;

@@ -24,6 +24,18 @@ create index if not exists idx_foods_name on public.foods (name);
 create index if not exists idx_foods_user_id on public.foods (user_id);
 
 -- ─────────────────────────────────────────────────────────
+-- Full-text and Fuzzy Search Indexes
+-- ─────────────────────────────────────────────────────────
+create extension if not exists pg_trgm;
+
+-- Trigram index for fuzzy name matching (ilike %term%)
+create index if not exists idx_foods_name_trgm on public.foods using gin (name gin_trgm_ops);
+create index if not exists idx_foods_brand_trgm on public.foods using gin (brand gin_trgm_ops);
+
+-- Full-text search index for token-based matching
+create index if not exists idx_foods_fts on public.foods using gin (to_tsvector('english', name || ' ' || coalesce(brand, '')));
+
+-- ─────────────────────────────────────────────────────────
 -- food_logs: synced from local SQLite
 -- ─────────────────────────────────────────────────────────
 create table if not exists public.food_logs (

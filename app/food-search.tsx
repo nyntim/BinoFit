@@ -20,6 +20,9 @@ import {
   searchBranded,
   shouldAutoFetchBranded,
   getFullBrandedFood,
+  parseQuery,
+  sortFoodResults,
+  type SortOption,
 } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
@@ -29,6 +32,46 @@ const SLOT_LABELS: Record<string, string> = {
   dinner: 'Dinner',
   snack: 'Snacks',
 };
+
+const SORT_LABELS: Record<SortOption, string> = {
+  best: 'Best Match',
+  frequent: 'Frequent',
+  recent: 'Recent',
+  az: 'A → Z',
+  za: 'Z → A',
+};
+
+function SortControl({
+  active,
+  onSelect,
+  colors,
+}: {
+  active: SortOption;
+  onSelect: (opt: SortOption) => void;
+  colors: any;
+}) {
+  return (
+    <View style={styles.sortContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortScroll}>
+        {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => onSelect(opt)}
+            style={[
+              styles.sortPill,
+              { backgroundColor: active === opt ? colors.tint : colors.cardBackground },
+              active === opt ? null : { borderWidth: 1, borderColor: colors.separator },
+            ]}
+          >
+            <Text style={[styles.sortText, { color: active === opt ? '#fff' : colors.text }]}>
+              {SORT_LABELS[opt]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function FoodSearchScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
@@ -45,6 +88,8 @@ export default function FoodSearchScreen() {
   const [brandedLoading, setBrandedLoading] = useState(false);
   const [brandedRequested, setBrandedRequested] = useState(false);
   const [selecting, setSelecting] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('best');
+  const [parsedQuantity, setParsedQuantity] = useState<{ amount: number; unit: string } | null>(null);
 
   const searchIdRef = useRef(0);
 
@@ -90,6 +135,7 @@ export default function FoodSearchScreen() {
       setLocalResults([]);
       setBrandedResults([]);
       setBrandedRequested(false);
+      setParsedQuantity(null);
       return;
     }
 
@@ -100,24 +146,33 @@ export default function FoodSearchScreen() {
     const id = ++searchIdRef.current;
 
     const timer = setTimeout(async () => {
-      const local = await searchLocal(trimmed);
+      const parsed = parseQuery(trimmed);
+      if (parsed.quantity) {
+        setParsedQuantity({ amount: parsed.quantity, unit: parsed.unit || '' });
+      } else {
+        setParsedQuantity(null);
+      }
+
+      const local = await searchLocal(parsed.term);
       if (id !== searchIdRef.current) return;
 
-      setLocalResults(local);
+      const sorted = await sortFoodResults(local, sortOption);
+      setLocalResults(sorted);
       setLocalLoading(false);
 
       if (shouldAutoFetchBranded(local.length)) {
         setBrandedRequested(true);
-        fetchBranded(trimmed, local.map((f) => f.id), id);
+        fetchBranded(parsed.term, local.map((f) => f.id), id);
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, fetchBranded]);
+  }, [query, fetchBranded, sortOption]);
 
   const handleLoadBranded = () => {
     setBrandedRequested(true);
-    fetchBranded(query, localResults.map((f) => f.id), searchIdRef.current);
+    const parsed = parseQuery(query);
+    fetchBranded(parsed.term, localResults.map((f) => f.id), searchIdRef.current);
   };
 
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
@@ -131,7 +186,12 @@ export default function FoodSearchScreen() {
       }
       router.replace({
         pathname: '/serving-picker' as any,
-        params: { food_id: food.id, meal_slot, date },
+        params: { 
+          food_id: food.id, 
+          meal_slot, 
+          date,
+          initial_amount: parsedQuantity ? String(parsedQuantity.amount) : undefined
+        },
       });
     } finally {
       setSelecting(false);
@@ -200,6 +260,23 @@ export default function FoodSearchScreen() {
           <ActivityIndicator size="small" color={colors.tint} />
         )}
       </View>
+
+      {parsedQuantity && (
+        <View style={styles.quantityHint}>
+          <MaterialIcons name="info-outline" size={14} color={colors.tint} />
+          <Text style={[styles.quantityHintText, { color: colors.tint }]}>
+            Logging {parsedQuantity.amount}{parsedQuantity.unit} of...
+          </Text>
+        </View>
+      )}
+
+      {!showSuggestions && (
+        <SortControl
+          active={sortOption}
+          onSelect={setSortOption}
+          colors={colors}
+        />
+      )}
 
       {showSuggestions ? (
         <ScrollView
@@ -389,4 +466,35 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   createFoodText: { fontSize: 15, fontWeight: '500' },
+  sortContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'transparent',
+  },
+  sortScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  sortPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  quantityHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 4,
+  },
+  quantityHintText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
 });

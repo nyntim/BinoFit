@@ -27,19 +27,19 @@ const SLOT_LABELS: Record<string, string> = {
 };
 
 export default function ServingPickerScreen() {
-  const { food_id, meal_slot, date, log_id } = useLocalSearchParams<{
+  const { food_id, meal_slot, date, log_id, initial_amount } = useLocalSearchParams<{
     food_id: string;
     meal_slot: string;
     date: string;
     log_id?: string;
+    initial_amount?: string;
   }>();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
   const [food, setFood] = useState<Food | null>(null);
-  const [servingAmount, setServingAmount] = useState('1');
-  const [saving, setSaving] = useState(false);
+  const [servingAmount, setServingAmount] = useState(initial_amount || '1');
   const inputRef = useRef<TextInput>(null);
 
   const isEdit = Boolean(log_id);

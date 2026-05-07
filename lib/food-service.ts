@@ -1,11 +1,93 @@
-import { getDatabase, searchFoods, cacheRemoteFood } from '@/lib/database';
-import { searchUSDAFoods } from '@/lib/foods-db';
+import { 
+  getDatabase, 
+  searchFoods, 
+  searchFoodsByTokens, 
+  searchFoodsBySingleToken,
+  cacheRemoteFood,
+  getFrequentFoods,
+  getRecentFoods
+} from '@/lib/database';
+import { 
+  searchUSDAFoods, 
+  searchUSDAFoodsByTokens, 
+  searchUSDAFoodsBySingleToken 
+} from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
 import type { Food } from '@/lib/types';
 
 const MIN_BRANDED_QUERY_LENGTH = 3;
 const BRANDED_LIMIT = 8;
 const AUTO_FETCH_THRESHOLD = 8;
+const LOCAL_SEARCH_THRESHOLD = 20;
+
+const FILLER_WORDS = new Set(['a', 'an', 'the', 'of', 'with', 'and', 'for', 'in', 'on', 'at', 'by', 'to']);
+
+export type ParsedQuery = {
+  term: string;
+  tokens: string[];
+  quantity?: number;
+  unit?: string;
+};
+
+/**
+ * Extracts quantity/unit prefix (e.g. "100g chicken") and strips filler words.
+ */
+export function parseQuery(raw: string): ParsedQuery {
+  let text = raw.trim().toLowerCase();
+  let quantity: number | undefined;
+  let unit: string | undefined;
+
+  // Pattern for quantity + unit (e.g., "100g", "2 cups", "1.5 oz")
+  const qtyPattern = /^(\d*\.?\d+)\s*(g|ml|oz|lb|cups?|tbsps?|tsps?|oz|floz|servings?)\s+(.*)$/i;
+  const match = text.match(qtyPattern);
+
+  if (match) {
+    quantity = parseFloat(match[1]);
+    unit = match[2].toLowerCase();
+    text = match[3];
+  }
+
+  const allTokens = text.split(/\s+/).filter(Boolean);
+  const tokens = allTokens.filter(t => !FILLER_WORDS.has(t));
+  
+  // If we stripped everything, keep original tokens to avoid empty search
+  const finalTokens = tokens.length > 0 ? tokens : allTokens;
+
+  return {
+    term: text,
+    tokens: finalTokens,
+    quantity,
+    unit
+  };
+}
+
+/**
+ * Simple trigram similarity (0 to 1) for client-side fuzzy matching.
+ */
+export function trigramSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+
+  const getTrigrams = (str: string) => {
+    const s = `  ${str.toLowerCase()}  `;
+    const tri = [];
+    for (let i = 0; i < s.length - 2; i++) {
+      tri.push(s.substring(i, i + 3));
+    }
+    return tri;
+  };
+
+  const triA = getTrigrams(a);
+  const triB = getTrigrams(b);
+  const setB = new Set(triB);
+  
+  let matches = 0;
+  for (const t of triA) {
+    if (setB.has(t)) matches++;
+  }
+
+  return (2 * matches) / (triA.length + triB.length);
+}
 
 function dedup(primary: Food[], secondary: Food[]): Food[] {
   const ids = new Set(primary.map((f) => f.id));
@@ -13,19 +95,93 @@ function dedup(primary: Food[], secondary: Food[]): Food[] {
 }
 
 /**
- * Run fitness.db + foods.db searches in parallel and merge results.
- * fitness.db results take priority (user's own foods first).
+ * Tiered search pipeline:
+ * 1. Exact/Prefix (matchTier 1-2)
+ * 2. All tokens AND (matchTier 3)
+ * 3. Partial tokens (matchTier 4)
+ * 4. Fuzzy fallback (matchTier 5)
  */
 export async function searchLocal(query: string): Promise<Food[]> {
-  const trimmed = query.trim();
-  if (!trimmed) return [];
+  const parsed = parseQuery(query);
+  if (parsed.tokens.length === 0) return [];
 
-  const [userFoods, usdaFoods] = await Promise.all([
-    searchFoods(trimmed),
-    searchUSDAFoods(trimmed),
+  let results: Food[] = [];
+
+  // Tier 1 & 2: Exact & Prefix (already handled by searchFoods/searchUSDAFoods)
+  const [t12User, t12USDA] = await Promise.all([
+    searchFoods(parsed.term),
+    searchUSDAFoods(parsed.term),
   ]);
+  
+  results = [...t12User, ...dedup(t12User, t12USDA)];
 
-  return [...userFoods, ...dedup(userFoods, usdaFoods)];
+  if (results.length >= LOCAL_SEARCH_THRESHOLD) return results;
+
+  // Tier 3: All tokens in any order
+  const [t3User, t3USDA] = await Promise.all([
+    searchFoodsByTokens(parsed.tokens),
+    searchUSDAFoodsByTokens(parsed.tokens),
+  ]);
+  
+  results = [...results, ...dedup(results, [...t3User, ...dedup(t3User, t3USDA)])];
+
+  if (results.length >= LOCAL_SEARCH_THRESHOLD) return results;
+
+  // Tier 4: Partial token match (at least one significant token)
+  // We use the first token as a representative for this tier
+  if (parsed.tokens.length > 0) {
+    const [t4User, t4USDA] = await Promise.all([
+      searchFoodsBySingleToken(parsed.tokens[0]),
+      searchUSDAFoodsBySingleToken(parsed.tokens[0]),
+    ]);
+    results = [...results, ...dedup(results, [...t4User, ...dedup(t4User, t4USDA)])];
+  }
+
+  if (results.length >= LOCAL_SEARCH_THRESHOLD) return results;
+
+  // Tier 5: Fuzzy fallback
+  // If still low on results, we could do a broader search and sort by trigram
+  // For now, we'll let Tier 4 be the floor, or we could add a specific fuzzy check if needed.
+  
+  return results;
+}
+
+export type SortOption = 'best' | 'frequent' | 'recent' | 'az' | 'za';
+
+/**
+ * Re-sorts a result set in-memory based on user preference.
+ */
+export async function sortFoodResults(
+  foods: Food[], 
+  option: SortOption
+): Promise<Food[]> {
+  if (foods.length <= 1) return foods;
+
+  switch (option) {
+    case 'az':
+      return [...foods].sort((a, b) => a.name.localeCompare(b.name));
+    case 'za':
+      return [...foods].sort((a, b) => b.name.localeCompare(a.name));
+    case 'frequent': {
+      const frequent = await getFrequentFoods(100);
+      const freqMap = new Map(frequent.map(f => [f.id, (f as any).log_count || 0]));
+      return [...foods].sort((a, b) => (freqMap.get(b.id) || 0) - (freqMap.get(a.id) || 0));
+    }
+    case 'recent': {
+      const recent = await getRecentFoods(100);
+      const recentIds = new Set(recent.map(f => f.id));
+      // Simple boolean sort: was it recently logged?
+      return [...foods].sort((a, b) => {
+        const aRecent = recentIds.has(a.id) ? 1 : 0;
+        const bRecent = recentIds.has(b.id) ? 1 : 0;
+        return bRecent - aRecent;
+      });
+    }
+    case 'best':
+    default:
+      // Keep original tiered order (matchTier + length)
+      return foods;
+  }
 }
 
 /**
