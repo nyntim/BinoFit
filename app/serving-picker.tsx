@@ -40,6 +40,7 @@ export default function ServingPickerScreen() {
 
   const [food, setFood] = useState<Food | null>(null);
   const [servingAmount, setServingAmount] = useState(initial_amount || '1');
+  const [saving, setSaving] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const isEdit = Boolean(log_id);
