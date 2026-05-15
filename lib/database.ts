@@ -75,6 +75,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
 
   // Migrations for existing databases
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN synced_at TEXT;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE food_logs ADD COLUMN logged_time TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sodium REAL;`).catch(() => {});
@@ -171,9 +172,9 @@ export async function addFoodLog(
   const now = new Date().toISOString();
   const id = Crypto.randomUUID();
   await db.runAsync(
-    `INSERT INTO food_logs (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-    [id, entry.date, entry.meal_slot, entry.food_id, entry.serving_amount, entry.serving_unit, now, now]
+    `INSERT INTO food_logs (id, date, meal_slot, food_id, serving_amount, serving_unit, logged_time, created_at, updated_at, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+    [id, entry.date, entry.meal_slot, entry.food_id, entry.serving_amount, entry.serving_unit, entry.logged_time ?? null, now, now]
   );
   return { ...entry, id, created_at: now, updated_at: now, synced_at: null };
 }
@@ -243,13 +244,14 @@ export async function getFoodById(id: string): Promise<Food | null> {
 export async function updateFoodLog(
   id: string,
   serving_amount: number,
-  serving_unit: string
+  serving_unit: string,
+  logged_time?: string | null
 ): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   await db.runAsync(
-    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, updated_at = ?, synced_at = NULL WHERE id = ?',
-    [serving_amount, serving_unit, now, id]
+    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, logged_time = ?, updated_at = ?, synced_at = NULL WHERE id = ?',
+    [serving_amount, serving_unit, logged_time ?? null, now, id]
   );
 }
 

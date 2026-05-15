@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.0.22",
+  "version": "2.0.24",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -57,5 +57,8 @@
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@xmldom/xmldom": "^0.9.10"
+  }
 }

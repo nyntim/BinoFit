@@ -32,6 +32,7 @@ export type FoodLog = {
   food_id: string;
   serving_amount: number;
   serving_unit: string;
+  logged_time?: string | null;
   created_at: string;
   updated_at: string;
   synced_at?: string | null;
