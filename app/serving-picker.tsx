@@ -12,6 +12,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, MacroColors } from '@/constants/theme';
@@ -71,7 +72,9 @@ export default function ServingPickerScreen() {
   const [per100g, setPer100g] = useState(false);
   const [loggedTime, setLoggedTime] = useState<Date>(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [dailyCalories, setDailyCalories] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -135,7 +138,6 @@ export default function ServingPickerScreen() {
   const satFat = food?.saturated_fat != null ? Math.round(food.saturated_fat * nutriScale * 10) / 10 : null;
 
   const hasMicros = [fiber, sugar, sodium, satFat].some((v) => v !== null);
-  const stepSize = servingUnit === 'grams' ? 5 : servingUnit === 'oz' ? 0.5 : 0.25;
 
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
@@ -150,25 +152,10 @@ export default function ServingPickerScreen() {
     setServingAmount(String(Math.round(amt * 100) / 100));
   };
 
-  const handlePreset = (servings: number) => {
-    if (servingUnit === 'grams' && baseGrams) {
-      setServingAmount(String(Math.round(servings * baseGrams * 100) / 100));
-    } else if (servingUnit === 'oz' && baseGrams) {
-      setServingAmount(String(Math.round((servings * baseGrams / 28.35) * 100) / 100));
-    } else {
-      setServingUnit('default');
-      setServingAmount(String(servings));
-    }
-  };
-
-  const stepAmount = (dir: 1 | -1) => {
-    const v = Math.max(stepSize, Math.round((parsedAmount + dir * stepSize) * 100) / 100);
-    setServingAmount(String(v));
-  };
-
   const handleSave = async () => {
     if (!food || multiplier <= 0 || !meal_slot || !date) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const timeStr = `${String(loggedTime.getHours()).padStart(2, '0')}:${String(loggedTime.getMinutes()).padStart(2, '0')}`;
       const calSave = Math.round(food.calories * multiplier);
@@ -190,11 +177,22 @@ export default function ServingPickerScreen() {
       }
 
       writeNutritionLog(date, calSave, proSave, carbSave, fatSave);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
+    } catch {
+      setSaveError('Could not save. Please try again.');
     } finally {
       setSaving(false);
     }
   };
+
+  const unitLabel = per100g
+    ? 'Per 100g'
+    : servingUnit === 'default'
+    ? 'Serving'
+    : servingUnit === 'grams'
+    ? 'Grams'
+    : 'Ounces';
 
   if (!food) {
     return (
@@ -237,100 +235,44 @@ export default function ServingPickerScreen() {
             </Text>
           </View>
 
-          {/* Serving controls */}
+          {/* Amount */}
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.icon }]}>SERVINGS</Text>
+            <Text style={[styles.sectionLabel, { color: colors.icon }]}>AMOUNT</Text>
 
-            {baseGrams ? (
-              <View style={styles.unitChips}>
-                {(['default', 'grams', 'oz'] as ServingUnit[]).map((u) => {
-                  const active = servingUnit === u;
-                  return (
-                    <TouchableOpacity
-                      key={u}
-                      onPress={() => handleUnitChange(u)}
-                      style={[
-                        styles.unitChip,
-                        { borderColor: active ? colors.tint : colors.separator },
-                        active && { backgroundColor: colors.tint },
-                      ]}
-                    >
-                      <Text style={[styles.unitChipText, { color: active ? '#fff' : colors.icon }]}>
-                        {u === 'default' ? 'serving' : u}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            <View style={styles.presets}>
-              {([0.5, 1, 2, 3] as const).map((p) => {
-                const isActive =
-                  servingUnit === 'default' && Math.abs(parsedAmount - p) < 0.001;
-                return (
-                  <TouchableOpacity
-                    key={p}
-                    onPress={() => handlePreset(p)}
-                    style={[
-                      styles.presetChip,
-                      {
-                        borderColor: isActive ? colors.tint : colors.separator,
-                        backgroundColor: isActive ? colors.tint + '18' : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.presetText, { color: isActive ? colors.tint : colors.text }]}>
-                      {p === 0.5 ? '½' : p}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={[styles.amountCard, { backgroundColor: colors.cardBackground }]}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.amountInput, { color: colors.text }]}
+                value={servingAmount}
+                onChangeText={(v) => { setServingAmount(v); setSaveError(null); }}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+              <Text style={[styles.unitSublabel, { color: colors.icon }]}>
+                {servingUnit === 'default' ? food.serving_units : servingUnit}
+              </Text>
             </View>
 
-            <View style={[styles.stepperRow, { backgroundColor: colors.cardBackground }]}>
-              <TouchableOpacity
-                style={[styles.stepper, { borderColor: colors.separator }]}
-                onPress={() => stepAmount(-1)}
-              >
-                <Text style={[styles.stepperText, { color: colors.text }]}>−</Text>
-              </TouchableOpacity>
-              <View style={styles.inputWrap}>
-                <TextInput
-                  ref={inputRef}
-                  style={[styles.amountInput, { color: colors.text }]}
-                  value={servingAmount}
-                  onChangeText={setServingAmount}
-                  keyboardType="decimal-pad"
-                  selectTextOnFocus
-                />
-                <Text style={[styles.unitSublabel, { color: colors.icon }]}>
-                  {servingUnit === 'default' ? food.serving_units : servingUnit}
-                </Text>
+            <TouchableOpacity
+              style={[styles.unitSelector, { backgroundColor: colors.cardBackground }]}
+              onPress={() => setShowUnitPicker(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Unit: ${unitLabel}. Tap to change.`}
+            >
+              <Text style={[styles.unitSelectorLabel, { color: colors.icon }]}>Unit</Text>
+              <View style={styles.unitSelectorRight}>
+                <Text style={[styles.unitSelectorValue, { color: colors.tint }]}>{unitLabel}</Text>
+                <Text style={[styles.unitSelectorChevron, { color: colors.icon }]}>{'\u203A'}</Text>
               </View>
-              <TouchableOpacity
-                style={[styles.stepper, { borderColor: colors.separator }]}
-                onPress={() => stepAmount(1)}
-              >
-                <Text style={[styles.stepperText, { color: colors.text }]}>+</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Nutrition */}
           <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionLabel, { color: colors.icon }]}>
-                NUTRITION{per100g ? '  ·  per 100g' : ''}
-              </Text>
-              {baseGrams ? (
-                <TouchableOpacity onPress={() => setPer100g((v) => !v)}>
-                  <Text style={[styles.per100gToggle, { color: per100g ? colors.tint : colors.icon }]}>
-                    per 100g
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
+            <Text style={[styles.sectionLabel, { color: colors.icon }]}>
+              NUTRITION{per100g ? '  \u00b7  per 100g' : ''}
+            </Text>
 
             <View style={[styles.nutritionCard, { backgroundColor: colors.cardBackground }]}>
               <View style={styles.calorieRow}>
@@ -368,8 +310,11 @@ export default function ServingPickerScreen() {
           {/* Daily context */}
           {calorieGoal !== null && thisCal > 0 && (
             <View style={[styles.contextStrip, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.contextText, { color: colors.icon }]}>
-                +{thisCal} kcal → {totalAfter} / {calorieGoal} kcal today
+              <Text style={[styles.contextValue, { color: colors.text }]}>
+                {totalAfter} / {calorieGoal} kcal
+              </Text>
+              <Text style={[styles.contextSub, { color: colors.icon }]}>
+                +{thisCal} kcal from this item
               </Text>
             </View>
           )}
@@ -379,6 +324,8 @@ export default function ServingPickerScreen() {
             style={[styles.timeRow, { backgroundColor: colors.cardBackground }]}
             onPress={() => setShowTimePicker(true)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Log time: ${formatTime(loggedTime)}. Tap to change.`}
           >
             <Text style={[styles.timeLabel, { color: colors.text }]}>Time</Text>
             <Text style={[styles.timeDisplay, { color: colors.tint }]}>{formatTime(loggedTime)}</Text>
@@ -399,8 +346,30 @@ export default function ServingPickerScreen() {
               </Text>
             )}
           </TouchableOpacity>
+          {saveError ? (
+            <Text style={[styles.saveErrorText, { color: colors.danger }]}>{saveError}</Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <UnitPickerModal
+        visible={showUnitPicker}
+        servingUnit={servingUnit}
+        per100g={per100g}
+        baseGrams={baseGrams}
+        foodServingUnits={food.serving_units}
+        onSelectUnit={(unit) => {
+          setPer100g(false);
+          handleUnitChange(unit);
+          setShowUnitPicker(false);
+        }}
+        onTogglePer100g={() => {
+          setPer100g((v) => !v);
+          setShowUnitPicker(false);
+        }}
+        onClose={() => setShowUnitPicker(false)}
+        colors={colors}
+      />
 
       <TimePickerModal
         visible={showTimePicker}
@@ -438,6 +407,86 @@ function MicroRow({
       <Text style={[styles.microLabel, { color: subColor }]}>{label}</Text>
       <Text style={[styles.microValue, { color: textColor }]}>{value}{unit}</Text>
     </View>
+  );
+}
+
+function UnitPickerModal({
+  visible, servingUnit, per100g, baseGrams, foodServingUnits,
+  onSelectUnit, onTogglePer100g, onClose, colors,
+}: {
+  visible: boolean;
+  servingUnit: ServingUnit;
+  per100g: boolean;
+  baseGrams: number | null;
+  foodServingUnits: string;
+  onSelectUnit: (unit: ServingUnit) => void;
+  onTogglePer100g: () => void;
+  onClose: () => void;
+  colors: typeof Colors.light;
+}) {
+  const { bottom } = useSafeAreaInsets();
+
+  type UnitOption = { unit: ServingUnit; label: string; sublabel: string };
+  const unitOptions: UnitOption[] = [
+    { unit: 'default', label: 'Serving', sublabel: foodServingUnits },
+    ...(baseGrams
+      ? [
+          { unit: 'grams' as ServingUnit, label: 'Grams', sublabel: 'g' },
+          { unit: 'oz' as ServingUnit, label: 'Ounces', sublabel: 'oz' },
+        ]
+      : []),
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.pickerSheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
+          <Text style={[styles.pickerTitle, { color: colors.text }]}>Unit</Text>
+
+          {unitOptions.map(({ unit, label, sublabel }, i) => {
+            const isActive = servingUnit === unit && !per100g;
+            const isLast = i === unitOptions.length - 1 && !baseGrams;
+            return (
+              <TouchableOpacity
+                key={unit}
+                style={[
+                  styles.unitOption,
+                  { borderBottomColor: colors.separator },
+                  isLast && styles.unitOptionLast,
+                ]}
+                onPress={() => onSelectUnit(unit)}
+                activeOpacity={0.7}
+              >
+                <View>
+                  <Text style={[styles.unitOptionLabel, { color: colors.text }]}>{label}</Text>
+                  <Text style={[styles.unitOptionSub, { color: colors.icon }]}>{sublabel}</Text>
+                </View>
+                {isActive && (
+                  <Text style={[styles.unitOptionCheck, { color: colors.tint }]}>✓</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+
+          {baseGrams ? (
+            <TouchableOpacity
+              style={[styles.unitOption, styles.unitOptionLast]}
+              onPress={onTogglePer100g}
+              activeOpacity={0.7}
+            >
+              <View>
+                <Text style={[styles.unitOptionLabel, { color: colors.text }]}>Per 100g</Text>
+                <Text style={[styles.unitOptionSub, { color: colors.icon }]}>Reference view</Text>
+              </View>
+              {per100g && (
+                <Text style={[styles.unitOptionCheck, { color: colors.tint }]}>✓</Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -484,7 +533,6 @@ function TimePickerModal({
           <Text style={[styles.pickerTitle, { color: colors.text }]}>Time</Text>
 
           <View style={styles.pickerRow}>
-            {/* Hour */}
             <View style={styles.pickerColumn}>
               <TouchableOpacity onPress={() => setHour((h) => (h % 12) + 1)} hitSlop={8}>
                 <Text style={[styles.pickerArrow, { color: colors.tint }]}>▲</Text>
@@ -499,7 +547,6 @@ function TimePickerModal({
 
             <Text style={[styles.pickerColon, { color: colors.text }]}>:</Text>
 
-            {/* Minute */}
             <View style={styles.pickerColumn}>
               <TouchableOpacity onPress={() => setMinute((m) => (m + 5) % 60)} hitSlop={8}>
                 <Text style={[styles.pickerArrow, { color: colors.tint }]}>▲</Text>
@@ -512,7 +559,6 @@ function TimePickerModal({
               </TouchableOpacity>
             </View>
 
-            {/* AM/PM */}
             <View style={styles.ampmColumn}>
               <TouchableOpacity
                 onPress={() => setIsPM(false)}
@@ -557,67 +603,44 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16, paddingBottom: 48 },
 
-  foodCard: { borderRadius: 14, padding: 16, marginBottom: 24 },
-  foodName: { fontSize: 18, fontWeight: '700', marginBottom: 2, lineHeight: 24 },
+  foodCard: { borderRadius: 18, padding: 16, marginBottom: 24 },
+  foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
   foodBrand: { fontSize: 14, marginBottom: 4 },
   foodServing: { fontSize: 13, marginTop: 2 },
 
   section: { marginBottom: 24 },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    marginHorizontal: 4,
-  },
   sectionLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 },
-  per100gToggle: { fontSize: 12, fontWeight: '500' },
 
-  unitChips: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  unitChip: {
+  amountCard: {
+    borderRadius: 18,
+    paddingVertical: 24,
     paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  unitChipText: { fontSize: 13, fontWeight: '500' },
-
-  presets: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  presetChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
     alignItems: 'center',
+    marginBottom: 10,
   },
-  presetText: { fontSize: 15, fontWeight: '600' },
-
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    padding: 12,
-    gap: 12,
-  },
-  stepper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperText: { fontSize: 22, lineHeight: 26 },
-  inputWrap: { flex: 1, alignItems: 'center' },
   amountInput: {
-    fontSize: 28,
+    fontSize: 48,
     fontWeight: '700',
     textAlign: 'center',
     width: '100%',
+    fontVariant: ['tabular-nums'],
   },
-  unitSublabel: { fontSize: 12, marginTop: 2 },
+  unitSublabel: { fontSize: 13, marginTop: 4 },
 
-  nutritionCard: { borderRadius: 14, overflow: 'hidden' },
+  unitSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  unitSelectorLabel: { fontSize: 15 },
+  unitSelectorRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  unitSelectorValue: { fontSize: 15, fontWeight: '500' },
+  unitSelectorChevron: { fontSize: 20, lineHeight: 22 },
+
+  nutritionCard: { borderRadius: 18, overflow: 'hidden' },
   calorieRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -626,7 +649,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   calorieLabel: { fontSize: 15, fontWeight: '500' },
-  calorieValue: { fontSize: 28, fontWeight: '700' },
+  calorieValue: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   macroRow: {
     flexDirection: 'row',
@@ -635,7 +658,7 @@ const styles = StyleSheet.create({
   },
   macroCell: { flex: 1, alignItems: 'center', gap: 3 },
   macroDot: { width: 8, height: 8, borderRadius: 4 },
-  macroValue: { fontSize: 16, fontWeight: '700' },
+  macroValue: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
   macroLabel: { fontSize: 12 },
   macroDivider: { width: StyleSheet.hairlineWidth },
 
@@ -648,21 +671,22 @@ const styles = StyleSheet.create({
   },
   microRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   microLabel: { fontSize: 13 },
-  microValue: { fontSize: 13, fontWeight: '600' },
+  microValue: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   contextStrip: {
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 12,
   },
-  contextText: { fontSize: 13 },
+  contextValue: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  contextSub: { fontSize: 12, marginTop: 2 },
 
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 15,
     marginBottom: 24,
@@ -670,10 +694,11 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: 15 },
   timeDisplay: { fontSize: 15, fontWeight: '500' },
 
-  saveBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  saveBtn: { borderRadius: 18, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  saveErrorText: { fontSize: 13, textAlign: 'center', marginTop: 10 },
 
-  // Time picker modal
+  // Modals
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -684,7 +709,22 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  pickerTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 28 },
+  pickerTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 24 },
+
+  // Unit picker
+  unitOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  unitOptionLast: { borderBottomWidth: 0 },
+  unitOptionLabel: { fontSize: 16, fontWeight: '500' },
+  unitOptionSub: { fontSize: 12, marginTop: 1 },
+  unitOptionCheck: { fontSize: 18, fontWeight: '600' },
+
+  // Time picker
   pickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
