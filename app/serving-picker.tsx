@@ -146,12 +146,6 @@ export default function ServingPickerScreen() {
 
   const hasMicros = [fiber, sugar, sodium, satFat].some((v) => v !== null);
 
-  // Macro % of calories for this serving
-  const totalMacroCal = Math.max(carb * 4 + fat * 9 + pro * 4, 1);
-  const carbPct = Math.round((carb * 4 / totalMacroCal) * 100);
-  const fatPct = Math.round((fat * 9 / totalMacroCal) * 100);
-  const proPct = Math.round((pro * 4 / totalMacroCal) * 100);
-
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
     let amt = parsedAmount;
@@ -249,19 +243,21 @@ export default function ServingPickerScreen() {
         <SectionHeading title="SERVING" colors={colors} />
         <View style={[styles.formCard, { backgroundColor: colors.cardBackground }]}>
           <FormRow
+            label="Amount"
+            value={servingAmount || '0'}
+            accent={colors.tint}
+            onPress={() => setShowNumPad(true)}
+            divider
+            bordered
+            colors={colors}
+          />
+          <FormRow
             label="Serving Size"
             value={unitLabel}
             accent={colors.tint}
             onPress={() => setShowUnitPicker(true)}
             divider
-            colors={colors}
-          />
-          <FormRow
-            label="Number of Servings"
-            value={servingAmount || '0'}
-            accent={colors.tint}
-            onPress={() => setShowNumPad(true)}
-            divider
+            chevron
             colors={colors}
           />
           <FormRow
@@ -276,23 +272,23 @@ export default function ServingPickerScreen() {
         {/* Ring + Macros */}
         <SectionHeading title="NUTRITION" colors={colors} />
         <View style={[styles.ringMacroCard, { backgroundColor: colors.cardBackground }, expandedMacro && styles.ringMacroCardOpen]}>
-          <ServingCalRing cal={cal} calorieGoal={calorieGoal} colors={colors} />
+          <NutritionRing cal={cal} protein={pro} carbs={carb} fat={fat} colors={colors} />
           <View style={styles.ringMacroRight}>
             {([
-              { key: 'carbs' as const, label: 'Carbs', value: carb, pct: carbPct, color: MacroColors.carbs },
-              { key: 'fat' as const, label: 'Fat', value: fat, pct: fatPct, color: MacroColors.fat },
-              { key: 'protein' as const, label: 'Protein', value: pro, pct: proPct, color: MacroColors.protein },
+              { key: 'carbs' as const, label: 'Carbs', value: carb, color: MacroColors.carbs },
+              { key: 'fat' as const, label: 'Fat', value: fat, color: MacroColors.fat },
+              { key: 'protein' as const, label: 'Protein', value: pro, color: MacroColors.protein },
             ]).map((m) => {
               const active = expandedMacro === m.key;
               return (
                 <TouchableOpacity
                   key={m.label}
-                  style={[styles.macroCol, { backgroundColor: active ? m.color + '22' : colors.cardSecondary, borderRadius: 10, padding: 6 }]}
+                  style={[styles.macroCol, { backgroundColor: active ? m.color + '18' : colors.cardSecondary, borderRadius: 10, padding: 6 }]}
                   onPress={() => setExpandedMacro((prev) => (prev === m.key ? null : m.key))}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.macroPct, { color: m.color }]}>{m.pct}%</Text>
-                  <Text style={[styles.macroGrams, { color: colors.text }]}>{m.value}g</Text>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: m.color }} />
+                  <Text style={[styles.macroGrams, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{m.value}g</Text>
                   <Text style={[styles.macroColLabel, { color: colors.icon }]}>{m.label}</Text>
                 </TouchableOpacity>
               );
@@ -456,6 +452,7 @@ type MacroDetailRow = {
   value: number | null;
   goal: number | null;
   unit?: string;
+  indent?: number;
 };
 
 function buildMacroRows(
@@ -473,46 +470,46 @@ function buildMacroRows(
 ): MacroDetailRow[] {
   if (macro === 'protein') {
     return [
-      { key: 'total', label: 'Protein (Total)', value: pro, goal: proteinGoal },
-      { key: 'cystine', label: 'Cystine', value: null, goal: null },
-      { key: 'histidine', label: 'Histidine', value: null, goal: null },
-      { key: 'isoleucine', label: 'Isoleucine', value: null, goal: null },
-      { key: 'leucine', label: 'Leucine', value: null, goal: null },
-      { key: 'lysine', label: 'Lysine', value: null, goal: null },
-      { key: 'methionine', label: 'Methionine', value: null, goal: null },
-      { key: 'phenylalanine', label: 'Phenylalanine', value: null, goal: null },
-      { key: 'threonine', label: 'Threonine', value: null, goal: null },
-      { key: 'tryptophan', label: 'Tryptophan', value: null, goal: null },
-      { key: 'tyrosine', label: 'Tyrosine', value: null, goal: null },
-      { key: 'valine', label: 'Valine', value: null, goal: null },
+      { key: 'total', label: 'Protein (Total)', value: pro, goal: proteinGoal, indent: 0 },
+      { key: 'cystine', label: 'Cystine', value: null, goal: null, indent: 1 },
+      { key: 'histidine', label: 'Histidine', value: null, goal: null, indent: 1 },
+      { key: 'isoleucine', label: 'Isoleucine', value: null, goal: null, indent: 1 },
+      { key: 'leucine', label: 'Leucine', value: null, goal: null, indent: 1 },
+      { key: 'lysine', label: 'Lysine', value: null, goal: null, indent: 1 },
+      { key: 'methionine', label: 'Methionine', value: null, goal: null, indent: 1 },
+      { key: 'phenylalanine', label: 'Phenylalanine', value: null, goal: null, indent: 1 },
+      { key: 'threonine', label: 'Threonine', value: null, goal: null, indent: 1 },
+      { key: 'tryptophan', label: 'Tryptophan', value: null, goal: null, indent: 1 },
+      { key: 'tyrosine', label: 'Tyrosine', value: null, goal: null, indent: 1 },
+      { key: 'valine', label: 'Valine', value: null, goal: null, indent: 1 },
     ];
   }
   if (macro === 'carbs') {
     const net = fiber != null ? Math.round((carb - fiber) * 10) / 10 : null;
     return [
-      { key: 'total', label: 'Carbs (Total)', value: carb, goal: carbGoal },
-      { key: 'fiber', label: 'Fiber', value: fiber, goal: null },
-      { key: 'fiber_ins', label: 'Fiber (Insoluble)', value: null, goal: null },
-      { key: 'fiber_sol', label: 'Fiber (Soluble)', value: null, goal: null },
-      { key: 'net', label: 'Carbs (Net)', value: net, goal: null },
-      { key: 'starch', label: 'Starch', value: null, goal: null },
-      { key: 'sugar', label: 'Sugars', value: sugar, goal: null },
-      { key: 'added_sugars', label: 'Added Sugars', value: null, goal: null },
+      { key: 'total', label: 'Carbs (Total)', value: carb, goal: carbGoal, indent: 0 },
+      { key: 'fiber', label: 'Fiber', value: fiber, goal: null, indent: 1 },
+      { key: 'fiber_ins', label: 'Fiber (Insoluble)', value: null, goal: null, indent: 2 },
+      { key: 'fiber_sol', label: 'Fiber (Soluble)', value: null, goal: null, indent: 2 },
+      { key: 'net', label: 'Carbs (Net)', value: net, goal: null, indent: 0 },
+      { key: 'starch', label: 'Starch', value: null, goal: null, indent: 0 },
+      { key: 'sugar', label: 'Sugars', value: sugar, goal: null, indent: 0 },
+      { key: 'added_sugars', label: 'Added Sugars', value: null, goal: null, indent: 0 },
     ];
   }
   return [
-    { key: 'total', label: 'Fats (Total)', value: fat, goal: fatGoal },
-    { key: 'mono', label: 'Fat (Monounsaturated)', value: null, goal: null },
-    { key: 'poly', label: 'Fat (Polyunsaturated)', value: null, goal: null },
-    { key: 'o3', label: 'Omega-3', value: null, goal: null },
-    { key: 'o3_ala', label: 'Omega-3 (ALA)', value: null, goal: null },
-    { key: 'o3_dha', label: 'Omega-3 (DHA)', value: null, goal: null },
-    { key: 'o3_epa', label: 'Omega-3 (EPA)', value: null, goal: null },
-    { key: 'o6', label: 'Omega-6', value: null, goal: null },
-    { key: 'o6_aa', label: 'Omega-6 (AA)', value: null, goal: null },
-    { key: 'o6_la', label: 'Omega-6 (LA)', value: null, goal: null },
-    { key: 'sat', label: 'Fat (Saturated)', value: satFat, goal: null },
-    { key: 'trans', label: 'Fat (Trans)', value: transFat, goal: null },
+    { key: 'total', label: 'Fats (Total)', value: fat, goal: fatGoal, indent: 0 },
+    { key: 'mono', label: 'Fat (Monounsaturated)', value: null, goal: null, indent: 1 },
+    { key: 'poly', label: 'Fat (Polyunsaturated)', value: null, goal: null, indent: 1 },
+    { key: 'o3', label: 'Omega-3', value: null, goal: null, indent: 1 },
+    { key: 'o3_ala', label: 'Omega-3 (ALA)', value: null, goal: null, indent: 2 },
+    { key: 'o3_dha', label: 'Omega-3 (DHA)', value: null, goal: null, indent: 2 },
+    { key: 'o3_epa', label: 'Omega-3 (EPA)', value: null, goal: null, indent: 2 },
+    { key: 'o6', label: 'Omega-6', value: null, goal: null, indent: 1 },
+    { key: 'o6_aa', label: 'Omega-6 (AA)', value: null, goal: null, indent: 2 },
+    { key: 'o6_la', label: 'Omega-6 (LA)', value: null, goal: null, indent: 2 },
+    { key: 'sat', label: 'Fat (Saturated)', value: satFat, goal: null, indent: 1 },
+    { key: 'trans', label: 'Fat (Trans)', value: transFat, goal: null, indent: 1 },
   ];
 }
 
@@ -561,6 +558,7 @@ function DetailRow({
   colors: typeof Colors.light;
 }) {
   const hasValue = row.value != null;
+  const indent = row.indent ?? 0;
   const pct = hasValue && row.goal
     ? Math.min((row.value as number) / Math.max(row.goal, 1), 1)
     : 0;
@@ -572,14 +570,16 @@ function DetailRow({
   const pctText = hasValue && row.goal ? `${Math.round(pct * 100)}%` : '0%';
 
   return (
-    <View style={styles.detailRow}>
+    <View style={[styles.detailRow, { paddingLeft: 16 + indent * 16 }]}>
       <View style={styles.detailRowTop}>
-        <Text style={[styles.detailRowLabel, { color: colors.text }]} numberOfLines={1}>
-          {row.label}
-        </Text>
-        <Text style={[styles.detailRowValue, { color: hasValue ? colors.text : colors.icon }]}>
-          {valueText}
-        </Text>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <Text style={[styles.detailRowLabel, { color: colors.text, fontWeight: indent === 0 ? '700' : '600' }]}>
+            {row.label}
+          </Text>
+          <Text style={[styles.detailRowValueInline, { color: hasValue ? colors.icon : colors.icon }]}>
+            {'  '}{valueText}
+          </Text>
+        </View>
         <Text style={[styles.detailRowPct, { color: colors.icon }]}>{pctText}</Text>
       </View>
       {hasValue && row.goal ? (
@@ -592,23 +592,35 @@ function DetailRow({
 }
 
 function FormRow({
-  label, value, accent, onPress, divider, colors,
+  label, value, accent, onPress, divider, bordered, chevron, colors,
 }: {
   label: string;
   value: string;
   accent: string;
   onPress?: () => void;
   divider?: boolean;
+  bordered?: boolean;
+  chevron?: boolean;
   colors: typeof Colors.light;
 }) {
   const rowStyle = [
     styles.formRow,
     divider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
   ];
+  const valueEl = bordered ? (
+    <View style={[styles.formRowBorderedBox, { borderColor: colors.separator }]}>
+      <Text style={[styles.formRowValueText, { color: accent }]}>{value}</Text>
+    </View>
+  ) : (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <Text style={[styles.formRowValueText, { color: accent }]}>{value}</Text>
+      {chevron && <Text style={{ fontSize: 13, color: colors.icon }}>▾</Text>}
+    </View>
+  );
   const content = (
     <>
       <Text style={[styles.formRowLabel, { color: colors.text }]}>{label}</Text>
-      <Text style={[styles.formRowValueText, { color: accent }]}>{value}</Text>
+      {valueEl}
     </>
   );
   return onPress ? (
@@ -620,41 +632,60 @@ function FormRow({
   );
 }
 
-function ServingCalRing({
-  cal, calorieGoal, colors,
+function NutritionRing({
+  cal, protein, carbs, fat, colors,
 }: {
   cal: number;
-  calorieGoal: number | null;
+  protein: number;
+  carbs: number;
+  fat: number;
   colors: typeof Colors.light;
 }) {
-  const size = 110;
-  const sw = 10;
+  const size = 80;
+  const sw = 8;
   const r = (size - sw) / 2;
   const circ = 2 * Math.PI * r;
-  const progress = calorieGoal ? Math.min(cal / calorieGoal, 1) : cal > 0 ? 1 : 0;
-  const offset = circ * (1 - progress);
+
+  const protCal = protein * 4;
+  const carbCal = carbs * 4;
+  const fatCal = fat * 9;
+  const total = Math.max(protCal + carbCal + fatCal, 1);
+
+  const protFrac = protCal / total;
+  const carbFrac = carbCal / total;
+  const fatFrac = fatCal / total;
+
+  const carbOff = protFrac * circ;
+  const fatOff = (protFrac + carbFrac) * circ;
+
+  const cx = size / 2;
+  const cy = size / 2;
+
+  const seg = (frac: number, offset: number, color: string) =>
+    frac > 0 ? (
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke={color} strokeWidth={sw} fill="none"
+        strokeDasharray={[frac * circ, circ - frac * circ]}
+        strokeDashoffset={-offset}
+        strokeLinecap="round"
+        rotation="-90"
+        origin={`${cx}, ${cy}`}
+      />
+    ) : null;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle
-          cx={size / 2} cy={size / 2} r={r}
-          stroke={colors.separator} strokeWidth={sw} fill="none"
-        />
-        <Circle
-          cx={size / 2} cy={size / 2} r={r}
-          stroke={colors.tint} strokeWidth={sw} fill="none"
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-        />
+        <Circle cx={cx} cy={cy} r={r} stroke={colors.separator} strokeWidth={sw} fill="none" />
+        {seg(fatFrac, fatOff, MacroColors.fat)}
+        {seg(carbFrac, carbOff, MacroColors.carbs)}
+        {seg(protFrac, 0, MacroColors.protein)}
       </Svg>
-      <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }}>
+      <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }}>
         {cal}
       </Text>
-      <Text style={{ fontSize: 11, color: colors.icon }}>cal</Text>
+      <Text style={{ fontSize: 10, color: colors.icon }}>cal</Text>
     </View>
   );
 }
@@ -1013,26 +1044,35 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    padding: 16,
-    gap: 10,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   macroDetailHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
     marginBottom: 4,
   },
   macroDetailTitle: { fontSize: 14, fontWeight: '700' },
-  detailRow: { gap: 4 },
+  detailRow: { gap: 4, paddingRight: 16, paddingVertical: 6 },
   detailRowTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
-  detailRowLabel: { fontSize: 13, flex: 1 },
-  detailRowValue: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 40, textAlign: 'right' },
+  detailRowLabel: { fontSize: 13 },
+  detailRowValueInline: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 36, textAlign: 'right' },
+  formRowBorderedBox: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 72,
+    alignItems: 'flex-end',
+  },
 
   foodCard: { borderRadius: 18, padding: 16 },
   foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
@@ -1066,10 +1106,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
+    gap: 6,
   },
-  macroCol: { alignItems: 'center', gap: 2, flex: 1 },
-  macroPct: { fontSize: 12, fontWeight: '700' },
-  macroGrams: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  macroCol: { alignItems: 'center', gap: 2, flex: 1, minWidth: 0 },
+  macroGrams: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
   macroColLabel: { fontSize: 11 },
 
   // Expand sections
