@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
+import * as Crypto from 'expo-crypto';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {

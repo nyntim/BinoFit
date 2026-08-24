@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.0.26",
+  "version": "2.0.27",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -9,6 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
     "build:foods": "node scripts/build-food-db.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
   },
@@ -50,15 +52,24 @@
     "react-native-worklets": "~0.8.1"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
     "better-sqlite3": "^12.9.0",
     "csv-parse": "^6.2.1",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~55.0.21",
     "typescript": "~5.9.2"
   },
   "private": true,
   "overrides": {
     "@xmldom/xmldom": "^0.9.10"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.js"
+    ]
   }
 }
