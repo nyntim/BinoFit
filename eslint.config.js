@@ -7,4 +7,12 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    // React Compiler rules added in eslint-config-expo 57 flag existing
+    // data-loading effects; keep them visible as warnings until refactored
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+    },
+  },
 ]);
