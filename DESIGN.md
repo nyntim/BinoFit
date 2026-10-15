@@ -141,6 +141,8 @@ A restrained palette anchored in warm paper neutrals with one precise signal col
 
 **The Signal Isolation Rule.** Protein red, carb amber, and fat blue are reserved strictly for macro visualization. They never appear on navigation, UI chrome, or decorative elements. Seeing these colors means one thing: macros.
 
+**The Streak Flame Exception.** The streak badge's 12pt flame glyph uses the `streak` token (burnt orange #D44F08 light, #FF8A3D dark), kept visibly darker or redder than carb amber. It is the only orange outside the macro signals: nothing else uses it, and the badge itself stays neutral (no animation, no celebration copy).
+
 **The Warm Neutral Rule.** In light mode, every neutral surface carries a faint warm bias (minimum chroma 0.005 toward 85 hue). Pure gray (#888888) and pure white (#ffffff) are prohibited. Black (#000000) is prohibited. The palette reads as paper, not a screen.
 
 ### Dark Mode: Graphite

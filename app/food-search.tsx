@@ -14,6 +14,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
+import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
 import {
   searchLocal,
@@ -25,13 +26,6 @@ import {
   type SortOption,
 } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
-
-const SLOT_LABELS: Record<string, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
-  snack: 'Snacks',
-};
 
 const SORT_LABELS: Record<SortOption, string> = {
   best: 'Best Match',
@@ -76,6 +70,7 @@ function SortControl({
 export default function FoodSearchScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
   const router = useRouter();
+  const { labelFor, loaded: mealsLoaded } = useMealDefinitions();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -175,7 +170,7 @@ export default function FoodSearchScreen() {
     fetchBranded(parsed.term, localResults.map((f) => f.id), searchIdRef.current);
   };
 
-  const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
+  const slotLabel = mealsLoaded ? labelFor(meal_slot, date) : '';
 
   const selectFood = async (food: Food) => {
     if (selecting) return;
@@ -240,7 +235,7 @@ export default function FoodSearchScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
           <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Add to {slotLabel}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{mealsLoaded ? `Add to ${slotLabel}` : ''}</Text>
         <View style={styles.cancelBtn} />
       </View>
 

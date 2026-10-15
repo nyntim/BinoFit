@@ -77,6 +77,37 @@ create table if not exists public.user_profile (
 );
 
 -- ─────────────────────────────────────────────────────────
+-- meal_definitions: user-defined meals (food_logs.meal_slot holds the id).
+-- Push-only; deletions are not propagated.
+-- ─────────────────────────────────────────────────────────
+create table if not exists public.meal_definitions (
+  user_id        text not null,
+  id             text not null,
+  position       integer not null,
+  calorie_target real,
+  protein_target real,
+  carb_target    real,
+  fat_target     real,
+  reminder_time  text,
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now(),
+  primary key (user_id, id)
+);
+alter table public.meal_definitions add column if not exists reminder_time text;
+
+-- ─────────────────────────────────────────────────────────
+-- meal_names: name history; a name applies from effective_from onward
+-- ─────────────────────────────────────────────────────────
+create table if not exists public.meal_names (
+  user_id        text not null,
+  meal_id        text not null,
+  name           text not null,
+  effective_from text not null,   -- yyyy-MM-dd
+  updated_at     timestamptz default now(),
+  primary key (user_id, meal_id, effective_from)
+);
+
+-- ─────────────────────────────────────────────────────────
 -- Row Level Security
 -- Currently permissive (anon key access). Tighten to
 -- auth.uid() when real authentication is added.
@@ -85,6 +116,8 @@ alter table public.foods         enable row level security;
 alter table public.food_logs     enable row level security;
 alter table public.user_goals    enable row level security;
 alter table public.user_profile  enable row level security;
+alter table public.meal_definitions enable row level security;
+alter table public.meal_names       enable row level security;
 
 -- foods: everyone can read public foods; users can manage their own custom foods
 create policy "Public foods are readable by all"
@@ -114,5 +147,16 @@ create policy "Users can manage goals"
 -- user_profile: open access until auth is wired up
 create policy "Users can manage profile"
   on public.user_profile for all
+  using (true)
+  with check (true);
+
+-- meal_definitions / meal_names: open access until auth is wired up
+create policy "Users can manage meal definitions"
+  on public.meal_definitions for all
+  using (true)
+  with check (true);
+
+create policy "Users can manage meal names"
+  on public.meal_names for all
   using (true)
   with check (true);

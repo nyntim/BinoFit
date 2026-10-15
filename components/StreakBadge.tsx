@@ -4,6 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStreak } from '@/hooks/useStreak';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 type Props = {
   trigger?: any;
@@ -23,9 +24,14 @@ export const StreakBadge: React.FC<Props> = ({ trigger }) => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.separator }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.separator }]}
+      accessible
+      accessibilityLabel={`${currentStreak} day streak`}
+    >
+      <IconSymbol name="flame.fill" size={12} color={colors.streak} />
       <Text style={[styles.text, { color: colors.text }]}>
-        🔥 {currentStreak} day streak
+        {currentStreak} day streak
       </Text>
     </View>
   );
@@ -35,6 +41,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,

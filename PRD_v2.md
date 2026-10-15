@@ -116,7 +116,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 
 ### 4.3 Meal logging
 
-- Four meal slots: breakfast, lunch, dinner, snacks
+- User-defined meals (1 to 8), defaulting to breakfast, lunch, dinner, snacks. Rename, add, delete and reorder them from the dashboard Edit mode; set optional per-meal calorie and macro targets. Renames apply from today, so past days keep their old name. Deleting a meal deletes its logged food.
 - Add food to a slot via search or barcode scan
 - Adjust serving size before and after saving
 - Edit or delete any logged item
@@ -174,7 +174,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 ### 4.10 Notifications and reminders
 
 - Daily logging reminder (configurable time, off by default)
-- Meal reminder (configurable per slot, off by default)
+- Meal reminder (configurable per meal, off by default): one optional daily local notification per meal at a chosen time, set from the meal's settings sheet in dashboard Edit mode. Neutral copy ("Time to log Lunch."). Permission is requested only when a reminder is turned on; if denied, the toggle stays off with a link to system settings. Reminders are rescheduled on save and on app launch
 - Streak protection reminder (fires if no log by evening)
 - All notifications opt-in; no defaults
 

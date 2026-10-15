@@ -2,7 +2,7 @@
   "expo": {
     "name": "BinoFit",
     "slug": "binofit",
-    "version": "2.0.36",
+    "version": "2.0.43",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",
@@ -49,6 +49,7 @@
       "react-native-health",
       "expo-font",
       "expo-image",
+      "expo-notifications",
       "expo-sqlite",
       "expo-status-bar",
       "expo-web-browser"

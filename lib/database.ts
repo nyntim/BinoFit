@@ -1,14 +1,31 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
-import type { Food, FoodLog, FoodLogWithFood, MealSlot, MealSlotConfirmation, WaterLog } from '@/lib/types';
+import type {
+  Food,
+  FoodLog,
+  FoodLogWithFood,
+  MealDefinition,
+  MealId,
+  MealNameEntry,
+  MealSlot,
+  MealSlotConfirmation,
+  WaterLog,
+} from '@/lib/types';
+import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
 
-let _db: SQLite.SQLiteDatabase | null = null;
+let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync('fitness.db');
-  await initSchema(_db);
-  return _db;
+export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  // Cache the init promise so concurrent first callers all wait for the schema.
+  _dbPromise ??= (async () => {
+    const db = await SQLite.openDatabaseAsync('fitness.db');
+    await initSchema(db);
+    return db;
+  })().catch((e) => {
+    _dbPromise = null;
+    throw e;
+  });
+  return _dbPromise;
 }
 
 async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -67,6 +84,28 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS meal_definitions (
+      id TEXT PRIMARY KEY,
+      position INTEGER NOT NULL,
+      calorie_target REAL,
+      protein_target REAL,
+      carb_target REAL,
+      fat_target REAL,
+      reminder_time TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS meal_names (
+      meal_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      effective_from TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT,
+      PRIMARY KEY (meal_id, effective_from)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_food_logs_date ON food_logs(date);
     CREATE INDEX IF NOT EXISTS idx_foods_name ON foods(name);
     CREATE INDEX IF NOT EXISTS idx_meal_slot_confirmations_date ON meal_slot_confirmations(date);
@@ -76,6 +115,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   // Migrations for existing databases
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN synced_at TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN logged_time TEXT;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE meal_definitions ADD COLUMN reminder_time TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sodium REAL;`).catch(() => {});
@@ -86,6 +126,34 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`ALTER TABLE foods ADD COLUMN calcium REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN iron REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
+
+  await seedDefaultMeals(db);
+}
+
+/**
+ * Seeds the four default meals exactly once, when meal_definitions is empty. Names are
+ * effective from the beginning of time so all existing history resolves. Never reseeds:
+ * the table can never be empty again because at least one meal is always kept.
+ */
+async function seedDefaultMeals(db: SQLite.SQLiteDatabase): Promise<void> {
+  const row = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM meal_definitions');
+  if (row && row.c > 0) return;
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    for (let i = 0; i < DEFAULT_MEALS.length; i++) {
+      const m = DEFAULT_MEALS[i];
+      await db.runAsync(
+        `INSERT OR IGNORE INTO meal_definitions (id, position, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, NULL)`,
+        [m.id, i, now, now]
+      );
+      await db.runAsync(
+        `INSERT OR IGNORE INTO meal_names (meal_id, name, effective_from, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, NULL)`,
+        [m.id, m.name, ALWAYS_EFFECTIVE, now]
+      );
+    }
+  });
 }
 
 export async function searchFoods(query: string, limit = 50): Promise<Food[]> {
@@ -473,4 +541,136 @@ export async function getWaterLogsByDate(date: string): Promise<WaterLog[]> {
 export async function deleteWaterLog(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM water_logs WHERE id = ?', [id]);
+}
+
+// ── User-defined meals ──────────────────────────────────────────
+
+export async function getMealDefinitions(): Promise<MealDefinition[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<MealDefinition>('SELECT * FROM meal_definitions ORDER BY position');
+}
+
+export async function getMealNames(): Promise<MealNameEntry[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<MealNameEntry>('SELECT * FROM meal_names ORDER BY meal_id, effective_from');
+}
+
+/** Number of food logs on every date for a meal. */
+export async function countFoodLogsForMeal(id: MealId): Promise<number> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ?',
+    [id]
+  );
+  return row?.c ?? 0;
+}
+
+/**
+ * Applies an edit-mode draft in one transaction: deletes (a meal's food logs on every date,
+ * its status rows, names and definition), adds, positions, targets, and renames (a name
+ * history row effective `today`; renaming twice on one day overwrites that day's row).
+ *
+ * Sync gap: deletions are not propagated to Supabase for meal_definitions / meal_names
+ * (same as other tables). Synced food logs of a deleted meal are removed best-effort.
+ */
+export async function saveMealDraft(draft: MealDraft, today: string): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const syncedLogIds: string[] = [];
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const id of draft.deletedIds) {
+      const synced = await txn.getAllAsync<{ id: string }>(
+        'SELECT id FROM food_logs WHERE meal_slot = ? AND synced_at IS NOT NULL',
+        [id]
+      );
+      syncedLogIds.push(...synced.map((r) => r.id));
+      await txn.runAsync('DELETE FROM food_logs WHERE meal_slot = ?', [id]);
+      await txn.runAsync('DELETE FROM meal_slot_confirmations WHERE meal_slot = ?', [id]);
+      await txn.runAsync('DELETE FROM meal_names WHERE meal_id = ?', [id]);
+      await txn.runAsync('DELETE FROM meal_definitions WHERE id = ?', [id]);
+    }
+
+    const nameRows = await txn.getAllAsync<MealNameEntry>('SELECT * FROM meal_names');
+
+    for (let i = 0; i < draft.meals.length; i++) {
+      const m = draft.meals[i];
+      // Only rows that actually changed are touched (and re-marked unsynced).
+      await txn.runAsync(
+        `INSERT INTO meal_definitions
+           (id, position, calorie_target, protein_target, carb_target, fat_target, reminder_time, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(id) DO UPDATE SET
+           position = excluded.position,
+           calorie_target = excluded.calorie_target,
+           protein_target = excluded.protein_target,
+           carb_target = excluded.carb_target,
+           fat_target = excluded.fat_target,
+           reminder_time = excluded.reminder_time,
+           updated_at = excluded.updated_at,
+           synced_at = NULL
+         WHERE meal_definitions.position IS NOT excluded.position
+            OR meal_definitions.calorie_target IS NOT excluded.calorie_target
+            OR meal_definitions.protein_target IS NOT excluded.protein_target
+            OR meal_definitions.carb_target IS NOT excluded.carb_target
+            OR meal_definitions.fat_target IS NOT excluded.fat_target
+            OR meal_definitions.reminder_time IS NOT excluded.reminder_time`,
+        [m.id, i, m.calorie_target, m.protein_target, m.carb_target, m.fat_target, m.reminder_time, now, now]
+      );
+
+      const name = m.name.trim();
+      if (m.isNew || name !== nameForDate(nameRows, m.id, today)) {
+        await txn.runAsync(
+          `INSERT INTO meal_names (meal_id, name, effective_from, updated_at, synced_at)
+           VALUES (?, ?, ?, ?, NULL)
+           ON CONFLICT(meal_id, effective_from) DO UPDATE SET
+             name = excluded.name,
+             updated_at = excluded.updated_at,
+             synced_at = NULL`,
+          [m.id, name, today, now]
+        );
+      }
+    }
+  });
+
+  if (syncedLogIds.length > 0) {
+    import('@/lib/supabase')
+      .then(({ supabase }) => supabase.from('food_logs').delete().in('id', syncedLogIds))
+      .catch(() => {});
+  }
+}
+
+export async function getUnsyncedMealDefinitions(): Promise<MealDefinition[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<MealDefinition>('SELECT * FROM meal_definitions WHERE synced_at IS NULL');
+}
+
+export async function markMealDefinitionsSynced(ids: MealId[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const placeholders = ids.map(() => '?').join(', ');
+  await db.runAsync(
+    `UPDATE meal_definitions SET synced_at = ? WHERE id IN (${placeholders})`,
+    [now, ...ids]
+  );
+}
+
+export async function getUnsyncedMealNames(): Promise<MealNameEntry[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<MealNameEntry>('SELECT * FROM meal_names WHERE synced_at IS NULL');
+}
+
+export async function markMealNamesSynced(
+  entries: Pick<MealNameEntry, 'meal_id' | 'effective_from'>[]
+): Promise<void> {
+  if (entries.length === 0) return;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  for (const e of entries) {
+    await db.runAsync(
+      'UPDATE meal_names SET synced_at = ? WHERE meal_id = ? AND effective_from = ?',
+      [now, e.meal_id, e.effective_from]
+    );
+  }
 }

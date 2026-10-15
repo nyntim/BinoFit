@@ -18,7 +18,7 @@ const VELOCITY_THRESHOLD = 500;
 const ACTIVE_OFFSET_X = 15;
 const FAIL_OFFSET_Y = 30;
 
-export function useSwipeDayNavigation() {
+export function useSwipeDayNavigation({ enabled = true }: { enabled?: boolean } = {}) {
   const { selectedDate, setSelectedDate } = useDate();
   const translateX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
@@ -74,6 +74,7 @@ export function useSwipeDayNavigation() {
   }
 
   const panGesture = Gesture.Pan()
+    .enabled(enabled)
     .activeOffsetX([-ACTIVE_OFFSET_X, ACTIVE_OFFSET_X])
     .failOffsetY([-FAIL_OFFSET_Y, FAIL_OFFSET_Y])
     .onUpdate((e) => {

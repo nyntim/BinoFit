@@ -18,6 +18,7 @@ export const Colors = {
     track:           '#D6D2C8',   // progress bar track
     success:         '#27AE60',
     danger:          '#E74C3C',
+    streak:          '#D44F08',   // streak flame, 3:1+ on cardBackground
   },
   dark: {
     text:            '#EDEDF0',   // graphite near-white
@@ -33,6 +34,7 @@ export const Colors = {
     track:           'rgba(237,237,240,0.14)',  // visible against cardBackground
     success:         '#52D68A',   // brighter for dark backgrounds
     danger:          '#FF6E6E',   // brighter for dark backgrounds
+    streak:          '#FF8A3D',   // streak flame, brighter for dark backgrounds
   },
 };
 
