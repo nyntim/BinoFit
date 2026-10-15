@@ -129,6 +129,34 @@ describe('saveMealDraft extras', () => {
     expect(names.map((n) => [n.meal_id, n.effective_from])).toEqual([['breakfast', TODAY]]);
   });
 
+  it('persists reminder_time and re-marks only that meal unsynced', async () => {
+    await markAllSynced();
+    const d = await loadDraft();
+    d.meals[2].reminder_time = '18:30';
+    await database.saveMealDraft(d, TODAY);
+    const defs = await database.getMealDefinitions();
+    expect(defs.map((m) => m.reminder_time)).toEqual([null, null, '18:30', null]);
+    expect((await database.getUnsyncedMealDefinitions()).map((m) => m.id)).toEqual(['dinner']);
+
+    await database.markMealDefinitionsSynced(['dinner']);
+    d.meals[2].reminder_time = null;
+    await database.saveMealDraft(d, TODAY);
+    expect((await database.getMealDefinitions())[2].reminder_time).toBeNull();
+    expect((await database.getUnsyncedMealDefinitions()).map((m) => m.id)).toEqual(['dinner']);
+  });
+
+  it('adds reminder_time to an existing meal_definitions table and keeps rows', async () => {
+    mem.raw.exec(`
+      CREATE TABLE meal_definitions (id TEXT PRIMARY KEY, position INTEGER NOT NULL, calorie_target REAL,
+        protein_target REAL, carb_target REAL, fat_target REAL, created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL, synced_at TEXT);
+      INSERT INTO meal_definitions VALUES ('lunch', 0, 500, NULL, NULL, NULL, 'x', 'x', 'x');
+    `);
+    expect(await database.getMealDefinitions()).toEqual([
+      expect.objectContaining({ id: 'lunch', calorie_target: 500, reminder_time: null }),
+    ]);
+  });
+
   it('saving an unchanged draft changes nothing', async () => {
     await markAllSynced();
     await database.saveMealDraft(await loadDraft(), TODAY);
@@ -209,6 +237,7 @@ describe('saveMealDraft', () => {
       id: 'new-1',
       name: 'Brunch',
       isNew: true,
+      reminder_time: null,
       calorie_target: 400,
       protein_target: null,
       carb_target: null,

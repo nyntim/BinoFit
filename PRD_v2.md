@@ -174,7 +174,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 ### 4.10 Notifications and reminders
 
 - Daily logging reminder (configurable time, off by default)
-- Meal reminder (configurable per slot, off by default)
+- Meal reminder (configurable per meal, off by default): one optional daily local notification per meal at a chosen time, set from the meal's settings sheet in dashboard Edit mode. Neutral copy ("Time to log Lunch."). Permission is requested only when a reminder is turned on; if denied, the toggle stays off with a link to system settings. Reminders are rescheduled on save and on app launch
 - Streak protection reminder (fires if no log by evening)
 - All notifications opt-in; no defaults
 

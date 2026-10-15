@@ -77,6 +77,7 @@ async function syncMealDefinitions(): Promise<void> {
     protein_target: m.protein_target,
     carb_target: m.carb_target,
     fat_target: m.fat_target,
+    reminder_time: m.reminder_time ?? null,
     created_at: m.created_at,
     updated_at: m.updated_at,
   }));

@@ -49,6 +49,7 @@ import { MealSlotCard, MEAL_EDIT_CARD_HEIGHT } from '@/components/dashboard/Meal
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { useMealDraft } from '@/hooks/useMealDraft';
+import { restoreMealReminders } from '@/lib/reminders';
 import { logsForSlot } from '@/lib/nutrition-totals';
 import { syncToSupabase } from '@/lib/sync';
 import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
@@ -230,6 +231,7 @@ export default function HomeScreen() {
       setIsEditing(false);
       setScrollLocked(false);
       syncToSupabase();
+      restoreMealReminders();
       await reloadMeals();
       loadData(true);
     } catch (error) {
@@ -550,7 +552,10 @@ export default function HomeScreen() {
                       canDelete={mealDraft.draft!.meals.length > MEAL_LIMITS.min}
                       dragHandle={handle}
                       onChangeName={(name) => mealDraft.rename(m.id, name)}
-                      onChangeTargets={(t) => mealDraft.setTargets(m.id, t)}
+                      onChangeSettings={(t, r) => {
+                        mealDraft.setTargets(m.id, t);
+                        mealDraft.setReminder(m.id, r);
+                      }}
                       onDelete={() => confirmDeleteMeal(m.id, m.name)}
                     />
                   )}

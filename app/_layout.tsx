@@ -8,6 +8,9 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
+import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
+
+configureNotificationHandler();
 
 export const unstable_settings = {
   anchor: 'index',
@@ -16,6 +19,11 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  // Re-create meal reminders on launch (covers reinstall and restore).
+  useEffect(() => {
+    restoreMealReminders();
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

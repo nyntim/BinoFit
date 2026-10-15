@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/theme';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
 import { MealSlotCard } from '@/components/dashboard/MealSlotCard';
@@ -12,6 +13,9 @@ jest.mock('@expo/vector-icons/MaterialIcons', () => {
     default: ({ name }: { name: string }) => <RNText>{`icon:${name}`}</RNText>,
   };
 });
+
+// The native time picker needs a SafeAreaProvider; it is not under test here.
+jest.mock('@/components/time-picker-sheet', () => ({ TimePickerSheet: () => null }));
 
 const colors = Colors.light;
 
@@ -157,6 +161,11 @@ describe('MealSlotCard targets (view mode)', () => {
     expect(screen.getByText('320 cal')).toBeTruthy();
   });
 
+  it('shows a bell labelled with the reminder time', async () => {
+    await render(<MealSlotCard {...props()} targets={{ ...targets, reminder_time: '12:30' }} />);
+    expect(screen.getByLabelText(/^Reminder at /)).toBeTruthy();
+  });
+
   it('hides add affordances when allowAdd is false', async () => {
     await render(<MealSlotCard {...props()} logs={[]} allowAdd={false} />);
     expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
@@ -176,7 +185,7 @@ describe('MealSlotCard edit mode', () => {
     canDelete: true,
     dragHandle: null,
     onChangeName: jest.fn(),
-    onChangeTargets: jest.fn(),
+    onChangeSettings: jest.fn(),
     onDelete: jest.fn(),
   });
 
@@ -210,18 +219,42 @@ describe('MealSlotCard edit mode', () => {
     expect(props.onDelete).not.toHaveBeenCalled();
   });
 
+  it('shows the reminder time in the caption', async () => {
+    const t = { calorie_target: null, protein_target: null, carb_target: null, fat_target: null, reminder_time: '12:30' };
+    await render(<MealSlotCard {...editProps()} targets={t} />);
+    expect(screen.getByText(/2 items · 150 cal · .*reminder/)).toBeTruthy();
+  });
+
   it('saves targets from the sheet', async () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Set targets for Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
     await fireEvent.changeText(screen.getByLabelText('Breakfast calories target'), '500');
     await fireEvent.press(screen.getByText('Save'));
-    expect(props.onChangeTargets).toHaveBeenCalledWith({
-      calorie_target: 500,
-      protein_target: null,
-      carb_target: null,
-      fat_target: null,
-    });
+    expect(props.onChangeSettings).toHaveBeenCalledWith(
+      { calorie_target: 500, protein_target: null, carb_target: null, fat_target: null },
+      null
+    );
+  });
+
+  it('turns a reminder on with a default time once permission is granted', async () => {
+    const props = editProps();
+    await render(<MealSlotCard {...props} />);
+    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
+    await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
+    expect(await screen.findByLabelText(/^Reminder time, /)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Save'));
+    expect(props.onChangeSettings).toHaveBeenCalledWith(expect.anything(), '12:00');
+  });
+
+  it('keeps the reminder off and offers system settings when permission is denied', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false, canAskAgain: false });
+    const props = editProps();
+    await render(<MealSlotCard {...props} />);
+    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
+    await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
+    expect(await screen.findByLabelText('Open system settings')).toBeTruthy();
+    expect(screen.queryByLabelText(/^Reminder time, /)).toBeNull();
   });
 });
 

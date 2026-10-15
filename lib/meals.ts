@@ -93,6 +93,8 @@ export function withPositions<T extends { id: MealId }>(list: T[]): (T & { posit
 
 export type DraftMeal = MealTargets & {
   id: MealId;
+  /** 'HH:mm' (24h) or null for no reminder. */
+  reminder_time: string | null;
   name: string;
   isNew: boolean;
 };
@@ -126,6 +128,7 @@ export function buildDraft(
       protein_target: d.protein_target,
       carb_target: d.carb_target,
       fat_target: d.fat_target,
+      reminder_time: d.reminder_time ?? null,
     }));
   return { meals, deletedIds: [] };
 }
@@ -141,7 +144,8 @@ export function isDraftDirty(initial: MealDraft, draft: MealDraft): boolean {
       m.calorie_target !== a.calorie_target ||
       m.protein_target !== a.protein_target ||
       m.carb_target !== a.carb_target ||
-      m.fat_target !== a.fat_target
+      m.fat_target !== a.fat_target ||
+      m.reminder_time !== a.reminder_time
     );
   });
 }
@@ -166,6 +170,32 @@ export function newMealName(existing: string[]): string {
   let name = 'New meal';
   for (let i = 2; lower.has(name.toLowerCase()); i++) name = `New meal ${i}`;
   return name;
+}
+
+/** Formats a Date as 'HH:mm' (24h, local). */
+export function toReminderTime(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Parses 'HH:mm' into hour and minute, or null when malformed. */
+export function parseReminderTime(
+  time: string | null | undefined
+): { hour: number; minute: number } | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time ?? '');
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return hour <= 23 && minute <= 59 ? { hour, minute } : null;
+}
+
+/** Display text for a reminder time in the device's 12/24h style, e.g. "12:30 PM". */
+export function formatReminderTime(time: string): string {
+  const p = parseReminderTime(time);
+  if (!p) return time;
+  return new Date(2000, 0, 1, p.hour, p.minute).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 /** Parses a target field: '' -> null; negative or non-numeric -> undefined (invalid). */

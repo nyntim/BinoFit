@@ -93,7 +93,7 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 ```typescript
 Food = { id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at }
 MealId = string  // MealSlot is an alias; food_logs.meal_slot holds a meal id
-MealDefinition = { id, position, calorie_target, protein_target, carb_target, fat_target (number|null), created_at, updated_at, synced_at? }
+MealDefinition = { id, position, calorie_target, protein_target, carb_target, fat_target (number|null), reminder_time ('HH:mm'|null), created_at, updated_at, synced_at? }
 MealNameEntry = { meal_id, name, effective_from (yyyy-MM-dd), updated_at, synced_at? }  // name history; renames apply from today
 FoodLog = { id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at? }
 MealSlotConfirmation = { id, date, meal_slot, confirmed, updated_at }
@@ -112,6 +112,7 @@ QuickAddDrink = { id, name, amount, food_id? }
 - Date context via `@/context/DateContext` for day navigation
 - Swipe-to-navigate day via `@/hooks/useSwipeDayNavigation`
 - Meals are user-defined: resolve names with `nameForDate` / `mealsForDay` from `@/lib/meals` (via `@/hooks/useMealDefinitions`), never hardcode slot labels. Dashboard Edit mode edits a draft (`@/hooks/useMealDraft`) saved on Done; drag-reorder is `components/dashboard/ReorderableList.tsx`
+- Meal reminders: `lib/reminders.ts` (`expo-notifications`, local only). `syncMealReminders(defs, names)` cancels all `meal-reminder:<id>` notifications and reschedules one daily notification per meal with `reminder_time`; call `restoreMealReminders()` (fire-and-forget) after saving meals and on app start. Permission is requested only when a reminder is turned on (`MealSettingsSheet`)
 - Streak data via `@/hooks/useStreak` (current + longest streak from logged dates)
 - Apple HealthKit integration (iOS only) via `@/hooks/use-health-kit` — reads steps/active calories, writes nutrition
 - Call `syncToSupabase()` from `@/lib/sync` fire-and-forget after any food log write; never await inline

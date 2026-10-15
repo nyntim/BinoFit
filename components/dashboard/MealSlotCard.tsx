@@ -3,9 +3,9 @@ import { AccessibilityInfo, Platform, StyleSheet, View, Text, TextInput, Touchab
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { Colors } from '@/constants/theme';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
-import { MealTargetsSheet } from '@/components/dashboard/MealTargetsSheet';
+import { MealSettingsSheet } from '@/components/dashboard/MealSettingsSheet';
 import { slotCalories, sumEatenTotals, logsForSlot } from '@/lib/nutrition-totals';
-import { MEAL_LIMITS, formatMealTargets, hasAnyTarget, mealSummary } from '@/lib/meals';
+import { MEAL_LIMITS, formatMealTargets, formatReminderTime, mealSummary } from '@/lib/meals';
 import type { FoodLogWithFood, MealSlot, MealTargets } from '@/lib/types';
 
 /** Fixed height of a card in edit mode, so rows can be dragged by index. */
@@ -18,8 +18,8 @@ type BaseProps = {
   label: string;
   /** Logs for this slot only. */
   logs: FoodLogWithFood[];
-  /** Optional per-meal targets. */
-  targets?: MealTargets | null;
+  /** Optional per-meal targets and reminder. */
+  targets?: (MealTargets & { reminder_time?: string | null }) | null;
   colors: Colors_;
 };
 
@@ -45,7 +45,7 @@ type EditProps = BaseProps & {
   /** The drag handle element supplied by the reorderable list. */
   dragHandle: ReactNode;
   onChangeName: (name: string) => void;
-  onChangeTargets: (targets: MealTargets) => void;
+  onChangeSettings: (targets: MealTargets, reminderTime: string | null) => void;
   onDelete: () => void;
 };
 
@@ -76,6 +76,7 @@ function ViewCard({
     sumEatenTotals(logsForSlot(logs, slot), [])
   );
   const calText = targetText.calories ?? (slotCals > 0 ? `${slotCals} cal` : null);
+  const reminderText = targets?.reminder_time ? formatReminderTime(targets.reminder_time) : null;
 
   return (
     <View
@@ -93,7 +94,18 @@ function ViewCard({
     >
       <View style={styles.slotHeader}>
         <View style={styles.slotHeaderLeft}>
-          <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
+          <View style={styles.labelRow}>
+            <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
+            {reminderText && (
+              <View
+                accessible
+                accessibilityLabel={`Reminder at ${reminderText}`}
+                importantForAccessibility="yes"
+              >
+                <MaterialIcons name="notifications-none" size={14} color={colors.icon} />
+              </View>
+            )}
+          </View>
           {calText && <Text style={[styles.slotCals, { color: colors.icon }]}>{calText}</Text>}
           {targetText.macros && (
             <Text style={[styles.slotMacros, { color: colors.icon }]}>{targetText.macros}</Text>
@@ -175,11 +187,11 @@ function EditCard({
   canDelete,
   dragHandle,
   onChangeName,
-  onChangeTargets,
+  onChangeSettings,
   onDelete,
 }: EditProps) {
   const [focused, setFocused] = useState(false);
-  const [targetsOpen, setTargetsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Announce a name error the first time it appears (live regions are not read on iOS).
   const hadError = useRef(false);
   useEffect(() => {
@@ -189,7 +201,10 @@ function EditCard({
     hadError.current = !!nameError;
   }, [nameError]);
   const slotLogs = logsForSlot(logs, slot);
-  const summary = mealSummary(slotLogs.length, slotCalories(logs, slot));
+  const reminderTime = targets?.reminder_time ?? null;
+  const summary =
+    mealSummary(slotLogs.length, slotCalories(logs, slot)) +
+    (reminderTime ? ` · ${formatReminderTime(reminderTime)} reminder` : '');
   const currentTargets: MealTargets = targets ?? {
     calorie_target: null,
     protein_target: null,
@@ -254,27 +269,26 @@ function EditCard({
           </Text>
         )}
         <TouchableOpacity
-          onPress={() => setTargetsOpen(true)}
+          onPress={() => setSettingsOpen(true)}
           style={styles.targetsBtn}
           hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel={`${hasAnyTarget(targets) ? 'Edit' : 'Set'} targets for ${label.trim() || 'meal'}`}
+          accessibilityLabel={`Targets and reminder for ${label.trim() || 'meal'}`}
         >
-          <Text style={[styles.targetsLink, { color: colors.tint }]}>
-            {hasAnyTarget(targets) ? 'Edit targets' : 'Set targets'}
-          </Text>
+          <Text style={[styles.targetsLink, { color: colors.tint }]}>Targets & reminder</Text>
         </TouchableOpacity>
       </View>
 
-      <MealTargetsSheet
-        visible={targetsOpen}
+      <MealSettingsSheet
+        visible={settingsOpen}
         mealName={label.trim() || 'Meal'}
         targets={currentTargets}
+        reminderTime={reminderTime}
         colors={colors}
-        onClose={() => setTargetsOpen(false)}
-        onSave={(t) => {
-          onChangeTargets(t);
-          setTargetsOpen(false);
+        onClose={() => setSettingsOpen(false)}
+        onSave={(t, r) => {
+          onChangeSettings(t, r);
+          setSettingsOpen(false);
         }}
       />
     </View>
@@ -296,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   confirmBtnText: { fontSize: 13, fontWeight: '600' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   slotLabel: { fontSize: 16, fontWeight: '600' },
   slotCals: { fontSize: 13, marginTop: 2, fontVariant: ['tabular-nums'] },
   slotMacros: { fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },

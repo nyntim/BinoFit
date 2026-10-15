@@ -91,6 +91,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       protein_target REAL,
       carb_target REAL,
       fat_target REAL,
+      reminder_time TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       synced_at TEXT
@@ -114,6 +115,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   // Migrations for existing databases
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN synced_at TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN logged_time TEXT;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE meal_definitions ADD COLUMN reminder_time TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sodium REAL;`).catch(() => {});
@@ -596,22 +598,24 @@ export async function saveMealDraft(draft: MealDraft, today: string): Promise<vo
       // Only rows that actually changed are touched (and re-marked unsynced).
       await txn.runAsync(
         `INSERT INTO meal_definitions
-           (id, position, calorie_target, protein_target, carb_target, fat_target, created_at, updated_at, synced_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+           (id, position, calorie_target, protein_target, carb_target, fat_target, reminder_time, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(id) DO UPDATE SET
            position = excluded.position,
            calorie_target = excluded.calorie_target,
            protein_target = excluded.protein_target,
            carb_target = excluded.carb_target,
            fat_target = excluded.fat_target,
+           reminder_time = excluded.reminder_time,
            updated_at = excluded.updated_at,
            synced_at = NULL
          WHERE meal_definitions.position IS NOT excluded.position
             OR meal_definitions.calorie_target IS NOT excluded.calorie_target
             OR meal_definitions.protein_target IS NOT excluded.protein_target
             OR meal_definitions.carb_target IS NOT excluded.carb_target
-            OR meal_definitions.fat_target IS NOT excluded.fat_target`,
-        [m.id, i, m.calorie_target, m.protein_target, m.carb_target, m.fat_target, now, now]
+            OR meal_definitions.fat_target IS NOT excluded.fat_target
+            OR meal_definitions.reminder_time IS NOT excluded.reminder_time`,
+        [m.id, i, m.calorie_target, m.protein_target, m.carb_target, m.fat_target, m.reminder_time, now, now]
       );
 
       const name = m.name.trim();

@@ -39,6 +39,8 @@ export type MealTargets = {
 export type MealDefinition = MealTargets & {
   id: MealId;
   position: number;
+  /** Optional daily reminder, 'HH:mm' (24h). */
+  reminder_time: string | null;
   created_at: string;
   updated_at: string;
   synced_at?: string | null;

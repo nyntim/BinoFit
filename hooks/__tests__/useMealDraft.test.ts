@@ -13,6 +13,7 @@ const def = (id: string, position: number): MealDefinition => ({
   protein_target: null,
   carb_target: null,
   fat_target: null,
+  reminder_time: null,
   created_at: '',
   updated_at: '',
 });
@@ -117,6 +118,15 @@ describe('useMealDraft', () => {
     );
     expect(result.current.draft!.meals[0].calorie_target).toBe(500);
     expect(result.current.dirty).toBe(true);
+  });
+
+  it('setReminder marks dirty and clearing it returns to clean', async () => {
+    const { result } = await setup();
+    await act(async () => result.current.setReminder('a', '12:30'));
+    expect(result.current.draft!.meals[0].reminder_time).toBe('12:30');
+    expect(result.current.dirty).toBe(true);
+    await act(async () => result.current.setReminder('a', null));
+    expect(result.current.dirty).toBe(false);
   });
 
   it('cancel discards the draft', async () => {

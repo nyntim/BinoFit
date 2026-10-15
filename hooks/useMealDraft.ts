@@ -42,6 +42,12 @@ export function useMealDraft() {
   const setTargets = (id: MealId, targets: MealTargets) =>
     update((d) => ({ ...d, meals: d.meals.map((m) => (m.id === id ? { ...m, ...targets } : m)) }));
 
+  const setReminder = (id: MealId, reminderTime: string | null) =>
+    update((d) => ({
+      ...d,
+      meals: d.meals.map((m) => (m.id === id ? { ...m, reminder_time: reminderTime } : m)),
+    }));
+
   const add = () =>
     update((d) => {
       if (d.meals.length >= MEAL_LIMITS.max) return d;
@@ -53,6 +59,7 @@ export function useMealDraft() {
             id: Crypto.randomUUID(),
             name: newMealName(d.meals.map((m) => m.name)),
             isNew: true,
+            reminder_time: null,
             ...NO_TARGETS,
           },
         ],
@@ -118,6 +125,7 @@ export function useMealDraft() {
     save,
     rename,
     setTargets,
+    setReminder,
     add,
     remove,
     reorder,

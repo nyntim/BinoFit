@@ -88,10 +88,12 @@ create table if not exists public.meal_definitions (
   protein_target real,
   carb_target    real,
   fat_target     real,
+  reminder_time  text,
   created_at     timestamptz default now(),
   updated_at     timestamptz default now(),
   primary key (user_id, id)
 );
+alter table public.meal_definitions add column if not exists reminder_time text;
 
 -- ─────────────────────────────────────────────────────────
 -- meal_names: name history; a name applies from effective_from onward

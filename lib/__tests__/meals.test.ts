@@ -23,6 +23,7 @@ const def = (id: string, position: number, over: Partial<MealDefinition> = {}): 
   protein_target: null,
   carb_target: null,
   fat_target: null,
+  reminder_time: null,
   created_at: '',
   updated_at: '',
   ...over,
@@ -207,5 +208,35 @@ describe('copy', () => {
     expect(deleteMealMessage('Snacks', 42)).toBe("Delete Snacks and 42 logged foods? This can't be undone.");
     expect(deleteMealMessage('Snacks', 1)).toBe("Delete Snacks and 1 logged food? This can't be undone.");
     expect(deleteMealMessage('Snacks', 0)).toBe("Delete Snacks? This can't be undone.");
+  });
+});
+
+describe('reminder time helpers', () => {
+  const m = require('@/lib/meals') as typeof import('@/lib/meals');
+
+  it('formats a Date as zero-padded 24h HH:mm', () => {
+    expect(m.toReminderTime(new Date(2000, 0, 1, 7, 5))).toBe('07:05');
+    expect(m.toReminderTime(new Date(2000, 0, 1, 18, 30))).toBe('18:30');
+  });
+
+  it('parses valid times and rejects malformed ones', () => {
+    expect(m.parseReminderTime('07:05')).toEqual({ hour: 7, minute: 5 });
+    expect(m.parseReminderTime('24:00')).toBeNull();
+    expect(m.parseReminderTime('12:60')).toBeNull();
+    expect(m.parseReminderTime('noon')).toBeNull();
+    expect(m.parseReminderTime(null)).toBeNull();
+  });
+
+  it('buildDraft carries reminder_time and isDraftDirty detects a change', () => {
+    const defs = [def('a', 0, { reminder_time: '12:30' }), def('b', 1)];
+    const names = [entry('a', 'A', '0000-01-01'), entry('b', 'B', '0000-01-01')];
+    const initial = m.buildDraft(defs, names, '2026-06-01');
+    expect(initial.meals.map((x) => x.reminder_time)).toEqual(['12:30', null]);
+    const changed = {
+      ...initial,
+      meals: initial.meals.map((x) => (x.id === 'b' ? { ...x, reminder_time: '09:00' } : x)),
+    };
+    expect(m.isDraftDirty(initial, changed)).toBe(true);
+    expect(m.isDraftDirty(initial, { ...initial })).toBe(false);
   });
 });
