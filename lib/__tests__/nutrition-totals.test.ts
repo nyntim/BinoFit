@@ -1,4 +1,4 @@
-import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
+import { isSlotEaten, logsForSlot, slotCalories, sumEatenTotals } from '@/lib/nutrition-totals';
 
 const log = (meal_slot: any, serving_amount: number, cal = 100, p = 10, c = 20, f = 5) => ({
   meal_slot,
@@ -47,5 +47,38 @@ describe('sumEatenTotals', () => {
   it('multiplies by serving_amount, including fractional servings', () => {
     const res = sumEatenTotals([log('breakfast', 2), log('breakfast', 0.5)], []);
     expect(res).toEqual({ calories: 250, protein: 25, carbs: 50, fat: 12.5 });
+  });
+});
+
+describe('logsForSlot / slotCalories', () => {
+  it('logsForSlot returns only logs of the requested slot, in order', () => {
+    const a = log('lunch', 1);
+    const b = log('dinner', 1);
+    const c = log('lunch', 2);
+    expect(logsForSlot([a, b, c], 'lunch')).toEqual([a, c]);
+  });
+  it('logsForSlot returns [] for an empty list or a slot with no logs', () => {
+    expect(logsForSlot([], 'breakfast')).toEqual([]);
+    expect(logsForSlot([log('lunch', 1)], 'breakfast')).toEqual([]);
+  });
+  it('logsForSlot returns [] for an unknown slot', () => {
+    expect(logsForSlot([log('lunch', 1)], 'brunch' as any)).toEqual([]);
+  });
+  it('slotCalories is 0 for empty logs, empty slot, or unknown slot', () => {
+    expect(slotCalories([], 'lunch')).toBe(0);
+    expect(slotCalories([log('dinner', 1)], 'lunch')).toBe(0);
+    expect(slotCalories([log('lunch', 1)], 'nope' as any)).toBe(0);
+  });
+  it('slotCalories multiplies by fractional serving_amount and sums only that slot', () => {
+    const logs = [log('lunch', 1.5, 200), log('lunch', 0.5, 100), log('dinner', 3, 999)];
+    expect(slotCalories(logs, 'lunch')).toBe(350);
+  });
+  it('slotCalories is not rounded', () => {
+    expect(slotCalories([log('snack', 0.333, 100)], 'snack')).toBeCloseTo(33.3, 5);
+    expect(slotCalories([log('snack', 0.333, 100)], 'snack')).not.toBe(33);
+  });
+  it('slotCalories includes planned-slot logs (ignores confirmations)', () => {
+    expect(slotCalories([log('lunch', 2, 150)], 'lunch')).toBe(300);
+    expect(sumEatenTotals([log('lunch', 2, 150)], [conf('lunch', false)]).calories).toBe(0);
   });
 });

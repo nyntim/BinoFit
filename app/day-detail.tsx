@@ -15,7 +15,7 @@ import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
 import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate } from '@/lib/database';
-import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
+import { isSlotEaten, sumEatenTotals, logsForSlot, slotCalories } from '@/lib/nutrition-totals';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import type { FoodLogWithFood, MealSlotConfirmation, UserGoals } from '@/lib/types';
@@ -62,10 +62,6 @@ export default function DayDetailScreen() {
   }, [date]);
 
   const consumed = sumEatenTotals(logs, confirmations);
-
-  const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
-  const slotCalories = (slot: MealSlot) =>
-    logsForSlot(slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -121,9 +117,9 @@ export default function DayDetailScreen() {
 
               {/* Meal slots (read-only) */}
               {MEAL_SLOTS.map(({ key, label }) => {
-                const slotLogs = logsForSlot(key);
+                const slotLogs = logsForSlot(logs, key);
                 if (slotLogs.length === 0) return null;
-                const slotCals = Math.round(slotCalories(key));
+                const slotCals = Math.round(slotCalories(logs, key));
                 const eaten = isSlotEaten(confirmations, key);
                 return (
                   <View

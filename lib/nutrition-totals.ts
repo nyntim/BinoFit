@@ -37,3 +37,19 @@ export function sumEatenTotals(
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
 }
+
+/** Logs belonging to one meal slot. */
+export function logsForSlot<T extends Pick<FoodLogWithFood, 'meal_slot'>>(
+  logs: T[],
+  slot: MealSlot
+): T[] {
+  return logs.filter((l) => l.meal_slot === slot);
+}
+
+/** Unrounded calories of one meal slot, regardless of eaten/planned status. */
+export function slotCalories(
+  logs: Pick<FoodLogWithFood, 'meal_slot' | 'serving_amount' | 'food_calories'>[],
+  slot: MealSlot
+): number {
+  return logsForSlot(logs, slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
+}

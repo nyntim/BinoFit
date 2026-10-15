@@ -26,10 +26,7 @@ import {
 } from '@/lib/storage';
 import {
   getFoodLogsWithFoodByDate,
-  deleteFoodLog,
   getMealSlotConfirmationsByDate,
-  upsertMealSlotConfirmation,
-  deleteMealSlotConfirmation,
   addWaterLog,
   getWaterLogsByDate,
   deleteWaterLog,
@@ -44,9 +41,10 @@ import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { WATER_TRACKING_ENABLED } from '@/constants/features';
-import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
-import { writeNutritionLog } from '@/services/healthKitService';
-import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog, QuickAddDrink, Food } from '@/lib/types';
+import { useMealLogs } from '@/hooks/useMealLogs';
+import { MealSlotCard } from '@/components/dashboard/MealSlotCard';
+import { logsForSlot } from '@/lib/nutrition-totals';
+import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -81,9 +79,16 @@ export default function HomeScreen() {
   const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
-  const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
+  const {
+    logs,
+    setLogs,
+    confirmations,
+    setConfirmations,
+    consumed,
+    handleToggleSlot,
+    handleDeleteLog: deleteMealLog,
+  } = useMealLogs(selectedDate);
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
-  const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
   const [waterModalVisible, setWaterModalVisible] = useState(false);
@@ -120,7 +125,7 @@ export default function HomeScreen() {
         if (storedQuickDrinks) setQuickAddDrinks(storedQuickDrinks);
       })
       .finally(() => setLoading(false));
-  }, [selectedDate, loadActivity]);
+  }, [selectedDate, loadActivity, setLogs, setConfirmations]);
 
   useFocusEffect(
     useCallback(() => {
@@ -134,22 +139,9 @@ export default function HomeScreen() {
     loadData();
   }, [selectedDate, loadData]); // Re-trigger only when date changes
 
-  const isSlotConfirmed = useCallback(
-    // If no confirmation record exists, treat as confirmed (Eaten) by default.
-    (slot: MealSlot) => isSlotEaten(confirmations, slot),
-    [confirmations]
-  );
-
-  const consumed = useMemo(() => sumEatenTotals(logs, confirmations), [logs, confirmations]);
-
   const waterConsumed = useMemo(() => {
     return waterLogs.reduce((sum, log) => sum + (log.amount || 0), 0) || 0;
   }, [waterLogs]);
-
-  const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
-
-  const slotCalories = (slot: MealSlot) =>
-    logsForSlot(slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
 
   const handleAddWater = async (amount: number, name: string) => {
     try {
@@ -188,48 +180,6 @@ export default function HomeScreen() {
     }
   };
 
-  const handleToggleSlot = async (slot: MealSlot) => {
-    const currentStatus = isSlotConfirmed(slot);
-    const newStatus = !currentStatus;
-
-    // Optimistic UI update
-    const tempConfirmations = [...confirmations];
-    const index = tempConfirmations.findIndex((c) => c.meal_slot === slot);
-    if (index > -1) {
-      tempConfirmations[index] = { ...tempConfirmations[index], confirmed: newStatus };
-    } else {
-      tempConfirmations.push({
-        id: 'temp',
-        date: selectedDate,
-        meal_slot: slot,
-        confirmed: newStatus,
-        updated_at: new Date().toISOString(),
-      });
-    }
-    setConfirmations(tempConfirmations);
-
-    try {
-      await upsertMealSlotConfirmation(selectedDate, slot, newStatus);
-      // Planned -> Eaten writes the slot's totals to HealthKit. Eaten -> Planned
-      // cannot retract what was already written.
-      if (newStatus) {
-        const slotTotals = sumEatenTotals(logsForSlot(slot), []);
-        writeNutritionLog(
-          selectedDate,
-          Math.round(slotTotals.calories),
-          Math.round(slotTotals.protein * 10) / 10,
-          Math.round(slotTotals.carbs * 10) / 10,
-          Math.round(slotTotals.fat * 10) / 10
-        );
-      }
-    } catch (error) {
-      console.error('Failed to update confirmation:', error);
-      Alert.alert('Error', 'Failed to save confirmation. Please try again.');
-      // Revert optimistic update
-      setConfirmations(confirmations);
-    }
-  };
-
   const handleAddToSlot = (slot: MealSlot) => {
     router.push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,23 +196,7 @@ export default function HomeScreen() {
     });
   };
 
-  const handleDeleteLog = (log: FoodLogWithFood) => {
-    Alert.alert('Remove Food', `Remove ${log.food_name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteFoodLog(log.id);
-          const remainingLogsInSlot = logsForSlot(log.meal_slot).filter((l) => l.id !== log.id);
-          if (remainingLogsInSlot.length === 0) {
-            await deleteMealSlotConfirmation(selectedDate, log.meal_slot);
-          }
-          loadData(true);
-        },
-      },
-    ]);
-  };
+  const handleDeleteLog = (log: FoodLogWithFood) => deleteMealLog(log, () => loadData(true));
 
   const remaining = Math.max(0, goals.calorie_goal - Math.round(consumed.calories));
 
@@ -476,133 +410,28 @@ export default function HomeScreen() {
 
             {/* Meal slots */}
             {MEAL_SLOTS.map(({ key, label }) => {
-              const slotLogs = logsForSlot(key);
-              const slotCals = Math.round(slotCalories(key));
-              const hasLogs = slotLogs.length > 0;
-              const showToggle = hasLogs;
+              const slotLogs = logsForSlot(logs, key);
+              const showToggle = slotLogs.length > 0;
 
-              // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state, 
+              // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state,
               // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
               const isExplicitlyPlanned = confirmations.find(c => c.meal_slot === key)?.confirmed === false;
               const displayConfirmed = !isExplicitlyPlanned;
 
               return (
-                <View
+                <MealSlotCard
                   key={key}
-                  style={[
-                    styles.slotCard,
-                    { backgroundColor: colors.cardBackground },
-                    hasLogs &&
-                      !displayConfirmed && {
-                        opacity: 0.7,
-                        borderWidth: 1,
-                        borderStyle: 'dashed',
-                        borderColor: colors.icon + '40',
-                      },
-                  ]}
-
-                  >
-                  <View style={styles.slotHeader}>
-                  <View style={styles.slotHeaderLeft}>
-                    <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
-                    {slotCals > 0 && (
-                      <Text style={[styles.slotCals, { color: colors.icon }]}>
-                        {slotCals} cal
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.slotHeaderRight}>
-                    {showToggle && (
-                      <TouchableOpacity
-                        style={[
-                          styles.confirmBtn,
-                          {
-                            backgroundColor: displayConfirmed ? colors.tint + '18' : colors.icon + '12',
-                          },
-                        ]}
-                        onPress={() => handleToggleSlot(key)}
-                        activeOpacity={0.7}
-                        hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${label}, ${displayConfirmed ? 'Eaten' : 'Planned'}`}
-                        accessibilityHint="Switches between Eaten and Planned"
-                      >
-                        <MaterialIcons
-                          name={displayConfirmed ? 'check-circle' : 'radio-button-unchecked'}
-                          size={18}
-                          color={displayConfirmed ? colors.tint : colors.icon}
-                        />
-                        <Text
-                          style={[
-                            styles.confirmBtnText,
-                            { color: displayConfirmed ? colors.tint : colors.icon },
-                          ]}
-                        >
-                          {displayConfirmed ? 'Eaten' : 'Planned'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                      <TouchableOpacity
-                        style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
-                        onPress={() => handleAddToSlot(key)}
-                        activeOpacity={0.7}
-                        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add food to ${label}`}
-                      >
-                        <MaterialIcons name="add" size={20} color={colors.tint} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {hasLogs && (
-                    <View style={styles.logList}>
-                      {slotLogs.map((log) => (
-                        <TouchableOpacity
-                          key={log.id}
-                          style={[styles.logRow, { borderTopColor: colors.separator }]}
-                          onPress={() => handleEditLog(log)}
-                          onLongPress={() => handleDeleteLog(log)}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.logInfo}>
-                            <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
-                              {log.food_name}
-                            </Text>
-                            <Text style={[styles.logMeta, { color: colors.icon }]}>
-                              {log.serving_amount} × {log.food_serving_units}
-                            </Text>
-                          </View>
-                          <View style={styles.logRight}>
-                            <Text style={[styles.logCals, { color: colors.text }]}>
-                              {Math.round(log.food_calories * log.serving_amount)}
-                            </Text>
-                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>cal</Text>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteLog(log)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
-                            </TouchableOpacity>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-
-                  {!hasLogs && (
-                    <TouchableOpacity
-                      style={styles.emptySlot}
-                      onPress={() => handleAddToSlot(key)}
-                      activeOpacity={0.6}
-                    >
-                      <Text style={[styles.emptySlotText, { color: colors.icon }]}>
-                        Tap to add food
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  slot={key}
+                  label={label}
+                  logs={slotLogs}
+                  eaten={displayConfirmed}
+                  showToggle={showToggle}
+                  onToggle={handleToggleSlot}
+                  onAdd={handleAddToSlot}
+                  onEditLog={handleEditLog}
+                  onDeleteLog={handleDeleteLog}
+                  colors={colors}
+                />
               );
             })}
           </>
@@ -939,22 +768,6 @@ const styles = StyleSheet.create({
   activityItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   activityText: { fontSize: 14, fontWeight: '600' },
   activityDivider: { width: 1, height: 20 },
-  slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
-  slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  slotHeaderLeft: { flex: 1 },
-  slotHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  confirmBtnText: { fontSize: 13, fontWeight: '600' },
-  slotLabel: { fontSize: 16, fontWeight: '600' },
-  slotCals: { fontSize: 13, marginTop: 2 },
-  addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   logList: { marginTop: 12, gap: 2 },
   logRow: {
     flexDirection: 'row',
@@ -964,12 +777,9 @@ const styles = StyleSheet.create({
   },
   logInfo: { flex: 1, marginRight: 8 },
   logName: { fontSize: 14, fontWeight: '500' },
-  logMeta: { fontSize: 12, marginTop: 1 },
   logRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   logCals: { fontSize: 14, fontWeight: '600' },
   logCalsUnit: { fontSize: 12, marginRight: 6 },
-  emptySlot: { marginTop: 10, paddingVertical: 8, alignItems: 'center' },
-  emptySlotText: { fontSize: 14 },
   waterCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   waterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
