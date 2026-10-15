@@ -1,5 +1,4 @@
 import { 
-  getDatabase, 
   searchFoods, 
   searchFoodsByTokens, 
   searchFoodsBySingleToken,
@@ -223,11 +222,14 @@ export async function searchBranded(
     // Background caching of partial results to speed up future local searches
     Promise.all(
       branded.map((food) =>
-        cacheRemoteFood({
-          ...food,
-          source: 'branded',
-          updated_at: new Date().toISOString(),
-        }).catch(() => {})
+        cacheRemoteFood(
+          {
+            ...food,
+            source: 'branded',
+            updated_at: new Date().toISOString(),
+          },
+          { partial: true }
+        ).catch(() => {})
       )
     );
 
@@ -260,26 +262,14 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
 
     if (error || !data) return null;
 
-    const fullFood = data as Food;
+    const fullFood: Food = {
+      ...(data as Food),
+      source: data.source || 'branded',
+      updated_at: data.updated_at || new Date().toISOString(),
+    };
 
-    // Cache/Overwrite with complete row using REPLACE logic for full profile
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        fullFood.id,
-        fullFood.name,
-        fullFood.brand,
-        fullFood.serving_units,
-        fullFood.calories,
-        fullFood.protein,
-        fullFood.carbs,
-        fullFood.fat,
-        fullFood.source || 'branded',
-        fullFood.updated_at || new Date().toISOString(),
-      ]
-    );
+    // Cache the complete row, including micronutrients
+    await cacheRemoteFood(fullFood);
 
     return fullFood;
   } catch {

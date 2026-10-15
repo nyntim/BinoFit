@@ -141,7 +141,14 @@ A restrained palette anchored in warm paper neutrals with one precise signal col
 
 **The Signal Isolation Rule.** Protein red, carb amber, and fat blue are reserved strictly for macro visualization. They never appear on navigation, UI chrome, or decorative elements. Seeing these colors means one thing: macros.
 
-**The Warm Neutral Rule.** Every neutral surface carries a faint warm bias (minimum chroma 0.005 toward 85 hue). Pure gray (#888888) and pure white (#ffffff) are prohibited. Black (#000000) is prohibited. The palette reads as paper, not a screen.
+**The Warm Neutral Rule.** In light mode, every neutral surface carries a faint warm bias (minimum chroma 0.005 toward 85 hue). Pure gray (#888888) and pure white (#ffffff) are prohibited. Black (#000000) is prohibited. The palette reads as paper, not a screen.
+
+### Dark Mode: Graphite
+Dark mode is a sleek near-black with a faint cool bias that sits with the ink and slate indigo, not warm paper.
+- **Background** #0E0E10, **Card** #1A1A1D, **Nested card** #242428.
+- **Text** #EDEDF0, **Secondary text** #8E8E96, **Separator** rgba(237,237,240,0.10).
+- **Input border** rgba(237,237,240,0.28) and **bar track** rgba(237,237,240,0.14), both stronger than the separator so they stay visible on cards.
+- **Accent** #8FA3D6. Macro signal colors are unchanged. Pure black (#000000) stays prohibited.
 
 ## 3. Typography
 
@@ -156,7 +163,7 @@ A restrained palette anchored in warm paper neutrals with one precise signal col
 - **Title** (600, 17px, line-height 1.3): Card labels, section headers, screen navigation titles, macro totals.
 - **Body** (400, 15px, line-height 1.5): Food log entry names, descriptions, search results. 65 characters max per line.
 - **Label** (500, 13px, line-height 1.4): Date labels, serving amounts, macro gram labels, metadata. The workhorse of dense information.
-- **Caption** (400, 12px, line-height 1.4): Timestamps, stat sub-labels (e.g. "kcal" under a calorie number), tertiary data.
+- **Caption** (400, 12px, line-height 1.4): Timestamps, stat sub-labels (e.g. "cal" under a calorie number), tertiary data.
 
 ### Named Rules
 **The Tabular Figures Rule.** All nutrition data (calorie counts, gram values, percentages) must render with tabular/monospaced figure spacing. Columns of numbers that shift width as values change break the reference-book calm. On iOS, SF Pro Mono or the `tabular-nums` font feature achieves this.
@@ -214,7 +221,7 @@ The feel is **precise and functional**: tool-grade clarity, clear affordance, in
 - **Stroke Width:** 14px — substantial enough to read progress at a glance
 - **Track:** Separator (#D6D2C8)
 - **Fill:** Slate indigo (#3D4B7A). One color, not segmented.
-- **Center:** Display-scale calorie number (34px, 700), Caption-scale "kcal" label below in Ink Secondary.
+- **Center:** Display-scale calorie number (34px, 700), Caption-scale "cal" label below in Ink Secondary.
 
 ### Navigation (Bottom Tab Bar)
 - **Background:** Warm Paper (#F8F5EF)
@@ -247,6 +254,6 @@ The feel is **precise and functional**: tool-grade clarity, clear affordance, in
 - **Don't** apply macro signal colors (protein red, carb amber, fat blue) to navigation, buttons, icons, or any non-macro UI element.
 - **Don't** use identical card grids with icon + heading + text repeated without variation. Each section has a distinct data structure and should look distinct.
 - **Don't** use border-left or border-right stripes greater than 1px as colored accents on list items, cards, or callouts. Use background tints or leading icons instead.
-- **Don't** use pure black (#000000) or pure white (#ffffff). Every neutral carries a warm bias (minimum chroma 0.005 toward hue 85).
+- **Don't** use pure black (#000000) or pure white (#ffffff). Every light-mode neutral carries a warm bias (minimum chroma 0.005 toward hue 85); dark mode uses the Graphite neutrals.
 - **Don't** default to iOS system grays (#f2f2f7 cards, #ffffff backgrounds) on new screens. BinoFit has its own warm neutral palette — the system grays read as unstyled.
 - **Don't** use motivational copy, gradient text, or binary red/green judgment colors. Color signals actionable data only.

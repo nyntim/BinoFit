@@ -1,35 +1,46 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Modal,
   Pressable,
+  TextInput,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
+  type DimensionValue,
 } from 'react-native';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, MacroColors } from '@/constants/theme';
+import { Colors, MacroColors, TargetTints } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { TimePickerSheet } from '@/components/time-picker-sheet';
 import {
   getFoodById,
   addFoodLog,
   updateFoodLog,
   getFoodLogsWithFoodByDate,
   cacheRemoteFood,
+  hasAnyMicros,
 } from '@/lib/database';
+import { getFullBrandedFood } from '@/lib/food-service';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { getUserGoals } from '@/lib/storage';
 import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food } from '@/lib/types';
 
-const SLOT_LABELS: Record<string, string> = {
+// Food ids already refetched for micronutrients this app session
+const refetchedFoodIds = new Set<string>();
+
+const AMOUNT_ACCESSORY_ID = 'serving-amount-accessory';
+
+const SLOT_LABELS:Record<string, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
   dinner: 'Dinner',
@@ -54,6 +65,19 @@ function formatTime(d: Date): string {
   return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+const round1 = (v: number) => Math.round(v * 10) / 10;
+const formatNum = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 });
+const percent = (fraction: number) => `${fraction * 100}%` as DimensionValue;
+
+// Keep digits and a single decimal point; accept a comma as the decimal separator
+function sanitizeAmount(text: string): string {
+  let v = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  const dot = v.indexOf('.');
+  if (dot !== -1) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '');
+  if (v.startsWith('.')) v = `0${v}`;
+  return v;
+}
+
 export default function ServingPickerScreen() {
   const { food_id, meal_slot, date, log_id, initial_amount } = useLocalSearchParams<{
     food_id: string;
@@ -65,35 +89,64 @@ export default function ServingPickerScreen() {
   const router = useRouter();
   const cs = useColorScheme();
   const colors = Colors[cs ?? 'light'];
+  const tints = TargetTints[cs ?? 'light'];
 
   const [food, setFood] = useState<Food | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [servingAmount, setServingAmount] = useState(initial_amount ?? '1');
   const [servingUnit, setServingUnit] = useState<ServingUnit>('default');
-  const [per100g, setPer100g] = useState(false);
+  const [amountFocused, setAmountFocused] = useState(false);
   const [loggedTime, setLoggedTime] = useState<Date>(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dailyCalories, setDailyCalories] = useState(0);
+  const [dailyProtein, setDailyProtein] = useState(0);
+  const [dailyCarbsState, setDailyCarbsState] = useState(0);
+  const [dailyFat, setDailyFat] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
-  const inputRef = useRef<TextInput>(null);
+  const [proteinGoal, setProteinGoal] = useState<number | null>(null);
+  const [carbGoal, setCarbGoal] = useState<number | null>(null);
+  const [fatGoal, setFatGoal] = useState<number | null>(null);
+  const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
+  const [expandNutrients, setExpandNutrients] = useState(false);
+  const amountRef = useRef<TextInput>(null);
 
   const isEdit = Boolean(log_id);
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
   useEffect(() => {
     if (!food_id) return;
+    let cancelled = false;
     (async () => {
-      let found = await getFoodById(food_id);
-      if (!found) {
-        const usda = await getUSDAFoodById(food_id);
-        if (usda) {
-          await cacheRemoteFood(usda);
-          found = usda;
-        }
+      try {
+        const found = await getFoodById(food_id);
+        if (cancelled) return;
+        if (found) setFood(found);
+
+        const needsMicros = !found || (!hasAnyMicros(found) && found.source !== 'custom');
+        if (!needsMicros) return;
+        // Refetch at most once per food per app session
+        if (found && refetchedFoodIds.has(food_id)) return;
+        refetchedFoodIds.add(food_id);
+
+        // Foods cached before micronutrients were stored have none; reload the full row
+        const isUSDA = !found || found.source?.startsWith('usda');
+        const usda = isUSDA ? await getUSDAFoodById(food_id) : null;
+        if (usda) await cacheRemoteFood(usda);
+        // getFullBrandedFood caches the row itself
+        const full = usda ?? (await getFullBrandedFood(food_id));
+        if (cancelled) return;
+        if (!found) {
+          if (full) setFood(full);
+          else setLoadFailed(true);
+        } else if (full && hasAnyMicros(full)) setFood(full);
+      } catch {
+        // A food already shown stays usable; only a missing food is a failure
+        if (!cancelled) setLoadFailed(true);
       }
-      setFood(found);
     })();
     if (log_id && date) {
       getFoodLogsWithFoodByDate(date).then((logs) => {
@@ -101,23 +154,27 @@ export default function ServingPickerScreen() {
         if (entry) setServingAmount(String(entry.serving_amount));
       });
     }
-  }, [food_id, log_id, date]);
+    return () => {
+      cancelled = true;
+    };
+  }, [food_id, log_id, date, loadAttempt]);
 
   useEffect(() => {
     if (!date) return;
     Promise.all([getFoodLogsWithFoodByDate(date), getUserGoals()]).then(([logs, goals]) => {
-      const cals = logs
-        .filter((l) => l.id !== log_id)
-        .reduce((s, l) => s + l.food_calories * l.serving_amount, 0);
-      setDailyCalories(Math.round(cals));
-      if (goals) setCalorieGoal(goals.calorie_goal);
+      const others = logs.filter((l) => l.id !== log_id);
+      setDailyCalories(Math.round(others.reduce((s, l) => s + l.food_calories * l.serving_amount, 0)));
+      setDailyProtein(Math.round(others.reduce((s, l) => s + l.food_protein * l.serving_amount, 0) * 10) / 10);
+      setDailyCarbsState(Math.round(others.reduce((s, l) => s + l.food_carbs * l.serving_amount, 0) * 10) / 10);
+      setDailyFat(Math.round(others.reduce((s, l) => s + l.food_fat * l.serving_amount, 0) * 10) / 10);
+      if (goals) {
+        setCalorieGoal(goals.calorie_goal);
+        setProteinGoal(goals.protein_goal);
+        setCarbGoal(goals.carb_goal);
+        setFatGoal(goals.fat_goal);
+      }
     });
   }, [date, log_id]);
-
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 300);
-    return () => clearTimeout(t);
-  }, []);
 
   const baseGrams = food ? parseBaseGrams(food.serving_units) : null;
   const parsedAmount = parseFloat(servingAmount) || 0;
@@ -126,18 +183,33 @@ export default function ServingPickerScreen() {
   if (servingUnit === 'grams' && baseGrams) multiplier = parsedAmount / baseGrams;
   else if (servingUnit === 'oz' && baseGrams) multiplier = (parsedAmount * 28.35) / baseGrams;
 
-  const nutriScale = per100g && baseGrams ? 100 / baseGrams : multiplier;
+  const cal = food ? Math.round(food.calories * multiplier) : 0;
+  const pro = food ? round1(food.protein * multiplier) : 0;
+  const carb = food ? round1(food.carbs * multiplier) : 0;
+  const fat = food ? round1(food.fat * multiplier) : 0;
+  const scaleMicro = (v: number | null | undefined, decimals = 1) =>
+    v == null ? null : Math.round(v * multiplier * 10 ** decimals) / 10 ** decimals;
+  const fiber = scaleMicro(food?.fiber);
+  const sugar = scaleMicro(food?.sugar);
+  const sodium = scaleMicro(food?.sodium, 0);
+  const satFat = scaleMicro(food?.saturated_fat);
+  const transFat = scaleMicro(food?.trans_fat);
+  const cholesterol = scaleMicro(food?.cholesterol, 0);
+  const vitaminD = scaleMicro(food?.vitamin_d);
+  const calcium = scaleMicro(food?.calcium, 0);
+  const iron = scaleMicro(food?.iron);
+  const potassium = scaleMicro(food?.potassium, 0);
 
-  const cal = food ? Math.round(food.calories * nutriScale) : 0;
-  const pro = food ? Math.round(food.protein * nutriScale * 10) / 10 : 0;
-  const carb = food ? Math.round(food.carbs * nutriScale * 10) / 10 : 0;
-  const fat = food ? Math.round(food.fat * nutriScale * 10) / 10 : 0;
-  const fiber = food?.fiber != null ? Math.round(food.fiber * nutriScale * 10) / 10 : null;
-  const sugar = food?.sugar != null ? Math.round(food.sugar * nutriScale * 10) / 10 : null;
-  const sodium = food?.sodium != null ? Math.round(food.sodium * nutriScale) : null;
-  const satFat = food?.saturated_fat != null ? Math.round(food.saturated_fat * nutriScale * 10) / 10 : null;
+  // Reference only: never changes what gets logged
+  const per100 =
+    food && baseGrams
+      ? (() => {
+          const s = 100 / baseGrams;
+          return `Per 100 g · ${Math.round(food.calories * s)} cal · P ${round1(food.protein * s)} g · C ${round1(food.carbs * s)} g · F ${round1(food.fat * s)} g`;
+        })()
+      : null;
 
-  const hasMicros = [fiber, sugar, sodium, satFat].some((v) => v !== null);
+  const canLog = Boolean(food) && multiplier > 0 && !saving;
 
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
@@ -154,14 +226,15 @@ export default function ServingPickerScreen() {
 
   const handleSave = async () => {
     if (!food || multiplier <= 0 || !meal_slot || !date) return;
+    Keyboard.dismiss();
     setSaving(true);
     setSaveError(null);
     try {
       const timeStr = `${String(loggedTime.getHours()).padStart(2, '0')}:${String(loggedTime.getMinutes()).padStart(2, '0')}`;
       const calSave = Math.round(food.calories * multiplier);
-      const proSave = Math.round(food.protein * multiplier * 10) / 10;
-      const carbSave = Math.round(food.carbs * multiplier * 10) / 10;
-      const fatSave = Math.round(food.fat * multiplier * 10) / 10;
+      const proSave = round1(food.protein * multiplier);
+      const carbSave = round1(food.carbs * multiplier);
+      const fatSave = round1(food.fat * multiplier);
 
       if (isEdit && log_id) {
         await updateFoodLog(log_id, multiplier, food.serving_units, timeStr);
@@ -180,48 +253,129 @@ export default function ServingPickerScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
-      setSaveError('Could not save. Please try again.');
+      setSaveError("Couldn't save this entry.");
     } finally {
       setSaving(false);
     }
   };
 
-  const unitLabel = per100g
-    ? 'Per 100g'
-    : servingUnit === 'default'
-    ? 'Serving'
-    : servingUnit === 'grams'
-    ? 'Grams'
-    : 'Ounces';
+  const retryLoad = () => {
+    setLoadFailed(false);
+    setLoadAttempt((n) => n + 1);
+  };
 
-  if (!food) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <ActivityIndicator style={{ marginTop: 48 }} color={colors.tint} />
-      </SafeAreaView>
-    );
-  }
+  const unitLabel =
+    servingUnit === 'default'
+      ? food?.serving_units ?? 'Serving'
+      : servingUnit === 'grams'
+      ? 'Grams'
+      : 'Ounces';
+  const unitSpoken = servingUnit === 'default' ? 'servings' : servingUnit === 'grams' ? 'grams' : 'ounces';
+  const amountEmpty = parsedAmount <= 0;
 
-  const thisCal = Math.round(food.calories * multiplier);
-  const totalAfter = dailyCalories + thisCal;
+  const macros = [
+    { key: 'protein' as const, label: 'Protein', value: pro, color: MacroColors.protein },
+    { key: 'carbs' as const, label: 'Carbs', value: carb, color: MacroColors.carbs },
+    { key: 'fat' as const, label: 'Fat', value: fat, color: MacroColors.fat },
+  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Text style={[styles.headerBtnText, { color: colors.tint }]}>
-              {isEdit ? 'Cancel' : 'Back'}
-            </Text>
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {isEdit ? 'Edit Serving' : slotLabel}
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.separator }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerSide}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.headerBtnText, { color: colors.tint }]}>
+            {isEdit ? 'Cancel' : 'Back'}
           </Text>
-          <View style={styles.headerBtn} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+          {isEdit ? 'Edit Serving' : slotLabel}
+        </Text>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={!canLog}
+            style={[styles.logPill, { backgroundColor: colors.tint, opacity: canLog || saving ? 1 : 0.4 }]}
+            hitSlop={6}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={isEdit ? 'Save changes' : `Log to ${slotLabel}`}
+            accessibilityState={{ disabled: !canLog, busy: saving }}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={colors.background} />
+            ) : (
+              <Text style={[styles.logPillText, { color: colors.background }]}>
+                {isEdit ? 'Save' : 'Log'}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
+      </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
+      {saveError ? (
+        <View
+          style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <Circle cx={12} cy={12} r={10} stroke={colors.danger} strokeWidth={2} />
+            <Line x1={12} y1={8} x2={12} y2={12} stroke={colors.danger} strokeWidth={2} strokeLinecap="round" />
+            <Line x1={12} y1={16} x2={12.01} y2={16} stroke={colors.danger} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+          <Text style={[styles.errorText, { color: colors.text }]}>{saveError}</Text>
+          <TouchableOpacity onPress={handleSave} hitSlop={8} accessibilityRole="button">
+            <Text style={[styles.errorRetry, { color: colors.tint }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {!food && loadFailed ? (
+        <View style={styles.failWrap}>
+          <View style={[styles.failIcon, { backgroundColor: colors.cardBackground }]}>
+            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+              <Circle cx={11} cy={11} r={7} stroke={colors.icon} strokeWidth={2} />
+              <Line x1={21} y1={21} x2={16.65} y2={16.65} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
+              <Line x1={8.5} y1={8.5} x2={13.5} y2={13.5} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
+              <Line x1={13.5} y1={8.5} x2={8.5} y2={13.5} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
+            </Svg>
+          </View>
+          <Text style={[styles.failTitle, { color: colors.text }]}>{"Couldn't load this food"}</Text>
+          <Text style={[styles.failBody, { color: colors.icon }]}>Check your connection, then try again.</Text>
+          <TouchableOpacity
+            onPress={retryLoad}
+            style={[styles.failBtn, { backgroundColor: colors.tint }]}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.failBtnText, { color: colors.background }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !food ? (
+        <View style={styles.scroll} accessibilityLabel="Loading food" accessibilityState={{ busy: true }}>
+          <View style={[styles.foodCard, styles.skeletonCard, { backgroundColor: colors.cardBackground }]}>
+            <View style={[styles.skeletonBar, { width: '70%', height: 16, backgroundColor: colors.cardSecondary }]} />
+            <View style={[styles.skeletonBar, { width: '35%', height: 12, backgroundColor: colors.cardSecondary }]} />
+          </View>
+          <View style={[styles.skeletonHeading, { width: 64, backgroundColor: colors.cardSecondary }]} />
+          <View style={[styles.skeletonBlock, { height: 152, backgroundColor: colors.cardBackground }]} />
+          <View style={[styles.skeletonHeading, { width: 80, backgroundColor: colors.cardSecondary }]} />
+          <View style={[styles.skeletonBlock, styles.skeletonLoading, { height: 112, backgroundColor: colors.cardBackground }]}>
+            <ActivityIndicator size="small" color={colors.tint} />
+            <Text style={[styles.skeletonText, { color: colors.icon }]}>Loading food</Text>
+          </View>
+        </View>
+      ) : (
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.scroll}
+        >
           {/* Food identity */}
           <View style={[styles.foodCard, { backgroundColor: colors.cardBackground }]}>
             <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>
@@ -229,149 +383,226 @@ export default function ServingPickerScreen() {
             </Text>
             {food.brand ? (
               <Text style={[styles.foodBrand, { color: colors.icon }]}>{food.brand}</Text>
-            ) : null}
-            <Text style={[styles.foodServing, { color: colors.icon }]}>
-              Per serving: {food.serving_units}
-            </Text>
-          </View>
-
-          {/* Amount */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.icon }]}>AMOUNT</Text>
-
-            <View style={[styles.amountCard, { backgroundColor: colors.cardBackground }]}>
-              <TextInput
-                ref={inputRef}
-                style={[styles.amountInput, { color: colors.text }]}
-                value={servingAmount}
-                onChangeText={(v) => { setServingAmount(v); setSaveError(null); }}
-                keyboardType="decimal-pad"
-                selectTextOnFocus
-              />
-              <Text style={[styles.unitSublabel, { color: colors.icon }]}>
-                {servingUnit === 'default' ? food.serving_units : servingUnit}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.unitSelector, { backgroundColor: colors.cardBackground }]}
-              onPress={() => setShowUnitPicker(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={`Unit: ${unitLabel}. Tap to change.`}
-            >
-              <Text style={[styles.unitSelectorLabel, { color: colors.icon }]}>Unit</Text>
-              <View style={styles.unitSelectorRight}>
-                <Text style={[styles.unitSelectorValue, { color: colors.tint }]}>{unitLabel}</Text>
-                <Text style={[styles.unitSelectorChevron, { color: colors.icon }]}>{'\u203A'}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Nutrition */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.icon }]}>
-              NUTRITION{per100g ? '  \u00b7  per 100g' : ''}
-            </Text>
-
-            <View style={[styles.nutritionCard, { backgroundColor: colors.cardBackground }]}>
-              <View style={styles.calorieRow}>
-                <Text style={[styles.calorieLabel, { color: colors.icon }]}>Calories</Text>
-                <Text style={[styles.calorieValue, { color: colors.tint }]}>{cal}</Text>
-              </View>
-
-              <View style={[styles.macroRow, { borderTopColor: colors.separator }]}>
-                <MacroCell label="Protein" value={pro} unit="g" color={MacroColors.protein} textColor={colors.text} subColor={colors.icon} />
-                <View style={[styles.macroDivider, { backgroundColor: colors.separator }]} />
-                <MacroCell label="Carbs" value={carb} unit="g" color={MacroColors.carbs} textColor={colors.text} subColor={colors.icon} />
-                <View style={[styles.macroDivider, { backgroundColor: colors.separator }]} />
-                <MacroCell label="Fat" value={fat} unit="g" color={MacroColors.fat} textColor={colors.text} subColor={colors.icon} />
-              </View>
-
-              {hasMicros && (
-                <View style={[styles.microSection, { borderTopColor: colors.separator }]}>
-                  {fiber !== null && (
-                    <MicroRow label="Fiber" value={fiber} unit="g" textColor={colors.text} subColor={colors.icon} />
-                  )}
-                  {sugar !== null && (
-                    <MicroRow label="Sugar" value={sugar} unit="g" textColor={colors.text} subColor={colors.icon} />
-                  )}
-                  {sodium !== null && (
-                    <MicroRow label="Sodium" value={sodium} unit="mg" textColor={colors.text} subColor={colors.icon} />
-                  )}
-                  {satFat !== null && (
-                    <MicroRow label="Sat. Fat" value={satFat} unit="g" textColor={colors.text} subColor={colors.icon} />
-                  )}
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Daily context */}
-          {calorieGoal !== null && thisCal > 0 && (
-            <View style={[styles.contextStrip, { backgroundColor: colors.cardBackground }]}>
-              <Text style={[styles.contextValue, { color: colors.text }]}>
-                {totalAfter} / {calorieGoal} kcal
-              </Text>
-              <Text style={[styles.contextSub, { color: colors.icon }]}>
-                +{thisCal} kcal from this item
-              </Text>
-            </View>
-          )}
-
-          {/* Time row */}
-          <TouchableOpacity
-            style={[styles.timeRow, { backgroundColor: colors.cardBackground }]}
-            onPress={() => setShowTimePicker(true)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`Log time: ${formatTime(loggedTime)}. Tap to change.`}
-          >
-            <Text style={[styles.timeLabel, { color: colors.text }]}>Time</Text>
-            <Text style={[styles.timeDisplay, { color: colors.tint }]}>{formatTime(loggedTime)}</Text>
-          </TouchableOpacity>
-
-          {/* Save */}
-          <TouchableOpacity
-            style={[styles.saveBtn, { backgroundColor: colors.tint, opacity: multiplier > 0 ? 1 : 0.4 }]}
-            onPress={handleSave}
-            disabled={multiplier <= 0 || saving}
-            activeOpacity={0.8}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.saveBtnText}>
-                {isEdit ? 'Save Changes' : `Add to ${slotLabel}`}
+              <Text style={[styles.foodBrand, { color: colors.icon }]}>
+                {food.source === 'usda' || food.source?.startsWith('usda') ? 'USDA · Generic' : food.source ?? 'Generic'}
               </Text>
             )}
-          </TouchableOpacity>
-          {saveError ? (
-            <Text style={[styles.saveErrorText, { color: colors.danger }]}>{saveError}</Text>
-          ) : null}
+          </View>
+
+          {/* Form group card */}
+          <SectionHeading title="SERVING" colors={colors} />
+          <View style={[styles.formCard, { backgroundColor: colors.cardBackground }]}>
+            <Pressable
+              onPress={() => amountRef.current?.focus()}
+              style={[styles.formRow, styles.formRowDivider, { borderBottomColor: colors.separator }]}
+              accessible={false}
+            >
+              <View style={styles.amountLabelCol}>
+                <Text style={[styles.formRowLabel, { color: colors.text }]}>Amount</Text>
+                {amountEmpty ? (
+                  <Text style={[styles.amountHint, { color: colors.icon }]}>Enter an amount to log</Text>
+                ) : null}
+              </View>
+              <TextInput
+                ref={amountRef}
+                value={servingAmount}
+                onChangeText={(t) => {
+                  setServingAmount(sanitizeAmount(t));
+                  setSaveError(null);
+                }}
+                onFocus={() => setAmountFocused(true)}
+                onBlur={() => setAmountFocused(false)}
+                keyboardType="decimal-pad"
+                inputAccessoryViewID={AMOUNT_ACCESSORY_ID}
+                selectTextOnFocus
+                maxLength={7}
+                placeholder="0"
+                placeholderTextColor={colors.icon}
+                accessibilityLabel={`Amount, in ${unitSpoken}`}
+                style={[
+                  styles.amountInput,
+                  {
+                    borderColor: amountFocused || amountEmpty ? colors.tint : colors.fieldBorder,
+                    color: amountEmpty ? colors.icon : colors.tint,
+                  },
+                ]}
+              />
+            </Pressable>
+            <FormRow
+              label="Serving Size"
+              value={unitLabel}
+              onPress={() => setShowUnitPicker(true)}
+              accessibilityLabel={`Serving size, ${unitLabel}. Change unit`}
+              divider
+              chevron
+              colors={colors}
+            />
+            <FormRow
+              label="Time"
+              value={formatTime(loggedTime)}
+              onPress={() => setShowTimePicker(true)}
+              accessibilityLabel={`Time, ${formatTime(loggedTime)}. Change time`}
+              colors={colors}
+            />
+          </View>
+
+          {/* Ring + Macros */}
+          <SectionHeading title="NUTRITION" colors={colors} />
+          <View style={[styles.nutritionCard, { backgroundColor: colors.cardBackground }, expandedMacro && styles.cardOpenBottom]}>
+            <View style={styles.ringMacroRow}>
+              <NutritionRing cal={cal} protein={pro} carbs={carb} fat={fat} colors={colors} />
+              <View style={styles.ringMacroRight}>
+                {macros.map((m) => {
+                  const active = expandedMacro === m.key;
+                  return (
+                    <TouchableOpacity
+                      key={m.key}
+                      style={[styles.macroCol, { backgroundColor: active ? m.color + '18' : colors.cardSecondary }]}
+                      onPress={() => setExpandedMacro((prev) => (prev === m.key ? null : m.key))}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${m.label}, ${m.value} grams`}
+                      accessibilityHint={active ? 'Hides details' : 'Shows details'}
+                      accessibilityState={{ expanded: active }}
+                    >
+                      <View style={[styles.macroDot, { backgroundColor: m.color }]} />
+                      <Text style={[styles.macroGrams, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{m.value}g</Text>
+                      <View style={styles.macroLabelRow}>
+                        <Text style={[styles.macroColLabel, { color: colors.icon }]}>{m.label}</Text>
+                        <Chevron size={10} color={colors.icon} up={active} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            {per100 ? (
+              <Text style={[styles.per100, { color: colors.icon, borderTopColor: colors.separator }]}>{per100}</Text>
+            ) : null}
+          </View>
+
+          {expandedMacro && (
+            <MacroDetailPanel
+              macro={expandedMacro}
+              pro={pro}
+              carb={carb}
+              fat={fat}
+              fiber={fiber}
+              sugar={sugar}
+              satFat={satFat}
+              transFat={transFat}
+              proteinGoal={proteinGoal}
+              carbGoal={carbGoal}
+              fatGoal={fatGoal}
+              onClose={() => setExpandedMacro(null)}
+              colors={colors}
+            />
+          )}
+
+          {/* Targets: what's eaten so far, plus this food */}
+          {calorieGoal !== null && (
+            <>
+              <SectionHeading title="TARGETS" colors={colors} />
+              <View style={[styles.targetsCard, { backgroundColor: colors.cardBackground }]}>
+                <TargetRow
+                  label="Energy"
+                  eaten={dailyCalories}
+                  add={cal}
+                  goal={calorieGoal}
+                  unit="cal"
+                  color={colors.tint}
+                  tint={tints.energy}
+                  colors={colors}
+                />
+                {proteinGoal !== null && (
+                  <TargetRow
+                    label="Protein"
+                    eaten={dailyProtein}
+                    add={pro}
+                    goal={proteinGoal}
+                    unit="g"
+                    color={MacroColors.protein}
+                    tint={tints.protein}
+                    colors={colors}
+                  />
+                )}
+                {carbGoal !== null && (
+                  <TargetRow
+                    label="Carbs"
+                    eaten={dailyCarbsState}
+                    add={carb}
+                    goal={carbGoal}
+                    unit="g"
+                    color={MacroColors.carbs}
+                    tint={tints.carbs}
+                    colors={colors}
+                  />
+                )}
+                {fatGoal !== null && (
+                  <TargetRow
+                    label="Fat"
+                    eaten={dailyFat}
+                    add={fat}
+                    goal={fatGoal}
+                    unit="g"
+                    color={MacroColors.fat}
+                    tint={tints.fat}
+                    colors={colors}
+                  />
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Complete Nutrient Summary */}
+          <ExpandSection
+            title="Complete Nutrient Summary"
+            expanded={expandNutrients}
+            onToggle={() => setExpandNutrients((v) => !v)}
+            colors={colors}
+          >
+            <MicroExpandRow label="Fiber" value={fiber} unit="g" colors={colors} />
+            <MicroExpandRow label="Sugar" value={sugar} unit="g" colors={colors} />
+            <MicroExpandRow label="Saturated Fat" value={satFat} unit="g" colors={colors} />
+            <MicroExpandRow label="Trans Fat" value={transFat} unit="g" colors={colors} />
+            <MicroExpandRow label="Cholesterol" value={cholesterol} unit="mg" colors={colors} />
+            <MicroExpandRow label="Sodium" value={sodium} unit="mg" colors={colors} />
+            <MicroExpandRow label="Potassium" value={potassium} unit="mg" colors={colors} />
+            <MicroExpandRow label="Calcium" value={calcium} unit="mg" colors={colors} />
+            <MicroExpandRow label="Iron" value={iron} unit="mg" colors={colors} />
+            <MicroExpandRow label="Vitamin D" value={vitaminD} unit="µg" colors={colors} />
+          </ExpandSection>
         </ScrollView>
-      </KeyboardAvoidingView>
+      )}
 
-      <UnitPickerModal
-        visible={showUnitPicker}
-        servingUnit={servingUnit}
-        per100g={per100g}
-        baseGrams={baseGrams}
-        foodServingUnits={food.serving_units}
-        onSelectUnit={(unit) => {
-          setPer100g(false);
-          handleUnitChange(unit);
-          setShowUnitPicker(false);
-        }}
-        onTogglePer100g={() => {
-          setPer100g((v) => !v);
-          setShowUnitPicker(false);
-        }}
-        onClose={() => setShowUnitPicker(false)}
-        colors={colors}
-      />
+      {/* The decimal pad has no return key, so it gets a Done bar */}
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
+          <View style={[styles.accessoryBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
+            <TouchableOpacity onPress={Keyboard.dismiss} hitSlop={8} accessibilityRole="button">
+              <Text style={[styles.accessoryDone, { color: colors.tint }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      ) : null}
 
-      <TimePickerModal
+      {food ? (
+        <UnitPickerModal
+          visible={showUnitPicker}
+          servingUnit={servingUnit}
+          baseGrams={baseGrams}
+          foodServingUnits={food.serving_units}
+          onSelectUnit={(unit) => {
+            handleUnitChange(unit);
+            setShowUnitPicker(false);
+          }}
+          onClose={() => setShowUnitPicker(false)}
+          colors={colors}
+        />
+      ) : null}
+
+      <TimePickerSheet
         visible={showTimePicker}
         value={loggedTime}
         onChange={setLoggedTime}
@@ -382,45 +613,382 @@ export default function ServingPickerScreen() {
   );
 }
 
-function MacroCell({
-  label, value, unit, color, textColor, subColor,
-}: {
-  label: string; value: number; unit: string;
-  color: string; textColor: string; subColor: string;
-}) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionHeading({ title, colors }: { title: string; colors: typeof Colors.light }) {
   return (
-    <View style={styles.macroCell}>
-      <View style={[styles.macroDot, { backgroundColor: color }]} />
-      <Text style={[styles.macroValue, { color: textColor }]}>{value}{unit}</Text>
-      <Text style={[styles.macroLabel, { color: subColor }]}>{label}</Text>
+    <Text style={[styles.sectionHeading, { color: colors.icon }]}>{title}</Text>
+  );
+}
+
+function Chevron({ size, color, up }: { size: number; color: string; up?: boolean }) {
+  return (
+    <View style={{ transform: [{ rotate: up ? '180deg' : '0deg' }] }}>
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Polyline
+          points="6 9 12 15 18 9"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </View>
   );
 }
 
-function MicroRow({
-  label, value, unit, textColor, subColor,
+type MacroDetailRow = {
+  key: string;
+  label: string;
+  value: number | null;
+  goal: number | null;
+  unit?: string;
+  indent?: number;
+};
+
+function buildMacroRows(
+  macro: 'protein' | 'carbs' | 'fat',
+  pro: number,
+  carb: number,
+  fat: number,
+  fiber: number | null,
+  sugar: number | null,
+  satFat: number | null,
+  transFat: number | null,
+  proteinGoal: number | null,
+  carbGoal: number | null,
+  fatGoal: number | null,
+): MacroDetailRow[] {
+  if (macro === 'protein') {
+    return [
+      { key: 'total', label: 'Protein (Total)', value: pro, goal: proteinGoal, indent: 0 },
+      { key: 'cystine', label: 'Cystine', value: null, goal: null, indent: 1 },
+      { key: 'histidine', label: 'Histidine', value: null, goal: null, indent: 1 },
+      { key: 'isoleucine', label: 'Isoleucine', value: null, goal: null, indent: 1 },
+      { key: 'leucine', label: 'Leucine', value: null, goal: null, indent: 1 },
+      { key: 'lysine', label: 'Lysine', value: null, goal: null, indent: 1 },
+      { key: 'methionine', label: 'Methionine', value: null, goal: null, indent: 1 },
+      { key: 'phenylalanine', label: 'Phenylalanine', value: null, goal: null, indent: 1 },
+      { key: 'threonine', label: 'Threonine', value: null, goal: null, indent: 1 },
+      { key: 'tryptophan', label: 'Tryptophan', value: null, goal: null, indent: 1 },
+      { key: 'tyrosine', label: 'Tyrosine', value: null, goal: null, indent: 1 },
+      { key: 'valine', label: 'Valine', value: null, goal: null, indent: 1 },
+    ];
+  }
+  if (macro === 'carbs') {
+    const net = fiber != null ? Math.round((carb - fiber) * 10) / 10 : null;
+    return [
+      { key: 'total', label: 'Carbs (Total)', value: carb, goal: carbGoal, indent: 0 },
+      { key: 'fiber', label: 'Fiber', value: fiber, goal: null, indent: 1 },
+      { key: 'fiber_ins', label: 'Fiber (Insoluble)', value: null, goal: null, indent: 2 },
+      { key: 'fiber_sol', label: 'Fiber (Soluble)', value: null, goal: null, indent: 2 },
+      { key: 'net', label: 'Carbs (Net)', value: net, goal: null, indent: 0 },
+      { key: 'starch', label: 'Starch', value: null, goal: null, indent: 0 },
+      { key: 'sugar', label: 'Sugars', value: sugar, goal: null, indent: 0 },
+      { key: 'added_sugars', label: 'Added Sugars', value: null, goal: null, indent: 0 },
+    ];
+  }
+  return [
+    { key: 'total', label: 'Fats (Total)', value: fat, goal: fatGoal, indent: 0 },
+    { key: 'mono', label: 'Fat (Monounsaturated)', value: null, goal: null, indent: 1 },
+    { key: 'poly', label: 'Fat (Polyunsaturated)', value: null, goal: null, indent: 1 },
+    { key: 'o3', label: 'Omega-3', value: null, goal: null, indent: 1 },
+    { key: 'o3_ala', label: 'Omega-3 (ALA)', value: null, goal: null, indent: 2 },
+    { key: 'o3_dha', label: 'Omega-3 (DHA)', value: null, goal: null, indent: 2 },
+    { key: 'o3_epa', label: 'Omega-3 (EPA)', value: null, goal: null, indent: 2 },
+    { key: 'o6', label: 'Omega-6', value: null, goal: null, indent: 1 },
+    { key: 'o6_aa', label: 'Omega-6 (AA)', value: null, goal: null, indent: 2 },
+    { key: 'o6_la', label: 'Omega-6 (LA)', value: null, goal: null, indent: 2 },
+    { key: 'sat', label: 'Fat (Saturated)', value: satFat, goal: null, indent: 1 },
+    { key: 'trans', label: 'Fat (Trans)', value: transFat, goal: null, indent: 1 },
+  ];
+}
+
+function MacroDetailPanel({
+  macro, pro, carb, fat, fiber, sugar, satFat, transFat,
+  proteinGoal, carbGoal, fatGoal, onClose, colors,
 }: {
-  label: string; value: number; unit: string; textColor: string; subColor: string;
+  macro: 'protein' | 'carbs' | 'fat';
+  pro: number;
+  carb: number;
+  fat: number;
+  fiber: number | null;
+  sugar: number | null;
+  satFat: number | null;
+  transFat: number | null;
+  proteinGoal: number | null;
+  carbGoal: number | null;
+  fatGoal: number | null;
+  onClose: () => void;
+  colors: typeof Colors.light;
+}) {
+  const rows = buildMacroRows(macro, pro, carb, fat, fiber, sugar, satFat, transFat, proteinGoal, carbGoal, fatGoal);
+  // Rows with no data are hidden; a single note says so
+  const visibleRows = rows.filter((r) => r.value != null);
+  const hiddenCount = rows.length - visibleRows.length;
+  const color = macro === 'protein' ? MacroColors.protein : macro === 'carbs' ? MacroColors.carbs : MacroColors.fat;
+  const title = macro === 'protein' ? 'Protein' : macro === 'carbs' ? 'Carbs' : 'Fats';
+  const hiddenNote = macro === 'protein'
+    ? 'No amino acid data for this food'
+    : 'Details with no data for this food are hidden';
+
+  return (
+    <View style={[styles.macroDetailCard, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
+      <View style={styles.macroDetailHeader}>
+        <Text style={[styles.macroDetailTitle, { color: colors.text }]}>{title}</Text>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={14}
+          accessibilityRole="button"
+          accessibilityLabel={`Close ${title.toLowerCase()} details`}
+        >
+          <Text style={{ color: colors.icon, fontSize: 16 }}>✕</Text>
+        </TouchableOpacity>
+      </View>
+      {visibleRows.map((row) => (
+        <DetailRow key={row.key} row={row} color={color} colors={colors} />
+      ))}
+      {hiddenCount > 0 ? (
+        <Text style={[styles.macroDetailNote, { color: colors.icon }]}>{hiddenNote}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function DetailRow({
+  row, color, colors,
+}: {
+  row: MacroDetailRow;
+  color: string;
+  colors: typeof Colors.light;
+}) {
+  const hasValue = row.value != null;
+  const indent = row.indent ?? 0;
+  const pct = hasValue && row.goal
+    ? Math.min((row.value as number) / Math.max(row.goal, 1), 1)
+    : 0;
+  const valueText = !hasValue
+    ? 'No Data'
+    : row.goal
+    ? `${row.value} / ${row.goal} g`
+    : `${row.value} g`;
+  const pctText = hasValue && row.goal ? `${Math.round(pct * 100)}%` : '0%';
+
+  return (
+    <View style={[styles.detailRow, { paddingLeft: 16 + indent * 16 }]}>
+      <View style={styles.detailRowTop}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <Text style={[styles.detailRowLabel, { color: colors.text, fontWeight: indent === 0 ? '700' : '600' }]}>
+            {row.label}
+          </Text>
+          <Text style={[styles.detailRowValueInline, { color: colors.icon }]}>
+            {'  '}{valueText}
+          </Text>
+        </View>
+        <Text style={[styles.detailRowPct, { color: colors.icon }]}>{pctText}</Text>
+      </View>
+      {hasValue && row.goal ? (
+        <View style={[styles.progressBar, { backgroundColor: colors.track }]}>
+          <View style={[styles.progressFill, { width: percent(pct), backgroundColor: color }]} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function FormRow({
+  label, value, onPress, accessibilityLabel, divider, chevron, colors,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+  divider?: boolean;
+  chevron?: boolean;
+  colors: typeof Colors.light;
 }) {
   return (
-    <View style={styles.microRow}>
-      <Text style={[styles.microLabel, { color: subColor }]}>{label}</Text>
-      <Text style={[styles.microValue, { color: textColor }]}>{value}{unit}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={[styles.formRow, divider && [styles.formRowDivider, { borderBottomColor: colors.separator }]]}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      <Text style={[styles.formRowLabel, { color: colors.text }]}>{label}</Text>
+      <View style={styles.formRowValue}>
+        <Text style={[styles.formRowValueText, { color: colors.tint }]}>{value}</Text>
+        {chevron && <Text style={{ fontSize: 13, color: colors.icon }}>▾</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function NutritionRing({
+  cal, protein, carbs, fat, colors,
+}: {
+  cal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  colors: typeof Colors.light;
+}) {
+  const size = 80;
+  const sw = 8;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+
+  const protCal = protein * 4;
+  const carbCal = carbs * 4;
+  const fatCal = fat * 9;
+  const total = Math.max(protCal + carbCal + fatCal, 1);
+
+  const protFrac = protCal / total;
+  const carbFrac = carbCal / total;
+  const fatFrac = fatCal / total;
+
+  const carbOff = protFrac * circ;
+  const fatOff = (protFrac + carbFrac) * circ;
+
+  const cx = size / 2;
+  const cy = size / 2;
+
+  const seg = (frac: number, offset: number, color: string) =>
+    frac > 0 ? (
+      <Circle
+        cx={cx} cy={cy} r={r}
+        stroke={color} strokeWidth={sw} fill="none"
+        strokeDasharray={[frac * circ, circ - frac * circ]}
+        strokeDashoffset={-offset}
+        strokeLinecap="round"
+        rotation="-90"
+        origin={`${cx}, ${cy}`}
+      />
+    ) : null;
+
+  return (
+    <View
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+      accessible
+      accessibilityLabel={`${cal} calories`}
+    >
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle cx={cx} cy={cy} r={r} stroke={colors.separator} strokeWidth={sw} fill="none" />
+        {seg(fatFrac, fatOff, MacroColors.fat)}
+        {seg(carbFrac, carbOff, MacroColors.carbs)}
+        {seg(protFrac, 0, MacroColors.protein)}
+      </Svg>
+      <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }}>
+        {cal}
+      </Text>
+      <Text style={{ fontSize: 10, color: colors.icon }}>cal</Text>
+    </View>
+  );
+}
+
+function ExpandSection({
+  title, expanded, onToggle, colors, children,
+}: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  colors: typeof Colors.light;
+  children: ReactNode;
+}) {
+  return (
+    <View style={[styles.expandCard, { backgroundColor: colors.cardBackground }]}>
+      <TouchableOpacity
+        style={styles.expandHeader}
+        onPress={onToggle}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={title}
+      >
+        <Text style={[styles.expandTitle, { color: colors.text }]}>{title}</Text>
+        <Chevron size={14} color={colors.icon} up={expanded} />
+      </TouchableOpacity>
+      {expanded && (
+        <View style={[styles.expandBody, { borderTopColor: colors.separator }]}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Already eaten in the macro color, then this food as a pale segment
+function TargetRow({
+  label, eaten, add, goal, unit, color, tint, colors,
+}: {
+  label: string;
+  eaten: number;
+  add: number;
+  goal: number;
+  unit: string;
+  color: string;
+  tint: string;
+  colors: typeof Colors.light;
+}) {
+  const g = Math.max(goal, 1);
+  const eatenFrac = Math.min(eaten / g, 1);
+  const addFrac = Math.max(Math.min((eaten + add) / g, 1) - eatenFrac, 0);
+  const spokenUnit = unit === 'cal' ? 'calories' : 'grams';
+  return (
+    <View
+      style={styles.targetBlock}
+      accessible
+      accessibilityLabel={`${label}, ${formatNum(eaten + add)} of ${formatNum(goal)} ${spokenUnit}`}
+    >
+      <View style={styles.targetTop}>
+        <Text style={[styles.targetLabel, { color: colors.text }]}>{label}</Text>
+        <View style={styles.targetNums}>
+          <Text style={[styles.targetNum, styles.targetEaten, { color: colors.text }]}>{formatNum(eaten + add)}</Text>
+          <Text style={[styles.targetNum, { color: colors.text }]}>/</Text>
+          <Text style={[styles.targetNum, styles.targetGoal, { color: colors.text }]}>{formatNum(goal)}</Text>
+          <Text style={[styles.targetNum, styles.targetUnit, { color: colors.text }]}>{unit}</Text>
+        </View>
+      </View>
+      <View style={[styles.targetTrack, { backgroundColor: colors.track }]}>
+        <View style={{ width: percent(eatenFrac), backgroundColor: color }} />
+        <View style={{ width: percent(addFrac), backgroundColor: tint }} />
+      </View>
+    </View>
+  );
+}
+
+function MicroExpandRow({
+  label, value, unit, colors,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+  colors: typeof Colors.light;
+}) {
+  const hasValue = value != null;
+  return (
+    <View
+      style={styles.microExpandRow}
+      accessible
+      accessibilityLabel={hasValue ? `${label}, ${value} ${unit}` : `${label}, no data`}
+    >
+      <Text style={{ fontSize: 14, color: colors.icon, flexShrink: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: hasValue ? '600' : '400', color: hasValue ? colors.text : colors.icon, fontVariant: ['tabular-nums'] }}>
+        {hasValue ? `${value} ${unit}` : 'No Data'}
+      </Text>
     </View>
   );
 }
 
 function UnitPickerModal({
-  visible, servingUnit, per100g, baseGrams, foodServingUnits,
-  onSelectUnit, onTogglePer100g, onClose, colors,
+  visible, servingUnit, baseGrams, foodServingUnits,
+  onSelectUnit, onClose, colors,
 }: {
   visible: boolean;
   servingUnit: ServingUnit;
-  per100g: boolean;
   baseGrams: number | null;
   foodServingUnits: string;
   onSelectUnit: (unit: ServingUnit) => void;
-  onTogglePer100g: () => void;
   onClose: () => void;
   colors: typeof Colors.light;
 }) {
@@ -428,11 +996,11 @@ function UnitPickerModal({
 
   type UnitOption = { unit: ServingUnit; label: string; sublabel: string };
   const unitOptions: UnitOption[] = [
-    { unit: 'default', label: 'Serving', sublabel: foodServingUnits },
+    { unit: 'default', label: foodServingUnits, sublabel: 'Default serving' },
     ...(baseGrams
       ? [
-          { unit: 'grams' as ServingUnit, label: 'Grams', sublabel: 'g' },
-          { unit: 'oz' as ServingUnit, label: 'Ounces', sublabel: 'oz' },
+          { unit: 'grams' as ServingUnit, label: 'Grams', sublabel: 'Weight in g' },
+          { unit: 'oz' as ServingUnit, label: 'Ounces', sublabel: 'Weight in oz' },
         ]
       : []),
   ];
@@ -440,13 +1008,13 @@ function UnitPickerModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close serving size" />
         <View style={[styles.pickerSheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
-          <Text style={[styles.pickerTitle, { color: colors.text }]}>Unit</Text>
+          <Text style={[styles.pickerTitle, { color: colors.text }]}>Serving Size</Text>
 
           {unitOptions.map(({ unit, label, sublabel }, i) => {
-            const isActive = servingUnit === unit && !per100g;
-            const isLast = i === unitOptions.length - 1 && !baseGrams;
+            const isActive = servingUnit === unit;
+            const isLast = i === unitOptions.length - 1;
             return (
               <TouchableOpacity
                 key={unit}
@@ -457,8 +1025,10 @@ function UnitPickerModal({
                 ]}
                 onPress={() => onSelectUnit(unit)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
               >
-                <View>
+                <View style={styles.unitOptionText}>
                   <Text style={[styles.unitOptionLabel, { color: colors.text }]}>{label}</Text>
                   <Text style={[styles.unitOptionSub, { color: colors.icon }]}>{sublabel}</Text>
                 </View>
@@ -470,19 +1040,9 @@ function UnitPickerModal({
           })}
 
           {baseGrams ? (
-            <TouchableOpacity
-              style={[styles.unitOption, styles.unitOptionLast]}
-              onPress={onTogglePer100g}
-              activeOpacity={0.7}
-            >
-              <View>
-                <Text style={[styles.unitOptionLabel, { color: colors.text }]}>Per 100g</Text>
-                <Text style={[styles.unitOptionSub, { color: colors.icon }]}>Reference view</Text>
-              </View>
-              {per100g && (
-                <Text style={[styles.unitOptionCheck, { color: colors.tint }]}>✓</Text>
-              )}
-            </TouchableOpacity>
+            <Text style={[styles.unitNote, { color: colors.icon }]}>
+              Per 100 g values show under Nutrition, so they never change what you log.
+            </Text>
           ) : null}
         </View>
       </View>
@@ -490,102 +1050,7 @@ function UnitPickerModal({
   );
 }
 
-function TimePickerModal({
-  visible, value, onChange, onClose, colors,
-}: {
-  visible: boolean;
-  value: Date;
-  onChange: (d: Date) => void;
-  onClose: () => void;
-  colors: typeof Colors.light;
-}) {
-  const { bottom } = useSafeAreaInsets();
-  const [hour, setHour] = useState(value.getHours() % 12 || 12);
-  const [minute, setMinute] = useState(value.getMinutes());
-  const [isPM, setIsPM] = useState(value.getHours() >= 12);
-
-  useEffect(() => {
-    if (visible) {
-      setHour(value.getHours() % 12 || 12);
-      setMinute(value.getMinutes());
-      setIsPM(value.getHours() >= 12);
-    }
-  }, [visible]);
-
-  const apply = () => {
-    const h24 = isPM ? (hour === 12 ? 12 : hour + 12) : hour === 12 ? 0 : hour;
-    const d = new Date();
-    d.setHours(h24, minute, 0, 0);
-    onChange(d);
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View
-          style={[
-            styles.pickerSheet,
-            { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom },
-          ]}
-        >
-          <Text style={[styles.pickerTitle, { color: colors.text }]}>Time</Text>
-
-          <View style={styles.pickerRow}>
-            <View style={styles.pickerColumn}>
-              <TouchableOpacity onPress={() => setHour((h) => (h % 12) + 1)} hitSlop={8}>
-                <Text style={[styles.pickerArrow, { color: colors.tint }]}>▲</Text>
-              </TouchableOpacity>
-              <Text style={[styles.pickerNumber, { color: colors.text }]}>
-                {String(hour).padStart(2, '0')}
-              </Text>
-              <TouchableOpacity onPress={() => setHour((h) => (h === 1 ? 12 : h - 1))} hitSlop={8}>
-                <Text style={[styles.pickerArrow, { color: colors.tint }]}>▼</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.pickerColon, { color: colors.text }]}>:</Text>
-
-            <View style={styles.pickerColumn}>
-              <TouchableOpacity onPress={() => setMinute((m) => (m + 5) % 60)} hitSlop={8}>
-                <Text style={[styles.pickerArrow, { color: colors.tint }]}>▲</Text>
-              </TouchableOpacity>
-              <Text style={[styles.pickerNumber, { color: colors.text }]}>
-                {String(minute).padStart(2, '0')}
-              </Text>
-              <TouchableOpacity onPress={() => setMinute((m) => (m - 5 + 60) % 60)} hitSlop={8}>
-                <Text style={[styles.pickerArrow, { color: colors.tint }]}>▼</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.ampmColumn}>
-              <TouchableOpacity
-                onPress={() => setIsPM(false)}
-                style={[styles.ampmBtn, !isPM && { backgroundColor: colors.tint }]}
-              >
-                <Text style={[styles.ampmText, { color: !isPM ? '#fff' : colors.icon }]}>AM</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setIsPM(true)}
-                style={[styles.ampmBtn, isPM && { backgroundColor: colors.tint }]}
-              >
-                <Text style={[styles.ampmText, { color: isPM ? '#fff' : colors.icon }]}>PM</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.doneBtn, { backgroundColor: colors.tint }]}
-            onPress={apply}
-          >
-            <Text style={styles.doneBtnText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -595,113 +1060,218 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: { width: 64 },
+  headerSide: { width: 72 },
+  headerSideRight: { alignItems: 'flex-end' },
   headerBtnText: { fontSize: 16 },
   title: { fontSize: 17, fontWeight: '600' },
+  logPill: {
+    minWidth: 64,
+    minHeight: 34,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logPillText: { fontSize: 15, fontWeight: '600' },
 
-  scroll: { padding: 16, paddingBottom: 48 },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 12,
+    borderRadius: 12,
+  },
+  errorText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  errorRetry: { fontSize: 13, fontWeight: '600' },
 
-  foodCard: { borderRadius: 18, padding: 16, marginBottom: 24 },
+  failWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 40,
+    paddingBottom: 140,
+  },
+  failIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  failTitle: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  failBody: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  failBtn: {
+    marginTop: 12,
+    minHeight: 44,
+    paddingHorizontal: 24,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  failBtnText: { fontSize: 15, fontWeight: '600' },
+
+  skeletonCard: { gap: 10 },
+  skeletonBar: { borderRadius: 4 },
+  skeletonHeading: { height: 10, borderRadius: 4, marginTop: 14, marginBottom: 6, marginLeft: 4 },
+  skeletonBlock: { borderRadius: 18 },
+  skeletonLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  skeletonText: { fontSize: 13 },
+
+  scroll: { padding: 16, paddingBottom: 32, gap: 8 },
+
+  sectionHeading: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginTop: 8,
+    marginBottom: 2,
+    marginLeft: 4,
+  },
+
+  macroDetailCard: {
+    marginTop: -8,
+    borderRadius: 18,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  macroDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  macroDetailTitle: { fontSize: 14, fontWeight: '700' },
+  macroDetailNote: { fontSize: 12, paddingHorizontal: 16, marginTop: 8 },
+  detailRow: { gap: 4, paddingRight: 16, paddingVertical: 6 },
+  detailRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  detailRowLabel: { fontSize: 13 },
+  detailRowValueInline: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 36, textAlign: 'right' },
+
+  foodCard: { borderRadius: 18, padding: 16 },
   foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
   foodBrand: { fontSize: 14, marginBottom: 4 },
-  foodServing: { fontSize: 13, marginTop: 2 },
 
-  section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 },
-
-  amountCard: {
-    borderRadius: 18,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
+  // Form card
+  formCard: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
+  formRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    paddingVertical: 14,
   },
+  formRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth },
+  formRowLabel: { fontSize: 15, fontWeight: '500' },
+  formRowValue: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  formRowValueText: { fontSize: 17, fontWeight: '600', textAlign: 'right' },
+  amountLabelCol: { gap: 2 },
+  amountHint: { fontSize: 12 },
   amountInput: {
-    fontSize: 48,
-    fontWeight: '700',
-    textAlign: 'center',
-    width: '100%',
+    minWidth: 72,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
-  unitSublabel: { fontSize: 13, marginTop: 4 },
-
-  unitSelector: {
+  accessoryBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    borderRadius: 18,
+    minHeight: 44,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  unitSelectorLabel: { fontSize: 15 },
-  unitSelectorRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  unitSelectorValue: { fontSize: 15, fontWeight: '500' },
-  unitSelectorChevron: { fontSize: 20, lineHeight: 22 },
-
-  nutritionCard: { borderRadius: 18, overflow: 'hidden' },
-  calorieRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  calorieLabel: { fontSize: 15, fontWeight: '500' },
-  calorieValue: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
-
-  macroRow: {
-    flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 14,
   },
-  macroCell: { flex: 1, alignItems: 'center', gap: 3 },
+  accessoryDone: { fontSize: 16, fontWeight: '600' },
+
+  // Ring + macros
+  nutritionCard: { borderRadius: 18, padding: 16, gap: 12 },
+  cardOpenBottom: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  ringMacroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ringMacroRight: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 6,
+  },
+  macroCol: { alignItems: 'center', gap: 2, flex: 1, minWidth: 0, borderRadius: 10, padding: 6 },
   macroDot: { width: 8, height: 8, borderRadius: 4 },
-  macroValue: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  macroLabel: { fontSize: 12 },
-  macroDivider: { width: StyleSheet.hairlineWidth },
-
-  microSection: {
+  macroGrams: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  macroLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  macroColLabel: { fontSize: 11 },
+  per100: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 9,
+    paddingTop: 10,
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
   },
-  microRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  microLabel: { fontSize: 13 },
-  microValue: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
-  contextStrip: {
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  contextValue: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  contextSub: { fontSize: 12, marginTop: 2 },
+  // Targets
+  targetsCard: { borderRadius: 18, padding: 16, gap: 12 },
+  targetBlock: { gap: 6 },
+  targetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  targetLabel: { fontSize: 12, fontWeight: '600' },
+  targetNums: { flexDirection: 'row', gap: 4 },
+  targetNum: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  targetEaten: { minWidth: 36, textAlign: 'right' },
+  targetGoal: { minWidth: 32, textAlign: 'right' },
+  targetUnit: { minWidth: 22 },
+  targetTrack: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden' },
 
-  timeRow: {
+  // Expand sections
+  expandCard: { borderRadius: 18, overflow: 'hidden' },
+  expandHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    marginBottom: 24,
+    padding: 16,
   },
-  timeLabel: { fontSize: 15 },
-  timeDisplay: { fontSize: 15, fontWeight: '500' },
+  expandTitle: { fontSize: 15, fontWeight: '700' },
+  expandBody: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    gap: 12,
+  },
 
-  saveBtn: { borderRadius: 18, paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  saveErrorText: { fontSize: 13, textAlign: 'center', marginTop: 10 },
+  // Detail progress bars
+  progressBar: { height: 4, borderRadius: 2 },
+  progressFill: { height: 4, borderRadius: 2 },
+
+  // Micro expand rows
+  microExpandRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(26,26,34,0.45)',
     justifyContent: 'flex-end',
   },
   pickerSheet: {
@@ -709,7 +1279,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  pickerTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 24 },
+  pickerTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 12 },
 
   // Unit picker
   unitOption: {
@@ -720,25 +1290,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   unitOptionLast: { borderBottomWidth: 0 },
+  unitOptionText: { flexShrink: 1 },
   unitOptionLabel: { fontSize: 16, fontWeight: '500' },
   unitOptionSub: { fontSize: 12, marginTop: 1 },
   unitOptionCheck: { fontSize: 18, fontWeight: '600' },
-
-  // Time picker
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 28,
-  },
-  pickerColumn: { alignItems: 'center', gap: 10 },
-  pickerArrow: { fontSize: 18, paddingHorizontal: 12, paddingVertical: 2 },
-  pickerNumber: { fontSize: 40, fontWeight: '700', minWidth: 64, textAlign: 'center' },
-  pickerColon: { fontSize: 36, fontWeight: '700', marginBottom: 10 },
-  ampmColumn: { gap: 8, marginLeft: 12 },
-  ampmBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8 },
-  ampmText: { fontSize: 14, fontWeight: '600' },
-  doneBtn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  unitNote: { fontSize: 12, lineHeight: 17, marginTop: 14 },
 });

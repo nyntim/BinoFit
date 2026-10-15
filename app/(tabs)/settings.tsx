@@ -130,7 +130,7 @@ export default function SettingsScreen() {
               value={calories}
               onChangeText={setCalories}
               keyboardType="numeric"
-              placeholder="kcal"
+              placeholder="cal"
               placeholderTextColor={colors.icon}
             />
 

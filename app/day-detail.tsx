@@ -133,7 +133,7 @@ export default function DayDetailScreen() {
                   <View key={key} style={[styles.slotCard, { backgroundColor: colors.cardBackground }]}>
                     <View style={styles.slotHeader}>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
-                      <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} kcal</Text>
+                      <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} cal</Text>
                     </View>
                     <View style={styles.logList}>
                       {slotLogs.map((log) => (
@@ -150,7 +150,7 @@ export default function DayDetailScreen() {
                             <Text style={[styles.logCals, { color: colors.text }]}>
                               {Math.round(log.food_calories * log.serving_amount)}
                             </Text>
-                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>kcal</Text>
+                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>cal</Text>
                           </View>
                         </View>
                       ))}
