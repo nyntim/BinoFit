@@ -21,7 +21,6 @@ import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getUserGoals,
-  getRequirePlanMode,
   getQuickAddDrinks,
   saveQuickAddDrinks,
 } from '@/lib/storage';
@@ -45,6 +44,8 @@ import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { WATER_TRACKING_ENABLED } from '@/constants/features';
+import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
+import { writeNutritionLog } from '@/services/healthKitService';
 import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
@@ -78,13 +79,11 @@ export default function HomeScreen() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
-  const isPast = selectedDate < today;
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
-  const [requirePlanMode, setRequirePlanMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
   const [waterModalVisible, setWaterModalVisible] = useState(false);
@@ -110,15 +109,13 @@ export default function HomeScreen() {
       getUserGoals(),
       getFoodLogsWithFoodByDate(selectedDate),
       getMealSlotConfirmationsByDate(selectedDate),
-      getRequirePlanMode(),
       getWaterLogsByDate(selectedDate),
       getQuickAddDrinks(),
     ])
-      .then(([userGoals, foodLogs, slotConfirmations, reqPlan, wLogs, storedQuickDrinks]) => {
+      .then(([userGoals, foodLogs, slotConfirmations, wLogs, storedQuickDrinks]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
         setConfirmations(slotConfirmations);
-        setRequirePlanMode(reqPlan);
         setWaterLogs(wLogs);
         if (storedQuickDrinks) setQuickAddDrinks(storedQuickDrinks);
       })
@@ -138,31 +135,12 @@ export default function HomeScreen() {
   }, [selectedDate, loadData]); // Re-trigger only when date changes
 
   const isSlotConfirmed = useCallback(
-    (slot: MealSlot) => {
-      const conf = confirmations.find((c) => c.meal_slot === slot);
-      // If no confirmation record exists, treat as confirmed (Eaten) by default.
-      return conf ? conf.confirmed : true;
-    },
+    // If no confirmation record exists, treat as confirmed (Eaten) by default.
+    (slot: MealSlot) => isSlotEaten(confirmations, slot),
     [confirmations]
   );
 
-  const consumed = useMemo(() => {
-    return logs.reduce(
-      (acc, log) => {
-        const confirmed = isSlotConfirmed(log.meal_slot);
-        const shouldCount = !requirePlanMode || confirmed;
-        if (!shouldCount) return acc;
-
-        return {
-          calories: acc.calories + log.food_calories * log.serving_amount,
-          protein: acc.protein + log.food_protein * log.serving_amount,
-          carbs: acc.carbs + log.food_carbs * log.serving_amount,
-          fat: acc.fat + log.food_fat * log.serving_amount,
-        };
-      },
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    );
-  }, [logs, isSlotConfirmed, requirePlanMode]);
+  const consumed = useMemo(() => sumEatenTotals(logs, confirmations), [logs, confirmations]);
 
   const waterConsumed = useMemo(() => {
     return waterLogs.reduce((sum, log) => sum + (log.amount || 0), 0) || 0;
@@ -232,6 +210,18 @@ export default function HomeScreen() {
 
     try {
       await upsertMealSlotConfirmation(selectedDate, slot, newStatus);
+      // Planned -> Eaten writes the slot's totals to HealthKit. Eaten -> Planned
+      // cannot retract what was already written.
+      if (newStatus) {
+        const slotTotals = sumEatenTotals(logsForSlot(slot), []);
+        writeNutritionLog(
+          selectedDate,
+          Math.round(slotTotals.calories),
+          Math.round(slotTotals.protein * 10) / 10,
+          Math.round(slotTotals.carbs * 10) / 10,
+          Math.round(slotTotals.fat * 10) / 10
+        );
+      }
     } catch (error) {
       console.error('Failed to update confirmation:', error);
       Alert.alert('Error', 'Failed to save confirmation. Please try again.');
@@ -489,7 +479,7 @@ export default function HomeScreen() {
               const slotLogs = logsForSlot(key);
               const slotCals = Math.round(slotCalories(key));
               const hasLogs = slotLogs.length > 0;
-              const showToggle = hasLogs && !isPast && requirePlanMode;
+              const showToggle = hasLogs;
 
               // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state, 
               // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
@@ -503,8 +493,7 @@ export default function HomeScreen() {
                     styles.slotCard,
                     { backgroundColor: colors.cardBackground },
                     hasLogs &&
-                      !displayConfirmed &&
-                      requirePlanMode && {
+                      !displayConfirmed && {
                         opacity: 0.7,
                         borderWidth: 1,
                         borderStyle: 'dashed',
@@ -529,21 +518,25 @@ export default function HomeScreen() {
                         style={[
                           styles.confirmBtn,
                           {
-                            backgroundColor: displayConfirmed ? colors.success + '18' : colors.icon + '12',
+                            backgroundColor: displayConfirmed ? colors.tint + '18' : colors.icon + '12',
                           },
                         ]}
                         onPress={() => handleToggleSlot(key)}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${label}, ${displayConfirmed ? 'Eaten' : 'Planned'}`}
+                        accessibilityHint="Switches between Eaten and Planned"
                       >
                         <MaterialIcons
                           name={displayConfirmed ? 'check-circle' : 'radio-button-unchecked'}
                           size={18}
-                          color={displayConfirmed ? colors.success : colors.icon}
+                          color={displayConfirmed ? colors.tint : colors.icon}
                         />
                         <Text
                           style={[
                             styles.confirmBtnText,
-                            { color: displayConfirmed ? colors.success : colors.icon },
+                            { color: displayConfirmed ? colors.tint : colors.icon },
                           ]}
                         >
                           {displayConfirmed ? 'Eaten' : 'Planned'}
@@ -554,6 +547,9 @@ export default function HomeScreen() {
                         style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
                         onPress={() => handleAddToSlot(key)}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add food to ${label}`}
                       >
                         <MaterialIcons name="add" size={20} color={colors.tint} />
                       </TouchableOpacity>
@@ -955,7 +951,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  confirmBtnText: { fontSize: 12, fontWeight: '600' },
+  confirmBtnText: { fontSize: 13, fontWeight: '600' },
   slotLabel: { fontSize: 16, fontWeight: '600' },
   slotCals: { fontSize: 13, marginTop: 2 },
   addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

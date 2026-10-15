@@ -14,10 +14,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
-import { getFoodLogsWithFoodByDate } from '@/lib/database';
+import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate } from '@/lib/database';
+import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
-import type { FoodLogWithFood, UserGoals } from '@/lib/types';
+import type { FoodLogWithFood, MealSlotConfirmation, UserGoals } from '@/lib/types';
 
 type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -44,29 +45,23 @@ export default function DayDetailScreen() {
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);
+  const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const displayDate = date ? format(parseISO(date), 'EEEE, MMM d') : '';
 
   useEffect(() => {
     if (!date) return;
-    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(date)])
-      .then(([userGoals, foodLogs]) => {
+    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(date), getMealSlotConfirmationsByDate(date)])
+      .then(([userGoals, foodLogs, slotConfirmations]) => {
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
+        setConfirmations(slotConfirmations);
       })
       .finally(() => setLoading(false));
   }, [date]);
 
-  const consumed = logs.reduce(
-    (acc, log) => ({
-      calories: acc.calories + log.food_calories * log.serving_amount,
-      protein: acc.protein + log.food_protein * log.serving_amount,
-      carbs: acc.carbs + log.food_carbs * log.serving_amount,
-      fat: acc.fat + log.food_fat * log.serving_amount,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
+  const consumed = sumEatenTotals(logs, confirmations);
 
   const logsForSlot = (slot: MealSlot) => logs.filter((l) => l.meal_slot === slot);
   const slotCalories = (slot: MealSlot) =>
@@ -129,11 +124,26 @@ export default function DayDetailScreen() {
                 const slotLogs = logsForSlot(key);
                 if (slotLogs.length === 0) return null;
                 const slotCals = Math.round(slotCalories(key));
+                const eaten = isSlotEaten(confirmations, key);
                 return (
-                  <View key={key} style={[styles.slotCard, { backgroundColor: colors.cardBackground }]}>
+                  <View
+                    key={key}
+                    style={[
+                      styles.slotCard,
+                      { backgroundColor: colors.cardBackground },
+                      !eaten && {
+                        opacity: 0.7,
+                        borderWidth: 1,
+                        borderStyle: 'dashed',
+                        borderColor: colors.icon + '40',
+                      },
+                    ]}
+                  >
                     <View style={styles.slotHeader}>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
-                      <Text style={[styles.slotCals, { color: colors.icon }]}>{slotCals} cal</Text>
+                      <Text style={[styles.slotCals, { color: colors.icon }]}>
+                        {eaten ? `${slotCals} cal` : `Planned · ${slotCals} cal`}
+                      </Text>
                     </View>
                     <View style={styles.logList}>
                       {slotLogs.map((log) => (

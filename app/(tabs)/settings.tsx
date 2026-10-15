@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Switch,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,10 +23,10 @@ import {
   getUserProfile,
   saveUserProfile,
   resetOnboarding,
-  getRequirePlanMode,
-  setRequirePlanMode,
+  getDefaultLogStatus,
+  setDefaultLogStatus,
 } from '@/lib/storage';
-import type { UserProfile } from '@/lib/types';
+import type { LogStatus, UserProfile } from '@/lib/types';
 
 type ActivityLevel = NonNullable<UserProfile['activity_level']>;
 
@@ -50,16 +49,16 @@ export default function SettingsScreen() {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
-  const [planMode, setPlanMode] = useState(false);
+  const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
   const [saved, setSaved] = useState(false);
 
   const { available, writeGranted, initHealthKit } = useHealthKit();
 
   const loadData = useCallback(async () => {
-    const [goals, profile, reqPlan] = await Promise.all([
+    const [goals, profile, status] = await Promise.all([
       getUserGoals(),
       getUserProfile(),
-      getRequirePlanMode(),
+      getDefaultLogStatus(),
     ]);
     if (goals) {
       setCalories(String(goals.calorie_goal));
@@ -72,16 +71,17 @@ export default function SettingsScreen() {
       setHeight(profile.height ? String(profile.height) : '');
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
-    setPlanMode(reqPlan);
+    setDefaultStatus(status);
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  async function handleTogglePlanMode(value: boolean) {
-    setPlanMode(value);
-    await setRequirePlanMode(value);
+  async function handleSelectDefaultStatus(next: LogStatus) {
+    if (next === defaultStatus) return;
+    setDefaultStatus(next);
+    await setDefaultLogStatus(next);
   }
 
   async function handleSave() {
@@ -167,18 +167,40 @@ export default function SettingsScreen() {
             <View style={[styles.preferenceRow, bg]}>
               <View style={styles.preferenceInfo}>
                 <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                  Plan Mode
+                  Default for new food
                 </Text>
                 <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
-                  When on, only meals marked as Eaten count toward your daily totals
+                  Planned meals don&apos;t count toward your daily totals until you mark them eaten.
                 </Text>
               </View>
-              <Switch
-                value={planMode}
-                onValueChange={handleTogglePlanMode}
-                trackColor={{ false: colors.separator, true: colors.success + '80' }}
-                thumbColor={planMode ? colors.success : Platform.OS === 'ios' ? undefined : '#f4f3f4'}
-              />
+              <View
+                style={[styles.statusSwitch, { backgroundColor: colors.cardSecondary }]}
+                accessibilityRole="radiogroup"
+                accessibilityLabel="Default for new food"
+              >
+                {(['planned', 'eaten'] as const).map((status) => {
+                  const selected = defaultStatus === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.statusSegment, selected && { backgroundColor: colors.tint }]}
+                      onPress={() => handleSelectDefaultStatus(status)}
+                      activeOpacity={0.7}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          styles.statusSegmentText,
+                          { color: selected ? colors.background : colors.icon },
+                        ]}
+                      >
+                        {status === 'eaten' ? 'Eaten' : 'Planned'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           </View>
 
@@ -323,6 +345,14 @@ const styles = StyleSheet.create({
   preferenceInfo: { flex: 1, marginRight: 16 },
   preferenceLabel: { fontSize: 16, fontWeight: '500' },
   preferenceSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+  statusSwitch: { flexDirection: 'row', borderRadius: 20, padding: 3 },
+  statusSegment: {
+    minHeight: 38,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    justifyContent: 'center',
+  },
+  statusSegmentText: { fontSize: 13, fontWeight: '600' },
   connectBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,

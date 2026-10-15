@@ -416,6 +416,30 @@ export async function upsertMealSlotConfirmation(
   );
 }
 
+/**
+ * Creates the slot's status row only if none exists (an existing status is kept).
+ * Returns whether the slot is eaten afterwards.
+ */
+export async function ensureMealSlotStatus(
+  date: string,
+  meal_slot: MealSlot,
+  confirmed: boolean
+): Promise<boolean> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `INSERT INTO meal_slot_confirmations (id, date, meal_slot, confirmed, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(date, meal_slot) DO NOTHING`,
+    [Crypto.randomUUID(), date, meal_slot, confirmed ? 1 : 0, now]
+  );
+  const row = await db.getFirstAsync<{ confirmed: number }>(
+    'SELECT confirmed FROM meal_slot_confirmations WHERE date = ? AND meal_slot = ?',
+    [date, meal_slot]
+  );
+  return row ? row.confirmed === 1 : true;
+}
+
 export async function deleteMealSlotConfirmation(date: string, meal_slot: MealSlot): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
