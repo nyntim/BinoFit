@@ -66,8 +66,20 @@ describe('syncMealReminders', () => {
     const cancelled = (Notifications.cancelScheduledNotificationAsync as jest.Mock).mock.calls.map(
       (c) => c[0]
     );
-    expect(cancelled.sort()).toEqual(['meal-reminder:a', 'meal-reminder:old']);
+    // 'a' is kept and replaced in place by scheduling with the same identifier.
+    expect(cancelled).toEqual(['meal-reminder:old']);
     expect(scheduled()).toHaveLength(1);
+    expect(scheduled()[0].identifier).toBe('meal-reminder:a');
+  });
+
+  it('cancels existing reminders when permission was revoked', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false, canAskAgain: true });
+    (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([
+      { identifier: 'meal-reminder:a' },
+    ]);
+    await reminders.syncMealReminders([def('a', '12:30')], [name('a', 'Lunch')], TODAY);
+    expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('meal-reminder:a');
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('clears reminders when none are set', async () => {
@@ -139,5 +151,28 @@ describe('requestReminderPermission', () => {
     });
     expect(await reminders.requestReminderPermission()).toBe(false);
     expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('restoreMealReminders', () => {
+  it('reads meals only when its turn in the queue comes, so it never applies stale data', async () => {
+    const db = require('@/lib/database');
+    const getDefs = jest.spyOn(db, 'getMealDefinitions').mockResolvedValue([def('a', '08:00')]);
+    jest.spyOn(db, 'getMealNames').mockResolvedValue([name('a', 'Breakfast')]);
+
+    let release!: () => void;
+    (Notifications.getPermissionsAsync as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (release = () => resolve({ granted: true, canAskAgain: true })))
+    );
+    const first = reminders.syncMealReminders([def('a', '07:00')], [name('a', 'Breakfast')], TODAY);
+    const restore = reminders.restoreMealReminders();
+    await Promise.resolve();
+    expect(getDefs).not.toHaveBeenCalled();
+
+    release();
+    await first;
+    await restore;
+    expect(getDefs).toHaveBeenCalledTimes(1);
+    expect(scheduled().map((c) => c.trigger.hour)).toEqual([7, 8]);
   });
 });

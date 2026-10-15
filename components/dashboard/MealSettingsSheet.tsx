@@ -72,14 +72,19 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
 
   // Permission is requested only when the user turns a reminder on.
   const toggleReminder = async (on: boolean) => {
+    if (asking) return;
     if (!on) {
       setReminder(null);
       setDenied(false);
       return;
     }
     setAsking(true);
-    const granted = await requestReminderPermission();
-    setAsking(false);
+    let granted = false;
+    try {
+      granted = await requestReminderPermission();
+    } finally {
+      setAsking(false);
+    }
     setDenied(!granted);
     if (granted) setReminder(DEFAULT_REMINDER);
     else AccessibilityInfo.announceForAccessibility(DENIED_NOTE);
@@ -193,9 +198,8 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
                 value={reminder != null}
                 onValueChange={toggleReminder}
                 trackColor={{ false: colors.icon, true: colors.tint }}
-                thumbColor="#FFFFFF"
+                thumbColor={colors.background}
                 ios_backgroundColor={colors.icon}
-                disabled={asking}
                 accessibilityLabel={`${mealName} daily reminder`}
               />
             </View>

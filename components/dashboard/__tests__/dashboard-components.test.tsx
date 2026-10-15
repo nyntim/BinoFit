@@ -225,6 +225,7 @@ describe('MealSlotCard edit mode', () => {
     await render(<MealSlotCard {...editProps()} targets={t} />);
     expect(screen.getByText(/^2 items · 150 cal · 12:30/)).toBeTruthy();
     expect(screen.queryByText(/cal · .*reminder/)).toBeNull();
+    expect(screen.getByLabelText(/^2 items · 150 cal, reminder at 12:30/)).toBeTruthy();
   });
 
   it('opens the sheet even when a stored reminder time is malformed', async () => {
@@ -261,10 +262,11 @@ describe('MealSlotCard edit mode', () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
     await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
-    await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
     expect(await screen.findByLabelText('Open settings')).toBeTruthy();
     expect(announce).toHaveBeenCalledWith('Notifications are turned off for BinoFit.');
+    announce.mockRestore();
     expect(screen.queryByLabelText(/^Reminder time, /)).toBeNull();
   });
 });

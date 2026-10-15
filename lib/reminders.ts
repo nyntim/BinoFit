@@ -52,23 +52,27 @@ export async function requestReminderPermission(): Promise<boolean> {
 }
 
 /**
- * Replaces all scheduled meal reminders with one daily reminder per meal that has a
+ * Makes the scheduled meal reminders match one daily reminder per meal that has a
  * reminder_time. Other notifications are left alone. Idempotent; never throws; does not
  * prompt for permission (without it, reminders are cleared but not scheduled).
+ * Kept reminders are replaced in place (same identifier) rather than cancelled first,
+ * so a reminder due during a sync is not dropped.
  */
 async function run(defs: MealDefinition[], names: MealNameEntry[], today: string): Promise<void> {
+  let wanted = defs.filter((d) => parseReminderTime(d.reminder_time));
+  if (wanted.length > 0) {
+    const perms = await Notifications.getPermissionsAsync();
+    if (!perms.granted) wanted = [];
+  }
+  const keep = new Set(wanted.map((d) => `${REMINDER_PREFIX}${d.id}`));
+
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const n of scheduled) {
-    if (n.identifier.startsWith(REMINDER_PREFIX)) {
+    if (n.identifier.startsWith(REMINDER_PREFIX) && !keep.has(n.identifier)) {
       await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }
   }
-
-  const wanted = defs.filter((d) => parseReminderTime(d.reminder_time));
   if (wanted.length === 0) return;
-
-  const perms = await Notifications.getPermissionsAsync();
-  if (!perms.granted) return;
 
   await ensureChannel();
   for (const def of wanted) {
@@ -87,8 +91,13 @@ async function run(defs: MealDefinition[], names: MealNameEntry[], today: string
   }
 }
 
-// Calls are serialised so an app-start sync and a save cannot interleave.
+// Calls are serialised so an app-start, foreground and save sync cannot interleave.
 let queue: Promise<void> = Promise.resolve();
+
+function enqueue(task: () => Promise<void>, label: string): Promise<void> {
+  queue = queue.then(task).catch((error) => console.error(label, error));
+  return queue;
+}
 
 export function syncMealReminders(
   defs: MealDefinition[],
@@ -96,19 +105,17 @@ export function syncMealReminders(
   today: string = format(new Date(), 'yyyy-MM-dd')
 ): Promise<void> {
   if (!isNative()) return Promise.resolve();
-  queue = queue
-    .then(() => run(defs, names, today))
-    .catch((error) => console.error('Failed to sync meal reminders:', error));
-  return queue;
+  return enqueue(() => run(defs, names, today), 'Failed to sync meal reminders:');
 }
 
-/** Reads meals from SQLite and syncs their reminders. Fire-and-forget; never throws. */
-export async function restoreMealReminders(): Promise<void> {
-  if (!isNative()) return;
-  try {
+/**
+ * Reads meals from SQLite and syncs their reminders. Fire-and-forget; never throws.
+ * The read happens inside the queue so a restore queued before a save cannot apply stale data.
+ */
+export function restoreMealReminders(): Promise<void> {
+  if (!isNative()) return Promise.resolve();
+  return enqueue(async () => {
     const [defs, names] = await Promise.all([getMealDefinitions(), getMealNames()]);
-    await syncMealReminders(defs, names);
-  } catch (error) {
-    console.error('Failed to restore meal reminders:', error);
-  }
+    await run(defs, names, format(new Date(), 'yyyy-MM-dd'));
+  }, 'Failed to restore meal reminders:');
 }

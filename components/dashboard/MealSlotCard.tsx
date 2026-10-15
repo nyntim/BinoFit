@@ -204,9 +204,11 @@ function EditCard({
   }, [nameError]);
   const slotLogs = logsForSlot(logs, slot);
   const reminderTime = targets?.reminder_time ?? null;
-  const summary =
-    mealSummary(slotLogs.length, slotCalories(logs, slot)) +
-    (reminderTime ? ` · ${formatReminderTime(reminderTime)}` : '');
+  const baseSummary = mealSummary(slotLogs.length, slotCalories(logs, slot));
+  const summary = baseSummary + (reminderTime ? ` · ${formatReminderTime(reminderTime)}` : '');
+  const summaryLabel = reminderTime
+    ? `${baseSummary}, reminder at ${formatReminderTime(reminderTime)}`
+    : baseSummary;
   const currentTargets: MealTargets = targets ?? {
     calorie_target: null,
     protein_target: null,
@@ -266,7 +268,11 @@ function EditCard({
             </Text>
           </View>
         ) : (
-          <Text style={[styles.editCaption, { color: colors.icon }]} numberOfLines={1}>
+          <Text
+            style={[styles.editCaption, { color: colors.icon }]}
+            numberOfLines={1}
+            accessibilityLabel={summaryLabel}
+          >
             {summary}
           </Text>
         )}
