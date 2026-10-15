@@ -61,7 +61,7 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 
 **Storage** — Three-layer storage system:
 - SQLite (`lib/database.ts`) — Meals, food database, logs
-- AsyncStorage (`lib/storage.ts`) — User goals, profile, preferences, quick-add drinks, plan mode flag
+- AsyncStorage (`lib/storage.ts`) — User goals, profile, preferences, quick-add drinks, default log status (eaten | planned)
 - Supabase (`lib/supabase.ts`) — Cloud sync; anonymous device-based identity (no auth)
 
 **Supabase sync** — `lib/sync.ts` pushes unsynced local data to Supabase. Fire-and-forget; never throws. Tables: `food_logs`, `user_goals`, `user_profile`, `foods`.

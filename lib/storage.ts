@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { UserGoals, UserProfile } from '@/lib/types';
+import type { LogStatus, UserGoals, UserProfile } from '@/lib/types';
 
 const KEYS = {
   USER_GOALS: 'user_goals',
   USER_PROFILE: 'user_profile',
   ONBOARDING_COMPLETE: 'onboarding_complete',
-  REQUIRE_PLAN_MODE: 'require_plan_mode',
+  DEFAULT_LOG_STATUS: 'default_log_status',
   QUICK_ADD_DRINKS: 'quick_add_drinks',
   DEVICE_ID: 'device_id',
 } as const;
@@ -58,14 +58,16 @@ export async function markProfileSynced(ts: string): Promise<void> {
   await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify({ ...existing, synced_at: ts }));
 }
 
-export async function getRequirePlanMode(): Promise<boolean> {
-  const val = await AsyncStorage.getItem(KEYS.REQUIRE_PLAN_MODE);
-  if (val === null) return false;
-  return val === 'true';
+export function resolveDefaultLogStatus(stored: string | null): LogStatus {
+  return stored === 'planned' ? 'planned' : 'eaten';
 }
 
-export async function setRequirePlanMode(value: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEYS.REQUIRE_PLAN_MODE, String(value));
+export async function getDefaultLogStatus(): Promise<LogStatus> {
+  return resolveDefaultLogStatus(await AsyncStorage.getItem(KEYS.DEFAULT_LOG_STATUS));
+}
+
+export async function setDefaultLogStatus(status: LogStatus): Promise<void> {
+  await AsyncStorage.setItem(KEYS.DEFAULT_LOG_STATUS, status);
 }
 
 export async function getQuickAddDrinks(): Promise<any[] | null> {

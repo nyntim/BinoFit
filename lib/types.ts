@@ -46,6 +46,8 @@ export type MealSlotConfirmation = {
   updated_at: string;
 };
 
+export type LogStatus = 'eaten' | 'planned';
+
 export type UserGoals = {
   calorie_goal: number;
   protein_goal: number;

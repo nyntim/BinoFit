@@ -28,12 +28,15 @@ import {
   getFoodLogsWithFoodByDate,
   cacheRemoteFood,
   hasAnyMicros,
+  getMealSlotConfirmationsByDate,
+  ensureMealSlotStatus,
 } from '@/lib/database';
+import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
 import { getUSDAFoodById } from '@/lib/foods-db';
-import { getUserGoals } from '@/lib/storage';
+import { getUserGoals, getDefaultLogStatus } from '@/lib/storage';
 import { writeNutritionLog } from '@/services/healthKitService';
-import type { Food } from '@/lib/types';
+import type { Food, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 // Food ids already refetched for micronutrients this app session
 const refetchedFoodIds = new Set<string>();
@@ -110,6 +113,8 @@ export default function ServingPickerScreen() {
   const [proteinGoal, setProteinGoal] = useState<number | null>(null);
   const [carbGoal, setCarbGoal] = useState<number | null>(null);
   const [fatGoal, setFatGoal] = useState<number | null>(null);
+  const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
+  const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
   const [expandNutrients, setExpandNutrients] = useState(false);
   const amountRef = useRef<TextInput>(null);
@@ -161,12 +166,20 @@ export default function ServingPickerScreen() {
 
   useEffect(() => {
     if (!date) return;
-    Promise.all([getFoodLogsWithFoodByDate(date), getUserGoals()]).then(([logs, goals]) => {
+    Promise.all([
+      getFoodLogsWithFoodByDate(date),
+      getUserGoals(),
+      getMealSlotConfirmationsByDate(date),
+      getDefaultLogStatus(),
+    ]).then(([logs, goals, slotConfirmations, status]) => {
+      setConfirmations(slotConfirmations);
+      setDefaultStatus(status);
       const others = logs.filter((l) => l.id !== log_id);
-      setDailyCalories(Math.round(others.reduce((s, l) => s + l.food_calories * l.serving_amount, 0)));
-      setDailyProtein(Math.round(others.reduce((s, l) => s + l.food_protein * l.serving_amount, 0) * 10) / 10);
-      setDailyCarbsState(Math.round(others.reduce((s, l) => s + l.food_carbs * l.serving_amount, 0) * 10) / 10);
-      setDailyFat(Math.round(others.reduce((s, l) => s + l.food_fat * l.serving_amount, 0) * 10) / 10);
+      const totals = sumEatenTotals(others, slotConfirmations);
+      setDailyCalories(Math.round(totals.calories));
+      setDailyProtein(Math.round(totals.protein * 10) / 10);
+      setDailyCarbsState(Math.round(totals.carbs * 10) / 10);
+      setDailyFat(Math.round(totals.fat * 10) / 10);
       if (goals) {
         setCalorieGoal(goals.calorie_goal);
         setProteinGoal(goals.protein_goal);
@@ -236,20 +249,26 @@ export default function ServingPickerScreen() {
       const carbSave = round1(food.carbs * multiplier);
       const fatSave = round1(food.fat * multiplier);
 
+      const slot = meal_slot as MealSlot;
+      let eaten: boolean;
       if (isEdit && log_id) {
         await updateFoodLog(log_id, multiplier, food.serving_units, timeStr);
+        // Edits keep the slot's current status (no row = eaten)
+        eaten = isSlotEaten(confirmations, slot);
       } else {
         await addFoodLog({
           date,
-          meal_slot: meal_slot as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+          meal_slot: slot,
           food_id: food.id,
           serving_amount: multiplier,
           serving_unit: food.serving_units,
           logged_time: timeStr,
         });
+        // First food in a slot takes the default status; an existing status is kept
+        eaten = await ensureMealSlotStatus(date, slot, defaultStatus === 'eaten');
       }
 
-      writeNutritionLog(date, calSave, proSave, carbSave, fatSave);
+      if (eaten) writeNutritionLog(date, calSave, proSave, carbSave, fatSave);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
