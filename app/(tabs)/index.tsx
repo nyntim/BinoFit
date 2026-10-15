@@ -474,7 +474,7 @@ export default function HomeScreen() {
                   <View style={styles.activityItem}>
                     <MaterialIcons name="local-fire-department" size={20} color={MacroColors.protein} />
                     <Text style={[styles.activityText, { color: colors.text }]}>
-                      {Math.round(activity.activeCalories)} kcal
+                      {Math.round(activity.activeCalories)} cal
                     </Text>
                   </View>
                 </View>
@@ -515,7 +515,7 @@ export default function HomeScreen() {
                     <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
                     {slotCals > 0 && (
                       <Text style={[styles.slotCals, { color: colors.icon }]}>
-                        {slotCals} kcal
+                        {slotCals} cal
                       </Text>
                     )}
                   </View>
@@ -579,7 +579,7 @@ export default function HomeScreen() {
                             <Text style={[styles.logCals, { color: colors.text }]}>
                               {Math.round(log.food_calories * log.serving_amount)}
                             </Text>
-                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>kcal</Text>
+                            <Text style={[styles.logCalsUnit, { color: colors.icon }]}>cal</Text>
                             <TouchableOpacity
                               onPress={() => handleDeleteLog(log)}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

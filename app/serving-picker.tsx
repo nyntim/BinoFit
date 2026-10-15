@@ -111,7 +111,7 @@ export default function ServingPickerScreen() {
   const [carbGoal, setCarbGoal] = useState<number | null>(null);
   const [fatGoal, setFatGoal] = useState<number | null>(null);
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
-  const [expandNutrients, setExpandNutrients] = useState(true);
+  const [expandNutrients, setExpandNutrients] = useState(false);
   const amountRef = useRef<TextInput>(null);
 
   const isEdit = Boolean(log_id);
@@ -938,14 +938,12 @@ function TargetRow({
     <View
       style={styles.targetBlock}
       accessible
-      accessibilityLabel={`${label}, ${formatNum(eaten)} plus ${formatNum(add)} of ${formatNum(goal)} ${spokenUnit}`}
+      accessibilityLabel={`${label}, ${formatNum(eaten + add)} of ${formatNum(goal)} ${spokenUnit}`}
     >
       <View style={styles.targetTop}>
         <Text style={[styles.targetLabel, { color: colors.text }]}>{label}</Text>
         <View style={styles.targetNums}>
-          <Text style={[styles.targetNum, styles.targetEaten, { color: colors.text }]}>{formatNum(eaten)}</Text>
-          <Text style={[styles.targetNum, { color: colors.text }]}>+</Text>
-          <Text style={[styles.targetNum, styles.targetAdd, { color: colors.text }]}>{formatNum(add)}</Text>
+          <Text style={[styles.targetNum, styles.targetEaten, { color: colors.text }]}>{formatNum(eaten + add)}</Text>
           <Text style={[styles.targetNum, { color: colors.text }]}>/</Text>
           <Text style={[styles.targetNum, styles.targetGoal, { color: colors.text }]}>{formatNum(goal)}</Text>
           <Text style={[styles.targetNum, styles.targetUnit, { color: colors.text }]}>{unit}</Text>
@@ -1240,7 +1238,6 @@ const styles = StyleSheet.create({
   targetNums: { flexDirection: 'row', gap: 4 },
   targetNum: { fontSize: 12, fontVariant: ['tabular-nums'] },
   targetEaten: { minWidth: 36, textAlign: 'right' },
-  targetAdd: { minWidth: 32, textAlign: 'right' },
   targetGoal: { minWidth: 32, textAlign: 'right' },
   targetUnit: { minWidth: 22 },
   targetTrack: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden' },

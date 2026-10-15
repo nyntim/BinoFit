@@ -216,7 +216,7 @@ export default function FoodSearchScreen() {
           </Text>
         ) : null}
         <Text style={[styles.foodMeta, { color: colors.icon }]}>
-          {food.serving_units} · {food.calories} kcal
+          {food.serving_units} · {food.calories} cal
         </Text>
       </View>
       <View style={styles.macroChips}>

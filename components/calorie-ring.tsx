@@ -54,7 +54,7 @@ export function CalorieRing({
       <View style={styles.center}>
         <Text style={[styles.consumed, { color: textColor }]}>{Math.round(consumed)}</Text>
         <Text style={[styles.label, { color: subTextColor }]}>of {goal}</Text>
-        <Text style={[styles.unit, { color: subTextColor }]}>kcal</Text>
+        <Text style={[styles.unit, { color: subTextColor }]}>cal</Text>
       </View>
     </View>
   );

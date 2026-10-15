@@ -163,7 +163,7 @@ Dark mode is a sleek near-black with a faint cool bias that sits with the ink an
 - **Title** (600, 17px, line-height 1.3): Card labels, section headers, screen navigation titles, macro totals.
 - **Body** (400, 15px, line-height 1.5): Food log entry names, descriptions, search results. 65 characters max per line.
 - **Label** (500, 13px, line-height 1.4): Date labels, serving amounts, macro gram labels, metadata. The workhorse of dense information.
-- **Caption** (400, 12px, line-height 1.4): Timestamps, stat sub-labels (e.g. "kcal" under a calorie number), tertiary data.
+- **Caption** (400, 12px, line-height 1.4): Timestamps, stat sub-labels (e.g. "cal" under a calorie number), tertiary data.
 
 ### Named Rules
 **The Tabular Figures Rule.** All nutrition data (calorie counts, gram values, percentages) must render with tabular/monospaced figure spacing. Columns of numbers that shift width as values change break the reference-book calm. On iOS, SF Pro Mono or the `tabular-nums` font feature achieves this.
@@ -221,7 +221,7 @@ The feel is **precise and functional**: tool-grade clarity, clear affordance, in
 - **Stroke Width:** 14px — substantial enough to read progress at a glance
 - **Track:** Separator (#D6D2C8)
 - **Fill:** Slate indigo (#3D4B7A). One color, not segmented.
-- **Center:** Display-scale calorie number (34px, 700), Caption-scale "kcal" label below in Ink Secondary.
+- **Center:** Display-scale calorie number (34px, 700), Caption-scale "cal" label below in Ink Secondary.
 
 ### Navigation (Bottom Tab Bar)
 - **Background:** Warm Paper (#F8F5EF)
