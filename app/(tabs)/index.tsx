@@ -44,6 +44,7 @@ import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
+import { WATER_TRACKING_ENABLED } from '@/constants/features';
 import type { FoodLogWithFood, UserGoals, MealSlot, MealSlotConfirmation, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
@@ -378,6 +379,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Water Card */}
+            {WATER_TRACKING_ENABLED && (
             <View style={[styles.waterCard, { backgroundColor: colors.cardBackground }]}>
               <View style={styles.waterHeader}>
                 <View style={styles.waterHeaderLeft}>
@@ -459,6 +461,7 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
+            )}
 
             {/* Activity Row */}
             {available && readGranted && selectedDate === today && (
@@ -613,19 +616,23 @@ export default function HomeScreen() {
         </View>
       </GestureDetector>
 
-      <CustomWaterModal
-        visible={waterModalVisible}
-        onClose={() => setWaterModalVisible(false)}
-        onAdd={handleAddWater}
-        colors={colors}
-      />
+      {WATER_TRACKING_ENABLED && (
+        <>
+          <CustomWaterModal
+            visible={waterModalVisible}
+            onClose={() => setWaterModalVisible(false)}
+            onAdd={handleAddWater}
+            colors={colors}
+          />
 
-      <QuickAddSearchModal
-        visible={isAddingQuickAdd}
-        onClose={() => setIsAddingQuickAdd(false)}
-        onSelect={handleAddQuickAdd}
-        colors={colors}
-      />
+          <QuickAddSearchModal
+            visible={isAddingQuickAdd}
+            onClose={() => setIsAddingQuickAdd(false)}
+            onSelect={handleAddQuickAdd}
+            colors={colors}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }

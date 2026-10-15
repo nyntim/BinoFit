@@ -25,10 +25,9 @@ export function useSwipeDayNavigation() {
 
   function animateDay(direction: 'forward' | 'back', newDate: string) {
     isAnimating.value = true;
-    // If forward (next day), view moves according to gesture or standard direction.
-    // User requested Swipe Right = Next. So exitX should be SCREEN_WIDTH.
-    const exitX = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
-    const enterX = direction === 'forward' ? -SCREEN_WIDTH : SCREEN_WIDTH;
+    // Swipe left = next day: the current day exits left and the next enters from the right.
+    const exitX = direction === 'forward' ? -SCREEN_WIDTH : SCREEN_WIDTH;
+    const enterX = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
 
     translateX.value = withTiming(
       exitX,
@@ -57,15 +56,15 @@ export function useSwipeDayNavigation() {
     const maxPlanningDate = format(addDays(today, 7), 'yyyy-MM-dd');
     const minDate = format(subDays(today, 365), 'yyyy-MM-dd');
 
-    if (translationX > 0) {
-      // swipe right → forward one day (towards future)
+    if (translationX < 0) {
+      // swipe left → forward one day (towards future)
       if (selectedDate >= maxPlanningDate) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         return;
       }
       animateDay('forward', format(addDays(parseISO(selectedDate), 1), 'yyyy-MM-dd'));
     } else {
-      // swipe left → back one day (towards past)
+      // swipe right → back one day (towards past)
       if (selectedDate <= minDate) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         return;
