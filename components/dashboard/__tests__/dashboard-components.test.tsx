@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/theme';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
@@ -222,13 +223,21 @@ describe('MealSlotCard edit mode', () => {
   it('shows the reminder time in the caption', async () => {
     const t = { calorie_target: null, protein_target: null, carb_target: null, fat_target: null, reminder_time: '12:30' };
     await render(<MealSlotCard {...editProps()} targets={t} />);
-    expect(screen.getByText(/2 items · 150 cal · .*reminder/)).toBeTruthy();
+    expect(screen.getByText(/^2 items · 150 cal · 12:30/)).toBeTruthy();
+    expect(screen.queryByText(/cal · .*reminder/)).toBeNull();
+  });
+
+  it('opens the sheet even when a stored reminder time is malformed', async () => {
+    const t = { calorie_target: null, protein_target: null, carb_target: null, fat_target: null, reminder_time: '25:99' };
+    await render(<MealSlotCard {...editProps()} targets={t} />);
+    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
+    expect(screen.getByText('Save')).toBeTruthy();
   });
 
   it('saves targets from the sheet', async () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
     await fireEvent.changeText(screen.getByLabelText('Breakfast calories target'), '500');
     await fireEvent.press(screen.getByText('Save'));
     expect(props.onChangeSettings).toHaveBeenCalledWith(
@@ -240,7 +249,7 @@ describe('MealSlotCard edit mode', () => {
   it('turns a reminder on with a default time once permission is granted', async () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
     await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
     expect(await screen.findByLabelText(/^Reminder time, /)).toBeTruthy();
     await fireEvent.press(screen.getByText('Save'));
@@ -251,9 +260,11 @@ describe('MealSlotCard edit mode', () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false, canAskAgain: false });
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets and reminder for Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
     await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
-    expect(await screen.findByLabelText('Open system settings')).toBeTruthy();
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    expect(await screen.findByLabelText('Open settings')).toBeTruthy();
+    expect(announce).toHaveBeenCalledWith('Notifications are turned off for BinoFit.');
     expect(screen.queryByLabelText(/^Reminder time, /)).toBeNull();
   });
 });

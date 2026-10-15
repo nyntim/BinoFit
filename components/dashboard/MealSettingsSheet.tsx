@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  AccessibilityInfo,
   InputAccessoryView,
   Linking,
   Keyboard,
@@ -33,6 +34,7 @@ type Props = {
 };
 
 const DEFAULT_REMINDER = '12:00';
+const DENIED_NOTE = 'Notifications are turned off for BinoFit.';
 
 const FIELDS: { key: keyof MealTargets; label: string; unit: string }[] = [
   { key: 'calorie_target', label: 'Calories', unit: 'cal' },
@@ -66,6 +68,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
   const [reminder, setReminder] = useState<string | null>(reminderTime);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   // Permission is requested only when the user turns a reminder on.
   const toggleReminder = async (on: boolean) => {
@@ -74,20 +77,30 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
       setDenied(false);
       return;
     }
+    setAsking(true);
     const granted = await requestReminderPermission();
+    setAsking(false);
     setDenied(!granted);
     if (granted) setReminder(DEFAULT_REMINDER);
+    else AccessibilityInfo.announceForAccessibility(DENIED_NOTE);
   };
 
+  const openPicker = () => {
+    Keyboard.dismiss();
+    setPickerOpen(true);
+  };
+
+  // Fall back to the default if a stored time is malformed, so the sheet still opens.
   const pickerValue = (() => {
-    const p = parseReminderTime(reminder ?? DEFAULT_REMINDER)!;
+    const p = parseReminderTime(reminder ?? '') ?? parseReminderTime(DEFAULT_REMINDER)!;
     return new Date(2000, 0, 1, p.hour, p.minute);
   })();
 
   const invalid = FIELDS.some((f) => parseTarget(text[f.key]) === undefined);
+  const saveDisabled = invalid || asking;
 
   const save = () => {
-    if (invalid) return;
+    if (saveDisabled) return;
     onSave(
       {
         calorie_target: parseTarget(text.calorie_target) ?? null,
@@ -111,7 +124,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={onOverlayPress}
-        accessibilityLabel="Close targets"
+        accessibilityLabel="Close settings"
         accessibilityRole="button"
       />
       <View style={[styles.sheet, { backgroundColor: colors.background }]}>
@@ -168,7 +181,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
             {reminder != null && (
               <TouchableOpacity
                 style={[styles.timeBtn, { backgroundColor: colors.cardSecondary, borderColor: colors.fieldBorder }]}
-                onPress={() => setPickerOpen(true)}
+                onPress={openPicker}
                 accessibilityRole="button"
                 accessibilityLabel={`Reminder time, ${formatReminderTime(reminder)}`}
               >
@@ -179,7 +192,10 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
               <Switch
                 value={reminder != null}
                 onValueChange={toggleReminder}
-                trackColor={{ true: colors.tint }}
+                trackColor={{ false: colors.icon, true: colors.tint }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor={colors.icon}
+                disabled={asking}
                 accessibilityLabel={`${mealName} daily reminder`}
               />
             </View>
@@ -190,13 +206,13 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
           {denied && (
             <View style={styles.deniedRow}>
               <Text style={[styles.note, styles.deniedText, { color: colors.text }]}>
-                Notifications are turned off for BinoFit.
+                {DENIED_NOTE}
               </Text>
               <TouchableOpacity
                 onPress={() => Linking.openSettings()}
                 style={styles.settingsBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Open system settings"
+                accessibilityLabel="Open settings"
               >
                 <Text style={[styles.settingsLink, { color: colors.tint }]}>Open settings</Text>
               </TouchableOpacity>
@@ -214,11 +230,11 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
             <Text style={[styles.btnText, { color: colors.text }]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.tint, opacity: invalid ? 0.5 : 1 }]}
+            style={[styles.btn, { backgroundColor: colors.tint, opacity: saveDisabled ? 0.5 : 1 }]}
             onPress={save}
-            disabled={invalid}
+            disabled={saveDisabled}
             accessibilityRole="button"
-            accessibilityState={{ disabled: invalid }}
+            accessibilityState={{ disabled: saveDisabled }}
           >
             <Text style={[styles.btnText, styles.btnTextPrimary, { color: colors.background }]}>Save</Text>
           </TouchableOpacity>

@@ -2,7 +2,7 @@
   "expo": {
     "name": "BinoFit",
     "slug": "binofit",
-    "version": "2.0.39",
+    "version": "2.0.40",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",

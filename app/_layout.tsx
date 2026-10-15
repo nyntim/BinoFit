@@ -20,7 +20,8 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
-  // Re-create meal reminders on launch (covers reinstall and restore).
+  // Re-create meal reminders on launch and on foreground, in case the OS cleared them
+  // or notification permission changed in system settings.
   useEffect(() => {
     restoreMealReminders();
   }, []);
@@ -29,6 +30,7 @@ export default function RootLayout() {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
         syncToSupabase();
+        restoreMealReminders();
       }
       appState.current = nextState;
     });

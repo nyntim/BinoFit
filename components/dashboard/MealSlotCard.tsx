@@ -95,7 +95,9 @@ function ViewCard({
       <View style={styles.slotHeader}>
         <View style={styles.slotHeaderLeft}>
           <View style={styles.labelRow}>
-            <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
+            <Text style={[styles.slotLabel, { color: colors.text }]} numberOfLines={1}>
+              {label}
+            </Text>
             {reminderText && (
               <View
                 accessible
@@ -204,7 +206,7 @@ function EditCard({
   const reminderTime = targets?.reminder_time ?? null;
   const summary =
     mealSummary(slotLogs.length, slotCalories(logs, slot)) +
-    (reminderTime ? ` · ${formatReminderTime(reminderTime)} reminder` : '');
+    (reminderTime ? ` · ${formatReminderTime(reminderTime)}` : '');
   const currentTargets: MealTargets = targets ?? {
     calorie_target: null,
     protein_target: null,
@@ -273,7 +275,7 @@ function EditCard({
           style={styles.targetsBtn}
           hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel={`Targets and reminder for ${label.trim() || 'meal'}`}
+          accessibilityLabel={`Targets & reminder, ${label.trim() || 'meal'}`}
         >
           <Text style={[styles.targetsLink, { color: colors.tint }]}>Targets & reminder</Text>
         </TouchableOpacity>
@@ -311,7 +313,7 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: { fontSize: 13, fontWeight: '600' },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  slotLabel: { fontSize: 16, fontWeight: '600' },
+  slotLabel: { flexShrink: 1, fontSize: 16, fontWeight: '600' },
   slotCals: { fontSize: 13, marginTop: 2, fontVariant: ['tabular-nums'] },
   slotMacros: { fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },
   addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
