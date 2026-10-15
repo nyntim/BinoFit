@@ -39,6 +39,7 @@ import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import { StreakBadge } from '@/components/StreakBadge';
+import { EditModeBar } from '@/components/dashboard/EditModeBar';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
@@ -291,7 +292,25 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <CalendarWidget />
+      {/* The week strip stays mounted (keeps its logged-day dots) and the edit bar covers it */}
+      <View>
+        <View
+          accessibilityElementsHidden={isEditing}
+          importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
+        >
+          <CalendarWidget />
+        </View>
+        {isEditing && (
+          <EditModeBar
+            colors={colors}
+            onCancel={cancelEditing}
+            onDone={finishEditing}
+            hasErrors={mealDraft.hasErrors}
+            saving={mealDraft.saving}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+      </View>
       <GestureDetector gesture={panGesture}>
         <View style={styles.swipeOuter}>
           <Animated.View style={[styles.swipeInner, animatedStyle]}>
@@ -318,36 +337,17 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-                  <View style={styles.editActions}>
-                    {isEditing && (
-                      <TouchableOpacity
-                        onPress={cancelEditing}
-                        style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]}
-                        accessibilityRole="button"
-                        accessibilityLabel="Cancel editing"
-                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                      >
-                        <Text style={[styles.editModeBtnText, { color: colors.text }]}>Cancel</Text>
-                      </TouchableOpacity>
-                    )}
+                  {!isEditing && (
                     <TouchableOpacity
-                      onPress={isEditing ? finishEditing : startEditing}
-                      disabled={isEditing && (mealDraft.hasErrors || mealDraft.saving)}
-                      style={[
-                        styles.editModeBtn,
-                        { backgroundColor: isEditing ? colors.tint : colors.cardSecondary },
-                        isEditing && (mealDraft.hasErrors || mealDraft.saving) && { opacity: 0.5 },
-                      ]}
+                      onPress={startEditing}
+                      style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]}
                       accessibilityRole="button"
-                      accessibilityLabel={isEditing ? 'Done editing' : 'Edit meals'}
-                      accessibilityState={{ disabled: isEditing && mealDraft.hasErrors }}
+                      accessibilityLabel="Edit meals"
                       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                     >
-                      <Text style={[styles.editModeBtnText, { color: isEditing ? colors.background : colors.text }]}>
-                        {isEditing ? 'Done' : 'Edit'}
-                      </Text>
+                      <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
-                  </View>
+                  )}
                 </View>
               </View>
 
@@ -915,7 +915,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  editActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   editWarning: { fontSize: 13, marginBottom: 2 },
   editNote: { fontSize: 12, marginBottom: 12 },
   addMealRow: {

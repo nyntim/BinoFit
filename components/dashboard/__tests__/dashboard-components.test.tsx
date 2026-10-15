@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/theme';
+import { EditModeBar } from '@/components/dashboard/EditModeBar';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
 import { MealSlotCard } from '@/components/dashboard/MealSlotCard';
 import type { FoodLogWithFood } from '@/lib/types';
@@ -275,5 +276,43 @@ describe('FoodLogRow accessibility', () => {
   it('labels the trash button with the food name', async () => {
     await render(<FoodLogRow log={makeLog()} colors={colors} onDelete={jest.fn()} />);
     expect(screen.getByLabelText('Remove Oatmeal')).toBeTruthy();
+  });
+});
+
+describe('EditModeBar', () => {
+  const renderBar = async (over: Partial<React.ComponentProps<typeof EditModeBar>> = {}) => {
+    const onCancel = jest.fn();
+    const onDone = jest.fn();
+    await render(
+      <EditModeBar colors={colors} onCancel={onCancel} onDone={onDone} hasErrors={false} saving={false} {...over} />
+    );
+    return { onCancel, onDone };
+  };
+
+  it('fires Cancel and Done', async () => {
+    const { onCancel, onDone } = await renderBar();
+    await fireEvent.press(screen.getByLabelText('Cancel editing'));
+    await fireEvent.press(screen.getByLabelText('Done editing'));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Fix errors to save')).toBeNull();
+  });
+
+  it('disables Done and explains why when the draft has errors', async () => {
+    const { onDone } = await renderBar({ hasErrors: true });
+    const done = screen.getByLabelText('Done editing');
+    expect(done.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+    await fireEvent.press(done);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText('Fix errors to save')).toBeTruthy();
+  });
+
+  it('disables Done and Cancel without the error note while saving', async () => {
+    const { onCancel, onDone } = await renderBar({ saving: true });
+    await fireEvent.press(screen.getByLabelText('Done editing'));
+    await fireEvent.press(screen.getByLabelText('Cancel editing'));
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.queryByText('Fix errors to save')).toBeNull();
   });
 });
