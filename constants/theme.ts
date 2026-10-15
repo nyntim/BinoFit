@@ -14,19 +14,23 @@ export const Colors = {
     cardBackground:  '#EEEAE2',   // DESIGN.md card-surface
     cardSecondary:   '#E4E0D6',   // DESIGN.md card-subtle
     separator:       '#D6D2C8',   // DESIGN.md separator
+    fieldBorder:     '#D6D2C8',   // outlined input at rest
+    track:           '#D6D2C8',   // progress bar track
     success:         '#27AE60',
     danger:          '#E74C3C',
   },
   dark: {
-    text:            '#F0EDE6',   // warm near-white
-    background:      '#1C1917',   // warm-tinted deep dark
+    text:            '#EDEDF0',   // graphite near-white
+    background:      '#0E0E10',   // graphite near-black
     tint:            tintDark,
-    icon:            '#98928A',   // warm mid-gray
-    tabIconDefault:  '#98928A',
+    icon:            '#8E8E96',   // cool mid-gray
+    tabIconDefault:  '#8E8E96',
     tabIconSelected: tintDark,
-    cardBackground:  '#272320',   // warm dark card
-    cardSecondary:   '#322D29',   // warm dark secondary
-    separator:       'rgba(240,237,230,0.12)',  // warm white hairline
+    cardBackground:  '#1A1A1D',   // graphite card
+    cardSecondary:   '#242428',   // graphite secondary
+    separator:       'rgba(237,237,240,0.10)',  // cool white hairline
+    fieldBorder:     'rgba(237,237,240,0.28)',  // stronger so inputs read as tappable
+    track:           'rgba(237,237,240,0.14)',  // visible against cardBackground
     success:         '#52D68A',   // brighter for dark backgrounds
     danger:          '#FF6E6E',   // brighter for dark backgrounds
   },
@@ -37,6 +41,12 @@ export const MacroColors = {
   carbs:   '#F39C12',   // DESIGN.md carb-signal
   fat:     '#3498DB',   // DESIGN.md fat-signal
   accent:  '#FFF260',
+};
+
+// Pale tints marking what the food being picked adds to a target bar
+export const TargetTints = {
+  light: { energy: '#A9AEC4', protein: '#F0B1A9', carbs: '#F5D299', fat: '#A8CDE8' },
+  dark:  { energy: '#C9D3F0', protein: '#F4A59B', carbs: '#F8CF8A', fat: '#9FCFF0' },
 };
 
 export const Fonts = Platform.select({
