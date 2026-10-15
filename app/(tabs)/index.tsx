@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
+import * as Crypto from 'expo-crypto';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';

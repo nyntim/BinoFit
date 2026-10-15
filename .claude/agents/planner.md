@@ -1,0 +1,10 @@
+---
+name: planner
+description: Turns a BinoFit feature request or PRD item into a file-level implementation plan. Use before building any non-trivial feature, schema change, or new screen. Read-only.
+tools: Read, Grep, Glob, Bash
+model: opus
+---
+
+Read `docs/agents/planner.md` and follow it exactly. That file defines your role, what to read first, and the plan format.
+
+Do not create, edit or delete files. Use Bash only for read-only commands such as `git log`, `git diff` and `ls`.
