@@ -21,13 +21,18 @@ import {
   updateFoodLog,
   getFoodLogsWithFoodByDate,
   cacheRemoteFood,
+  hasAnyMicros,
 } from '@/lib/database';
+import { getFullBrandedFood } from '@/lib/food-service';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { getUserGoals } from '@/lib/storage';
 import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food } from '@/lib/types';
 
-const SLOT_LABELS: Record<string, string> = {
+// Food ids already refetched for micronutrients this app session
+const refetchedFoodIds = new Set<string>();
+
+const SLOT_LABELS:Record<string, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
   dinner: 'Dinner',
@@ -83,23 +88,34 @@ export default function ServingPickerScreen() {
   const [carbGoal, setCarbGoal] = useState<number | null>(null);
   const [fatGoal, setFatGoal] = useState<number | null>(null);
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
-  const [expandNutrients, setExpandNutrients] = useState(false);
+  const [expandNutrients, setExpandNutrients] = useState(true);
 
   const isEdit = Boolean(log_id);
   const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
 
   useEffect(() => {
     if (!food_id) return;
+    let cancelled = false;
     (async () => {
-      let found = await getFoodById(food_id);
-      if (!found) {
-        const usda = await getUSDAFoodById(food_id);
-        if (usda) {
-          await cacheRemoteFood(usda);
-          found = usda;
-        }
-      }
-      setFood(found);
+      const found = await getFoodById(food_id);
+      if (cancelled) return;
+      if (found) setFood(found);
+
+      const needsMicros = !found || (!hasAnyMicros(found) && found.source !== 'custom');
+      if (!needsMicros) return;
+      // Refetch at most once per food per app session
+      if (found && refetchedFoodIds.has(food_id)) return;
+      refetchedFoodIds.add(food_id);
+
+      // Foods cached before micronutrients were stored have none; reload the full row
+      const isUSDA = !found || found.source?.startsWith('usda');
+      const usda = isUSDA ? await getUSDAFoodById(food_id) : null;
+      if (usda) await cacheRemoteFood(usda);
+      // getFullBrandedFood caches the row itself
+      const full = usda ?? (await getFullBrandedFood(food_id));
+      if (cancelled) return;
+      if (!found) setFood(full);
+      else if (full && hasAnyMicros(full)) setFood(full);
     })();
     if (log_id && date) {
       getFoodLogsWithFoodByDate(date).then((logs) => {
@@ -107,6 +123,9 @@ export default function ServingPickerScreen() {
         if (entry) setServingAmount(String(entry.serving_amount));
       });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [food_id, log_id, date]);
 
   useEffect(() => {
@@ -139,12 +158,18 @@ export default function ServingPickerScreen() {
   const pro = food ? Math.round(food.protein * nutriScale * 10) / 10 : 0;
   const carb = food ? Math.round(food.carbs * nutriScale * 10) / 10 : 0;
   const fat = food ? Math.round(food.fat * nutriScale * 10) / 10 : 0;
-  const fiber = food?.fiber != null ? Math.round(food.fiber * nutriScale * 10) / 10 : null;
-  const sugar = food?.sugar != null ? Math.round(food.sugar * nutriScale * 10) / 10 : null;
-  const sodium = food?.sodium != null ? Math.round(food.sodium * nutriScale) : null;
-  const satFat = food?.saturated_fat != null ? Math.round(food.saturated_fat * nutriScale * 10) / 10 : null;
-
-  const hasMicros = [fiber, sugar, sodium, satFat].some((v) => v !== null);
+  const scaleMicro = (v: number | null | undefined, decimals = 1) =>
+    v == null ? null : Math.round(v * nutriScale * 10 ** decimals) / 10 ** decimals;
+  const fiber = scaleMicro(food?.fiber);
+  const sugar = scaleMicro(food?.sugar);
+  const sodium = scaleMicro(food?.sodium, 0);
+  const satFat = scaleMicro(food?.saturated_fat);
+  const transFat = scaleMicro(food?.trans_fat);
+  const cholesterol = scaleMicro(food?.cholesterol, 0);
+  const vitaminD = scaleMicro(food?.vitamin_d);
+  const calcium = scaleMicro(food?.calcium, 0);
+  const iron = scaleMicro(food?.iron);
+  const potassium = scaleMicro(food?.potassium, 0);
 
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
@@ -305,7 +330,7 @@ export default function ServingPickerScreen() {
             fiber={fiber}
             sugar={sugar}
             satFat={satFat}
-            transFat={food?.trans_fat != null ? Math.round(food.trans_fat * nutriScale * 10) / 10 : null}
+            transFat={transFat}
             proteinGoal={proteinGoal}
             carbGoal={carbGoal}
             fatGoal={fatGoal}
@@ -362,19 +387,23 @@ export default function ServingPickerScreen() {
         )}
 
         {/* Complete Nutrient Summary */}
-        {hasMicros && (
-          <ExpandSection
-            title="Complete Nutrient Summary"
-            expanded={expandNutrients}
-            onToggle={() => setExpandNutrients((v) => !v)}
-            colors={colors}
-          >
-            {fiber !== null && <MicroExpandRow label="Fiber" value={fiber} unit="g" colors={colors} />}
-            {sugar !== null && <MicroExpandRow label="Sugar" value={sugar} unit="g" colors={colors} />}
-            {sodium !== null && <MicroExpandRow label="Sodium" value={sodium} unit="mg" colors={colors} />}
-            {satFat !== null && <MicroExpandRow label="Sat. Fat" value={satFat} unit="g" colors={colors} />}
-          </ExpandSection>
-        )}
+        <ExpandSection
+          title="Complete Nutrient Summary"
+          expanded={expandNutrients}
+          onToggle={() => setExpandNutrients((v) => !v)}
+          colors={colors}
+        >
+          <MicroExpandRow label="Fiber" value={fiber} unit="g" colors={colors} />
+          <MicroExpandRow label="Sugar" value={sugar} unit="g" colors={colors} />
+          <MicroExpandRow label="Saturated Fat" value={satFat} unit="g" colors={colors} />
+          <MicroExpandRow label="Trans Fat" value={transFat} unit="g" colors={colors} />
+          <MicroExpandRow label="Cholesterol" value={cholesterol} unit="mg" colors={colors} />
+          <MicroExpandRow label="Sodium" value={sodium} unit="mg" colors={colors} />
+          <MicroExpandRow label="Potassium" value={potassium} unit="mg" colors={colors} />
+          <MicroExpandRow label="Calcium" value={calcium} unit="mg" colors={colors} />
+          <MicroExpandRow label="Iron" value={iron} unit="mg" colors={colors} />
+          <MicroExpandRow label="Vitamin D" value={vitaminD} unit="µg" colors={colors} />
+        </ExpandSection>
 
         {/* Save removed from scroll — now pinned below */}
         {saveError ? (
@@ -701,7 +730,14 @@ function ExpandSection({
 }) {
   return (
     <View style={[styles.expandCard, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity style={styles.expandHeader} onPress={onToggle} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.expandHeader}
+        onPress={onToggle}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={title}
+      >
         <Text style={[styles.expandTitle, { color: colors.text }]}>{title}</Text>
         <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -752,15 +788,20 @@ function MicroExpandRow({
   label, value, unit, colors,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   unit: string;
   colors: typeof Colors.light;
 }) {
+  const hasValue = value != null;
   return (
-    <View style={styles.microExpandRow}>
-      <Text style={{ fontSize: 14, color: colors.icon }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] }}>
-        {value}{unit}
+    <View
+      style={styles.microExpandRow}
+      accessible
+      accessibilityLabel={hasValue ? `${label}, ${value} ${unit}` : `${label}, no data`}
+    >
+      <Text style={{ fontSize: 14, color: colors.icon, flexShrink: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: hasValue ? '600' : '400', color: hasValue ? colors.text : colors.icon, fontVariant: ['tabular-nums'] }}>
+        {hasValue ? `${value} ${unit}` : 'No Data'}
       </Text>
     </View>
   );

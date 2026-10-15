@@ -215,12 +215,47 @@ export async function markFoodLogsSynced(ids: string[]): Promise<void> {
   );
 }
 
-export async function cacheRemoteFood(food: Food): Promise<void> {
+const MICRO_COLUMNS = [
+  'fiber', 'sugar', 'sodium', 'cholesterol', 'saturated_fat',
+  'trans_fat', 'vitamin_d', 'calcium', 'iron', 'potassium',
+] as const;
+
+export function hasAnyMicros(food: Food): boolean {
+  return MICRO_COLUMNS.some((col) => food[col] != null);
+}
+
+/**
+ * Insert or update a remote food in the local cache. Micronutrients are merged:
+ * a partial row (e.g. from a search result) never overwrites known values with null.
+ */
+export async function cacheRemoteFood(
+  food: Food,
+  options: { partial?: boolean } = {}
+): Promise<void> {
   const db = await getDatabase();
+  const microUpdates = MICRO_COLUMNS.map((c) => `${c} = COALESCE(excluded.${c}, foods.${c})`).join(', ');
+  // Partial rows (search results) never touch an existing row
+  const insertVerb = options.partial ? 'INSERT OR IGNORE' : 'INSERT';
+  const onConflict = options.partial
+    ? ''
+    : `ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       brand = excluded.brand,
+       serving_units = excluded.serving_units,
+       calories = excluded.calories,
+       protein = excluded.protein,
+       carbs = excluded.carbs,
+       fat = excluded.fat,
+       source = excluded.source,
+       updated_at = excluded.updated_at,
+       ${microUpdates}
+     WHERE foods.source IS NOT 'custom'`;
   await db.runAsync(
-    `INSERT OR IGNORE INTO foods
-      (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `${insertVerb} INTO foods
+      (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at,
+       ${MICRO_COLUMNS.join(', ')})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${MICRO_COLUMNS.map(() => '?').join(', ')})
+     ${onConflict}`,
     [
       food.id,
       food.name,
@@ -232,6 +267,7 @@ export async function cacheRemoteFood(food: Food): Promise<void> {
       food.fat,
       food.source ?? null,
       food.updated_at,
+      ...MICRO_COLUMNS.map((c) => food[c] ?? null),
     ]
   );
 }

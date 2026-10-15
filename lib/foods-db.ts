@@ -14,6 +14,15 @@ type USDARow = {
   protein: number | null;
   carbs: number | null;
   fat: number | null;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+  saturated_fat: number | null;
+  trans_fat: number | null;
+  vitamin_d: number | null;
+  calcium: number | null;
+  iron: number | null;
+  potassium: number | null;
   updated_at: string;
   matchTier?: number;
 };
@@ -41,6 +50,10 @@ function mapUSDARow(row: USDARow): Food {
   const servingSize = row.serving_size ?? 100;
   const servingUnit = row.serving_unit ?? 'g';
   const scale = servingSize / 100;
+  // Values in foods.db are per 100g; scale to one serving, keeping null as "no data"
+  // 3 decimals so small values (vitamin D, iron) survive later scaling by servings
+  const micro = (v: number | null) =>
+    v == null ? null : Math.round(v * scale * 1000) / 1000;
 
   const servingUnits =
     servingUnit === 'g' ? `${servingSize}g` : servingUnit;
@@ -54,6 +67,15 @@ function mapUSDARow(row: USDARow): Food {
     protein: Math.round((row.protein ?? 0) * scale * 10) / 10,
     carbs: Math.round((row.carbs ?? 0) * scale * 10) / 10,
     fat: Math.round((row.fat ?? 0) * scale * 10) / 10,
+    fiber: micro(row.fiber),
+    sugar: micro(row.sugar),
+    sodium: micro(row.sodium),
+    saturated_fat: micro(row.saturated_fat),
+    trans_fat: micro(row.trans_fat),
+    vitamin_d: micro(row.vitamin_d),
+    calcium: micro(row.calcium),
+    iron: micro(row.iron),
+    potassium: micro(row.potassium),
     source: 'usda_sr_legacy',
     updated_at: row.updated_at,
     matchTier: row.matchTier,
@@ -64,8 +86,7 @@ export async function getUSDAFoodById(id: string): Promise<Food | null> {
   try {
     const db = await getFoodsDatabase();
     const row = await db.getFirstAsync<USDARow>(
-      `SELECT id, name, serving_size, serving_unit, calories, protein, carbs, fat, updated_at
-       FROM foods WHERE id = ?`,
+      `SELECT * FROM foods WHERE id = ?`,
       [id]
     );
     return row ? mapUSDARow(row) : null;
