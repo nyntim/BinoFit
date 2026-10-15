@@ -16,18 +16,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserGoals } from '@/lib/storage';
 import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate } from '@/lib/database';
 import { isSlotEaten, sumEatenTotals, logsForSlot, slotCalories } from '@/lib/nutrition-totals';
+import { formatMealTargets, mealsForDay } from '@/lib/meals';
+import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import type { FoodLogWithFood, MealSlotConfirmation, UserGoals } from '@/lib/types';
-
-type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-
-const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
-  { key: 'breakfast', label: 'Breakfast' },
-  { key: 'lunch', label: 'Lunch' },
-  { key: 'dinner', label: 'Dinner' },
-  { key: 'snack', label: 'Snacks' },
-];
 
 const DEFAULT_GOALS: UserGoals = {
   calorie_goal: 2000,
@@ -61,6 +54,9 @@ export default function DayDetailScreen() {
       .finally(() => setLoading(false));
   }, [date]);
 
+  const { defs, names, loaded: mealsLoaded } = useMealDefinitions();
+  const meals = mealsForDay(defs, names, logs, date ?? '');
+
   const consumed = sumEatenTotals(logs, confirmations);
 
   return (
@@ -77,7 +73,7 @@ export default function DayDetailScreen() {
         <View style={styles.backBtn} />
       </View>
 
-      {loading ? (
+      {loading || !mealsLoaded ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.tint} />
         </View>
@@ -116,11 +112,13 @@ export default function DayDetailScreen() {
               </View>
 
               {/* Meal slots (read-only) */}
-              {MEAL_SLOTS.map(({ key, label }) => {
+              {meals.map(({ id: key, name: label, def }) => {
                 const slotLogs = logsForSlot(logs, key);
                 if (slotLogs.length === 0) return null;
                 const slotCals = Math.round(slotCalories(logs, key));
                 const eaten = isSlotEaten(confirmations, key);
+                const targetText = formatMealTargets(def, sumEatenTotals(slotLogs, []));
+                const calText = targetText.calories ?? `${slotCals} cal`;
                 return (
                   <View
                     key={key}
@@ -138,9 +136,12 @@ export default function DayDetailScreen() {
                     <View style={styles.slotHeader}>
                       <Text style={[styles.slotLabel, { color: colors.text }]}>{label}</Text>
                       <Text style={[styles.slotCals, { color: colors.icon }]}>
-                        {eaten ? `${slotCals} cal` : `Planned · ${slotCals} cal`}
+                        {eaten ? calText : `Planned · ${calText}`}
                       </Text>
                     </View>
+                    {targetText.macros && (
+                      <Text style={[styles.slotMacros, { color: colors.icon }]}>{targetText.macros}</Text>
+                    )}
                     <View style={styles.logList}>
                       {slotLogs.map((log) => (
                         <View key={log.id} style={[styles.logRow, { borderTopColor: colors.separator }]}>
@@ -201,7 +202,8 @@ const styles = StyleSheet.create({
   slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   slotLabel: { fontSize: 16, fontWeight: '600' },
-  slotCals: { fontSize: 13 },
+  slotCals: { fontSize: 13, fontVariant: ['tabular-nums'] },
+  slotMacros: { fontSize: 12, fontVariant: ['tabular-nums'] },
   logList: { marginTop: 8, gap: 2 },
   logRow: {
     flexDirection: 'row',
@@ -213,6 +215,6 @@ const styles = StyleSheet.create({
   logName: { fontSize: 14, fontWeight: '500' },
   logMeta: { fontSize: 12, marginTop: 1 },
   logRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  logCals: { fontSize: 14, fontWeight: '600' },
+  logCals: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
   logCalsUnit: { fontSize: 12 },
 });

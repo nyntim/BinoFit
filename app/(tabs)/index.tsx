@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -31,6 +33,7 @@ import {
   getWaterLogsByDate,
   deleteWaterLog,
   searchLiquids,
+  countFoodLogsForMeal,
 } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
@@ -42,16 +45,14 @@ import { useHealthKit } from '@/hooks/use-health-kit';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { WATER_TRACKING_ENABLED } from '@/constants/features';
 import { useMealLogs } from '@/hooks/useMealLogs';
-import { MealSlotCard } from '@/components/dashboard/MealSlotCard';
+import { MealSlotCard, MEAL_EDIT_CARD_HEIGHT } from '@/components/dashboard/MealSlotCard';
+import { ReorderableList } from '@/components/dashboard/ReorderableList';
+import { useMealDefinitions } from '@/hooks/useMealDefinitions';
+import { useMealDraft } from '@/hooks/useMealDraft';
 import { logsForSlot } from '@/lib/nutrition-totals';
+import { syncToSupabase } from '@/lib/sync';
+import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
 import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink, Food } from '@/lib/types';
-
-const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
-  { key: 'breakfast', label: 'Breakfast' },
-  { key: 'lunch', label: 'Lunch' },
-  { key: 'dinner', label: 'Dinner' },
-  { key: 'snack', label: 'Snacks' },
-];
 
 const DEFAULT_GOALS: UserGoals = {
   calorie_goal: 2000,
@@ -72,7 +73,8 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
   const { selectedDate } = useDate();
-  const { panGesture, animatedStyle } = useSwipeDayNavigation();
+  const [isEditing, setIsEditing] = useState(false);
+  const { panGesture, animatedStyle } = useSwipeDayNavigation({ enabled: !isEditing });
   const { scrollRef: dashScrollRef, onScroll: onDashScroll, onContentSizeChange: onDashContentSizeChange } = useScrollRestore('dashboard');
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -88,11 +90,25 @@ export default function HomeScreen() {
     handleToggleSlot,
     handleDeleteLog: deleteMealLog,
   } = useMealLogs(selectedDate);
+  const { defs, names, loaded: mealsLoaded, reload: reloadMeals } = useMealDefinitions();
+  const mealDraft = useMealDraft();
+  const [scrollLocked, setScrollLocked] = useState(false);
+  // Android: pad the scroll content by the keyboard height so lower meal inputs can scroll into view.
+  // iOS uses automaticallyAdjustKeyboardInsets instead.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
   const [waterModalVisible, setWaterModalVisible] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [quickAddDrinks, setQuickAddDrinks] = useState<QuickAddDrink[]>(DEFAULT_QUICK_DRINKS);
   const [isAddingQuickAdd, setIsAddingQuickAdd] = useState(false);
 
@@ -180,6 +196,77 @@ export default function HomeScreen() {
     }
   };
 
+  const meals = useMemo(
+    () => mealsForDay(defs, names, logs, selectedDate),
+    [defs, names, logs, selectedDate]
+  );
+
+  const draftMeals = mealDraft.draft?.meals;
+  const editItems = useMemo(
+    () => (draftMeals ?? []).map((m) => ({ ...m, label: m.name })),
+    [draftMeals]
+  );
+
+  const startEditing = () => {
+    mealDraft.start(defs, names, today);
+    setIsEditing(true);
+  };
+
+  const { cancel: cancelDraft } = mealDraft;
+  const cancelEditing = useCallback(() => {
+    cancelDraft();
+    setIsEditing(false);
+    setScrollLocked(false);
+  }, [cancelDraft]);
+
+  const finishEditing = async () => {
+    if (!mealDraft.dirty) {
+      cancelEditing();
+      return;
+    }
+    try {
+      const ok = await mealDraft.save(today);
+      if (!ok) return;
+      setIsEditing(false);
+      setScrollLocked(false);
+      syncToSupabase();
+      await reloadMeals();
+      loadData(true);
+    } catch (error) {
+      console.error('Failed to save meals:', error);
+      Alert.alert('Error', 'Failed to save your meals. Your changes are still here.');
+    }
+  };
+
+  const confirmDeleteMeal = async (id: string, name: string) => {
+    const isNew = mealDraft.draft?.meals.find((m) => m.id === id)?.isNew ?? false;
+    const count = isNew ? 0 : await countFoodLogsForMeal(id);
+    Alert.alert('Delete meal', deleteMealMessage(name.trim() || 'this meal', count), [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => mealDraft.remove(id) },
+    ]);
+  };
+
+  // Leaving the tab with unsaved meal edits: ask what to do with them.
+  const dirtyRef = useRef(false);
+  const cancelRef = useRef(cancelEditing);
+  useEffect(() => {
+    dirtyRef.current = isEditing && mealDraft.dirty;
+    cancelRef.current = cancelEditing;
+  });
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        if (!dirtyRef.current) return;
+        Alert.alert('Discard changes?', 'Your meal edits have not been saved.', [
+          { text: 'Keep editing', onPress: () => router.navigate('/') },
+          { text: 'Discard', style: 'destructive', onPress: () => cancelRef.current() },
+        ]);
+      },
+      [router]
+    )
+  );
+
   const handleAddToSlot = (slot: MealSlot) => {
     router.push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -208,8 +295,14 @@ export default function HomeScreen() {
           <Animated.View style={[styles.swipeInner, animatedStyle]}>
             <ScrollView
               ref={dashScrollRef}
-              contentContainerStyle={styles.scroll}
+              contentContainerStyle={[
+                styles.scroll,
+                isEditing && keyboardHeight > 0 && { paddingBottom: 40 + keyboardHeight },
+              ]}
+              automaticallyAdjustKeyboardInsets={isEditing}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={!scrollLocked}
+              keyboardShouldPersistTaps="handled"
               scrollEventThrottle={16}
               onScroll={onDashScroll}
               onContentSizeChange={onDashContentSizeChange}
@@ -223,18 +316,40 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-                  <TouchableOpacity
-                    onPress={() => setIsEditing(!isEditing)}
-                    style={[styles.editModeBtn, { backgroundColor: isEditing ? colors.tint : colors.cardSecondary }]}
-                  >
-                    <Text style={[styles.editModeBtnText, { color: isEditing ? (colorScheme === 'dark' ? '#000' : '#fff') : colors.text }]}>
-                      {isEditing ? 'Done' : 'Edit'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.editActions}>
+                    {isEditing && (
+                      <TouchableOpacity
+                        onPress={cancelEditing}
+                        style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel editing"
+                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                      >
+                        <Text style={[styles.editModeBtnText, { color: colors.text }]}>Cancel</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      onPress={isEditing ? finishEditing : startEditing}
+                      disabled={isEditing && (mealDraft.hasErrors || mealDraft.saving)}
+                      style={[
+                        styles.editModeBtn,
+                        { backgroundColor: isEditing ? colors.tint : colors.cardSecondary },
+                        isEditing && (mealDraft.hasErrors || mealDraft.saving) && { opacity: 0.5 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={isEditing ? 'Done editing' : 'Edit meals'}
+                      accessibilityState={{ disabled: isEditing && mealDraft.hasErrors }}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    >
+                      <Text style={[styles.editModeBtnText, { color: isEditing ? colors.background : colors.text }]}>
+                        {isEditing ? 'Done' : 'Edit'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
 
-        {loading ? (
+        {loading || !mealsLoaded ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={colors.tint} />
           </View>
@@ -408,32 +523,80 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Meal slots */}
-            {MEAL_SLOTS.map(({ key, label }) => {
-              const slotLogs = logsForSlot(logs, key);
-              const showToggle = slotLogs.length > 0;
-
-              // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state,
-              // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
-              const isExplicitlyPlanned = confirmations.find(c => c.meal_slot === key)?.confirmed === false;
-              const displayConfirmed = !isExplicitlyPlanned;
-
-              return (
-                <MealSlotCard
-                  key={key}
-                  slot={key}
-                  label={label}
-                  logs={slotLogs}
-                  eaten={displayConfirmed}
-                  showToggle={showToggle}
-                  onToggle={handleToggleSlot}
-                  onAdd={handleAddToSlot}
-                  onEditLog={handleEditLog}
-                  onDeleteLog={handleDeleteLog}
-                  colors={colors}
+            {/* Meals */}
+            {isEditing && mealDraft.draft ? (
+              <>
+                <Text style={[styles.editWarning, { color: colors.text }]}>
+                  Deleting a meal deletes its logged food.
+                </Text>
+                <Text style={[styles.editNote, { color: colors.icon }]}>Changes apply from today.</Text>
+                <ReorderableList
+                  items={editItems}
+                  itemHeight={MEAL_EDIT_CARD_HEIGHT}
+                  gap={14}
+                  iconColor={colors.icon}
+                  onReorder={mealDraft.reorder}
+                  onDragActiveChange={setScrollLocked}
+                  renderItem={(m, handle) => (
+                    <MealSlotCard
+                      mode="edit"
+                      slot={m.id}
+                      index={editItems.findIndex((e) => e.id === m.id)}
+                      label={m.name}
+                      logs={logs}
+                      targets={m}
+                      colors={colors}
+                      nameError={mealDraft.errors[m.id] ?? null}
+                      canDelete={mealDraft.draft!.meals.length > MEAL_LIMITS.min}
+                      dragHandle={handle}
+                      onChangeName={(name) => mealDraft.rename(m.id, name)}
+                      onChangeTargets={(t) => mealDraft.setTargets(m.id, t)}
+                      onDelete={() => confirmDeleteMeal(m.id, m.name)}
+                    />
+                  )}
                 />
-              );
-            })}
+                {mealDraft.draft.meals.length < MEAL_LIMITS.max && (
+                  <TouchableOpacity
+                    style={[styles.addMealRow, { borderColor: colors.separator }]}
+                    onPress={mealDraft.add}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add meal"
+                  >
+                    <MaterialIcons name="add" size={20} color={colors.tint} />
+                    <Text style={[styles.addMealText, { color: colors.tint }]}>Add meal</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              meals.map(({ id, name, def, orphan }) => {
+                const slotLogs = logsForSlot(logs, id);
+                const showToggle = slotLogs.length > 0;
+
+                // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state,
+                // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
+                const isExplicitlyPlanned = confirmations.find(c => c.meal_slot === id)?.confirmed === false;
+                const displayConfirmed = !isExplicitlyPlanned;
+
+                return (
+                  <MealSlotCard
+                    key={id}
+                    slot={id}
+                    label={name}
+                    logs={slotLogs}
+                    targets={def}
+                    eaten={displayConfirmed}
+                    showToggle={showToggle}
+                    allowAdd={!orphan}
+                    onToggle={handleToggleSlot}
+                    onAdd={handleAddToSlot}
+                    onEditLog={handleEditLog}
+                    onDeleteLog={handleDeleteLog}
+                    colors={colors}
+                  />
+                );
+              })
+            )}
           </>
         )}
         </ScrollView>
@@ -747,6 +910,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  editActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  editWarning: { fontSize: 13, marginBottom: 2 },
+  editNote: { fontSize: 12, marginBottom: 12 },
+  addMealRow: {
+    height: 48,
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addMealText: { fontSize: 15, fontWeight: '600' },
   editModeBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,

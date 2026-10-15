@@ -116,7 +116,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 
 ### 4.3 Meal logging
 
-- Four meal slots: breakfast, lunch, dinner, snacks
+- User-defined meals (1 to 8), defaulting to breakfast, lunch, dinner, snacks. Rename, add, delete and reorder them from the dashboard Edit mode; set optional per-meal calorie and macro targets. Renames apply from today, so past days keep their old name. Deleting a meal deletes its logged food.
 - Add food to a slot via search or barcode scan
 - Adjust serving size before and after saving
 - Edit or delete any logged item

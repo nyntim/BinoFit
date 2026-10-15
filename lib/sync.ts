@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { getDeviceId } from '@/lib/device-id';
-import { getUnsyncedFoodLogs, markFoodLogsSynced } from '@/lib/database';
+import {
+  getUnsyncedFoodLogs,
+  markFoodLogsSynced,
+  getUnsyncedMealDefinitions,
+  markMealDefinitionsSynced,
+  getUnsyncedMealNames,
+  markMealNamesSynced,
+} from '@/lib/database';
 import { getUserGoals, markGoalsSynced, getUserProfile, markProfileSynced } from '@/lib/storage';
 
 let _syncing = false;
@@ -14,7 +21,13 @@ export async function syncToSupabase(): Promise<void> {
   if (_syncing) return;
   _syncing = true;
   try {
-    await Promise.all([syncFoodLogs(), syncUserGoals(), syncUserProfile()]);
+    await Promise.all([
+      syncFoodLogs(),
+      syncUserGoals(),
+      syncUserProfile(),
+      syncMealDefinitions(),
+      syncMealNames(),
+    ]);
   } catch {
     // Intentionally swallowed — sync failures are non-fatal
   } finally {
@@ -46,6 +59,57 @@ async function syncFoodLogs(): Promise<void> {
 
   if (!error) {
     await markFoodLogsSynced(unsynced.map((l) => l.id));
+  }
+}
+
+// Push-only. Deleted meals are not removed from Supabase (same gap as other tables).
+async function syncMealDefinitions(): Promise<void> {
+  const unsynced = await getUnsyncedMealDefinitions();
+  if (unsynced.length === 0) return;
+
+  const deviceId = await getDeviceId();
+
+  const rows = unsynced.map((m) => ({
+    id: m.id,
+    user_id: deviceId,
+    position: m.position,
+    calorie_target: m.calorie_target,
+    protein_target: m.protein_target,
+    carb_target: m.carb_target,
+    fat_target: m.fat_target,
+    created_at: m.created_at,
+    updated_at: m.updated_at,
+  }));
+
+  const { error } = await supabase
+    .from('meal_definitions')
+    .upsert(rows, { onConflict: 'user_id,id' });
+
+  if (!error) {
+    await markMealDefinitionsSynced(unsynced.map((m) => m.id));
+  }
+}
+
+async function syncMealNames(): Promise<void> {
+  const unsynced = await getUnsyncedMealNames();
+  if (unsynced.length === 0) return;
+
+  const deviceId = await getDeviceId();
+
+  const rows = unsynced.map((n) => ({
+    user_id: deviceId,
+    meal_id: n.meal_id,
+    name: n.name,
+    effective_from: n.effective_from,
+    updated_at: n.updated_at,
+  }));
+
+  const { error } = await supabase
+    .from('meal_names')
+    .upsert(rows, { onConflict: 'user_id,meal_id,effective_from' });
+
+  if (!error) {
+    await markMealNamesSynced(unsynced);
   }
 }
 

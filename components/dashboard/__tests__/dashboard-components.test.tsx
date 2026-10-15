@@ -130,3 +130,104 @@ describe('MealSlotCard', () => {
     expect(props.onEditLog).toHaveBeenCalledWith(logs[1]);
   });
 });
+
+describe('MealSlotCard targets (view mode)', () => {
+  const targets = { calorie_target: 500, protein_target: 40, carb_target: null, fat_target: null };
+  const props = () => ({
+    slot: 'breakfast',
+    label: 'Breakfast',
+    logs: [makeLog({ food_calories: 100, serving_amount: 3.2, food_protein: 10 })],
+    eaten: true,
+    showToggle: true,
+    onToggle: jest.fn(),
+    onAdd: jest.fn(),
+    onEditLog: jest.fn(),
+    onDeleteLog: jest.fn(),
+    colors,
+  });
+
+  it('shows "x / target cal" and macro targets when set', async () => {
+    await render(<MealSlotCard {...props()} targets={targets} />);
+    expect(screen.getByText('320 / 500 cal')).toBeTruthy();
+    expect(screen.getByText('Protein 32 / 40 g')).toBeTruthy();
+  });
+
+  it('keeps plain calories without a calorie target', async () => {
+    await render(<MealSlotCard {...props()} targets={{ ...targets, calorie_target: null }} />);
+    expect(screen.getByText('320 cal')).toBeTruthy();
+  });
+
+  it('hides add affordances when allowAdd is false', async () => {
+    await render(<MealSlotCard {...props()} logs={[]} allowAdd={false} />);
+    expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
+    expect(screen.queryByText('Tap to add food')).toBeNull();
+  });
+});
+
+describe('MealSlotCard edit mode', () => {
+  const editProps = () => ({
+    mode: 'edit' as const,
+    slot: 'breakfast',
+    label: 'Breakfast',
+    logs: [makeLog({ food_calories: 100, serving_amount: 1 }), makeLog({ id: 'l2', food_calories: 50, serving_amount: 1 })],
+    colors,
+    index: 0,
+    nameError: null as string | null,
+    canDelete: true,
+    dragHandle: null,
+    onChangeName: jest.fn(),
+    onChangeTargets: jest.fn(),
+    onDelete: jest.fn(),
+  });
+
+  it('collapses logs to a summary and hides status, add and log actions', async () => {
+    await render(<MealSlotCard {...editProps()} />);
+    expect(screen.getByText('2 items · 150 cal')).toBeTruthy();
+    expect(screen.queryByText('Eaten')).toBeNull();
+    expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
+    expect(screen.queryByText('Oatmeal')).toBeNull();
+  });
+
+  it('shows the name error instead of the summary', async () => {
+    await render(<MealSlotCard {...editProps()} nameError="Enter a name" />);
+    expect(screen.getByText('Enter a name')).toBeTruthy();
+    expect(screen.queryByText('2 items · 150 cal')).toBeNull();
+  });
+
+  it('edits the name and deletes through callbacks', async () => {
+    const props = editProps();
+    await render(<MealSlotCard {...props} />);
+    await fireEvent.changeText(screen.getByLabelText('Meal 1 name'), 'Brunch');
+    expect(props.onChangeName).toHaveBeenCalledWith('Brunch');
+    await fireEvent.press(screen.getByLabelText('Delete Breakfast'));
+    expect(props.onDelete).toHaveBeenCalled();
+  });
+
+  it('does not delete when it is the last meal', async () => {
+    const props = editProps();
+    await render(<MealSlotCard {...props} canDelete={false} />);
+    await fireEvent.press(screen.getByLabelText('Delete Breakfast'));
+    expect(props.onDelete).not.toHaveBeenCalled();
+  });
+
+  it('saves targets from the sheet', async () => {
+    const props = editProps();
+    await render(<MealSlotCard {...props} />);
+    await fireEvent.press(screen.getByLabelText('Set targets for Breakfast'));
+    await fireEvent.changeText(screen.getByLabelText('Breakfast calories target'), '500');
+    await fireEvent.press(screen.getByText('Save'));
+    expect(props.onChangeTargets).toHaveBeenCalledWith({
+      calorie_target: 500,
+      protein_target: null,
+      carb_target: null,
+      fat_target: null,
+    });
+  });
+});
+
+describe('FoodLogRow accessibility', () => {
+  it('labels the trash button with the food name', async () => {
+    await render(<FoodLogRow log={makeLog()} colors={colors} onDelete={jest.fn()} />);
+    expect(screen.getByLabelText('Remove Oatmeal')).toBeTruthy();
+  });
+});

@@ -21,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors, MacroColors, TargetTints } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
+import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import {
   getFoodById,
   addFoodLog,
@@ -42,13 +43,6 @@ import type { Food, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/type
 const refetchedFoodIds = new Set<string>();
 
 const AMOUNT_ACCESSORY_ID = 'serving-amount-accessory';
-
-const SLOT_LABELS:Record<string, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
-  snack: 'Snacks',
-};
 
 type ServingUnit = 'default' | 'grams' | 'oz';
 
@@ -120,7 +114,8 @@ export default function ServingPickerScreen() {
   const amountRef = useRef<TextInput>(null);
 
   const isEdit = Boolean(log_id);
-  const slotLabel = SLOT_LABELS[meal_slot ?? ''] ?? 'Meal';
+  const { labelFor, loaded: mealsLoaded } = useMealDefinitions();
+  const slotLabel = mealsLoaded ? labelFor(meal_slot, date) : '';
 
   useEffect(() => {
     if (!food_id) return;
@@ -323,7 +318,7 @@ export default function ServingPickerScreen() {
             hitSlop={6}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={isEdit ? 'Save changes' : `Log to ${slotLabel}`}
+            accessibilityLabel={isEdit ? 'Save changes' : `Log to ${slotLabel || "meal"}`}
             accessibilityState={{ disabled: !canLog, busy: saving }}
           >
             {saving ? (

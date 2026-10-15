@@ -35,6 +35,8 @@ export function FoodLogRow({ log, colors, onEdit, onDelete }: FoodLogRowProps) {
           <TouchableOpacity
             onPress={() => onDelete(log)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${log.food_name}`}
           >
             <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
           </TouchableOpacity>
@@ -55,6 +57,6 @@ const styles = StyleSheet.create({
   logName: { fontSize: 14, fontWeight: '500' },
   logMeta: { fontSize: 12, marginTop: 1 },
   logRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  logCals: { fontSize: 14, fontWeight: '600' },
+  logCals: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
   logCalsUnit: { fontSize: 12, marginRight: 6 },
 });

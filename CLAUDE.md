@@ -50,6 +50,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `deleteFoodLog()` — Remove food log entries
 - `getLoggedDates()` — Get history date range
 - `getUnsyncedFoodLogs()` / `markFoodLogsSynced()` — Sync tracking for Supabase
+- `getMealDefinitions()` / `getMealNames()` / `countFoodLogsForMeal()` — User-defined meals (seeded once with the four defaults)
+- `saveMealDraft()` — Applies the dashboard edit-mode draft (adds, renames, order, targets, deletes) in one transaction
+- `getUnsyncedMealDefinitions()` / `markMealDefinitionsSynced()` / `getUnsyncedMealNames()` / `markMealNamesSynced()` — Sync tracking
 - `cacheRemoteFood()` — Cache remote food search results locally
 
 **Theming** — Three-layer system:
@@ -89,6 +92,9 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 
 ```typescript
 Food = { id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at }
+MealId = string  // MealSlot is an alias; food_logs.meal_slot holds a meal id
+MealDefinition = { id, position, calorie_target, protein_target, carb_target, fat_target (number|null), created_at, updated_at, synced_at? }
+MealNameEntry = { meal_id, name, effective_from (yyyy-MM-dd), updated_at, synced_at? }  // name history; renames apply from today
 FoodLog = { id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at? }
 MealSlotConfirmation = { id, date, meal_slot, confirmed, updated_at }
 UserGoals = { calorie_goal, protein_goal, carb_goal, fat_goal, updated_at }
@@ -105,6 +111,7 @@ QuickAddDrink = { id, name, amount, food_id? }
 - Calorie ring and macro bars are visualizations in `components/calorie-ring.tsx` and `components/macro-bar.tsx`
 - Date context via `@/context/DateContext` for day navigation
 - Swipe-to-navigate day via `@/hooks/useSwipeDayNavigation`
+- Meals are user-defined: resolve names with `nameForDate` / `mealsForDay` from `@/lib/meals` (via `@/hooks/useMealDefinitions`), never hardcode slot labels. Dashboard Edit mode edits a draft (`@/hooks/useMealDraft`) saved on Done; drag-reorder is `components/dashboard/ReorderableList.tsx`
 - Streak data via `@/hooks/useStreak` (current + longest streak from logged dates)
 - Apple HealthKit integration (iOS only) via `@/hooks/use-health-kit` — reads steps/active calories, writes nutrition
 - Call `syncToSupabase()` from `@/lib/sync` fire-and-forget after any food log write; never await inline

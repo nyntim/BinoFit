@@ -23,7 +23,35 @@ export type Food = {
   potassium?: number | null;
 };
 
-export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+/** Id of a user-defined meal. The four seeded defaults use 'breakfast' | 'lunch' | 'dinner' | 'snack'. */
+export type MealId = string;
+
+/** Kept under this name because the columns and route params stay `meal_slot`. */
+export type MealSlot = MealId;
+
+export type MealTargets = {
+  calorie_target: number | null;
+  protein_target: number | null;
+  carb_target: number | null;
+  fat_target: number | null;
+};
+
+export type MealDefinition = MealTargets & {
+  id: MealId;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+};
+
+/** Name history: the name in force for a meal from `effective_from` (yyyy-MM-dd) onward. */
+export type MealNameEntry = {
+  meal_id: MealId;
+  name: string;
+  effective_from: string;
+  updated_at: string;
+  synced_at?: string | null;
+};
 
 export type FoodLog = {
   id: string;
