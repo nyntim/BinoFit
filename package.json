@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.0.47",
+  "version": "2.0.48",
   "scripts": {
     "start": "expo start --tunnel",
     "reset-project": "node ./scripts/reset-project.js",
@@ -26,6 +26,7 @@
     "buffer": "^6.0.3",
     "date-fns": "^4.1.0",
     "expo": "~57.0.29",
+    "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.22",
     "expo-crypto": "~57.0.4",
     "expo-file-system": "~57.0.7",

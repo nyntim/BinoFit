@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -176,7 +177,13 @@ export default function FoodSearchScreen() {
     if (selecting) return;
     setSelecting(true);
     try {
-      if (food.source === 'branded' || (!food.source?.startsWith('usda') && !food.source?.startsWith('custom') && food.brand)) {
+      if (
+        food.source === 'branded' ||
+        (!food.source?.startsWith('usda') &&
+          !food.source?.startsWith('custom') &&
+          food.source !== 'open_food_facts' &&
+          food.brand)
+      ) {
         await getFullBrandedFood(food.id);
       }
       router.replace({
@@ -253,6 +260,21 @@ export default function FoodSearchScreen() {
         />
         {(localLoading || brandedLoading || selecting) && (
           <ActivityIndicator size="small" color={colors.tint} />
+        )}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            onPress={() =>
+              router.replace({
+                pathname: '/barcode-scanner' as any,
+                params: { meal_slot, date },
+              })
+            }
+            style={styles.scanBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Scan barcode"
+          >
+            <MaterialIcons name="qr-code-scanner" size={22} color={colors.tint} />
+          </TouchableOpacity>
         )}
       </View>
 
@@ -403,6 +425,7 @@ const styles = StyleSheet.create({
   cancelBtn: { width: 64 },
   cancelText: { fontSize: 16 },
   title: { fontSize: 17, fontWeight: '600' },
+  scanBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginVertical: -10, marginRight: -12 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

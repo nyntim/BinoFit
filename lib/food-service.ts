@@ -3,6 +3,7 @@ import {
   searchFoodsByTokens, 
   searchFoodsBySingleToken,
   cacheRemoteFood,
+  getFoodByBarcode,
   getFrequentFoods,
   getRecentFoods
 } from '@/lib/database';
@@ -12,6 +13,7 @@ import {
   searchUSDAFoodsBySingleToken 
 } from '@/lib/foods-db';
 import { supabase } from '@/lib/supabase';
+import { fetchOffProduct, normalizeBarcode } from '@/lib/open-food-facts';
 import type { Food } from '@/lib/types';
 
 const MIN_BRANDED_QUERY_LENGTH = 3;
@@ -299,4 +301,39 @@ export async function saveCustomFoodToSupabase(food: Food, deviceId: string): Pr
     },
     { onConflict: 'id' }
   );
+}
+
+export type BarcodeLookupResult =
+  | { status: 'found'; food: Food }
+  | { status: 'invalid' }
+  | { status: 'not_found'; code: string }
+  | { status: 'incomplete'; code: string; name: string | null; brand: string | null }
+  | { status: 'error'; code: string };
+
+/**
+ * Resolve a scanned or typed barcode: local database first, then Open Food Facts.
+ * Found products are cached locally; not-found and errors are never cached. Never throws.
+ */
+export async function lookupBarcode(raw: string): Promise<BarcodeLookupResult> {
+  const code = normalizeBarcode(raw);
+  if (!code) return { status: 'invalid' };
+  try {
+    const local = await getFoodByBarcode(code);
+    if (local) return { status: 'found', food: local };
+  } catch {
+    // fall through to the network lookup
+  }
+  const result = await fetchOffProduct(code);
+  if (result.status === 'found') {
+    try {
+      await cacheRemoteFood(result.food);
+    } catch {
+      return { status: 'error', code };
+    }
+    return { status: 'found', food: result.food };
+  }
+  if (result.status === 'incomplete') {
+    return { status: 'incomplete', code, name: result.name, brand: result.brand };
+  }
+  return { status: result.status, code };
 }

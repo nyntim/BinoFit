@@ -30,6 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `(tabs)/` — Bottom tab navigator: `index` (dashboard), `exercise`, `progress`, `settings`
   - `onboarding/` — Welcome → goals → complete flow
   - `food-search.tsx`, `serving-picker.tsx`, `custom-food.tsx` — Feature screens
+  - `barcode-scanner.tsx` — Full-screen camera scanner (native only; reached from the food-search scan button). Looks up via `lookupBarcode`, then replaces itself with `serving-picker`, or `custom-food` (prefilled, with barcode) when not found
   - `day-detail.tsx` — Day history view
 - `components/` — Reusable UI components
   - `calorie-ring.tsx`, `macro-bar.tsx` — Nutrition visualizations
@@ -54,7 +55,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `getMealDefinitions()` / `getMealNames()` / `countFoodLogsForMeal()` — User-defined meals (seeded once with the four defaults)
 - `saveMealDraft()` — Applies the dashboard edit-mode draft (adds, renames, order, targets, deletes) in one transaction
 - `getUnsyncedMealDefinitions()` / `markMealDefinitionsSynced()` / `getUnsyncedMealNames()` / `markMealNamesSynced()` — Sync tracking
-- `cacheRemoteFood()` — Cache remote food search results locally
+- `cacheRemoteFood()` — Cache remote food search results locally (also stores `barcode`)
+- `getFoodByBarcode()` — Local lookup by normalized barcode (custom food first, then most recent); `foods.barcode` is device-only, not synced
 
 **Theming** — Three-layer system:
 1. `constants/theme.ts` — Color palette (light/dark), macro colors, fonts
@@ -73,6 +75,8 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 **Sync status** — `lib/sync-status.ts` is a pub/sub store (`status`, `lastSuccessAt`, `failingSince`, `isOffline`) fed by `syncToSupabase()`, which throws per-step on Supabase `{ error }`, runs every step (`allSettled`), and coalesces calls made mid-sync into one extra pass. `deriveIndicator` hides failures for a 30s grace period. UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt`/`setLastSyncAt` in `lib/storage.ts`). `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30s/1m/2m/5m backoff while active and failing. Sync also runs on cold start.
 
 **Food search** — `lib/food-service.ts` searches SQLite first; falls back to Supabase remote query (≥4 chars) and caches results locally.
+
+**Barcode scan** — `lib/open-food-facts.ts` (`normalizeBarcode`, `mapOffProduct`, `buildServingUnits`, `fetchOffProduct`; never throws, 8s timeout) maps Open Food Facts products to `Food` rows (`id: off:{barcode}`, `source: 'open_food_facts'`). `lookupBarcode()` in `lib/food-service.ts` checks SQLite, then OFF, and caches found products; not-found/errors are never cached.
 
 **Device identity** — `lib/device-id.ts` generates and persists a UUID via AsyncStorage. Used as `user_id` for all Supabase rows instead of auth.
 

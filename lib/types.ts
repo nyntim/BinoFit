@@ -10,6 +10,8 @@ export type Food = {
   source: string | null;
   updated_at: string;
   matchTier?: number;
+  /** GTIN (EAN-13 normalized) when the food came from a barcode scan. Device-only, not synced. */
+  barcode?: string | null;
   // micronutrients (all in standard label units; null = not available)
   fiber?: number | null;
   sugar?: number | null;

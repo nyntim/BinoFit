@@ -19,13 +19,20 @@ import { saveCustomFoodToSupabase } from '@/lib/food-service';
 import { getDeviceId } from '@/lib/device-id';
 
 export default function CustomFoodScreen() {
-  const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
+  const params = useLocalSearchParams<{
+    meal_slot: string;
+    date: string;
+    name?: string;
+    brand?: string;
+    barcode?: string;
+  }>();
+  const { meal_slot, date, barcode } = params;
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [name, setName] = useState('');
-  const [brand, setBrand] = useState('');
+  const [name, setName] = useState(params.name ?? '');
+  const [brand, setBrand] = useState(params.brand ?? '');
   const [servingUnits, setServingUnits] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -51,6 +58,7 @@ export default function CustomFoodScreen() {
         carbs: parseFloat(carbs) || 0,
         fat: parseFloat(fat) || 0,
         source: 'custom',
+        barcode: barcode || null,
       });
 
       // Fire-and-forget — custom foods live in Supabase as source of truth
@@ -84,6 +92,10 @@ export default function CustomFoodScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {barcode ? (
+            <Text style={[styles.barcodeCaption, { color: colors.icon }]}>Barcode {barcode}</Text>
+          ) : null}
+
           {/* Basic info */}
           <Text style={[styles.sectionTitle, { color: colors.icon }]}>FOOD INFO</Text>
           <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
@@ -160,6 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
+  barcodeCaption: { fontSize: 12, marginBottom: 12 },
   card: { borderRadius: 14, overflow: 'hidden', marginBottom: 24 },
   fieldRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   fieldLabel: { width: 130, fontSize: 15 },

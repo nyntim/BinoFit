@@ -2,7 +2,7 @@
   "expo": {
     "name": "BinoFit",
     "slug": "binofit",
-    "version": "2.0.47",
+    "version": "2.0.48",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",
@@ -34,6 +34,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BinoFit uses the camera to scan food barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-splash-screen",
         {

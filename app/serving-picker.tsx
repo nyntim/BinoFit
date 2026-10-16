@@ -34,6 +34,7 @@ import {
 } from '@/lib/database';
 import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
+import { parseBaseGrams } from '@/lib/serving-units';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { getUserGoals, getDefaultLogStatus } from '@/lib/storage';
 import { writeNutritionLog } from '@/services/healthKitService';
@@ -45,14 +46,6 @@ const refetchedFoodIds = new Set<string>();
 const AMOUNT_ACCESSORY_ID = 'serving-amount-accessory';
 
 type ServingUnit = 'default' | 'grams' | 'oz';
-
-function parseBaseGrams(servingUnits: string): number | null {
-  const gramMatch = servingUnits.match(/\(?(\d+(?:\.\d+)?)\s*g(?:rams?)?\)?/i);
-  if (gramMatch) return parseFloat(gramMatch[1]);
-  const ozMatch = servingUnits.match(/(\d+(?:\.\d+)?)\s*oz/i);
-  if (ozMatch) return Math.round(parseFloat(ozMatch[1]) * 28.35 * 10) / 10;
-  return null;
-}
 
 function formatTime(d: Date): string {
   let h = d.getHours();
@@ -126,7 +119,7 @@ export default function ServingPickerScreen() {
         if (cancelled) return;
         if (found) setFood(found);
 
-        const needsMicros = !found || (!hasAnyMicros(found) && found.source !== 'custom');
+        const needsMicros = !found || (!hasAnyMicros(found) && found.source !== 'custom' && found.source !== 'open_food_facts');
         if (!needsMicros) return;
         // Refetch at most once per food per app session
         if (found && refetchedFoodIds.has(food_id)) return;

@@ -126,6 +126,8 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`ALTER TABLE foods ADD COLUMN calcium REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN iron REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE foods ADD COLUMN barcode TEXT;`).catch(() => {});
+  await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_foods_barcode ON foods(barcode);`).catch(() => {});
 
   await seedDefaultMeals(db);
 }
@@ -316,13 +318,14 @@ export async function cacheRemoteFood(
        fat = excluded.fat,
        source = excluded.source,
        updated_at = excluded.updated_at,
+       barcode = COALESCE(excluded.barcode, foods.barcode),
        ${microUpdates}
      WHERE foods.source IS NOT 'custom'`;
   await db.runAsync(
     `${insertVerb} INTO foods
-      (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at,
+      (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at, barcode,
        ${MICRO_COLUMNS.join(', ')})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${MICRO_COLUMNS.map(() => '?').join(', ')})
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${MICRO_COLUMNS.map(() => '?').join(', ')})
      ${onConflict}`,
     [
       food.id,
@@ -335,8 +338,19 @@ export async function cacheRemoteFood(
       food.fat,
       food.source ?? null,
       food.updated_at,
+      food.barcode ?? null,
       ...MICRO_COLUMNS.map((c) => food[c] ?? null),
     ]
+  );
+}
+
+/** Local food for a normalized barcode: the user's own custom food first, then the most recently updated row. */
+export async function getFoodByBarcode(code: string): Promise<Food | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<Food>(
+    `SELECT * FROM foods WHERE barcode = ?
+     ORDER BY (source = 'custom') DESC, updated_at DESC LIMIT 1`,
+    [code]
   );
 }
 
@@ -444,9 +458,9 @@ export async function addCustomFood(
   const now = new Date().toISOString();
   const id = Crypto.randomUUID();
   await db.runAsync(
-    `INSERT INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, food.name, food.brand ?? null, food.serving_units, food.calories, food.protein, food.carbs, food.fat, 'custom', now]
+    `INSERT INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at, barcode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, food.name, food.brand ?? null, food.serving_units, food.calories, food.protein, food.carbs, food.fat, 'custom', now, food.barcode ?? null]
   );
   return { ...food, id, updated_at: now };
 }
