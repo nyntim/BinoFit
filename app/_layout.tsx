@@ -8,6 +8,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
+import { useSyncAutoRetry } from '@/hooks/useSyncAutoRetry';
 import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
 
 configureNotificationHandler();
@@ -20,10 +21,13 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
+  useSyncAutoRetry();
+
   // Re-create meal reminders on launch and on foreground, in case the OS cleared them
   // or notification permission changed in system settings.
   useEffect(() => {
     restoreMealReminders();
+    syncToSupabase();
   }, []);
 
   useEffect(() => {

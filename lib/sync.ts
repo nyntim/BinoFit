@@ -8,30 +8,59 @@ import {
   getUnsyncedMealNames,
   markMealNamesSynced,
 } from '@/lib/database';
-import { getUserGoals, markGoalsSynced, getUserProfile, markProfileSynced } from '@/lib/storage';
+import {
+  getUserGoals,
+  markGoalsSynced,
+  getUserProfile,
+  markProfileSynced,
+  setLastSyncAt,
+} from '@/lib/storage';
+import { reportSyncStart, reportSyncResult } from '@/lib/sync-status';
 
 let _syncing = false;
+let _rerun = false;
 
 /**
  * Push all unsynced local data to Supabase.
- * Never throws — all errors are swallowed so callers can fire-and-forget.
+ * Never throws — callers can fire-and-forget. Outcomes are reported to `@/lib/sync-status`.
+ * A call made while a sync is running schedules exactly one extra pass afterwards.
  * Never awaited inline; call without await after any write or on app foreground.
  */
 export async function syncToSupabase(): Promise<void> {
-  if (_syncing) return;
+  if (_syncing) {
+    _rerun = true;
+    return;
+  }
   _syncing = true;
   try {
-    await Promise.all([
-      syncFoodLogs(),
-      syncUserGoals(),
-      syncUserProfile(),
-      syncMealDefinitions(),
-      syncMealNames(),
-    ]);
+    do {
+      _rerun = false;
+      await runPass();
+    } while (_rerun);
   } catch {
-    // Intentionally swallowed — sync failures are non-fatal
+    // Never reject: reporting or persistence problems must not reach fire-and-forget callers.
   } finally {
     _syncing = false;
+  }
+}
+
+async function runPass(): Promise<void> {
+  reportSyncStart();
+  const results = await Promise.allSettled([
+    syncFoodLogs(),
+    syncUserGoals(),
+    syncUserProfile(),
+    syncMealDefinitions(),
+    syncMealNames(),
+  ]);
+  const ok = results.every((r) => r.status === 'fulfilled');
+  reportSyncResult(ok);
+  if (ok) {
+    try {
+      await setLastSyncAt(new Date().toISOString());
+    } catch {
+      // Persisting the timestamp is best-effort.
+    }
   }
 }
 
@@ -57,9 +86,8 @@ async function syncFoodLogs(): Promise<void> {
     .from('food_logs')
     .upsert(rows, { onConflict: 'id' });
 
-  if (!error) {
-    await markFoodLogsSynced(unsynced.map((l) => l.id));
-  }
+  if (error) throw error;
+  await markFoodLogsSynced(unsynced.map((l) => l.id));
 }
 
 // Push-only. Deleted meals are not removed from Supabase (same gap as other tables).
@@ -86,9 +114,8 @@ async function syncMealDefinitions(): Promise<void> {
     .from('meal_definitions')
     .upsert(rows, { onConflict: 'user_id,id' });
 
-  if (!error) {
-    await markMealDefinitionsSynced(unsynced.map((m) => m.id));
-  }
+  if (error) throw error;
+  await markMealDefinitionsSynced(unsynced.map((m) => m.id));
 }
 
 async function syncMealNames(): Promise<void> {
@@ -109,9 +136,8 @@ async function syncMealNames(): Promise<void> {
     .from('meal_names')
     .upsert(rows, { onConflict: 'user_id,meal_id,effective_from' });
 
-  if (!error) {
-    await markMealNamesSynced(unsynced);
-  }
+  if (error) throw error;
+  await markMealNamesSynced(unsynced);
 }
 
 async function syncUserGoals(): Promise<void> {
@@ -132,9 +158,8 @@ async function syncUserGoals(): Promise<void> {
     { onConflict: 'user_id' }
   );
 
-  if (!error) {
-    await markGoalsSynced(new Date().toISOString());
-  }
+  if (error) throw error;
+  await markGoalsSynced(new Date().toISOString());
 }
 
 async function syncUserProfile(): Promise<void> {
@@ -154,7 +179,6 @@ async function syncUserProfile(): Promise<void> {
     { onConflict: 'user_id' }
   );
 
-  if (!error) {
-    await markProfileSynced(new Date().toISOString());
-  }
+  if (error) throw error;
+  await markProfileSynced(new Date().toISOString());
 }

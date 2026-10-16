@@ -39,6 +39,7 @@ import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import { StreakBadge } from '@/components/StreakBadge';
+import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
@@ -330,10 +331,13 @@ export default function HomeScreen() {
             >
               <View style={styles.topRow}>
                 <View style={styles.headerTop}>
-                  <Text style={[styles.dateLabel, { color: colors.icon }]}>
+                  <Text numberOfLines={1} style={[styles.dateLabel, { color: colors.icon }]}>
                     {displayDate}{selectedDate === today ? '  · Today' : ''}
                   </Text>
-                  <StreakBadge trigger={logs.length} />
+                  <View style={styles.badgeRow}>
+                    <SyncIndicator />
+                    <StreakBadge trigger={logs.length} />
+                  </View>
                 </View>
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
@@ -908,7 +912,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  dateLabel: { fontSize: 13, fontWeight: '500' },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  dateLabel: { fontSize: 13, fontWeight: '500', flexShrink: 1 },
   pageTitle: { fontSize: 28, fontWeight: '700' },
   titleRow: {
     flexDirection: 'row',

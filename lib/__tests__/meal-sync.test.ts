@@ -8,6 +8,7 @@ jest.mock('@/lib/storage', () => ({
   getUserProfile: jest.fn(async () => null),
   markGoalsSynced: jest.fn(),
   markProfileSynced: jest.fn(),
+  setLastSyncAt: jest.fn(async () => {}),
 }));
 jest.mock('@/lib/database', () => ({
   getUnsyncedFoodLogs: jest.fn(async () => []),

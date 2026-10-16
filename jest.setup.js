@@ -47,3 +47,7 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(),
   importDatabaseFromAssetAsync: jest.fn(),
 }));
+
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock.js')
+);

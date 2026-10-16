@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'gear': 'settings',
   'flame.fill': 'local-fire-department',
+  'icloud.slash': 'cloud-off',
 } as IconMapping;
 
 /**

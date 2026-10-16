@@ -26,7 +26,10 @@ import {
   resetOnboarding,
   getDefaultLogStatus,
   setDefaultLogStatus,
+  getLastSyncAt,
 } from '@/lib/storage';
+import { deriveLastSynced, isSyncConfigured } from '@/lib/sync-status';
+import { useSyncStatus } from '@/hooks/useSyncStatus';
 import type { LogStatus, UserProfile } from '@/lib/types';
 
 type ActivityLevel = NonNullable<UserProfile['activity_level']>;
@@ -38,6 +41,24 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = [
   { value: 'active', label: 'Active' },
   { value: 'very_active', label: 'Very Active' },
 ];
+
+function formatLastSynced(v: ReturnType<typeof deriveLastSynced>): string {
+  switch (v.kind) {
+    case 'off':
+      return 'Off';
+    case 'paused':
+      return 'Paused';
+    case 'never':
+      return 'Not yet';
+    case 'at':
+      return new Date(v.at).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+  }
+}
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -53,6 +74,8 @@ export default function SettingsScreen() {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
   const [saved, setSaved] = useState(false);
+  const [persistedSyncAt, setPersistedSyncAt] = useState<number | null>(null);
+  const { state: syncState, now: syncNow } = useSyncStatus();
 
   const { available, writeGranted, initHealthKit } = useHealthKit();
 
@@ -74,6 +97,8 @@ export default function SettingsScreen() {
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
     setDefaultStatus(status);
+    const lastSync = await getLastSyncAt();
+    setPersistedSyncAt(lastSync ? Date.parse(lastSync) : null);
   }, []);
 
   useEffect(() => {
@@ -301,6 +326,14 @@ export default function SettingsScreen() {
               <Text style={[styles.infoKey, { color: colors.text }]}>Version</Text>
               <Text style={[styles.infoVal, { color: colors.icon }]}>
                 {Constants.expoConfig?.version ?? '1.0.0'}
+              </Text>
+            </View>
+            <View style={[styles.infoRow, bg, { borderRadius: 12, marginTop: 8 }]}>
+              <Text style={[styles.infoKey, { color: colors.text }]}>Last synced</Text>
+              <Text style={[styles.infoVal, { color: colors.icon }]}>
+                {formatLastSynced(
+                  deriveLastSynced(syncState, syncNow, isSyncConfigured(), persistedSyncAt)
+                )}
               </Text>
             </View>
           </View>

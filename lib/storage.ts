@@ -8,6 +8,7 @@ const KEYS = {
   DEFAULT_LOG_STATUS: 'default_log_status',
   QUICK_ADD_DRINKS: 'quick_add_drinks',
   DEVICE_ID: 'device_id',
+  LAST_SYNC_AT: 'last_sync_at',
 } as const;
 
 type StoredUserGoals = UserGoals & { synced_at?: string };
@@ -77,4 +78,12 @@ export async function getQuickAddDrinks(): Promise<any[] | null> {
 
 export async function saveQuickAddDrinks(drinks: any[]): Promise<void> {
   await AsyncStorage.setItem(KEYS.QUICK_ADD_DRINKS, JSON.stringify(drinks));
+}
+
+export async function getLastSyncAt(): Promise<string | null> {
+  return AsyncStorage.getItem(KEYS.LAST_SYNC_AT);
+}
+
+export async function setLastSyncAt(iso: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.LAST_SYNC_AT, iso);
 }
