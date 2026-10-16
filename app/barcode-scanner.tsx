@@ -13,7 +13,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -64,6 +64,9 @@ export default function BarcodeScannerScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
+  // Explicit insets: SafeAreaView can report zero inside a native fullScreenModal,
+  // which put the header under the notch / status bar.
+  const insets = useSafeAreaInsets();
 
   const background = useThemeColor({}, 'background');
   const card = useThemeColor({}, 'cardBackground');
@@ -328,7 +331,12 @@ export default function BarcodeScannerScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -356,7 +364,7 @@ export default function BarcodeScannerScreen() {
         </View>
         {body}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
