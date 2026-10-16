@@ -9,6 +9,10 @@ settings.local.json
 # dependencies
 node_modules/
 
+# parallel feature workspaces (scripts/agents/ship.sh)
+.worktrees/
+.claude/worktrees/
+
 # Expo
 .expo/
 dist/

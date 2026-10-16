@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.0.44",
+  "version": "2.0.45",
   "scripts": {
     "start": "expo start --tunnel",
     "reset-project": "node ./scripts/reset-project.js",
@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build:foods": "node scripts/build-food-db.mjs",
+    "ship": "sh scripts/agents/ship.sh",
     "prepare": "git config core.hooksPath .githooks || true",
     "test": "jest"
   },

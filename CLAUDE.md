@@ -21,6 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `npx expo start --web` | Start web mode (alternative) |
 | `npm test` | Run tests (if configured) |
 | `npm run watch` | Start watch mode |
+| `npm run ship -- <cmd>` | Parallel feature worktrees (`start`, `status`, `rebase`, `land`, `clean`); see `docs/agents/ship.md` |
 
 ## Project Architecture
 

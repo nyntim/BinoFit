@@ -5,7 +5,7 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    ignores: ['dist/*', '.worktrees/**', '.claude/worktrees/**'],
   },
   {
     // React Compiler rules added in eslint-config-expo 57 flag existing

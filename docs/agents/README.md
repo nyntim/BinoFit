@@ -25,6 +25,8 @@ You ──request──▶ Lead
                   └── 7. DELIVER    one commit on the branch, plus a report
 ```
 
+To build **several features in parallel**, follow [ship.md](ship.md): one approval for all the plans, a git worktree and team per feature, then each lands on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh`.
+
 Standalone audits change no code. They each return a ranked list of findings:
 - **Design audit**: the design reviewer checks existing screens.
 - **Bug sweep**: the QA reviewer checks existing code.
@@ -32,11 +34,12 @@ Standalone audits change no code. They each return a ranked list of findings:
 
 ## Using the roles in different tools
 
-- **Claude Code** runs this workflow automatically. The agents in `.claude/agents/` wrap these role files, and the commands are `/build-feature`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
+- **Claude Code** runs this workflow automatically. The agents in `.claude/agents/` wrap these role files, and the commands are `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
 - **Other tools** (Codex, Cursor, Copilot and so on) read `AGENTS.md` at the repo root, which points here. Ask for a role by name, for example: "Act as the QA reviewer in `docs/agents/qa-reviewer.md` and review my diff."
 
 ## Rules for every role
 - Only the lead (the main session, or you) commits, pushes or creates branches.
+- If the lead gives you a workspace path (a worktree under `.worktrees/`), read, edit and run commands only inside it.
 - Branch names, commit messages and commit authorship follow `CLAUDE.md`: no references to AI or assistants, and commits are authored by the repo owner.
 - Each feature lands as **one commit**, because the pre-commit hook bumps the app version on every commit.
 

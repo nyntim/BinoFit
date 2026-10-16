@@ -19,6 +19,8 @@ This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.m
 
 When you're asked to take on a role, read its file and follow it. [`docs/agents/README.md`](docs/agents/README.md) describes the full workflow.
 
+To build several features at once, act as the lead in [`docs/agents/ship.md`](docs/agents/ship.md): each feature gets its own git worktree and team, and the results land on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh` (`npm run ship -- <command>`).
+
 ## Rules for every agent
 - Run `npm run lint` and `npx tsc --noEmit` before reporting work as done.
 - Don't commit, push or create branches unless the user asks you to.
