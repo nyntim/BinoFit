@@ -1,13 +1,27 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import { secureSessionStorage } from '@/lib/secure-session-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-});
+/**
+ * createClient throws on an empty URL, which would crash the app at import time when the env
+ * vars are missing. In that case a placeholder client is built and never used: auth and sync
+ * check isSyncConfigured() first, and any stray query fails fast with a network error that
+ * callers already swallow.
+ */
+const configured = Boolean(supabaseUrl && supabaseAnonKey);
+
+export const supabase = createClient(
+  configured ? supabaseUrl : 'https://unconfigured.invalid',
+  configured ? supabaseAnonKey : 'unconfigured',
+  {
+    auth: {
+      storage: secureSessionStorage,
+      persistSession: configured,
+      autoRefreshToken: configured,
+      detectSessionInUrl: false,
+    },
+  }
+);

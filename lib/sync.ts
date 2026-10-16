@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { getDeviceId } from '@/lib/device-id';
+import { getSessionUserId, initAuth, reconcileSyncedUid, retryPendingMergeTicket } from '@/lib/auth';
+import { isAuthTransitioning } from '@/lib/auth-transition';
 import {
   getUnsyncedFoodLogs,
   markFoodLogsSynced,
@@ -17,41 +18,63 @@ import {
 } from '@/lib/storage';
 import { reportSyncStart, reportSyncResult } from '@/lib/sync-status';
 
-let _syncing = false;
+let _current: Promise<void> | null = null;
 let _rerun = false;
 
 /**
  * Push all unsynced local data to Supabase.
  * Never throws — callers can fire-and-forget. Outcomes are reported to `@/lib/sync-status`.
- * A call made while a sync is running schedules exactly one extra pass afterwards.
- * Never awaited inline; call without await after any write or on app foreground.
+ * A call made while a sync is running schedules exactly one extra pass afterwards and
+ * resolves when the running sync (including that extra pass) has finished, so
+ * `await syncToSupabase()` really waits. Never awaited inline after writes; call without await
+ * after any write or on app foreground.
  */
-export async function syncToSupabase(): Promise<void> {
-  if (_syncing) {
+export function syncToSupabase(): Promise<void> {
+  if (_current) {
     _rerun = true;
-    return;
+    return _current;
   }
-  _syncing = true;
-  try {
-    do {
-      _rerun = false;
-      await runPass();
-    } while (_rerun);
-  } catch {
-    // Never reject: reporting or persistence problems must not reach fire-and-forget callers.
-  } finally {
-    _syncing = false;
-  }
+  const run = (async () => {
+    try {
+      do {
+        _rerun = false;
+        await runPass();
+      } while (_rerun);
+    } catch {
+      // Never reject: reporting or persistence problems must not reach fire-and-forget callers.
+    } finally {
+      _current = null;
+    }
+  })();
+  _current = run;
+  return run;
+}
+
+/** Resolves when no sync is running. */
+export function waitForSyncIdle(): Promise<void> {
+  return _current ?? Promise.resolve();
 }
 
 async function runPass(): Promise<void> {
+  // Sign-in merge or sign-out wipe in progress: whoever holds the flag triggers a sync after.
+  if (isAuthTransitioning()) return;
+  // No session yet (offline first launch, or sync not configured): skip without reporting a
+  // failure. initAuth retries sign-in and triggers a fresh sync once a session exists.
+  const userId = await getSessionUserId();
+  if (!userId) {
+    initAuth();
+    return;
+  }
+  await retryPendingMergeTicket();
+  await reconcileSyncedUid(userId);
+
   reportSyncStart();
   const results = await Promise.allSettled([
-    syncFoodLogs(),
-    syncUserGoals(),
-    syncUserProfile(),
-    syncMealDefinitions(),
-    syncMealNames(),
+    syncFoodLogs(userId),
+    syncUserGoals(userId),
+    syncUserProfile(userId),
+    syncMealDefinitions(userId),
+    syncMealNames(userId),
   ]);
   const ok = results.every((r) => r.status === 'fulfilled');
   reportSyncResult(ok);
@@ -64,15 +87,13 @@ async function runPass(): Promise<void> {
   }
 }
 
-async function syncFoodLogs(): Promise<void> {
+async function syncFoodLogs(userId: string): Promise<void> {
   const unsynced = await getUnsyncedFoodLogs();
   if (unsynced.length === 0) return;
 
-  const deviceId = await getDeviceId();
-
   const rows = unsynced.map((log) => ({
     id: log.id,
-    user_id: deviceId,
+    user_id: userId,
     date: log.date,
     meal_slot: log.meal_slot,
     food_id: log.food_id,
@@ -91,15 +112,13 @@ async function syncFoodLogs(): Promise<void> {
 }
 
 // Push-only. Deleted meals are not removed from Supabase (same gap as other tables).
-async function syncMealDefinitions(): Promise<void> {
+async function syncMealDefinitions(userId: string): Promise<void> {
   const unsynced = await getUnsyncedMealDefinitions();
   if (unsynced.length === 0) return;
 
-  const deviceId = await getDeviceId();
-
   const rows = unsynced.map((m) => ({
     id: m.id,
-    user_id: deviceId,
+    user_id: userId,
     position: m.position,
     calorie_target: m.calorie_target,
     protein_target: m.protein_target,
@@ -118,14 +137,12 @@ async function syncMealDefinitions(): Promise<void> {
   await markMealDefinitionsSynced(unsynced.map((m) => m.id));
 }
 
-async function syncMealNames(): Promise<void> {
+async function syncMealNames(userId: string): Promise<void> {
   const unsynced = await getUnsyncedMealNames();
   if (unsynced.length === 0) return;
 
-  const deviceId = await getDeviceId();
-
   const rows = unsynced.map((n) => ({
-    user_id: deviceId,
+    user_id: userId,
     meal_id: n.meal_id,
     name: n.name,
     effective_from: n.effective_from,
@@ -140,15 +157,13 @@ async function syncMealNames(): Promise<void> {
   await markMealNamesSynced(unsynced);
 }
 
-async function syncUserGoals(): Promise<void> {
+async function syncUserGoals(userId: string): Promise<void> {
   const goals = await getUserGoals();
   if (!goals || goals.synced_at) return;
 
-  const deviceId = await getDeviceId();
-
   const { error } = await supabase.from('user_goals').upsert(
     {
-      user_id: deviceId,
+      user_id: userId,
       calorie_goal: goals.calorie_goal,
       protein_goal: goals.protein_goal,
       carb_goal: goals.carb_goal,
@@ -162,15 +177,13 @@ async function syncUserGoals(): Promise<void> {
   await markGoalsSynced(new Date().toISOString());
 }
 
-async function syncUserProfile(): Promise<void> {
+async function syncUserProfile(userId: string): Promise<void> {
   const profile = await getUserProfile();
   if (!profile || profile.synced_at) return;
 
-  const deviceId = await getDeviceId();
-
   const { error } = await supabase.from('user_profile').upsert(
     {
-      user_id: deviceId,
+      user_id: userId,
       weight: profile.weight,
       height: profile.height,
       activity_level: profile.activity_level,

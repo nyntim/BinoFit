@@ -18,10 +18,20 @@ jest.mock('react-native-health', () => ({
 
 jest.mock('@/lib/supabase', () => {
   const builder = {};
-  ['from', 'select', 'upsert', 'insert', 'delete', 'eq', 'or', 'not', 'limit', 'single'].forEach(
+  ['from', 'select', 'upsert', 'insert', 'delete', 'eq', 'or', 'not', 'limit', 'single', 'in', 'order', 'range'].forEach(
     (m) => (builder[m] = jest.fn(() => builder))
   );
   builder.then = (resolve) => resolve({ data: null, error: null });
+  builder.rpc = jest.fn(async () => ({ data: null, error: null }));
+  builder.auth = {
+    getSession: jest.fn(async () => ({ data: { session: null }, error: null })),
+    signInAnonymously: jest.fn(async () => ({ data: { session: null, user: null }, error: null })),
+    signInWithIdToken: jest.fn(async () => ({ data: { session: null, user: null }, error: null })),
+    signOut: jest.fn(async () => ({ error: null })),
+    onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    startAutoRefresh: jest.fn(async () => {}),
+    stopAutoRefresh: jest.fn(async () => {}),
+  };
   return { supabase: builder };
 });
 
@@ -39,8 +49,34 @@ jest.mock('expo-notifications', () => ({
 
 jest.mock('expo-crypto', () => {
   let n = 0;
-  return { randomUUID: jest.fn(() => `uuid-${++n}`) };
+  return {
+    randomUUID: jest.fn(() => `uuid-${++n}`),
+    digestStringAsync: jest.fn(async (_alg, value) => `sha256(${value})`),
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  };
 });
+
+jest.mock('expo-secure-store', () => {
+  const store = new Map();
+  return {
+    AFTER_FIRST_UNLOCK: 'AFTER_FIRST_UNLOCK',
+    getItemAsync: jest.fn(async (k) => (store.has(k) ? store.get(k) : null)),
+    setItemAsync: jest.fn(async (k, v) => {
+      store.set(k, v);
+    }),
+    deleteItemAsync: jest.fn(async (k) => {
+      store.delete(k);
+    }),
+  };
+});
+
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: jest.fn(async () => ({ identityToken: 'apple-id-token' })),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  AppleAuthenticationButtonType: { SIGN_IN: 0 },
+  AppleAuthenticationButtonStyle: { WHITE: 0, BLACK: 2 },
+  AppleAuthenticationButton: 'AppleAuthenticationButton',
+}));
 
 // expo-sqlite is mocked by default with inert fns; individual tests override it.
 jest.mock('expo-sqlite', () => ({

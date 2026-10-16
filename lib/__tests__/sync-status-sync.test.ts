@@ -4,7 +4,12 @@ const mockFrom = jest.fn((..._a: unknown[]): { upsert: (...a: unknown[]) => unkn
 }));
 
 jest.mock('@/lib/supabase', () => ({ supabase: { from: (...a: unknown[]) => mockFrom(...a) } }));
-jest.mock('@/lib/device-id', () => ({ getDeviceId: jest.fn(async () => 'dev-1') }));
+jest.mock('@/lib/auth', () => ({
+  getSessionUserId: jest.fn(async () => 'dev-1'),
+  initAuth: jest.fn(async () => ({ status: 'none', restored: false })),
+  retryPendingMergeTicket: jest.fn(async () => {}),
+  reconcileSyncedUid: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/storage', () => ({
   getUserGoals: jest.fn(),
   getUserProfile: jest.fn(),
@@ -110,10 +115,10 @@ describe('sync status reporting', () => {
 
     const first = syncToSupabase();
     await Promise.resolve();
-    await syncToSupabase();
-    await syncToSupabase();
+    // Extra calls wait for the running sync, so they resolve only after the gate opens.
+    const extra = [syncToSupabase(), syncToSupabase()];
     release();
-    await first;
+    await Promise.all([first, ...extra]);
 
     expect(db.getUnsyncedFoodLogs).toHaveBeenCalledTimes(2);
   });

@@ -119,3 +119,63 @@ export type QuickAddDrink = {
   amount: number;
   food_id?: string;
 };
+
+/** 'none' = no session (offline first launch, or sync not configured). */
+export type AuthStatus = 'none' | 'anonymous' | 'signedIn';
+
+export type AuthState = {
+  status: AuthStatus;
+  email: string | null;
+};
+
+// Rows as returned by Supabase. Timestamps are timestamptz strings and may carry an offset.
+export type RemoteFoodLog = {
+  id: string;
+  user_id: string;
+  date: string;
+  meal_slot: string;
+  food_id: string;
+  serving_amount: number;
+  serving_unit: string;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteMealDefinition = {
+  user_id: string;
+  id: string;
+  position: number;
+  calorie_target: number | null;
+  protein_target: number | null;
+  carb_target: number | null;
+  fat_target: number | null;
+  reminder_time: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type RemoteMealName = {
+  user_id: string;
+  meal_id: string;
+  name: string;
+  effective_from: string;
+  updated_at: string | null;
+};
+
+export type RemoteUserGoals = {
+  user_id: string;
+  calorie_goal: number | null;
+  protein_goal: number | null;
+  carb_goal: number | null;
+  fat_goal: number | null;
+  updated_at: string | null;
+};
+
+export type RemoteUserProfile = {
+  user_id: string;
+  weight: number | null;
+  height: number | null;
+  activity_level: string | null;
+  updated_at: string | null;
+};

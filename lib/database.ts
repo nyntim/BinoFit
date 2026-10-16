@@ -9,6 +9,9 @@ import type {
   MealNameEntry,
   MealSlot,
   MealSlotConfirmation,
+  RemoteFoodLog,
+  RemoteMealDefinition,
+  RemoteMealName,
   WaterLog,
 } from '@/lib/types';
 import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
@@ -725,4 +728,200 @@ export async function getMealSlotConfirmationsInRange(
     [start, start, end, end]
   );
   return rows.map((r) => ({ ...r, confirmed: r.confirmed === 1 }));
+}
+
+// ── Account restore / sign-out ──────────────────────────────────
+
+/** Supabase timestamptz strings carry offsets and microseconds; local rows use plain ISO. */
+function toIso(value: string | null | undefined, fallback: string): string {
+  const t = value ? Date.parse(value) : NaN;
+  return Number.isFinite(t) ? new Date(t).toISOString() : fallback;
+}
+
+/** True when the remote copy should replace the local one (last write wins; ties keep local). */
+export function isRemoteNewer(remoteUpdatedAt: string, localUpdatedAt: string): boolean {
+  const r = Date.parse(remoteUpdatedAt);
+  const l = Date.parse(localUpdatedAt);
+  if (!Number.isFinite(l)) return true;
+  return Number.isFinite(r) && r > l;
+}
+
+/**
+ * Merges account food logs into SQLite, last write wins on updated_at. Applied rows are marked
+ * synced. Returns how many rows were inserted or updated.
+ */
+export async function applyRemoteFoodLogs(rows: RemoteFoodLog[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  let applied = 0;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const r of rows) {
+      const updatedAt = toIso(r.updated_at, now);
+      const existing = await txn.getFirstAsync<{ updated_at: string }>(
+        'SELECT updated_at FROM food_logs WHERE id = ?',
+        [r.id]
+      );
+      if (existing && !isRemoteNewer(updatedAt, existing.updated_at)) continue;
+      await txn.runAsync(
+        `INSERT INTO food_logs
+           (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           date = excluded.date,
+           meal_slot = excluded.meal_slot,
+           food_id = excluded.food_id,
+           serving_amount = excluded.serving_amount,
+           serving_unit = excluded.serving_unit,
+           updated_at = excluded.updated_at,
+           synced_at = excluded.synced_at`,
+        [
+          r.id,
+          r.date,
+          r.meal_slot,
+          r.food_id,
+          r.serving_amount,
+          r.serving_unit,
+          toIso(r.created_at, updatedAt),
+          updatedAt,
+          now,
+        ]
+      );
+      applied++;
+    }
+  });
+  return applied;
+}
+
+/**
+ * Makes the account's meals the local meals. Remote rows are upserted as synced. A local meal
+ * that the account lacks is removed only if it was already synced (so it was deleted elsewhere)
+ * and has no logs; never-synced local meals are kept and will sync up later. No-op when the
+ * account has no meals.
+ */
+export async function replaceMealsFromRemote(
+  defs: RemoteMealDefinition[],
+  names: RemoteMealName[]
+): Promise<void> {
+  if (defs.length === 0) return;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const remoteIds = new Set(defs.map((d) => d.id));
+  const remoteNameKeys = new Set(names.map((n) => `${n.meal_id}\u0000${n.effective_from}`));
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const d of defs) {
+      await txn.runAsync(
+        `INSERT INTO meal_definitions
+           (id, position, calorie_target, protein_target, carb_target, fat_target, reminder_time, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           position = excluded.position,
+           calorie_target = excluded.calorie_target,
+           protein_target = excluded.protein_target,
+           carb_target = excluded.carb_target,
+           fat_target = excluded.fat_target,
+           reminder_time = excluded.reminder_time,
+           updated_at = excluded.updated_at,
+           synced_at = excluded.synced_at`,
+        [
+          d.id,
+          d.position,
+          d.calorie_target,
+          d.protein_target,
+          d.carb_target,
+          d.fat_target,
+          d.reminder_time,
+          toIso(d.created_at, now),
+          toIso(d.updated_at, now),
+          now,
+        ]
+      );
+    }
+    for (const n of names) {
+      await txn.runAsync(
+        `INSERT INTO meal_names (meal_id, name, effective_from, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(meal_id, effective_from) DO UPDATE SET
+           name = excluded.name,
+           updated_at = excluded.updated_at,
+           synced_at = excluded.synced_at`,
+        [n.meal_id, n.name, n.effective_from, toIso(n.updated_at, now), now]
+      );
+    }
+
+    const localDefs = await txn.getAllAsync<{ id: string; synced_at: string | null }>(
+      'SELECT id, synced_at FROM meal_definitions'
+    );
+    for (const l of localDefs) {
+      if (remoteIds.has(l.id) || l.synced_at === null) continue;
+      const logs = await txn.getFirstAsync<{ c: number }>(
+        'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ?',
+        [l.id]
+      );
+      if ((logs?.c ?? 0) > 0) continue;
+      await txn.runAsync('DELETE FROM meal_slot_confirmations WHERE meal_slot = ?', [l.id]);
+      await txn.runAsync('DELETE FROM meal_names WHERE meal_id = ?', [l.id]);
+      await txn.runAsync('DELETE FROM meal_definitions WHERE id = ?', [l.id]);
+    }
+
+    const localNames = await txn.getAllAsync<{
+      meal_id: string;
+      effective_from: string;
+      synced_at: string | null;
+    }>('SELECT meal_id, effective_from, synced_at FROM meal_names');
+    for (const l of localNames) {
+      if (l.synced_at === null || !remoteIds.has(l.meal_id)) continue;
+      if (remoteNameKeys.has(`${l.meal_id}\u0000${l.effective_from}`)) continue;
+      await txn.runAsync('DELETE FROM meal_names WHERE meal_id = ? AND effective_from = ?', [
+        l.meal_id,
+        l.effective_from,
+      ]);
+    }
+  });
+}
+
+/** Of the given food ids, those with no row in the local foods table. */
+export async function getMissingFoodIds(ids: string[]): Promise<string[]> {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return [];
+  const db = await getDatabase();
+  const present = new Set<string>();
+  const BATCH = 500;
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const batch = unique.slice(i, i + BATCH);
+    const rows = await db.getAllAsync<{ id: string }>(
+      `SELECT id FROM foods WHERE id IN (${batch.map(() => '?').join(', ')})`,
+      batch
+    );
+    rows.forEach((r) => present.add(r.id));
+  }
+  return unique.filter((id) => !present.has(id));
+}
+
+/**
+ * Empties everything a user owns on the device: logs, confirmations, water logs, meals and
+ * names, and custom foods. Cached remote foods and USDA foods stay. Default meals are reseeded.
+ */
+export async function clearUserData(): Promise<void> {
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('DELETE FROM food_logs');
+    await txn.runAsync('DELETE FROM meal_slot_confirmations');
+    await txn.runAsync('DELETE FROM water_logs');
+    await txn.runAsync('DELETE FROM meal_names');
+    await txn.runAsync('DELETE FROM meal_definitions');
+    await txn.runAsync("DELETE FROM foods WHERE source = 'custom'");
+  });
+  await seedDefaultMeals(db);
+}
+
+/** Clears every synced_at so the next sync pushes all rows (used when the owning user id changes). */
+export async function markAllUnsynced(): Promise<void> {
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('UPDATE food_logs SET synced_at = NULL');
+    await txn.runAsync('UPDATE meal_definitions SET synced_at = NULL');
+    await txn.runAsync('UPDATE meal_names SET synced_at = NULL');
+  });
 }

@@ -2,7 +2,12 @@ const mockUpsert = jest.fn();
 const mockFrom = jest.fn(() => ({ upsert: mockUpsert }));
 
 jest.mock('@/lib/supabase', () => ({ supabase: { from: (...a: unknown[]) => (mockFrom as any)(...a) } }));
-jest.mock('@/lib/device-id', () => ({ getDeviceId: jest.fn(async () => 'dev-1') }));
+jest.mock('@/lib/auth', () => ({
+  getSessionUserId: jest.fn(async () => 'dev-1'),
+  initAuth: jest.fn(async () => ({ status: 'none', restored: false })),
+  retryPendingMergeTicket: jest.fn(async () => {}),
+  reconcileSyncedUid: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/storage', () => ({
   getUserGoals: jest.fn(async () => null),
   getUserProfile: jest.fn(async () => null),

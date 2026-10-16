@@ -68,9 +68,9 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 **Storage** — Three-layer storage system:
 - SQLite (`lib/database.ts`) — Meals, food database, logs
 - AsyncStorage (`lib/storage.ts`) — User goals, profile, preferences, quick-add drinks, default log status (eaten | planned)
-- Supabase (`lib/supabase.ts`) — Cloud sync; anonymous device-based identity (no auth)
+- Supabase (`lib/supabase.ts`) — Cloud sync and backup; every install has a Supabase session (anonymous, or Apple sign-in on iOS). Session tokens live in the Keychain via `lib/secure-session-storage.ts`
 
-**Supabase sync** — `lib/sync.ts` pushes unsynced local data to Supabase. Fire-and-forget; never throws. Tables: `food_logs`, `user_goals`, `user_profile`, `foods`.
+**Supabase sync** — `lib/sync.ts` pushes unsynced local data to Supabase. Fire-and-forget; never throws. Tables: `food_logs`, `user_goals`, `user_profile`, `foods`, `meal_definitions`, `meal_names`.
 
 **Sync status** — `lib/sync-status.ts` is a pub/sub store (`status`, `lastSuccessAt`, `failingSince`, `isOffline`) fed by `syncToSupabase()`, which throws per-step on Supabase `{ error }`, runs every step (`allSettled`), and coalesces calls made mid-sync into one extra pass. `deriveIndicator` hides failures for a 30s grace period. UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt`/`setLastSyncAt` in `lib/storage.ts`). `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30s/1m/2m/5m backoff while active and failing. Sync also runs on cold start.
 
@@ -78,7 +78,10 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 
 **Barcode scan** — `lib/open-food-facts.ts` (`normalizeBarcode`, `mapOffProduct`, `buildServingUnits`, `fetchOffProduct`; never throws, 8s timeout) maps Open Food Facts products to `Food` rows (`id: off:{barcode}`, `source: 'open_food_facts'`). `lookupBarcode()` in `lib/food-service.ts` checks SQLite, then OFF, and caches found products; not-found/errors are never cached.
 
-**Device identity** — `lib/device-id.ts` generates and persists a UUID via AsyncStorage. Used as `user_id` for all Supabase rows instead of auth.
+**Identity** — `lib/auth.ts`: `initAuth()` (on launch) ensures a session via `signInAnonymously()`, claims legacy device-UUID rows once (`claim_device_data` RPC), redeems any pending merge ticket and triggers a sync. `user_id` on all Supabase rows is `getSessionUserId()` (`auth.uid()::text`). `lib/device-id.ts` is legacy: read only for the one-time claim. Sync skips silently while there is no session.
+
+**Account (iOS, Apple)** — `signInWithApple()` makes a merge ticket as the anonymous user, signs in with Apple, redeems the ticket (existing account wins), then `lib/restore.ts` `restoreFromAccount()` pulls logs, meals, goals and profile (account replaces local goals/profile/meals; logs last-write-wins). `signOutAndWipe()` (after `prepareSignOut()` and a UI warning) signs out locally, wipes user data and starts a new anonymous session. Water logs, confirmations and quick-add drinks do not sync yet. UI: `components/settings/AccountSection.tsx`, onboarding restore link. Hooks: `useAuth`.
+RLS is deployed in two steps in `supabase/schema.sql` (STEP A then STEP B).
 
 ## Key Files
 
@@ -88,11 +91,12 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 - `lib/database.ts` — SQLite schema and CRUD operations
 - `lib/types.ts` — TypeScript types for Food, FoodLog, UserGoals, UserProfile, WaterLog, QuickAddDrink
 - `lib/storage.ts` — AsyncStorage wrappers (goals, profile, preferences, sync timestamps)
-- `lib/supabase.ts` — Supabase client (no auth; reads `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`)
+- `lib/auth.ts` — Session, Apple sign-in, sign-out wipe; `lib/restore.ts` — restore from account
+- `lib/supabase.ts` — Supabase client (anonymous or Apple session; reads `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`)
 - `lib/sync.ts` — Fire-and-forget sync to Supabase; call after any write or on app foreground
 - `lib/export.ts` — Pure CSV export: `rangeDates`, `buildExportRows`, `toCsv`, `exportFileName` (file write/share in `lib/export-file.ts`, `.web.ts` downloads)
 - `lib/food-service.ts` — Food search with local-first + remote fallback
-- `lib/device-id.ts` — Persistent anonymous device UUID
+- `lib/device-id.ts` — Legacy device UUID (only used to claim old rows)
 - `constants/theme.ts` — Theme colors, macro colors, fonts
 - `supabase/schema.sql` — Supabase DB schema
 

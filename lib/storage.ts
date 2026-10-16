@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { LogStatus, UserGoals, UserProfile } from '@/lib/types';
+import type { LogStatus, RemoteUserGoals, RemoteUserProfile, UserGoals, UserProfile } from '@/lib/types';
 
 const KEYS = {
   USER_GOALS: 'user_goals',
@@ -9,6 +9,11 @@ const KEYS = {
   QUICK_ADD_DRINKS: 'quick_add_drinks',
   DEVICE_ID: 'device_id',
   LAST_SYNC_AT: 'last_sync_at',
+  LEGACY_CLAIMED: 'legacy_data_claimed',
+  PENDING_MERGE_TICKET: 'pending_merge_ticket',
+  PENDING_WIPE: 'pending_wipe',
+  RESTORE_PENDING: 'restore_pending',
+  SYNCED_UID: 'last_synced_uid',
 } as const;
 
 type StoredUserGoals = UserGoals & { synced_at?: string };
@@ -86,4 +91,135 @@ export async function getLastSyncAt(): Promise<string | null> {
 
 export async function setLastSyncAt(iso: string): Promise<void> {
   await AsyncStorage.setItem(KEYS.LAST_SYNC_AT, iso);
+}
+
+// ── Account ─────────────────────────────────────────────────────
+
+export async function getLegacyClaimed(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.LEGACY_CLAIMED)) === 'true';
+}
+
+export async function setLegacyClaimed(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.LEGACY_CLAIMED, 'true');
+}
+
+export type PendingMergeTicket = { ticket: string; from: string };
+
+export async function getPendingMergeTicket(): Promise<PendingMergeTicket | null> {
+  const raw = await AsyncStorage.getItem(KEYS.PENDING_MERGE_TICKET);
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as Partial<PendingMergeTicket>;
+    return typeof v.ticket === 'string' && typeof v.from === 'string'
+      ? { ticket: v.ticket, from: v.from }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `from` is the anonymous user id the ticket was made by. */
+export async function setPendingMergeTicket(ticket: string, from: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.PENDING_MERGE_TICKET, JSON.stringify({ ticket, from }));
+}
+
+export async function getPendingWipe(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.PENDING_WIPE)) === 'true';
+}
+
+export async function setPendingWipe(): Promise<void> {
+  await AsyncStorage.setItem(KEYS.PENDING_WIPE, 'true');
+}
+
+export async function clearPendingWipe(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.PENDING_WIPE);
+}
+
+export async function getRestorePending(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.RESTORE_PENDING)) === 'true';
+}
+
+export async function setRestorePending(pending: boolean): Promise<void> {
+  if (pending) await AsyncStorage.setItem(KEYS.RESTORE_PENDING, 'true');
+  else await AsyncStorage.removeItem(KEYS.RESTORE_PENDING);
+}
+
+export async function getSyncedUid(): Promise<string | null> {
+  return AsyncStorage.getItem(KEYS.SYNCED_UID);
+}
+
+export async function setSyncedUid(uid: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.SYNCED_UID, uid);
+}
+
+/** Clears the synced flag on goals and profile so the next sync pushes them again. */
+export async function clearGoalsProfileSyncFlags(): Promise<void> {
+  const [goals, profile] = await Promise.all([getUserGoals(), getUserProfile()]);
+  if (goals?.synced_at) {
+    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...goals, synced_at: undefined }));
+  }
+  if (profile?.synced_at) {
+    await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify({ ...profile, synced_at: undefined }));
+  }
+}
+
+export async function clearPendingMergeTicket(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.PENDING_MERGE_TICKET);
+}
+
+const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const;
+
+/** Replaces local goals with the account's. Returns false (and writes nothing) if the row is incomplete. */
+export async function applyRemoteGoals(remote: RemoteUserGoals): Promise<boolean> {
+  const { calorie_goal, protein_goal, carb_goal, fat_goal } = remote;
+  if (
+    calorie_goal == null || protein_goal == null || carb_goal == null || fat_goal == null
+  ) {
+    return false;
+  }
+  const now = new Date().toISOString();
+  const data: StoredUserGoals = {
+    calorie_goal,
+    protein_goal,
+    carb_goal,
+    fat_goal,
+    updated_at: remote.updated_at ? new Date(remote.updated_at).toISOString() : now,
+    synced_at: now,
+  };
+  await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify(data));
+  return true;
+}
+
+/** Replaces the local profile with the account's. */
+export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<void> {
+  const now = new Date().toISOString();
+  const level = (ACTIVITY_LEVELS as readonly string[]).includes(remote.activity_level ?? '')
+    ? (remote.activity_level as UserProfile['activity_level'])
+    : null;
+  const data: StoredUserProfile = {
+    weight: remote.weight,
+    height: remote.height,
+    activity_level: level,
+    updated_at: remote.updated_at ? new Date(remote.updated_at).toISOString() : now,
+    synced_at: now,
+  };
+  await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(data));
+}
+
+/**
+ * Removes everything a signed-out user owns in AsyncStorage: goals, profile, the onboarding
+ * flag, quick-add drinks, the pending merge ticket and the last-sync stamp. Keeps the device
+ * id, the legacy-claimed flag and the default log status preference.
+ */
+export async function clearUserStorage(): Promise<void> {
+  await AsyncStorage.multiRemove([
+    KEYS.USER_GOALS,
+    KEYS.USER_PROFILE,
+    KEYS.ONBOARDING_COMPLETE,
+    KEYS.QUICK_ADD_DRINKS,
+    KEYS.PENDING_MERGE_TICKET,
+    KEYS.LAST_SYNC_AT,
+    KEYS.RESTORE_PENDING,
+    KEYS.SYNCED_UID,
+  ]);
 }

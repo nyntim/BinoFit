@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -8,6 +8,9 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
+import { initAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import { isSyncConfigured } from '@/lib/sync-status';
 import { useSyncAutoRetry } from '@/hooks/useSyncAutoRetry';
 import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
 
@@ -23,18 +26,36 @@ export default function RootLayout() {
 
   useSyncAutoRetry();
 
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
   // Re-create meal reminders on launch and on foreground, in case the OS cleared them
   // or notification permission changed in system settings.
   useEffect(() => {
     restoreMealReminders();
-    syncToSupabase();
+    // Establishes the session first; initAuth triggers the first sync once there is a user id.
+    initAuth().then((result) => {
+      // A signed-in session survived a reinstall and its data came back. Onboarding is already
+      // marked complete; only leave the screen if the user has not started interacting with it
+      // (still on the welcome screen or the loading route), otherwise it applies next launch.
+      const route = pathnameRef.current;
+      if (result.restored && (route === '/' || route === '/onboarding')) {
+        router.replace('/(tabs)');
+      }
+    });
   }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        if (isSyncConfigured()) supabase.auth.startAutoRefresh();
         syncToSupabase();
         restoreMealReminders();
+      } else if (nextState !== 'active' && isSyncConfigured()) {
+        supabase.auth.stopAutoRefresh();
       }
       appState.current = nextState;
     });

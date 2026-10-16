@@ -283,7 +283,7 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
  * Save a newly created custom food to Supabase so it survives reinstall.
  * Fire-and-forget — callers must NOT await this.
  */
-export async function saveCustomFoodToSupabase(food: Food, deviceId: string): Promise<void> {
+export async function saveCustomFoodToSupabase(food: Food, userId: string): Promise<void> {
   // TODO: Verify if this should also change if 'foods' table is renamed
   await supabase.from('foods').upsert(
     {
@@ -296,7 +296,7 @@ export async function saveCustomFoodToSupabase(food: Food, deviceId: string): Pr
       carbs: food.carbs,
       fat: food.fat,
       source: 'custom',
-      user_id: deviceId,
+      user_id: userId,
       updated_at: food.updated_at,
     },
     { onConflict: 'id' }

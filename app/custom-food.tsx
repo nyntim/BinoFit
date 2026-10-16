@@ -16,7 +16,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addCustomFood } from '@/lib/database';
 import { saveCustomFoodToSupabase } from '@/lib/food-service';
-import { getDeviceId } from '@/lib/device-id';
+import { getSessionUserId } from '@/lib/auth';
 
 export default function CustomFoodScreen() {
   const params = useLocalSearchParams<{
@@ -62,7 +62,9 @@ export default function CustomFoodScreen() {
       });
 
       // Fire-and-forget — custom foods live in Supabase as source of truth
-      getDeviceId().then((deviceId) => saveCustomFoodToSupabase(food, deviceId));
+      getSessionUserId()
+        .then((userId) => (userId ? saveCustomFoodToSupabase(food, userId) : undefined))
+        .catch(() => {});
 
       router.replace({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

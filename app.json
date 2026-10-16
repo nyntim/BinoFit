@@ -2,13 +2,14 @@
   "expo": {
     "name": "BinoFit",
     "slug": "binofit",
-    "version": "2.0.48",
+    "version": "2.0.49",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.healthkit": true
       },
@@ -61,7 +62,9 @@
       "expo-sqlite",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,
