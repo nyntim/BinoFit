@@ -5,6 +5,11 @@
 -- and `user_id` columns hold auth.uid()::text. Rows written before that hold the old device UUID
 -- until the app calls claim_device_data().
 --
+-- Email + password accounts (Authentication > Providers > Email): enable the Email provider and
+-- Anonymous sign-ins. Minimum password length 8. "Confirm email" may be on or off. If it is on,
+-- the "Confirm email change" and "Reset password" templates must show {{ .Token }} (the 6-digit
+-- code the app asks for), not only the link. Apple stays enabled for Sign in with Apple.
+--
 -- Deploy in two steps:
 --   STEP A  tables, functions and the still-open policies. Safe for installs that predate auth.
 --   STEP B  tightened row level security. Run only AFTER every device you use runs the build

@@ -4,7 +4,7 @@ import { deriveAuthState, getAuthState } from '@/lib/auth';
 import { isSyncConfigured } from '@/lib/sync-status';
 import type { AuthState } from '@/lib/types';
 
-const NONE: AuthState = { status: 'none', email: null };
+const NONE: AuthState = { status: 'none', email: null, method: null };
 
 /** Current auth status: no session, an anonymous session, or signed in (with the account email). */
 export function useAuth(): AuthState {

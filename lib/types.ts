@@ -123,9 +123,13 @@ export type QuickAddDrink = {
 /** 'none' = no session (offline first launch, or sync not configured). */
 export type AuthStatus = 'none' | 'anonymous' | 'signedIn';
 
+export type AuthMethod = 'apple' | 'email';
+
 export type AuthState = {
   status: AuthStatus;
   email: string | null;
+  /** How a signed-in user signs in; null when anonymous or unknown. */
+  method: AuthMethod | null;
 };
 
 // Rows as returned by Supabase. Timestamps are timestamptz strings and may carry an offset.

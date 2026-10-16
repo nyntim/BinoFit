@@ -36,6 +36,7 @@ const events: string[] = [];
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  auth.resetAuthRuntimeState();
   await AsyncStorage.clear();
   events.length = 0;
   process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
@@ -60,9 +61,9 @@ beforeEach(async () => {
 
 describe('pure helpers', () => {
   it('deriveAuthState maps no session, anonymous and signed-in', () => {
-    expect(auth.deriveAuthState(null)).toEqual({ status: 'none', email: null });
-    expect(auth.deriveAuthState(anonSession as never)).toEqual({ status: 'anonymous', email: null });
-    expect(auth.deriveAuthState(appleSession as never)).toEqual({ status: 'signedIn', email: 'a@b.com' });
+    expect(auth.deriveAuthState(null)).toEqual({ status: 'none', email: null, method: null });
+    expect(auth.deriveAuthState(anonSession as never)).toEqual({ status: 'anonymous', email: null, method: null });
+    expect(auth.deriveAuthState(appleSession as never)).toEqual({ status: 'signedIn', email: 'a@b.com', method: null });
   });
 
   it('signed-in session without an email gives a null email', () => {
@@ -100,7 +101,7 @@ describe('session accessors', () => {
 
   it('getAuthState reflects the session', async () => {
     setSession(appleSession);
-    expect(await auth.getAuthState()).toEqual({ status: 'signedIn', email: 'a@b.com' });
+    expect(await auth.getAuthState()).toEqual({ status: 'signedIn', email: 'a@b.com', method: null });
   });
 });
 

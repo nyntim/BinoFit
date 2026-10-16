@@ -70,6 +70,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="account" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="food-search" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="serving-picker" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="barcode-scanner" options={{ presentation: 'fullScreenModal', headerShown: false }} />

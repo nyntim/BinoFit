@@ -4,21 +4,29 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const APPLE_SIGN_IN_SUPPORTED = true;
 
-type Props = { onPress: () => void; disabled?: boolean };
+export type AppleButtonType = 'signIn' | 'signUp' | 'continue';
+
+type Props = { onPress: () => void; disabled?: boolean; type?: AppleButtonType };
+
+const BUTTON_TYPES = {
+  signIn: AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN,
+  signUp: AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP,
+  continue: AppleAuthentication.AppleAuthenticationButtonType.CONTINUE,
+} as const;
 
 /** The official Apple button, as Apple's guidelines require. */
-export function AppleSignInButton({ onPress, disabled }: Props) {
+export function AppleSignInButton({ onPress, disabled, type = 'signIn' }: Props) {
   const scheme = useColorScheme();
   return (
     <View style={disabled ? styles.disabled : undefined} pointerEvents={disabled ? 'none' : 'auto'}>
       <AppleAuthentication.AppleAuthenticationButton
-        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+        buttonType={BUTTON_TYPES[type]}
         buttonStyle={
           scheme === 'dark'
             ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
             : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
         }
-        cornerRadius={12}
+        cornerRadius={18}
         style={styles.button}
         onPress={onPress}
       />

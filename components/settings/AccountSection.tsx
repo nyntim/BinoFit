@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/hooks/useAuth';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { getRestorePending } from '@/lib/storage';
+import { getLastAuthIssue } from '@/lib/auth-debug';
 import { prepareSignOut, retryRestore, signInWithApple, signOutAndWipe } from '@/lib/auth';
+import type { AuthMethod } from '@/lib/types';
 import { describeProgress, describeRestore, type RestoreProgress } from '@/lib/restore';
 import {
   APPLE_SIGN_IN_SUPPORTED,
   AppleSignInButton,
 } from '@/components/settings/AppleSignInButton';
 
-export const SIGN_OUT_TITLE = 'Sign out of Apple?';
+export const SIGN_OUT_TITLE = 'Sign out?';
 
 export function signOutWarning(unsynced: number): string {
   const lines = [
@@ -27,6 +29,12 @@ export function signOutWarning(unsynced: number): string {
   return lines.join('\n\n');
 }
 
+/** Row text for the signed-in account. */
+export function signedInLabel(method: AuthMethod | null, email: string | null): string {
+  if (method === 'apple') return email ? `Signed in with Apple · ${email}` : 'Signed in with Apple';
+  return email ? `Signed in as ${email}` : 'Signed in';
+}
+
 type Mode = 'signIn' | 'restore' | 'signOut';
 
 /** Busy label. The restore progress text is used only once restore has reported progress. */
@@ -37,14 +45,15 @@ export function busyLabel(mode: Mode, progress: RestoreProgress | null): string 
   return describeProgress(null);
 }
 
-/** Settings section for backing up to, and signing out of, an Apple account. */
+/** Settings section for signing up, signing in and out, and changing the account password. */
 export function AccountSection() {
-  const { status, email } = useAuth();
+  const { status, email, method } = useAuth();
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
   const danger = useThemeColor({}, 'danger');
   const card = useThemeColor({}, 'cardBackground');
+  const onTint = useThemeColor({}, 'background');
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [progress, setProgress] = useState<RestoreProgress | null>(null);
@@ -62,9 +71,32 @@ export function AccountSection() {
     };
   }, [status, mode]);
 
-  if (!isSyncConfigured()) return null;
-  // Without Apple sign-in (Android, web) there is nothing to offer an anonymous user.
-  if (status === 'none' || (status === 'anonymous' && !APPLE_SIGN_IN_SUPPORTED)) return null;
+  // accessibilityLiveRegion is Android-only; VoiceOver needs an explicit announcement.
+  useEffect(() => {
+    if (message) AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
+
+  const devIssue = __DEV__ ? getLastAuthIssue() : null;
+  const devRow = __DEV__ ? (
+    <View style={[styles.row, { backgroundColor: card }]}>
+      <Text style={[styles.rowText, { color: icon }]} selectable>
+        {`Auth: last error · ${devIssue ? `${devIssue.step}: ${devIssue.summary}` : 'none'}`}
+      </Text>
+    </View>
+  ) : null;
+
+  if (!isSyncConfigured()) {
+    return devRow ? (
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: text }]}>Account</Text>
+        {devRow}
+      </View>
+    ) : null;
+  }
+
+  function openAccount(mode: 'signUp' | 'signIn' | 'changePassword') {
+    router.push({ pathname: '/account', params: { mode } } as never);
+  }
 
   async function handleSignIn() {
     setMode('signIn');
@@ -140,13 +172,20 @@ export function AccountSection() {
       {status === 'signedIn' ? (
         <>
           <View style={[styles.row, { backgroundColor: card }]}>
-            <Text
-              style={[styles.rowText, { color: text }]}
-              accessibilityLabel={email ? `Signed in with Apple, ${email}` : 'Signed in with Apple'}
-            >
-              {email ? `Signed in with Apple · ${email}` : 'Signed in with Apple'}
+            <Text style={[styles.rowText, { color: text }]}>
+              {signedInLabel(method, email)}
             </Text>
           </View>
+          {method === 'email' && (
+            <TouchableOpacity
+              style={[styles.row, styles.actionRow, { backgroundColor: card }]}
+              onPress={() => openAccount('changePassword')}
+              disabled={busy}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.rowText, { color: tint }]}>Change password</Text>
+            </TouchableOpacity>
+          )}
           {restorePending && (
             <View style={[styles.row, styles.restoreRow, { backgroundColor: card }]}>
               <Text style={[styles.rowText, styles.restoreText, { color: text }]}>
@@ -157,7 +196,6 @@ export function AccountSection() {
                 onPress={handleRetry}
                 disabled={busy}
                 accessibilityRole="button"
-                accessibilityLabel="Restore data"
               >
                 <Text style={[styles.retryText, { color: tint }]}>Restore data</Text>
               </TouchableOpacity>
@@ -168,7 +206,6 @@ export function AccountSection() {
             onPress={handleSignOut}
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel="Sign out"
           >
             <Text style={[styles.signOutText, { color: danger }]}>Sign Out</Text>
           </TouchableOpacity>
@@ -178,7 +215,27 @@ export function AccountSection() {
           <Text style={[styles.hint, { color: icon }]}>
             Sign in to back up your log and restore it on a new phone.
           </Text>
-          <AppleSignInButton onPress={handleSignIn} disabled={busy} />
+          {APPLE_SIGN_IN_SUPPORTED && (
+            <View style={styles.apple}>
+              <AppleSignInButton type="signIn" onPress={handleSignIn} disabled={busy} />
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: tint }]}
+            onPress={() => openAccount('signUp')}
+            disabled={busy}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.actionBtnText, { color: onTint }]}>Sign up with email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.ghostBtn}
+            onPress={() => openAccount('signIn')}
+            disabled={busy}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.retryText, { color: tint }]}>Sign in</Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -188,6 +245,7 @@ export function AccountSection() {
           <Text style={[styles.statusText, { color: icon }]}>{busyLabel(mode, progress)}</Text>
         </View>
       )}
+      {devRow}
       {!busy && message && (
         <View style={styles.status} accessibilityLiveRegion="polite">
           <Text style={[styles.statusText, { color: icon }]}>{message}</Text>
@@ -205,10 +263,15 @@ const styles = StyleSheet.create({
   rowText: { fontSize: 15 },
   restoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   restoreText: { flex: 1 },
+  apple: { marginBottom: 8 },
+  actionRow: { minHeight: 44, justifyContent: 'center' },
+  actionBtn: { minHeight: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  actionBtnText: { fontSize: 17, fontWeight: '600' },
+  ghostBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   signOutBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: 44 },
-  signOutText: { fontSize: 16, fontWeight: '600' },
+  signOutText: { fontSize: 17, fontWeight: '600' },
   status: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   statusText: { fontSize: 13, lineHeight: 18, flexShrink: 1 },
   retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  retryText: { fontSize: 15, fontWeight: '600' },
+  retryText: { fontSize: 17, fontWeight: '600' },
 });
