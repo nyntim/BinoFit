@@ -82,3 +82,21 @@ describe('logsForSlot / slotCalories', () => {
     expect(sumEatenTotals([log('lunch', 2, 150)], [conf('lunch', false)]).calories).toBe(0);
   });
 });
+
+describe('logTotals', () => {
+  const { logTotals } = require('@/lib/nutrition-totals');
+  it('multiplies food values by servings without rounding', () => {
+    const t = logTotals(log('b', 0.35, 123, 7.77, 11.11, 3.33));
+    expect(t.calories).toBeCloseTo(43.05, 10);
+    expect(t.protein).toBeCloseTo(2.7195, 10);
+    expect(t.carbs).toBeCloseTo(3.8885, 10);
+    expect(t.fat).toBeCloseTo(1.1655, 10);
+  });
+  it('returns zeros for zero servings', () => {
+    expect(logTotals(log('b', 0))).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+  });
+  it('matches sumEatenTotals for a single eaten log', () => {
+    const l = log('b', 1.5);
+    expect(sumEatenTotals([l], [])).toEqual(logTotals(l));
+  });
+});

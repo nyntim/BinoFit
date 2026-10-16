@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
+import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import {
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
+  const [exportOpen, setExportOpen] = useState(false);
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
@@ -273,6 +275,26 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
+            <View style={[styles.preferenceRow, bg]}>
+              <View style={styles.preferenceInfo}>
+                <Text style={[styles.preferenceLabel, { color: colors.text }]}>Export data</Text>
+                <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
+                  Food log as a CSV file. Works offline.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.connectBtn, styles.exportBtn, { backgroundColor: colors.cardSecondary }]}
+                onPress={() => setExportOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Export data"
+              >
+                <Text style={[styles.connectBtnText, { color: colors.text }]}>Export</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View style={[styles.section, styles.appInfoSection]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>App Info</Text>
             <View style={[styles.infoRow, bg, { borderRadius: 12 }]}>
@@ -315,6 +337,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <ExportDataSheet visible={exportOpen} onClose={() => setExportOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -353,6 +376,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statusSegmentText: { fontSize: 13, fontWeight: '600' },
+  exportBtn: { minHeight: 44, justifyContent: 'center' },
   connectBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,

@@ -359,16 +359,18 @@ export async function updateFoodLog(
   );
 }
 
-export async function getFoodLogsWithFoodByDate(date: string): Promise<FoodLogWithFood[]> {
-  const db = await getDatabase();
-  return db.getAllAsync<FoodLogWithFood>(
-    `SELECT fl.*,
+const FOOD_LOG_WITH_FOOD_SELECT = `SELECT fl.*,
        f.name as food_name, f.brand as food_brand,
        f.calories as food_calories, f.protein as food_protein,
        f.carbs as food_carbs, f.fat as food_fat,
        f.serving_units as food_serving_units
      FROM food_logs fl
-     JOIN foods f ON fl.food_id = f.id
+     JOIN foods f ON fl.food_id = f.id`;
+
+export async function getFoodLogsWithFoodByDate(date: string): Promise<FoodLogWithFood[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<FoodLogWithFood>(
+    `${FOOD_LOG_WITH_FOOD_SELECT}
      WHERE fl.date = ?
      ORDER BY fl.created_at`,
     [date]
@@ -673,4 +675,40 @@ export async function markMealNamesSynced(
       [now, e.meal_id, e.effective_from]
     );
   }
+}
+
+// ── Export ──────────────────────────────────────────────────────
+
+/** Logs with food between two yyyy-MM-dd dates, inclusive. A null bound is open. */
+export async function getFoodLogsWithFoodInRange(
+  start: string | null,
+  end: string | null
+): Promise<FoodLogWithFood[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<FoodLogWithFood>(
+    `${FOOD_LOG_WITH_FOOD_SELECT}
+     WHERE (? IS NULL OR fl.date >= ?) AND (? IS NULL OR fl.date <= ?)
+     ORDER BY fl.date, fl.created_at`,
+    [start, start, end, end]
+  );
+}
+
+/** Meal status rows between two yyyy-MM-dd dates, inclusive. A null bound is open. */
+export async function getMealSlotConfirmationsInRange(
+  start: string | null,
+  end: string | null
+): Promise<MealSlotConfirmation[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{
+    id: string;
+    date: string;
+    meal_slot: MealSlot;
+    confirmed: number;
+    updated_at: string;
+  }>(
+    `SELECT * FROM meal_slot_confirmations
+     WHERE (? IS NULL OR date >= ?) AND (? IS NULL OR date <= ?)`,
+    [start, start, end, end]
+  );
+  return rows.map((r) => ({ ...r, confirmed: r.confirmed === 1 }));
 }

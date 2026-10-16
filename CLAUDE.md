@@ -84,6 +84,7 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 - `lib/storage.ts` — AsyncStorage wrappers (goals, profile, preferences, sync timestamps)
 - `lib/supabase.ts` — Supabase client (no auth; reads `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`)
 - `lib/sync.ts` — Fire-and-forget sync to Supabase; call after any write or on app foreground
+- `lib/export.ts` — Pure CSV export: `rangeDates`, `buildExportRows`, `toCsv`, `exportFileName` (file write/share in `lib/export-file.ts`, `.web.ts` downloads)
 - `lib/food-service.ts` — Food search with local-first + remote fallback
 - `lib/device-id.ts` — Persistent anonymous device UUID
 - `constants/theme.ts` — Theme colors, macro colors, fonts
