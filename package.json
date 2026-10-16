@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.0.52",
+  "version": "2.0.53",
   "scripts": {
     "start": "expo start --tunnel",
     "reset-project": "node ./scripts/reset-project.js",
@@ -75,6 +75,9 @@
   "private": true,
   "overrides": {
     "@xmldom/xmldom": "^0.9.10",
+    "@expo/plist": {
+      "@xmldom/xmldom": "^0.8.13"
+    },
     "react-native-health": {
       "@expo/config-plugins": "~57.0.10"
     }
