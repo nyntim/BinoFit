@@ -1,8 +1,11 @@
 import { StyleSheet, View } from 'react-native';
+import { requireOptionalNativeModule } from 'expo';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export const APPLE_SIGN_IN_SUPPORTED = true;
+// False in a native build made before expo-apple-authentication was added:
+// rendering the button there fails with "Unimplemented component".
+export const APPLE_SIGN_IN_SUPPORTED = requireOptionalNativeModule('ExpoAppleAuthentication') != null;
 
 export type AppleButtonType = 'signIn' | 'signUp' | 'continue';
 
