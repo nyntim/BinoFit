@@ -48,8 +48,8 @@ export default function WelcomeScreen() {
     if (next) AccessibilityInfo.announceForAccessibility(next);
   }
 
-  function goToMode() {
-    router.push('/onboarding/mode' as any);
+  function goToGoals() {
+    router.push('/onboarding/goals' as any);
   }
 
   function goToAccount(mode: 'signUp' | 'signIn') {
@@ -62,7 +62,7 @@ export default function WelcomeScreen() {
       getUserGoals(),
       getLoggedDates().catch(() => [] as string[]),
     ]);
-    await applyAuthRoute(goals || loggedDates.length > 0 ? { to: 'tabs', completeOnboarding: true } : { to: 'mode' });
+    await applyAuthRoute(goals || loggedDates.length > 0 ? { to: 'tabs', completeOnboarding: true } : { to: 'goals' });
   }
 
   async function handleApple() {
@@ -102,7 +102,7 @@ export default function WelcomeScreen() {
         </View>
         <View style={styles.footer}>
           {!accountsAvailable ? (
-            <TouchableOpacity style={primary} onPress={goToMode} accessibilityRole="button">
+            <TouchableOpacity style={primary} onPress={goToGoals} accessibilityRole="button">
               <Text style={[styles.buttonText, { color: background }]}>Continue</Text>
             </TouchableOpacity>
           ) : signedIn && restorePending ? (
@@ -128,7 +128,7 @@ export default function WelcomeScreen() {
               >
                 <Text style={[styles.buttonText, { color: background }]}>Sign up with email</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[...ghost, styles.gap]} onPress={goToMode} disabled={busy} accessibilityRole="button">
+              <TouchableOpacity style={[...ghost, styles.gap]} onPress={goToGoals} disabled={busy} accessibilityRole="button">
                 <Text style={[styles.ghostText, { color: text }]}>Continue without an account</Text>
               </TouchableOpacity>
               <TouchableOpacity

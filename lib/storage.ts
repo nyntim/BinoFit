@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   LogStatus,
   RestTimerState,
-  TrackingMode,
   WeightUnit,   RemoteUserGoals,
   RemoteUserProfile,
   UserGoals,
@@ -22,7 +21,6 @@ const KEYS = {
   PENDING_WIPE: 'pending_wipe',
   RESTORE_PENDING: 'restore_pending',
   SYNCED_UID: 'last_synced_uid',
-  TRACKING_MODE: 'tracking_mode',
   WEIGHT_UNIT: 'weight_unit',
   SHOW_RPE: 'show_rpe',
   ACTIVE_REST_TIMER: 'active_rest_timer',
@@ -89,18 +87,6 @@ export async function setDefaultLogStatus(status: LogStatus): Promise<void> {
 }
 
 // ── Training preferences (device only) ──────────────────────────
-
-export function resolveTrackingMode(stored: string | null): TrackingMode {
-  return stored === 'nutrition' || stored === 'training' ? stored : 'both';
-}
-
-export async function getTrackingMode(): Promise<TrackingMode> {
-  return resolveTrackingMode(await AsyncStorage.getItem(KEYS.TRACKING_MODE));
-}
-
-export async function setTrackingMode(mode: TrackingMode): Promise<void> {
-  await AsyncStorage.setItem(KEYS.TRACKING_MODE, mode);
-}
 
 export function resolveWeightUnit(stored: string | null): WeightUnit {
   return stored === 'lb' ? 'lb' : 'kg';
@@ -284,7 +270,7 @@ export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<voi
 
 /**
  * Removes everything a signed-out user owns in AsyncStorage: goals, profile, the onboarding
- * flag, quick-add drinks, the pending merge ticket, the last-sync stamp, the tracking mode and the active rest timer. Keeps the device
+ * flag, quick-add drinks, the pending merge ticket, the last-sync stamp, restore-pending, synced uid, and the active rest timer. Keeps the device
  * id, the legacy-claimed flag, the default log status, weight unit and Show RPE preferences.
  */
 export async function clearUserStorage(): Promise<void> {
@@ -297,7 +283,6 @@ export async function clearUserStorage(): Promise<void> {
     KEYS.LAST_SYNC_AT,
     KEYS.RESTORE_PENDING,
     KEYS.SYNCED_UID,
-    KEYS.TRACKING_MODE,
     KEYS.ACTIVE_REST_TIMER,
   ]);
 }

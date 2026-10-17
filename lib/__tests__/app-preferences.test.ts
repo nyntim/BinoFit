@@ -5,7 +5,6 @@ import {
   reloadPreferences,
   resetPreferences,
   setShowRpe,
-  setTrackingMode,
   setWeightUnit,
   subscribePreferences,
 } from '@/lib/app-preferences';
@@ -19,16 +18,17 @@ beforeEach(async () => {
 
 describe('app-preferences', () => {
   it('starts with defaults and loaded false', () => {
-    expect(getPreferences()).toEqual({ trackingMode: 'both', weightUnit: 'kg', showRpe: false, loaded: false });
+    expect(getPreferences()).toEqual({ weightUnit: 'kg', showRpe: false, loaded: false });
   });
 
-  it('loads stored values once and marks loaded', async () => {
+  it('loads stored unit and RPE, removes leftover tracking_mode, and marks loaded', async () => {
     await AsyncStorage.setItem('tracking_mode', 'training');
     await AsyncStorage.setItem('weight_unit', 'lb');
     await AsyncStorage.setItem('show_rpe', 'true');
     const spy = jest.spyOn(AsyncStorage, 'getItem');
     await loadPreferences();
-    expect(getPreferences()).toEqual({ trackingMode: 'training', weightUnit: 'lb', showRpe: true, loaded: true });
+    expect(getPreferences()).toEqual({ weightUnit: 'lb', showRpe: true, loaded: true });
+    expect(await AsyncStorage.getItem('tracking_mode')).toBeNull();
     const calls = spy.mock.calls.length;
     await loadPreferences();
     expect(spy.mock.calls.length).toBe(calls);
@@ -47,11 +47,9 @@ describe('app-preferences', () => {
     const p = setWeightUnit('lb');
     expect(getPreferences().weightUnit).toBe('lb'); // memory first
     await p;
-    await setTrackingMode('nutrition');
     await setShowRpe(true);
-    expect(listener).toHaveBeenCalledTimes(3);
+    expect(listener).toHaveBeenCalledTimes(2);
     expect(await AsyncStorage.getItem('weight_unit')).toBe('lb');
-    expect(await AsyncStorage.getItem('tracking_mode')).toBe('nutrition');
     expect(await AsyncStorage.getItem('show_rpe')).toBe('true');
     off();
   });
@@ -71,14 +69,12 @@ describe('app-preferences', () => {
     expect(good).toHaveBeenCalledTimes(1);
   });
 
-  it('reload after a wipe resets mode but keeps unit and RPE', async () => {
+  it('reload after a wipe keeps unit and RPE', async () => {
     await loadPreferences();
-    await setTrackingMode('training');
     await setWeightUnit('lb');
     await setShowRpe(true);
     await clearUserStorage();
-    expect(getPreferences().trackingMode).toBe('training'); // stale until reload
     await reloadPreferences();
-    expect(getPreferences()).toEqual({ trackingMode: 'both', weightUnit: 'lb', showRpe: true, loaded: true });
+    expect(getPreferences()).toEqual({ weightUnit: 'lb', showRpe: true, loaded: true });
   });
 });

@@ -3,14 +3,11 @@ import {
   clearUserStorage,
   getActiveRestTimer,
   getShowRpe,
-  getTrackingMode,
   getWeightUnit,
   parseRestTimer,
-  resolveTrackingMode,
   resolveWeightUnit,
   setActiveRestTimer,
   setShowRpe,
-  setTrackingMode,
   setWeightUnit,
 } from '@/lib/storage';
 
@@ -19,19 +16,6 @@ beforeEach(async () => {
 });
 
 describe('training preference storage', () => {
-  it('unset tracking mode resolves to both', async () => {
-    expect(await getTrackingMode()).toBe('both');
-    expect(resolveTrackingMode(null)).toBe('both');
-    expect(resolveTrackingMode('garbage')).toBe('both');
-  });
-
-  it('tracking mode round trips', async () => {
-    await setTrackingMode('training');
-    expect(await getTrackingMode()).toBe('training');
-    await setTrackingMode('nutrition');
-    expect(await getTrackingMode()).toBe('nutrition');
-  });
-
   it('weight unit defaults to kg and round trips lb', async () => {
     expect(await getWeightUnit()).toBe('kg');
     expect(resolveWeightUnit('stone')).toBe('kg');
@@ -62,15 +46,15 @@ describe('training preference storage', () => {
     expect(parseRestTimer('{"workoutId":"a","endsAt":"2","durationSeconds":3}')).toBeNull();
   });
 
-  it('clearUserStorage keeps unit and RPE but clears mode and rest timer', async () => {
+  it('clearUserStorage keeps unit and RPE but clears rest timer', async () => {
     await setWeightUnit('lb');
     await setShowRpe(true);
-    await setTrackingMode('training');
+    await AsyncStorage.setItem('tracking_mode', 'training');
     await setActiveRestTimer({ workoutId: 'w', endsAt: 5, durationSeconds: 60 });
     await clearUserStorage();
     expect(await getWeightUnit()).toBe('lb');
     expect(await getShowRpe()).toBe(true);
-    expect(await getTrackingMode()).toBe('both');
+    expect(await AsyncStorage.getItem('tracking_mode')).toBe('training');
     expect(await getActiveRestTimer()).toBeNull();
   });
 });

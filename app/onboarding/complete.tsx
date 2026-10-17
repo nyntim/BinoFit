@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setOnboardingComplete } from '@/lib/storage';
-import { getPreferences } from '@/lib/app-preferences';
 import { homeRouteFor } from '@/lib/tracking-mode';
 import { getDatabase } from '@/lib/database';
 
@@ -20,7 +19,7 @@ export default function CompleteScreen() {
 
   async function handleStart() {
     await setOnboardingComplete();
-    router.replace(homeRouteFor(getPreferences().trackingMode));
+    router.replace(homeRouteFor());
   }
 
   return (

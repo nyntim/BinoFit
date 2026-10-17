@@ -90,7 +90,7 @@ async function finishWipe(): Promise<void> {
   await clearRestTimerAndNotifications(); // forget the rest timer and cancel its notification
   await clearUserData();
   await clearUserStorage();
-  await reloadPreferences(); // tracking mode was cleared; refresh the in-memory copy
+  await reloadPreferences(); // refresh the in-memory copy after sign-out cleared user keys
   await restoreMealReminders(); // reseeded meals have no reminders, so this cancels them all
   await clearPendingWipe();
 }

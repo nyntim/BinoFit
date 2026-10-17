@@ -82,8 +82,6 @@ export type MealSlotConfirmation = {
 
 export type LogStatus = 'eaten' | 'planned';
 
-export type TrackingMode = 'both' | 'nutrition' | 'training';
-
 export type WeightUnit = 'kg' | 'lb';
 
 /** Absolute end time so the remaining time survives backgrounding and app kills. */

@@ -4,8 +4,8 @@ const restoreOk = (goalsRestored: boolean, logsRestored = 0) =>
   ({ ok: true, logsRestored, unresolvedFoods: 0, mealsRestored: false, goalsRestored }) as never;
 
 describe('routeAfterAuth', () => {
-  it('sign-up continues to the mode screen during onboarding and closes in settings', () => {
-    expect(routeAfterAuth({ status: 'signedUp' }, 'onboarding')).toEqual({ to: 'mode' });
+  it('sign-up continues to goals during onboarding and closes in settings', () => {
+    expect(routeAfterAuth({ status: 'signedUp' }, 'onboarding')).toEqual({ to: 'goals' });
     expect(routeAfterAuth({ status: 'signedUp' }, 'settings')).toEqual({ to: 'back' });
   });
 
@@ -15,13 +15,13 @@ describe('routeAfterAuth', () => {
     expect(routeAfterAuth(outcome, 'settings')).toEqual({ to: 'back' });
   });
 
-  it('sign-in with nothing restored goes to the mode screen in onboarding and back in settings', () => {
+  it('sign-in with nothing restored goes to goals in onboarding and back in settings', () => {
     const outcome = { status: 'signedIn', restore: restoreOk(false) } as never;
-    expect(routeAfterAuth(outcome, 'onboarding')).toEqual({ to: 'mode' });
+    expect(routeAfterAuth(outcome, 'onboarding')).toEqual({ to: 'goals' });
     expect(routeAfterAuth(outcome, 'settings')).toEqual({ to: 'back' });
   });
 
-  it('sign-in with logs but no goals skips the mode screen and goes to the tabs', () => {
+  it('sign-in with logs but no goals goes to the tabs', () => {
     const outcome = { status: 'signedIn', restore: restoreOk(false, 5) } as never;
     expect(routeAfterAuth(outcome, 'onboarding')).toEqual({ to: 'tabs', completeOnboarding: true });
     expect(routeAfterAuth(outcome, 'settings')).toEqual({ to: 'back' });
