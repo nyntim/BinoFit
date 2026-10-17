@@ -49,9 +49,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Database** — `lib/database.ts` wraps `expo-sqlite` with functions:
 - `getFoodLogsWithFoodByDate()` — Get daily meal logs with joined food data
 - `addCustomFood()` — Insert custom food entries
-- `deleteFoodLog()` — Remove food log entries
+- `deleteFoodLog()` — Tombstones a food log (sets `deleted_at`); see Tombstones below
 - `getLoggedDates()` — Get history date range
-- `getUnsyncedFoodLogs()` / `markFoodLogsSynced()` — Sync tracking for Supabase
+- `getUnsyncedFoodLogs()` (includes tombstones) / `markRowsSynced()` from `lib/tombstones.ts` — Sync tracking for Supabase
 - `getMealDefinitions()` / `getMealNames()` / `countFoodLogsForMeal()` — User-defined meals (seeded once with the four defaults)
 - `saveMealDraft()` — Applies the dashboard edit-mode draft (adds, renames, order, targets, deletes) in one transaction
 - `getUnsyncedMealDefinitions()` / `markMealDefinitionsSynced()` / `getUnsyncedMealNames()` / `markMealNamesSynced()` — Sync tracking
@@ -75,6 +75,8 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 **Sync status** — `lib/sync-status.ts` is a pub/sub store (`status`, `lastSuccessAt`, `failingSince`, `isOffline`) fed by `syncToSupabase()`, which throws per-step on Supabase `{ error }`, runs every step (`allSettled`), and coalesces calls made mid-sync into one extra pass. `deriveIndicator` hides failures for a 30s grace period. UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt`/`setLastSyncAt` in `lib/storage.ts`). `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30s/1m/2m/5m backoff while active and failing. Sync also runs on cold start.
 
 **Training preferences** — Device-only, in AsyncStorage (`lib/storage.ts`: tracking mode, weight unit, Show RPE, active rest timer). `lib/app-preferences.ts` is a pub/sub store loaded once at launch (`loadPreferences`, write-through setters); read it with `usePreferences`. Sign-out clears tracking mode and rest timer, keeps unit and RPE. `lib/units.ts` is pure: weight is stored in kg and distance in metres; display follows the unit (kg with km, lb with mi). UI: `components/settings/TrainingSection.tsx`.
+
+**Tombstones** — Deleting a synced row never calls Supabase directly. `lib/tombstones.ts`: `tombstoneSql(table)` sets `deleted_at`, `updated_at` and `synced_at = NULL`; sync pushes `deleted_at`, then `purgeSyncedTombstones(table)` removes synced tombstones (nothing is purged if the push errors). Every read of `food_logs` must filter `deleted_at IS NULL` (a missed filter resurrects deleted food); `getUnsyncedFoodLogs` is the only read that returns tombstones. Writes to a log guard `deleted_at IS NULL`. `markRowsSynced(table, [{id, updated_at}])` marks only rows unchanged since the push, so an edit made during a push stays unsynced (meal_definitions / meal_names still use the old id-only mark functions). Restore passes tombstones to `applyRemoteFoodLogs`, which uses `decideRemoteApply` (newer remote tombstone deletes local, tombstone with no local row is skipped, else last-write-wins, ties keep local). `saveMealDraft` tombstones a deleted meal's logs. New synced tables (Phase 4 training) follow the same rules.
 
 **Food search** — `lib/food-service.ts` searches SQLite first; falls back to Supabase remote query (≥4 chars) and caches results locally.
 
@@ -111,7 +113,7 @@ Food = { id, name, brand, serving_units, calories, protein, carbs, fat, source, 
 MealId = string  // MealSlot is an alias; food_logs.meal_slot holds a meal id
 MealDefinition = { id, position, calorie_target, protein_target, carb_target, fat_target (number|null), reminder_time ('HH:mm'|null), created_at, updated_at, synced_at? }
 MealNameEntry = { meal_id, name, effective_from (yyyy-MM-dd), updated_at, synced_at? }  // name history; renames apply from today
-FoodLog = { id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at? }
+FoodLog = { id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at?, deleted_at? }
 MealSlotConfirmation = { id, date, meal_slot, confirmed, updated_at }
 UserGoals = { calorie_goal, protein_goal, carb_goal, fat_goal, updated_at }
 UserProfile = { weight, height, activity_level, updated_at }

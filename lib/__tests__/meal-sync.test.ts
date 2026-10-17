@@ -15,9 +15,12 @@ jest.mock('@/lib/storage', () => ({
   markProfileSynced: jest.fn(),
   setLastSyncAt: jest.fn(async () => {}),
 }));
+jest.mock('@/lib/tombstones', () => ({
+  markRowsSynced: jest.fn(async () => {}),
+  purgeSyncedTombstones: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/database', () => ({
   getUnsyncedFoodLogs: jest.fn(async () => []),
-  markFoodLogsSynced: jest.fn(),
   getUnsyncedMealDefinitions: jest.fn(),
   markMealDefinitionsSynced: jest.fn(),
   getUnsyncedMealNames: jest.fn(),

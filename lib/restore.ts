@@ -25,7 +25,7 @@ const OFF_CONCURRENCY = 4;
 
 // ── Pure helpers ────────────────────────────────────────────────
 
-/** Rows soft-deleted on the server are not restored. Tables without the column pass through. */
+/** True for rows not soft-deleted on the server (used to decide which foods to resolve). */
 export function isLiveRow(row: { deleted_at?: string | null }): boolean {
   return row.deleted_at == null;
 }
@@ -207,7 +207,6 @@ export async function restoreFromAccount(
     const allLogs = await fetchAll<RemoteFoodLog>('food_logs', userId, ['id'], (n) =>
       onProgress?.({ stage: 'logs', fetched: n })
     );
-    const logs = allLogs.filter(isLiveRow);
     const [defs, names, goals, profile] = await Promise.all([
       fetchAll<RemoteMealDefinition>('meal_definitions', userId, ['id']),
       fetchAll<RemoteMealName>('meal_names', userId, ['meal_id', 'effective_from']),
@@ -215,13 +214,13 @@ export async function restoreFromAccount(
       fetchSingle<RemoteUserProfile>('user_profile', userId),
     ]);
 
-    const missing = await getMissingFoodIds(uniqueFoodIds(logs));
+    const missing = await getMissingFoodIds(uniqueFoodIds(allLogs.filter(isLiveRow)));
     const unresolved = missing.length > 0 ? await resolveFoods(missing, onProgress) : [];
 
     onProgress?.({ stage: 'saving' });
     // Meals first so restored logs never point at a meal that does not exist yet.
     await replaceMealsFromRemote(defs, names);
-    const logsRestored = await applyRemoteFoodLogs(logs);
+    const logsRestored = await applyRemoteFoodLogs(allLogs);
 
     let goalsRestored = false;
     if (goals) goalsRestored = await applyRemoteGoals(goals);

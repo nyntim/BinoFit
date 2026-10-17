@@ -1,10 +1,13 @@
 jest.mock('@/lib/device-id', () => ({ getDeviceId: jest.fn(async () => 'd') }));
 jest.mock('@/lib/restore', () => ({ restoreFromAccount: jest.fn() }));
 jest.mock('@/lib/reminders', () => ({ restoreMealReminders: jest.fn() }));
+jest.mock('@/lib/tombstones', () => ({
+  markRowsSynced: jest.fn(async () => {}),
+  purgeSyncedTombstones: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/database', () => ({
   clearUserData: jest.fn(),
   getUnsyncedFoodLogs: jest.fn(async () => [{ id: 'l' }]),
-  markFoodLogsSynced: jest.fn(),
   getUnsyncedMealDefinitions: jest.fn(async () => []),
   markMealDefinitionsSynced: jest.fn(),
   getUnsyncedMealNames: jest.fn(async () => []),

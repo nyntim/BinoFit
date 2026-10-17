@@ -3,7 +3,6 @@ import { getSessionUserId, initAuth, reconcileSyncedUid, retryPendingMergeTicket
 import { isAuthTransitioning } from '@/lib/auth-transition';
 import {
   getUnsyncedFoodLogs,
-  markFoodLogsSynced,
   getUnsyncedMealDefinitions,
   markMealDefinitionsSynced,
   getUnsyncedMealNames,
@@ -16,6 +15,7 @@ import {
   markProfileSynced,
   setLastSyncAt,
 } from '@/lib/storage';
+import { markRowsSynced, purgeSyncedTombstones } from '@/lib/tombstones';
 import { reportSyncStart, reportSyncResult } from '@/lib/sync-status';
 
 let _current: Promise<void> | null = null;
@@ -101,6 +101,7 @@ async function syncFoodLogs(userId: string): Promise<void> {
     serving_unit: log.serving_unit,
     created_at: log.created_at,
     updated_at: log.updated_at,
+    deleted_at: log.deleted_at ?? null,
   }));
 
   const { error } = await supabase
@@ -108,7 +109,11 @@ async function syncFoodLogs(userId: string): Promise<void> {
     .upsert(rows, { onConflict: 'id' });
 
   if (error) throw error;
-  await markFoodLogsSynced(unsynced.map((l) => l.id));
+  await markRowsSynced(
+    'food_logs',
+    unsynced.map((l) => ({ id: l.id, updated_at: l.updated_at }))
+  );
+  await purgeSyncedTombstones('food_logs');
 }
 
 // Push-only. Deleted meals are not removed from Supabase (same gap as other tables).

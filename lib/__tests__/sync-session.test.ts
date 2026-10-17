@@ -15,9 +15,12 @@ jest.mock('@/lib/storage', () => ({
   markProfileSynced: jest.fn(async () => {}),
   setLastSyncAt: jest.fn(async () => {}),
 }));
+jest.mock('@/lib/tombstones', () => ({
+  markRowsSynced: jest.fn(async () => {}),
+  purgeSyncedTombstones: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/database', () => ({
   getUnsyncedFoodLogs: jest.fn(async () => []),
-  markFoodLogsSynced: jest.fn(async () => {}),
   getUnsyncedMealDefinitions: jest.fn(async () => []),
   markMealDefinitionsSynced: jest.fn(async () => {}),
   getUnsyncedMealNames: jest.fn(async () => []),
@@ -28,6 +31,7 @@ import { syncToSupabase } from '@/lib/sync';
 import { getSyncState, resetSyncState } from '@/lib/sync-status';
 import * as auth from '@/lib/auth';
 import * as db from '@/lib/database';
+import { markRowsSynced } from '@/lib/tombstones';
 
 const log = { id: 'l1', date: '2026-01-01', meal_slot: 'lunch', food_id: 'f', serving_amount: 1, serving_unit: 'g', created_at: 'c', updated_at: 'u' };
 
@@ -45,7 +49,7 @@ describe('sync with an auth session', () => {
     expect(mockFrom).toHaveBeenCalledWith('food_logs');
     const rows = mockUpsert.mock.calls[0][0] as { user_id: string }[];
     expect(rows[0].user_id).toBe('session-uid');
-    expect(db.markFoodLogsSynced).toHaveBeenCalled();
+    expect(markRowsSynced).toHaveBeenCalled();
   });
 
   it('retries a pending merge ticket before pushing', async () => {
@@ -59,7 +63,7 @@ describe('sync with an auth session', () => {
     await expect(syncToSupabase()).resolves.toBeUndefined();
     expect(mockFrom).not.toHaveBeenCalled();
     expect(db.getUnsyncedFoodLogs).not.toHaveBeenCalled();
-    expect(db.markFoodLogsSynced).not.toHaveBeenCalled();
+    expect(markRowsSynced).not.toHaveBeenCalled();
     expect(getSyncState().status).not.toBe('failed');
     expect(getSyncState().failingSince).toBeNull();
     expect(auth.initAuth).toHaveBeenCalled();

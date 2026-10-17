@@ -14,6 +14,7 @@ import type {
   RemoteMealName,
   WaterLog,
 } from '@/lib/types';
+import { decideRemoteApply, tombstoneSql } from '@/lib/tombstones';
 import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
 
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -118,6 +119,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   // Migrations for existing databases
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN synced_at TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN logged_time TEXT;`).catch(() => {});
+  await db.execAsync(`ALTER TABLE food_logs ADD COLUMN deleted_at TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE meal_definitions ADD COLUMN reminder_time TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
@@ -254,38 +256,19 @@ export async function addFoodLog(
 
 export async function getFoodLogsByDate(date: string): Promise<FoodLog[]> {
   const db = await getDatabase();
-  return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE date = ? ORDER BY created_at', [date]);
+  return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE date = ? AND deleted_at IS NULL ORDER BY created_at', [date]);
 }
 
+/** Tombstones the log; the next sync pushes deleted_at and then purges the row. */
 export async function deleteFoodLog(id: string): Promise<void> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ synced_at: string | null }>(
-    'SELECT synced_at FROM food_logs WHERE id = ?',
-    [id]
-  );
-  await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
-  if (row?.synced_at) {
-    // Row was previously synced — remove from Supabase too (fire-and-forget)
-    import('@/lib/supabase').then(({ supabase }) => {
-      supabase.from('food_logs').delete().eq('id', id).then(() => {});
-    });
-  }
+  const now = new Date().toISOString();
+  await db.runAsync(`${tombstoneSql('food_logs')} WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
 }
 
 export async function getUnsyncedFoodLogs(): Promise<FoodLog[]> {
   const db = await getDatabase();
   return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE synced_at IS NULL');
-}
-
-export async function markFoodLogsSynced(ids: string[]): Promise<void> {
-  if (ids.length === 0) return;
-  const db = await getDatabase();
-  const now = new Date().toISOString();
-  const placeholders = ids.map(() => '?').join(', ');
-  await db.runAsync(
-    `UPDATE food_logs SET synced_at = ? WHERE id IN (${placeholders})`,
-    [now, ...ids]
-  );
 }
 
 const MICRO_COLUMNS = [
@@ -371,7 +354,7 @@ export async function updateFoodLog(
   const db = await getDatabase();
   const now = new Date().toISOString();
   await db.runAsync(
-    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, logged_time = ?, updated_at = ?, synced_at = NULL WHERE id = ?',
+    'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, logged_time = ?, updated_at = ?, synced_at = NULL WHERE id = ? AND deleted_at IS NULL',
     [serving_amount, serving_unit, logged_time ?? null, now, id]
   );
 }
@@ -388,7 +371,7 @@ export async function getFoodLogsWithFoodByDate(date: string): Promise<FoodLogWi
   const db = await getDatabase();
   return db.getAllAsync<FoodLogWithFood>(
     `${FOOD_LOG_WITH_FOOD_SELECT}
-     WHERE fl.date = ?
+     WHERE fl.date = ? AND fl.deleted_at IS NULL
      ORDER BY fl.created_at`,
     [date]
   );
@@ -399,7 +382,7 @@ export async function getRecentFoods(limit = 10): Promise<Food[]> {
   return db.getAllAsync<Food>(
     `SELECT DISTINCT f.* FROM foods f
      INNER JOIN (
-       SELECT food_id, MAX(created_at) as last_logged FROM food_logs GROUP BY food_id
+       SELECT food_id, MAX(created_at) as last_logged FROM food_logs WHERE deleted_at IS NULL GROUP BY food_id
      ) latest ON f.id = latest.food_id
      ORDER BY latest.last_logged DESC
      LIMIT ?`,
@@ -411,7 +394,7 @@ export async function getFrequentFoods(limit = 10): Promise<Food[]> {
   const db = await getDatabase();
   return db.getAllAsync<Food>(
     `SELECT f.*, COUNT(fl.id) as log_count FROM foods f
-     INNER JOIN food_logs fl ON f.id = fl.food_id
+     INNER JOIN food_logs fl ON f.id = fl.food_id AND fl.deleted_at IS NULL
      GROUP BY f.id
      ORDER BY log_count DESC
      LIMIT ?`,
@@ -422,7 +405,7 @@ export async function getFrequentFoods(limit = 10): Promise<Food[]> {
 export async function getLoggedDates(): Promise<string[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ date: string }>(
-    `SELECT DISTINCT date FROM food_logs ORDER BY date DESC LIMIT 365`
+    `SELECT DISTINCT date FROM food_logs WHERE deleted_at IS NULL ORDER BY date DESC LIMIT 365`
   );
   return rows.map((r) => r.date);
 }
@@ -431,7 +414,7 @@ export async function getLoggedDatesInRange(startDate: string, endDate: string):
   try {
     const db = await getDatabase();
     const rows = await db.getAllAsync<{ date: string }>(
-      `SELECT DISTINCT date FROM food_logs WHERE date >= ? AND date <= ? ORDER BY date`,
+      `SELECT DISTINCT date FROM food_logs WHERE deleted_at IS NULL AND date >= ? AND date <= ? ORDER BY date`,
       [startDate, endDate]
     );
     return rows.map((r) => r.date);
@@ -445,7 +428,7 @@ export async function getAllLoggedDates(): Promise<string[]> {
     const db = await getDatabase();
     const today = new Date().toISOString().split('T')[0];
     const rows = await db.getAllAsync<{ date: string }>(
-      `SELECT DISTINCT date FROM food_logs WHERE date <= ? ORDER BY date DESC`,
+      `SELECT DISTINCT date FROM food_logs WHERE deleted_at IS NULL AND date <= ? ORDER BY date DESC`,
       [today]
     );
     return rows.map((r) => r.date);
@@ -578,7 +561,7 @@ export async function getMealNames(): Promise<MealNameEntry[]> {
 export async function countFoodLogsForMeal(id: MealId): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ c: number }>(
-    'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ?',
+    'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ? AND deleted_at IS NULL',
     [id]
   );
   return row?.c ?? 0;
@@ -590,21 +573,19 @@ export async function countFoodLogsForMeal(id: MealId): Promise<number> {
  * history row effective `today`; renaming twice on one day overwrites that day's row).
  *
  * Sync gap: deletions are not propagated to Supabase for meal_definitions / meal_names
- * (same as other tables). Synced food logs of a deleted meal are removed best-effort.
+ * (same as other tables). Food logs of a deleted meal are tombstoned and sync as deletions.
  */
 export async function saveMealDraft(draft: MealDraft, today: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
-  const syncedLogIds: string[] = [];
 
   await db.withExclusiveTransactionAsync(async (txn) => {
     for (const id of draft.deletedIds) {
-      const synced = await txn.getAllAsync<{ id: string }>(
-        'SELECT id FROM food_logs WHERE meal_slot = ? AND synced_at IS NOT NULL',
-        [id]
-      );
-      syncedLogIds.push(...synced.map((r) => r.id));
-      await txn.runAsync('DELETE FROM food_logs WHERE meal_slot = ?', [id]);
+      await txn.runAsync(`${tombstoneSql('food_logs')} WHERE meal_slot = ? AND deleted_at IS NULL`, [
+        now,
+        now,
+        id,
+      ]);
       await txn.runAsync('DELETE FROM meal_slot_confirmations WHERE meal_slot = ?', [id]);
       await txn.runAsync('DELETE FROM meal_names WHERE meal_id = ?', [id]);
       await txn.runAsync('DELETE FROM meal_definitions WHERE id = ?', [id]);
@@ -651,12 +632,6 @@ export async function saveMealDraft(draft: MealDraft, today: string): Promise<vo
       }
     }
   });
-
-  if (syncedLogIds.length > 0) {
-    import('@/lib/supabase')
-      .then(({ supabase }) => supabase.from('food_logs').delete().in('id', syncedLogIds))
-      .catch(() => {});
-  }
 }
 
 export async function getUnsyncedMealDefinitions(): Promise<MealDefinition[]> {
@@ -705,6 +680,7 @@ export async function getFoodLogsWithFoodInRange(
   return db.getAllAsync<FoodLogWithFood>(
     `${FOOD_LOG_WITH_FOOD_SELECT}
      WHERE (? IS NULL OR fl.date >= ?) AND (? IS NULL OR fl.date <= ?)
+       AND fl.deleted_at IS NULL
      ORDER BY fl.date, fl.created_at`,
     [start, start, end, end]
   );
@@ -748,7 +724,7 @@ export function isRemoteNewer(remoteUpdatedAt: string, localUpdatedAt: string): 
 
 /**
  * Merges account food logs into SQLite, last write wins on updated_at. Applied rows are marked
- * synced. Returns how many rows were inserted or updated.
+ * synced. Returns how many rows were inserted or updated (removals are not counted).
  */
 export async function applyRemoteFoodLogs(rows: RemoteFoodLog[]): Promise<number> {
   if (rows.length === 0) return 0;
@@ -762,11 +738,17 @@ export async function applyRemoteFoodLogs(rows: RemoteFoodLog[]): Promise<number
         'SELECT updated_at FROM food_logs WHERE id = ?',
         [r.id]
       );
-      if (existing && !isRemoteNewer(updatedAt, existing.updated_at)) continue;
+      const decision = decideRemoteApply({ updated_at: updatedAt, deleted_at: r.deleted_at }, existing);
+      if (decision === 'skip') continue;
+      if (decision === 'delete') {
+        // Removals are not counted: the count reports restored entries.
+        await txn.runAsync('DELETE FROM food_logs WHERE id = ?', [r.id]);
+        continue;
+      }
       await txn.runAsync(
         `INSERT INTO food_logs
-           (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, synced_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (id, date, meal_slot, food_id, serving_amount, serving_unit, created_at, updated_at, deleted_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
          ON CONFLICT(id) DO UPDATE SET
            date = excluded.date,
            meal_slot = excluded.meal_slot,
@@ -774,6 +756,7 @@ export async function applyRemoteFoodLogs(rows: RemoteFoodLog[]): Promise<number
            serving_amount = excluded.serving_amount,
            serving_unit = excluded.serving_unit,
            updated_at = excluded.updated_at,
+           deleted_at = NULL,
            synced_at = excluded.synced_at`,
         [
           r.id,
@@ -856,7 +839,7 @@ export async function replaceMealsFromRemote(
     for (const l of localDefs) {
       if (remoteIds.has(l.id) || l.synced_at === null) continue;
       const logs = await txn.getFirstAsync<{ c: number }>(
-        'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ?',
+        'SELECT COUNT(*) as c FROM food_logs WHERE meal_slot = ? AND deleted_at IS NULL',
         [l.id]
       );
       if ((logs?.c ?? 0) > 0) continue;

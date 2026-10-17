@@ -132,12 +132,12 @@ describe('restoreFromAccount', () => {
     expect(mockRange.mock.calls.filter((c) => c[0] === 'food_logs')).toHaveLength(2);
   });
 
-  it('skips soft-deleted logs', async () => {
+  it('passes soft-deleted logs through to be applied as tombstones', async () => {
     mockTables.food_logs = [...logs(2), { id: 'dead', food_id: 'f1', deleted_at: '2026-01-01T00:00:00Z' }];
     const res = await restoreFromAccount('u1');
     const applied = (db.applyRemoteFoodLogs as jest.Mock).mock.calls[0][0];
-    expect(applied.map((l: any) => l.id)).not.toContain('dead');
-    expect(res).toMatchObject({ ok: true, logsRestored: 2 });
+    expect(applied.map((l: any) => l.id)).toContain('dead');
+    expect(res).toMatchObject({ ok: true, logsRestored: 3 });
   });
 
   it('saves meals before logs so logs never point at a missing meal', async () => {

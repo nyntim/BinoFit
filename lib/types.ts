@@ -68,6 +68,8 @@ export type FoodLog = {
   created_at: string;
   updated_at: string;
   synced_at?: string | null;
+  /** Tombstone: set when deleted; the row is purged after the deletion syncs. */
+  deleted_at?: string | null;
 };
 
 export type MealSlotConfirmation = {

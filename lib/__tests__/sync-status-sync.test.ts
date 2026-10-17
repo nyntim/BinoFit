@@ -17,9 +17,12 @@ jest.mock('@/lib/storage', () => ({
   markProfileSynced: jest.fn(async () => {}),
   setLastSyncAt: jest.fn(async () => {}),
 }));
+jest.mock('@/lib/tombstones', () => ({
+  markRowsSynced: jest.fn(async () => {}),
+  purgeSyncedTombstones: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/database', () => ({
   getUnsyncedFoodLogs: jest.fn(),
-  markFoodLogsSynced: jest.fn(async () => {}),
   getUnsyncedMealDefinitions: jest.fn(),
   markMealDefinitionsSynced: jest.fn(async () => {}),
   getUnsyncedMealNames: jest.fn(),
@@ -29,6 +32,7 @@ jest.mock('@/lib/database', () => ({
 import { syncToSupabase } from '@/lib/sync';
 import { getSyncState, resetSyncState } from '@/lib/sync-status';
 import * as db from '@/lib/database';
+import { markRowsSynced } from '@/lib/tombstones';
 import * as storage from '@/lib/storage';
 
 const log = { id: 'l1', date: '2026-01-01', meal_slot: 'lunch', food_id: 'f', serving_amount: 1, serving_unit: 'g', created_at: 'c', updated_at: 'u' };
@@ -66,7 +70,7 @@ describe('sync status reporting', () => {
 
     expect(getSyncState().status).toBe('failed');
     expect(getSyncState().failingSince).not.toBeNull();
-    expect(db.markFoodLogsSynced).not.toHaveBeenCalled();
+    expect(markRowsSynced).not.toHaveBeenCalled();
     expect(storage.markGoalsSynced).toHaveBeenCalledTimes(1);
     expect(storage.setLastSyncAt).not.toHaveBeenCalled();
     mockFrom.mockImplementation(() => ({ upsert: mockUpsert }));
@@ -77,13 +81,13 @@ describe('sync status reporting', () => {
     mockUpsert.mockRejectedValue(new Error('network down'));
     await expect(syncToSupabase()).resolves.toBeUndefined();
     expect(getSyncState().status).toBe('failed');
-    expect(db.markFoodLogsSynced).not.toHaveBeenCalled();
+    expect(markRowsSynced).not.toHaveBeenCalled();
   });
 
   it('all steps succeeding reports success, marks rows synced and records lastSyncAt', async () => {
     (db.getUnsyncedFoodLogs as jest.Mock).mockResolvedValue([log]);
     await syncToSupabase();
-    expect(db.markFoodLogsSynced).toHaveBeenCalledWith(['l1']);
+    expect(markRowsSynced).toHaveBeenCalledWith('food_logs', [{ id: 'l1', updated_at: log.updated_at }]);
     expect(getSyncState().status).toBe('success');
     expect(getSyncState().lastSuccessAt).not.toBeNull();
     expect(storage.setLastSyncAt).toHaveBeenCalledTimes(1);

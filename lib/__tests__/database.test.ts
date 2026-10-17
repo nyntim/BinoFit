@@ -4,6 +4,7 @@ import type { Food } from '@/lib/types';
 
 let mem: ReturnType<typeof createMemoryDb>;
 let database: typeof import('@/lib/database');
+let markRowsSynced: typeof import('@/lib/tombstones').markRowsSynced;
 
 beforeEach(() => {
   jest.resetModules();
@@ -12,6 +13,7 @@ beforeEach(() => {
   const SQLite = require('expo-sqlite');
   (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue(mem);
   database = require('@/lib/database');
+  markRowsSynced = require('@/lib/tombstones').markRowsSynced;
 });
 
 const mk = (over: Record<string, any> = {}): Food =>
@@ -111,19 +113,19 @@ describe('food log basics', () => {
   const entry = (n: number) =>
     ({ date: '2024-05-01', meal_slot: 'lunch', food_id: 'f1', serving_amount: n, serving_unit: 'g' }) as any;
 
-  it('markFoodLogsSynced flags only the given ids', async () => {
+  it('markRowsSynced flags only the given rows', async () => {
     await database.cacheRemoteFood(mk());
     const a = await database.addFoodLog(entry(1));
     const b = await database.addFoodLog(entry(2));
     expect((await database.getUnsyncedFoodLogs()).length).toBe(2);
-    await database.markFoodLogsSynced([a.id]);
+    await markRowsSynced('food_logs', [{ id: a.id, updated_at: a.updated_at }]);
     expect((await database.getUnsyncedFoodLogs()).map((l) => l.id)).toEqual([b.id]);
   });
 
   it('updateFoodLog resets synced_at so edits re-sync', async () => {
     await database.cacheRemoteFood(mk());
     const a = await database.addFoodLog(entry(1));
-    await database.markFoodLogsSynced([a.id]);
+    await markRowsSynced('food_logs', [{ id: a.id, updated_at: a.updated_at }]);
     await database.updateFoodLog(a.id, 3, 'g');
     expect((await database.getUnsyncedFoodLogs()).map((l) => l.id)).toEqual([a.id]);
   });
