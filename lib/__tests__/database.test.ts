@@ -137,6 +137,15 @@ describe('food log basics', () => {
     }
     expect(await database.getAllLoggedDates()).toEqual(['2024-05-01', '2024-04-30']);
   });
+
+  it('getAllLoggedDates uses the passed local today as the upper bound', async () => {
+    await database.cacheRemoteFood(mk());
+    for (const d of ['2024-05-02', '2024-05-01', '2024-04-30']) {
+      await database.addFoodLog({ ...entry(1), date: d });
+    }
+    expect(await database.getAllLoggedDates('2024-05-01')).toEqual(['2024-05-01', '2024-04-30']);
+    expect(await database.getAllLoggedDates('2024-05-02')).toEqual(['2024-05-02', '2024-05-01', '2024-04-30']);
+  });
 });
 
 describe('ensureMealSlotStatus', () => {
