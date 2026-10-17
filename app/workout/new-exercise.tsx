@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { BuilderInput } from '@/components/workouts/BuilderInput';
 import { ChipToggle } from '@/components/workouts/ChipToggle';
 import { OptionCard } from '@/components/workouts/OptionCard';

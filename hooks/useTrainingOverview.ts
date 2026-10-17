@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useNow } from '@/hooks/useNow';
 import { usePreferences } from '@/hooks/usePreferences';
