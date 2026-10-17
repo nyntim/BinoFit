@@ -9,6 +9,7 @@ import {
   nextExercisePosition,
   nextSetPosition,
 } from '@/lib/workouts/db';
+import { getPreferences } from '@/lib/app-preferences';
 import { getExerciseById } from '@/lib/workouts/exercises';
 import { prefillSets, resolveRestSeconds } from '@/lib/workouts/prefill';
 
@@ -72,8 +73,8 @@ export async function getLastRestSeconds(exerciseId: string, excludeWorkoutId?: 
 
 /**
  * Adds an exercise to a workout in one transaction: the link with its resolved rest (last rest used,
- * else the exercise default, else 90 s) and sets prefilled from the previous performance, or one
- * empty set when there is none.
+ * else the exercise default, else 90 s) and sets prefilled from the previous performance, or the
+ * user's default empty set count when there is none.
  */
 export async function addExerciseToWorkout(workoutId: string, exerciseId: string): Promise<WorkoutExercise> {
   const db = await getDatabase();
@@ -83,7 +84,7 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
   const last = await getLastRestSeconds(exerciseId, workoutId);
   const before = workout.started_at ?? workout.created_at;
   const previous = await getPreviousPerformance([exerciseId], { excludeWorkoutId: workoutId, before });
-  const values = prefillSets(previous.get(exerciseId) ?? []);
+  const values = prefillSets(previous.get(exerciseId) ?? [], getPreferences().defaultSetCount);
   const rest = resolveRestSeconds(last, exercise?.default_rest_seconds);
 
   let link: WorkoutExercise | null = null;

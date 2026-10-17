@@ -2,22 +2,27 @@
 // setters update memory first, then write through to AsyncStorage.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  getDefaultSetCount,
   getShowRpe,
   getWeightUnit,
+  setDefaultSetCount as persistDefaultSetCount,
   setShowRpe as persistShowRpe,
   setWeightUnit as persistWeightUnit,
 } from '@/lib/storage';
 import type { WeightUnit } from '@/lib/types';
+import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 
 export type AppPreferences = {
   weightUnit: WeightUnit;
   showRpe: boolean;
+  defaultSetCount: number;
   loaded: boolean;
 };
 
 const INITIAL: AppPreferences = {
   weightUnit: 'kg',
   showRpe: false,
+  defaultSetCount: 2,
   loaded: false,
 };
 
@@ -50,14 +55,14 @@ export function subscribePreferences(listener: () => void): () => void {
 /** Reads stored values once; later calls return the same promise. Never throws. */
 export function loadPreferences(): Promise<void> {
   if (!loading) {
-    loading = Promise.all([getWeightUnit(), getShowRpe()])
-      .then(async ([weightUnit, showRpe]) => {
+    loading = Promise.all([getWeightUnit(), getShowRpe(), getDefaultSetCount()])
+      .then(async ([weightUnit, showRpe, defaultSetCount]) => {
         try {
           await AsyncStorage.removeItem('tracking_mode');
         } catch {
           // Best-effort cleanup of the retired key.
         }
-        set({ weightUnit, showRpe, loaded: true });
+        set({ weightUnit, showRpe, defaultSetCount, loaded: true });
       })
       .catch(() => {
         set({ loaded: true });
@@ -85,6 +90,18 @@ export async function setShowRpe(show: boolean): Promise<void> {
   set({ showRpe: show });
   try {
     await persistShowRpe(show);
+  } catch {
+    // Memory keeps the new value; the next launch re-reads storage.
+  }
+}
+
+export async function setDefaultSetCount(count: number): Promise<void> {
+  if (!Number.isInteger(count) || count < MIN_DEFAULT_SET_COUNT || count > MAX_DEFAULT_SET_COUNT) {
+    return;
+  }
+  set({ defaultSetCount: count });
+  try {
+    await persistDefaultSetCount(count);
   } catch {
     // Memory keeps the new value; the next launch re-reads storage.
   }

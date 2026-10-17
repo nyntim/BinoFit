@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resolveDefaultSetCount } from '@/lib/workouts/prefill';
 import type {
   LogStatus,
   RestTimerState,
@@ -23,6 +24,7 @@ const KEYS = {
   SYNCED_UID: 'last_synced_uid',
   WEIGHT_UNIT: 'weight_unit',
   SHOW_RPE: 'show_rpe',
+  DEFAULT_SET_COUNT: 'default_set_count',
   ACTIVE_REST_TIMER: 'active_rest_timer',
 } as const;
 
@@ -106,6 +108,16 @@ export async function getShowRpe(): Promise<boolean> {
 
 export async function setShowRpe(show: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.SHOW_RPE, show ? 'true' : 'false');
+}
+
+export { resolveDefaultSetCount };
+
+export async function getDefaultSetCount(): Promise<number> {
+  return resolveDefaultSetCount(await AsyncStorage.getItem(KEYS.DEFAULT_SET_COUNT));
+}
+
+export async function setDefaultSetCount(count: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.DEFAULT_SET_COUNT, String(count));
 }
 
 export function parseRestTimer(raw: string | null): RestTimerState | null {
@@ -271,7 +283,7 @@ export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<voi
 /**
  * Removes everything a signed-out user owns in AsyncStorage: goals, profile, the onboarding
  * flag, quick-add drinks, the pending merge ticket, the last-sync stamp, restore-pending, synced uid, and the active rest timer. Keeps the device
- * id, the legacy-claimed flag, the default log status, weight unit and Show RPE preferences.
+ * id, the legacy-claimed flag, the default log status, weight unit, Show RPE and default set count preferences.
  */
 export async function clearUserStorage(): Promise<void> {
   await AsyncStorage.multiRemove([

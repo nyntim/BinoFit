@@ -2,11 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   clearUserStorage,
   getActiveRestTimer,
+  getDefaultSetCount,
   getShowRpe,
   getWeightUnit,
   parseRestTimer,
+  resolveDefaultSetCount,
   resolveWeightUnit,
   setActiveRestTimer,
+  setDefaultSetCount,
   setShowRpe,
   setWeightUnit,
 } from '@/lib/storage';
@@ -46,14 +49,27 @@ describe('training preference storage', () => {
     expect(parseRestTimer('{"workoutId":"a","endsAt":"2","durationSeconds":3}')).toBeNull();
   });
 
-  it('clearUserStorage keeps unit and RPE but clears rest timer', async () => {
+  it('resolveDefaultSetCount matches prefill rules', () => {
+    expect(resolveDefaultSetCount('3')).toBe(3);
+    expect(resolveDefaultSetCount('99')).toBe(2);
+  });
+
+  it('default set count defaults to 2 and round trips', async () => {
+    expect(await getDefaultSetCount()).toBe(2);
+    await setDefaultSetCount(4);
+    expect(await getDefaultSetCount()).toBe(4);
+  });
+
+  it('clearUserStorage keeps unit, RPE and default sets but clears rest timer', async () => {
     await setWeightUnit('lb');
     await setShowRpe(true);
+    await setDefaultSetCount(4);
     await AsyncStorage.setItem('tracking_mode', 'training');
     await setActiveRestTimer({ workoutId: 'w', endsAt: 5, durationSeconds: 60 });
     await clearUserStorage();
     expect(await getWeightUnit()).toBe('lb');
     expect(await getShowRpe()).toBe(true);
+    expect(await getDefaultSetCount()).toBe(4);
     expect(await AsyncStorage.getItem('tracking_mode')).toBe('training');
     expect(await getActiveRestTimer()).toBeNull();
   });

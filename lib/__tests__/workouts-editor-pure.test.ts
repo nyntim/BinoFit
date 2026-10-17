@@ -1,4 +1,11 @@
-import { DEFAULT_REST_SECONDS, formatPreviousSet, prefillSets, previousFor, resolveRestSeconds } from '@/lib/workouts/prefill';
+import {
+  DEFAULT_REST_SECONDS,
+  formatPreviousSet,
+  prefillSets,
+  previousFor,
+  resolveDefaultSetCount,
+  resolveRestSeconds,
+} from '@/lib/workouts/prefill';
 import { setVolumeKg, workoutVolumeKg } from '@/lib/workouts/volume';
 import { endFromDuration, isSetFilled, planSave, tickPatch } from '@/lib/workouts/completion';
 import { applySchedule, cellPatch, cellText, editorReducer, setBadges, setColumns } from '@/lib/workouts/editor-state';
@@ -49,6 +56,19 @@ describe('setVolumeKg', () => {
   });
 });
 
+describe('resolveDefaultSetCount', () => {
+  it('defaults invalid stored values to 2', () => {
+    for (const v of [null, '', '0', '11', '2.5', '02', 'abc']) {
+      expect(resolveDefaultSetCount(v)).toBe(2);
+    }
+  });
+  it('passes through valid counts', () => {
+    expect(resolveDefaultSetCount('1')).toBe(1);
+    expect(resolveDefaultSetCount('2')).toBe(2);
+    expect(resolveDefaultSetCount('10')).toBe(10);
+  });
+});
+
 describe('prefill', () => {
   it('copies values and set types in index order without tick or RPE', () => {
     const out = prefillSets([
@@ -59,8 +79,22 @@ describe('prefill', () => {
     expect(out.map((s) => s.weight_kg)).toEqual([20, 60]);
     expect(out.every((s) => s.rpe === null && s.completed_at === null)).toBe(true);
   });
-  it('gives one empty set with no history', () => {
-    expect(prefillSets([])).toEqual([{}]);
+  it('gives two empty sets with no history by default', () => {
+    expect(prefillSets([])).toEqual([{}, {}]);
+  });
+  it('honours emptyCount with no history', () => {
+    expect(prefillSets([], 4)).toEqual([{}, {}, {}, {}]);
+    expect(prefillSets([], 0)).toEqual([{}, {}]);
+    expect(prefillSets([], 11)).toEqual([{}, {}]);
+  });
+  it('ignores emptyCount when previous sets exist', () => {
+    const prev = [
+      set({ set_type: 'warmup', weight_kg: 20, reps: 10 }),
+      set({ weight_kg: 60, reps: 5 }),
+    ];
+    const out = prefillSets(prev, 4);
+    expect(out).toHaveLength(2);
+    expect(out.every((s) => s.rpe === null && s.completed_at === null)).toBe(true);
   });
   it('previousFor reads by index and returns null past the end', () => {
     const prev = [set({ id: 'a' }), set({ id: 'b' })];

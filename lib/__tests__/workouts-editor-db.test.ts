@@ -85,13 +85,33 @@ describe('previous performance and addExerciseToWorkout', () => {
     expect(sets.every((s) => s.rpe === null && s.completed_at === null)).toBe(true);
   });
 
-  it('with no history adds one empty set and the exercise default rest', async () => {
+  it('with no history adds two empty sets and the exercise default rest', async () => {
     const draft = await w.createWorkout({ date: '2026-06-15', status: 'draft' });
     const link = await prev.addExerciseToWorkout(draft.id, 'ex1');
     expect(link.rest_seconds).toBe(75);
     const sets = mem.raw.prepare('SELECT * FROM workout_sets WHERE workout_exercise_id = ?').all(link.id) as any[];
+    expect(sets).toHaveLength(2);
+    expect(sets.every((s) => s.weight_kg === null)).toBe(true);
+  });
+
+  it('with no history uses the default set count preference', async () => {
+    const prefs = require('@/lib/app-preferences');
+    await prefs.setDefaultSetCount(4);
+    const draft = await w.createWorkout({ date: '2026-06-15', status: 'draft' });
+    const link = await prev.addExerciseToWorkout(draft.id, 'ex1');
+    const sets = mem.raw.prepare('SELECT * FROM workout_sets WHERE workout_exercise_id = ?').all(link.id) as any[];
+    expect(sets).toHaveLength(4);
+  });
+
+  it('with one previous set keeps that count despite a higher default', async () => {
+    const prefs = require('@/lib/app-preferences');
+    await prefs.setDefaultSetCount(4);
+    await doneWorkout('2026-06-10T10:00:00.000Z', 'ex1', [{ weight_kg: 50, reps: 5 }]);
+    const draft = await w.createWorkout({ date: '2026-06-15', status: 'draft' });
+    const link = await prev.addExerciseToWorkout(draft.id, 'ex1');
+    const sets = mem.raw.prepare('SELECT * FROM workout_sets WHERE workout_exercise_id = ?').all(link.id) as any[];
     expect(sets).toHaveLength(1);
-    expect(sets[0].weight_kg).toBeNull();
+    expect(sets[0].weight_kg).toBe(50);
   });
 
   it('falls back to 90 s, and keeps a last rest of 0', async () => {

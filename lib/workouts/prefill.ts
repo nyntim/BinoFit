@@ -5,12 +5,35 @@ import type { SetValues } from '@/lib/workouts/db';
 
 export const DEFAULT_REST_SECONDS = 90;
 
+export const DEFAULT_SET_COUNT = 2;
+export const MIN_DEFAULT_SET_COUNT = 1;
+export const MAX_DEFAULT_SET_COUNT = 10;
+
+/** Parses a stored default set count; invalid or out-of-range values return {@link DEFAULT_SET_COUNT}. */
+export function resolveDefaultSetCount(stored: string | null): number {
+  if (stored === null || stored === '') return DEFAULT_SET_COUNT;
+  if (!/^[1-9]\d*$/.test(stored)) return DEFAULT_SET_COUNT;
+  const n = Number(stored);
+  if (n < MIN_DEFAULT_SET_COUNT || n > MAX_DEFAULT_SET_COUNT) return DEFAULT_SET_COUNT;
+  return n;
+}
+
+function effectiveEmptyCount(emptyCount: number): number {
+  if (!Number.isInteger(emptyCount) || emptyCount < MIN_DEFAULT_SET_COUNT || emptyCount > MAX_DEFAULT_SET_COUNT) {
+    return DEFAULT_SET_COUNT;
+  }
+  return emptyCount;
+}
+
 /**
  * Values for the sets of a newly added exercise: a copy of the previous sets in order (set type,
- * weight, reps, time and distance; never RPE or the tick). No previous sets gives one empty set.
+ * weight, reps, time and distance; never RPE or the tick). No previous sets gives emptyCount empty sets.
  */
-export function prefillSets(prev: WorkoutSet[]): SetValues[] {
-  if (prev.length === 0) return [{}];
+export function prefillSets(prev: WorkoutSet[], emptyCount: number = DEFAULT_SET_COUNT): SetValues[] {
+  if (prev.length === 0) {
+    const n = effectiveEmptyCount(emptyCount);
+    return Array.from({ length: n }, () => ({}));
+  }
   return prev.map((s) => ({
     set_type: s.set_type,
     weight_kg: s.weight_kg,

@@ -1,7 +1,8 @@
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import { setShowRpe, setWeightUnit } from '@/lib/app-preferences';
+import { setDefaultSetCount, setShowRpe, setWeightUnit } from '@/lib/app-preferences';
+import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 import type { WeightUnit } from '@/lib/types';
 
 const UNITS: { value: WeightUnit; label: string }[] = [
@@ -10,7 +11,7 @@ const UNITS: { value: WeightUnit; label: string }[] = [
 ];
 
 export function TrainingSection() {
-  const { weightUnit, showRpe } = usePreferences();
+  const { weightUnit, showRpe, defaultSetCount } = usePreferences();
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const card = useThemeColor({}, 'cardBackground');
@@ -74,6 +75,49 @@ export function TrainingSection() {
           accessibilityLabel="Show RPE"
         />
       </View>
+
+      <View style={[styles.row, { backgroundColor: card }]}>
+        <View style={styles.info}>
+          <Text style={[styles.label, { color: text }]}>Default sets</Text>
+          <Text style={[styles.subtitle, { color: muted }]}>
+            Added when an exercise has no previous sets.
+          </Text>
+        </View>
+        <View style={[styles.stepper, { backgroundColor: subtle }]}>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => {
+              if (defaultSetCount > MIN_DEFAULT_SET_COUNT) setDefaultSetCount(defaultSetCount - 1);
+            }}
+            disabled={defaultSetCount <= MIN_DEFAULT_SET_COUNT}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Fewer default sets"
+            accessibilityState={{ disabled: defaultSetCount <= MIN_DEFAULT_SET_COUNT }}
+          >
+            <Text style={[styles.stepperSymbol, { color: muted }]}>−</Text>
+          </TouchableOpacity>
+          <Text
+            style={[styles.stepperValue, { color: text }]}
+            accessibilityLabel={`Default sets, ${defaultSetCount}`}
+          >
+            {defaultSetCount}
+          </Text>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => {
+              if (defaultSetCount < MAX_DEFAULT_SET_COUNT) setDefaultSetCount(defaultSetCount + 1);
+            }}
+            disabled={defaultSetCount >= MAX_DEFAULT_SET_COUNT}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="More default sets"
+            accessibilityState={{ disabled: defaultSetCount >= MAX_DEFAULT_SET_COUNT }}
+          >
+            <Text style={[styles.stepperSymbol, { color: muted }]}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -101,4 +145,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentText: { fontSize: 13, fontWeight: '600' },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    padding: 3,
+  },
+  stepperButton: {
+    minHeight: 44,
+    minWidth: 44,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperSymbol: { fontSize: 20, fontWeight: '600', lineHeight: 22 },
+  stepperValue: { fontSize: 16, fontWeight: '600', minWidth: 28, textAlign: 'center' },
 });
