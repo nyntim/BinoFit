@@ -417,3 +417,26 @@ export type RemoteWorkoutSet = {
   updated_at: string | null;
   deleted_at?: string | null;
 };
+
+// ── Training tab summaries (C8) ─────────────────────────────────────────────
+
+/** One finished workout as shown in the Training tab and the history list. */
+export type WorkoutSummary = {
+  id: string;
+  /** yyyy-MM-dd */
+  date: string;
+  title: string;
+  /** e.g. "Thu 16 Oct · Deadlift, Lat pulldown" or "Mon 13 Oct · 5.00 km · 5:30 /km". */
+  subtitle: string;
+  /** e.g. "58 min", "1h 04m". */
+  durationLabel: string;
+  /** e.g. "4,820 kg", "cardio", or null when there is nothing to show. */
+  detailLabel: string | null;
+};
+
+/** Totals for one Monday to Sunday week (volume in kg). */
+export type WeekSummary = {
+  sessions: number;
+  volumeKg: number;
+  durationSeconds: number;
+};

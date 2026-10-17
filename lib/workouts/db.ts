@@ -27,7 +27,7 @@ export class ActiveWorkoutExistsError extends Error {
 
 // ── Row mapping ────────────────────────────────────────────────
 
-type ExerciseRow = Omit<Exercise, 'primary_muscles' | 'secondary_muscles'> & {
+export type ExerciseRow = Omit<Exercise, 'primary_muscles' | 'secondary_muscles'> & {
   primary_muscles: string | null;
   secondary_muscles: string | null;
 };
