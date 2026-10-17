@@ -223,3 +223,197 @@ export type RemoteWeightEntry = {
   updated_at: string | null;
   deleted_at?: string | null;
 };
+
+// ── Workouts (Phase 4 training) ─────────────────────────────────────────────
+// Units: weight kg, distance metres, time seconds. Dates yyyy-MM-dd local, times ISO.
+
+export type ExerciseLogType =
+  | 'weight_reps'
+  | 'bodyweight_reps'
+  | 'assisted'
+  | 'duration'
+  | 'distance_duration';
+
+export type MuscleGroup =
+  | 'chest'
+  | 'front_delts'
+  | 'side_delts'
+  | 'rear_delts'
+  | 'triceps'
+  | 'biceps'
+  | 'forearms'
+  | 'lats'
+  | 'upper_back'
+  | 'lower_back'
+  | 'abs'
+  | 'glutes'
+  | 'quads'
+  | 'hamstrings'
+  | 'calves'
+  | 'full_body'
+  | 'cardio';
+
+export type Equipment =
+  | 'machine'
+  | 'cable'
+  | 'barbell'
+  | 'dumbbell'
+  | 'bodyweight'
+  | 'cardio_machine'
+  | 'other';
+
+export type LoadType = 'stack' | 'plate';
+export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
+export type WorkoutStatus = 'active' | 'draft' | 'done';
+export type WorkoutSource = 'live' | 'manual';
+export type ExerciseSource = 'seed' | 'custom';
+
+export type Exercise = {
+  id: string;
+  name: string;
+  log_type: ExerciseLogType;
+  primary_muscles: MuscleGroup[];
+  secondary_muscles: MuscleGroup[];
+  equipment: Equipment;
+  brand: string | null;
+  load_type: LoadType | null;
+  base_weight_kg: number | null;
+  per_side: number; // 0 | 1
+  setup_notes: string | null;
+  default_rest_seconds: number | null;
+  met: number | null;
+  source: ExerciseSource;
+  hidden: number; // 0 | 1
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type Workout = {
+  id: string;
+  status: WorkoutStatus;
+  source: WorkoutSource;
+  name: string | null;
+  date: string;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number | null;
+  notes: string | null;
+  routine_id: string | null;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type WorkoutExercise = {
+  id: string;
+  workout_id: string;
+  exercise_id: string;
+  position: number;
+  rest_seconds: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type WorkoutSet = {
+  id: string;
+  workout_id: string;
+  workout_exercise_id: string;
+  position: number;
+  set_type: SetType;
+  weight_kg: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  distance_m: number | null;
+  rpe: number | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+/** A workout exercise with its (live) sets and the exercise definition (null name fields fall back). */
+export type WorkoutExerciseWithSets = WorkoutExercise & {
+  /** "Unknown exercise" when the exercise row is missing (e.g. restored before its definition). */
+  exercise_name: string;
+  exercise: Exercise | null;
+  sets: WorkoutSet[];
+};
+
+export type WorkoutWithExercises = Workout & { exercises: WorkoutExerciseWithSets[] };
+
+export type RemoteExercise = {
+  user_id: string;
+  id: string;
+  name: string;
+  log_type: ExerciseLogType;
+  primary_muscles: MuscleGroup[] | null;
+  secondary_muscles: MuscleGroup[] | null;
+  equipment: Equipment;
+  brand: string | null;
+  load_type: LoadType | null;
+  base_weight_kg: number | null;
+  per_side: number | boolean | null;
+  setup_notes: string | null;
+  default_rest_seconds: number | null;
+  met: number | null;
+  source?: string | null;
+  hidden: number | boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteWorkout = {
+  user_id: string;
+  id: string;
+  status?: string | null;
+  source: WorkoutSource | null;
+  name: string | null;
+  date: string;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number | null;
+  notes: string | null;
+  routine_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteWorkoutExercise = {
+  user_id: string;
+  id: string;
+  workout_id: string;
+  exercise_id: string;
+  position: number;
+  rest_seconds: number | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteWorkoutSet = {
+  user_id: string;
+  id: string;
+  workout_id: string;
+  workout_exercise_id: string;
+  position: number;
+  set_type: SetType;
+  weight_kg: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  distance_m: number | null;
+  rpe: number | null;
+  completed_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};

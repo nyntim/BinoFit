@@ -30,6 +30,16 @@ jest.mock('@/lib/database', () => ({
   markMealNamesSynced: jest.fn(async () => {}),
 }));
 
+jest.mock('@/lib/workouts/db', () => ({
+  getUnsyncedWorkoutTree: jest.fn(async () => ({
+    exercises: [],
+    workouts: [],
+    workoutExercises: [],
+    sets: [],
+  })),
+  purgeSyncedExerciseTombstones: jest.fn(async () => {}),
+}));
+
 import { syncToSupabase } from '@/lib/sync';
 import { getSyncState, resetSyncState } from '@/lib/sync-status';
 import * as db from '@/lib/database';

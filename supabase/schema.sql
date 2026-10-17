@@ -142,6 +142,85 @@ create policy "weight_entries: own rows"
   on public.weight_entries for all to authenticated
   using (user_id = (select auth.uid())::text)
   with check (user_id = (select auth.uid())::text);
+-- ─────────────────────────────────────────────────────────
+-- Workouts (Phase 4 training). Only done workouts and custom exercises sync. Ids are client
+-- uuids, no foreign keys (children may arrive before parents). Times are timestamptz, muscles jsonb.
+-- Deletes are tombstones (deleted_at); the client purges them after a successful push.
+-- ─────────────────────────────────────────────────────────
+create table if not exists public.exercises (
+  id                   text primary key,
+  user_id              text not null,
+  name                 text not null,
+  log_type             text not null,
+  primary_muscles      jsonb not null default '[]'::jsonb,
+  secondary_muscles    jsonb not null default '[]'::jsonb,
+  equipment            text not null,
+  brand                text,
+  load_type            text,
+  base_weight_kg       double precision,
+  per_side             integer not null default 0,
+  setup_notes          text,
+  default_rest_seconds integer,
+  met                  double precision,
+  source               text not null default 'custom',
+  hidden               integer not null default 0,
+  created_at           timestamptz default now(),
+  updated_at           timestamptz default now(),
+  deleted_at           timestamptz
+);
+create index if not exists idx_exercises_user on public.exercises (user_id);
+
+create table if not exists public.workouts (
+  id               text primary key,
+  user_id          text not null,
+  status           text not null default 'done',
+  source           text not null default 'live',
+  name             text,
+  date             text not null,   -- yyyy-MM-dd
+  started_at       timestamptz,
+  ended_at         timestamptz,
+  duration_seconds integer,
+  notes            text,
+  routine_id       text,
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now(),
+  deleted_at       timestamptz
+);
+create index if not exists idx_workouts_user on public.workouts (user_id);
+create index if not exists idx_workouts_user_date on public.workouts (user_id, date);
+
+create table if not exists public.workout_exercises (
+  id           text primary key,
+  user_id      text not null,
+  workout_id   text not null,
+  exercise_id  text not null,
+  position     integer not null,
+  rest_seconds integer,
+  notes        text,
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now(),
+  deleted_at   timestamptz
+);
+create index if not exists idx_workout_exercises_user on public.workout_exercises (user_id);
+
+create table if not exists public.workout_sets (
+  id                  text primary key,
+  user_id             text not null,
+  workout_id          text not null,
+  workout_exercise_id text not null,
+  position            integer not null,
+  set_type            text not null default 'normal',
+  weight_kg           double precision,
+  reps                integer,
+  duration_seconds    integer,
+  distance_m          double precision,
+  rpe                 double precision,
+  completed_at        timestamptz,
+  created_at          timestamptz default now(),
+  updated_at          timestamptz default now(),
+  deleted_at          timestamptz
+);
+create index if not exists idx_workout_sets_user on public.workout_sets (user_id);
 
 -- ═════════════════════════════════════════════════════════
 -- STEP A: run now. New tables and functions; open policies are kept so older app builds
@@ -177,6 +256,10 @@ alter table public.user_goals    enable row level security;
 alter table public.user_profile  enable row level security;
 alter table public.meal_definitions enable row level security;
 alter table public.meal_names       enable row level security;
+alter table public.exercises         enable row level security;
+alter table public.workouts          enable row level security;
+alter table public.workout_exercises enable row level security;
+alter table public.workout_sets      enable row level security;
 
 -- Moves every row owned by p_from to p_to. Where both own the same key, p_to ("existing")
 -- wins and p_from's row is dropped. Internal: not callable by clients.
@@ -223,6 +306,12 @@ begin
      and exists (select 1 from public.meal_definitions e
                   where e.user_id = p_to and e.id = d.id);
   update public.meal_definitions set user_id = p_to where user_id = p_from;
+
+  -- Workout tables: ids are client uuids, so these never conflict.
+  update public.exercises         set user_id = p_to where user_id = p_from;
+  update public.workouts          set user_id = p_to where user_id = p_from;
+  update public.workout_exercises set user_id = p_to where user_id = p_from;
+  update public.workout_sets      set user_id = p_to where user_id = p_from;
 end;
 $$;
 revoke all on function public._merge_user_rows(text, text) from public, anon, authenticated;
@@ -385,6 +474,31 @@ create policy "Users can manage meal names"
   on public.meal_names for all
   using (true)
   with check (true);
+
+-- Workout tables are new, so they get strict per-user policies right away.
+drop policy if exists "exercises: own rows" on public.exercises;
+create policy "exercises: own rows"
+  on public.exercises for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "workouts: own rows" on public.workouts;
+create policy "workouts: own rows"
+  on public.workouts for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "workout_exercises: own rows" on public.workout_exercises;
+create policy "workout_exercises: own rows"
+  on public.workout_exercises for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "workout_sets: own rows" on public.workout_sets;
+create policy "workout_sets: own rows"
+  on public.workout_sets for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
 
 -- ═════════════════════════════════════════════════════════
 -- STEP B: run LATER, only after all your devices run the build with account support.

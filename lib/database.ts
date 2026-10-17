@@ -16,6 +16,7 @@ import type {
 } from '@/lib/types';
 import { decideRemoteApply, tombstoneSql } from '@/lib/tombstones';
 import { initWeightSchema } from '@/lib/weight';
+import { initWorkoutSchema } from '@/lib/workouts/schema';
 import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
 
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -137,6 +138,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await initWeightSchema(db);
 
   await seedDefaultMeals(db);
+  await initWorkoutSchema(db);
 }
 
 /**
@@ -898,6 +900,11 @@ export async function clearUserData(): Promise<void> {
     await txn.runAsync('DELETE FROM meal_names');
     await txn.runAsync('DELETE FROM meal_definitions');
     await txn.runAsync("DELETE FROM foods WHERE source = 'custom'");
+    // Workouts: seeds stay, custom exercises go.
+    await txn.runAsync('DELETE FROM workout_sets');
+    await txn.runAsync('DELETE FROM workout_exercises');
+    await txn.runAsync('DELETE FROM workouts');
+    await txn.runAsync("DELETE FROM exercises WHERE source = 'custom'");
   });
   await seedDefaultMeals(db);
 }
@@ -910,5 +917,9 @@ export async function markAllUnsynced(): Promise<void> {
     await txn.runAsync('UPDATE weight_entries SET synced_at = NULL');
     await txn.runAsync('UPDATE meal_definitions SET synced_at = NULL');
     await txn.runAsync('UPDATE meal_names SET synced_at = NULL');
+    await txn.runAsync('UPDATE exercises SET synced_at = NULL');
+    await txn.runAsync('UPDATE workouts SET synced_at = NULL');
+    await txn.runAsync('UPDATE workout_exercises SET synced_at = NULL');
+    await txn.runAsync('UPDATE workout_sets SET synced_at = NULL');
   });
 }

@@ -1,7 +1,15 @@
 import { getDatabase } from '@/lib/database';
 
 /** Tables that carry deleted_at / synced_at and may be passed to the helpers below. */
-const TOMBSTONE_TABLES = ['food_logs', 'weight_entries'] as const;
+const TOMBSTONE_TABLES = [
+  'food_logs',
+  'weight_entries',
+  // Workouts (Phase 4)
+  'exercises',
+  'workouts',
+  'workout_exercises',
+  'workout_sets',
+] as const;
 export type TombstoneTable = (typeof TOMBSTONE_TABLES)[number];
 
 function assertTable(table: string): asserts table is TombstoneTable {
