@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
+import { format } from 'date-fns';
 import type {
   Food,
   FoodLog,
@@ -427,10 +428,12 @@ export async function getLoggedDatesInRange(startDate: string, endDate: string):
   }
 }
 
-export async function getAllLoggedDates(): Promise<string[]> {
+/** Distinct log dates up to `today` (local yyyy-MM-dd), newest first. */
+export async function getAllLoggedDates(
+  today: string = format(new Date(), 'yyyy-MM-dd')
+): Promise<string[]> {
   try {
     const db = await getDatabase();
-    const today = new Date().toISOString().split('T')[0];
     const rows = await db.getAllAsync<{ date: string }>(
       `SELECT DISTINCT date FROM food_logs WHERE deleted_at IS NULL AND date <= ? ORDER BY date DESC`,
       [today]
