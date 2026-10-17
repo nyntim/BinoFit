@@ -97,6 +97,11 @@ export type RestoreSummary = {
   goalsRestored: boolean;
 };
 
+/** True when a restore brought back anything beyond meal layout (meals alone do not skip onboarding). */
+export function hasRestoredData(s: RestoreSummary): boolean {
+  return s.goalsRestored || s.logsRestored > 0;
+}
+
 export type RestoreResult =
   | ({ ok: true } & RestoreSummary)
   | { ok: false; error: string };
@@ -225,7 +230,9 @@ export async function restoreFromAccount(
     let goalsRestored = false;
     if (goals) goalsRestored = await applyRemoteGoals(goals);
     if (profile) await applyRemoteProfile(profile);
-    if (goalsRestored) await setOnboardingComplete();
+    if (hasRestoredData({ logsRestored, unresolvedFoods: 0, mealsRestored: false, goalsRestored })) {
+      await setOnboardingComplete();
+    }
 
     restoreMealReminders();
 
@@ -259,7 +266,7 @@ export function describeProgress(p: RestoreProgress | null): string {
 export function describeRestore(s: RestoreSummary): string {
   const parts: string[] = [];
   if (s.logsRestored > 0) parts.push(`Restored ${s.logsRestored} ${s.logsRestored === 1 ? 'entry' : 'entries'}.`);
-  else if (!s.goalsRestored && !s.mealsRestored) parts.push('No saved data found for this account.');
+  else if (!hasRestoredData(s) && !s.mealsRestored) parts.push('No saved data found for this account.');
   else parts.push('Restored your settings.');
   if (s.unresolvedFoods > 0) {
     parts.push(

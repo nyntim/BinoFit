@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import { getPreferences, loadPreferences } from '@/lib/app-preferences';
 import { getOnboardingComplete } from '@/lib/storage';
+import { homeRouteFor } from '@/lib/tracking-mode';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -10,10 +12,10 @@ export default function RootIndex() {
   const colors = Colors[colorScheme ?? 'light'];
 
   useEffect(() => {
-    getOnboardingComplete().then((done) => {
+    // Preferences load first so a Training-only user never sees a Home flash.
+    Promise.all([getOnboardingComplete(), loadPreferences()]).then(([done]) => {
       if (done) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/(tabs)' as any);
+        router.replace(homeRouteFor(getPreferences().trackingMode));
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         router.replace('/onboarding' as any);

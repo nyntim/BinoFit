@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-jest.mock('@/lib/restore', () => ({ restoreFromAccount: jest.fn() }));
+jest.mock('@/lib/restore', () => ({ hasRestoredData: (s: any) => s.goalsRestored || s.logsRestored > 0, restoreFromAccount: jest.fn() }));
 jest.mock('@/lib/sync', () => ({
   syncToSupabase: jest.fn(async () => {}),
   waitForSyncIdle: jest.fn(async () => {}),

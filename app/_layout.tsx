@@ -8,7 +8,8 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
-import { loadPreferences } from '@/lib/app-preferences';
+import { getPreferences, loadPreferences } from '@/lib/app-preferences';
+import { homeRouteFor } from '@/lib/tracking-mode';
 import { initAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { isSyncConfigured } from '@/lib/sync-status';
@@ -45,7 +46,7 @@ export default function RootLayout() {
       // (still on the welcome screen or the loading route), otherwise it applies next launch.
       const route = pathnameRef.current;
       if (result.restored && (route === '/' || route === '/onboarding')) {
-        router.replace('/(tabs)');
+        loadPreferences().then(() => router.replace(homeRouteFor(getPreferences().trackingMode)));
       }
     });
   }, []);

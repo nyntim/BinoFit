@@ -5,6 +5,7 @@ export default function OnboardingLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="account" />
+      <Stack.Screen name="mode" />
       <Stack.Screen name="goals" />
       <Stack.Screen name="complete" />
     </Stack>

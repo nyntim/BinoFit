@@ -1,16 +1,17 @@
 import type { EmailSignUpOutcome, SignInOutcome } from '@/lib/auth';
+import { hasRestoredData } from '@/lib/restore';
 
 export type AuthContext = 'onboarding' | 'settings';
 
 /**
  * Where to go after an auth action.
- * - goals: continue to the goals screen (new account, or restored account without goals)
- * - tabs: replace with the dashboard; `completeOnboarding` marks onboarding done first
+ * - mode: continue to the tracking mode screen (new account, or restored account with nothing to show)
+ * - tabs: replace with the home tab for the stored mode; `completeOnboarding` marks onboarding done first
  * - back: close the screen (Settings)
  * - stay: remain on the form (error, cancel, or a restore that needs a retry)
  */
 export type AuthRoute =
-  | { to: 'goals' }
+  | { to: 'mode' }
   | { to: 'tabs'; completeOnboarding: true }
   | { to: 'back' }
   | { to: 'stay'; retryRestore?: boolean; message?: string };
@@ -21,7 +22,7 @@ export function routeAfterAuth(
 ): AuthRoute {
   switch (outcome.status) {
     case 'signedUp':
-      return context === 'onboarding' ? { to: 'goals' } : { to: 'back' };
+      return context === 'onboarding' ? { to: 'mode' } : { to: 'back' };
     case 'signedIn': {
       const { restore } = outcome;
       if (!restore.ok) {
@@ -31,11 +32,11 @@ export function routeAfterAuth(
           message: 'Signed in, but your data could not be restored.',
         };
       }
-      if (restore.goalsRestored) {
+      if (hasRestoredData(restore)) {
         // Settings is already on top of the tabs: go back rather than stack a second instance.
         return context === 'settings' ? { to: 'back' } : { to: 'tabs', completeOnboarding: true };
       }
-      return context === 'onboarding' ? { to: 'goals' } : { to: 'back' };
+      return context === 'onboarding' ? { to: 'mode' } : { to: 'back' };
     }
     case 'error':
       return { to: 'stay', message: outcome.message };

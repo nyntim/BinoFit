@@ -21,6 +21,9 @@ const MAPPING = {
   'gear': 'settings',
   'flame.fill': 'local-fire-department',
   'icloud.slash': 'cloud-off',
+  'dumbbell.fill': 'fitness-center',
+  'chart.bar.fill': 'bar-chart',
+  'ellipsis': 'more-horiz',
 } as IconMapping;
 
 /**

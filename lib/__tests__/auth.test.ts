@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Apple from 'expo-apple-authentication';
 
-jest.mock('@/lib/restore', () => ({ restoreFromAccount: jest.fn(async () => ({ ok: true, logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: true })) }));
+jest.mock('@/lib/restore', () => ({ hasRestoredData: (s: any) => s.goalsRestored || s.logsRestored > 0, restoreFromAccount: jest.fn(async () => ({ ok: true, logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: true })) }));
 jest.mock('@/lib/sync', () => ({
   syncToSupabase: jest.fn(async () => {}),
   waitForSyncIdle: jest.fn(async () => {}),

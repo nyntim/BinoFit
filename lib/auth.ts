@@ -30,7 +30,7 @@ import {
   setLegacyClaimed,
   setPendingMergeTicket,
 } from '@/lib/storage';
-import { restoreFromAccount, type RestoreProgress, type RestoreResult } from '@/lib/restore';
+import { hasRestoredData, restoreFromAccount, type RestoreProgress, type RestoreResult } from '@/lib/restore';
 import { restoreMealReminders } from '@/lib/reminders';
 import { reportAuthIssue } from '@/lib/auth-debug';
 import { authErrorMessage, normalizeEmail } from '@/lib/auth-validation';
@@ -344,7 +344,7 @@ async function runInitAuth(force: boolean): Promise<InitAuthResult> {
   // A Keychain session can survive a reinstall while local data does not.
   if (state.status === 'signedIn' && !(await getOnboardingComplete())) {
     const result = await restoreTracked(session.user.id);
-    restored = result.ok && result.goalsRestored;
+    restored = result.ok && hasRestoredData(result);
   }
 
   triggerSync();

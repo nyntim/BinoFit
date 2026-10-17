@@ -14,6 +14,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/hooks/useAuth';
 import { retryRestore, signInWithApple } from '@/lib/auth';
 import { routeAfterAuth } from '@/lib/auth-routing';
+import { getLoggedDates } from '@/lib/database';
 import { getRestorePending, getUserGoals } from '@/lib/storage';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { describeProgress, type RestoreProgress } from '@/lib/restore';
@@ -47,18 +48,21 @@ export default function WelcomeScreen() {
     if (next) AccessibilityInfo.announceForAccessibility(next);
   }
 
-  function goToGoals() {
-    router.push('/onboarding/goals' as any);
+  function goToMode() {
+    router.push('/onboarding/mode' as any);
   }
 
   function goToAccount(mode: 'signUp' | 'signIn') {
     router.push({ pathname: '/onboarding/account', params: { mode } } as any);
   }
 
-  /** Already signed in with nothing to restore: go on to the dashboard if goals exist. */
+  /** Already signed in with nothing to restore: go on to the home tab if data exists. */
   async function handleContinueSignedIn() {
-    const goals = await getUserGoals();
-    await applyAuthRoute(goals ? { to: 'tabs', completeOnboarding: true } : { to: 'goals' });
+    const [goals, loggedDates] = await Promise.all([
+      getUserGoals(),
+      getLoggedDates().catch(() => [] as string[]),
+    ]);
+    await applyAuthRoute(goals || loggedDates.length > 0 ? { to: 'tabs', completeOnboarding: true } : { to: 'mode' });
   }
 
   async function handleApple() {
@@ -98,7 +102,7 @@ export default function WelcomeScreen() {
         </View>
         <View style={styles.footer}>
           {!accountsAvailable ? (
-            <TouchableOpacity style={primary} onPress={goToGoals} accessibilityRole="button">
+            <TouchableOpacity style={primary} onPress={goToMode} accessibilityRole="button">
               <Text style={[styles.buttonText, { color: background }]}>Continue</Text>
             </TouchableOpacity>
           ) : signedIn && restorePending ? (
@@ -124,7 +128,7 @@ export default function WelcomeScreen() {
               >
                 <Text style={[styles.buttonText, { color: background }]}>Sign up with email</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[...ghost, styles.gap]} onPress={goToGoals} disabled={busy} accessibilityRole="button">
+              <TouchableOpacity style={[...ghost, styles.gap]} onPress={goToMode} disabled={busy} accessibilityRole="button">
                 <Text style={[styles.ghostText, { color: text }]}>Continue without an account</Text>
               </TouchableOpacity>
               <TouchableOpacity

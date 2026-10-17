@@ -51,6 +51,7 @@ import {
   isLiveRow,
   pageRange,
   remoteFoodToFood,
+  hasRestoredData,
   restoreFromAccount,
   splitFoodIds,
   uniqueFoodIds,
@@ -115,6 +116,24 @@ describe('pure helpers', () => {
   });
 });
 
+describe('hasRestoredData', () => {
+  const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false };
+  it.each([
+    [{}, false],
+    [{ mealsRestored: true }, false],
+    [{ goalsRestored: true }, true],
+    [{ logsRestored: 1 }, true],
+    [{ goalsRestored: true, logsRestored: 3 }, true],
+  ])('%j -> %s', (over, expected) => {
+    expect(hasRestoredData({ ...base, ...over })).toBe(expected);
+  });
+
+  it('describeRestore does not say no saved data when logs came back without goals', () => {
+    expect(describeRestore({ ...base, logsRestored: 4 })).toBe('Restored 4 entries.');
+    expect(describeRestore({ ...base, logsRestored: 4 })).not.toContain('No saved data');
+  });
+});
+
 describe('restoreFromAccount', () => {
   it('pages through 1000-row boundaries until a short page', async () => {
     mockTables.food_logs = logs(2300);
@@ -165,6 +184,19 @@ describe('restoreFromAccount', () => {
     const res = await restoreFromAccount('u1');
     expect(storage.setOnboardingComplete).not.toHaveBeenCalled();
     expect(res).toMatchObject({ ok: true, goalsRestored: false });
+  });
+
+  it('marks onboarding complete when logs came back but there are no goals', async () => {
+    mockTables.food_logs = logs(2);
+    const res = await restoreFromAccount('u1');
+    expect(storage.setOnboardingComplete).toHaveBeenCalled();
+    expect(res).toMatchObject({ ok: true, logsRestored: 2, goalsRestored: false });
+  });
+
+  it('does not mark onboarding complete when only meals came back', async () => {
+    mockTables.meal_definitions = [{ id: 'x' }];
+    await restoreFromAccount('u1');
+    expect(storage.setOnboardingComplete).not.toHaveBeenCalled();
   });
 
   it('resolves foods from USDA first, then remote, and reports the rest as unresolved', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -18,6 +18,7 @@ import { Colors } from '@/constants/theme';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { TrainingSection } from '@/components/settings/TrainingSection';
 import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import {
@@ -66,6 +67,12 @@ export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
+  const { trackingMode } = usePreferences();
+  const trainingOnly = trackingMode === 'training';
+  const scrollRef = useRef<ScrollView>(null);
+  const caloriesRef = useRef<TextInput>(null);
+  const goalsY = useRef(0);
+  const [hasGoals, setHasGoals] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -87,6 +94,7 @@ export default function SettingsScreen() {
       getUserProfile(),
       getDefaultLogStatus(),
     ]);
+    setHasGoals(!!goals);
     if (goals) {
       setCalories(String(goals.calorie_goal));
       setProtein(String(goals.protein_goal));
@@ -113,19 +121,27 @@ export default function SettingsScreen() {
     await setDefaultLogStatus(next);
   }
 
+  function handleSetGoals() {
+    scrollRef.current?.scrollTo({ y: Math.max(0, goalsY.current - 8), animated: true });
+    caloriesRef.current?.focus();
+  }
+
   async function handleSave() {
     const cal = parseInt(calories, 10);
     const prot = parseInt(protein, 10);
     const carb = parseInt(carbs, 10);
     const f = parseInt(fat, 10);
 
-    if (!cal || !prot || !carb || !f) {
+    // Training mode hides the goals, so they are neither validated nor saved.
+    if (!trainingOnly && (!cal || !prot || !carb || !f)) {
       Alert.alert('Invalid input', 'Please enter valid numbers for all nutrition goals.');
       return;
     }
 
     await Promise.all([
-      saveUserGoals({ calorie_goal: cal, protein_goal: prot, carb_goal: carb, fat_goal: f }),
+      trainingOnly
+        ? Promise.resolve()
+        : saveUserGoals({ calorie_goal: cal, protein_goal: prot, carb_goal: carb, fat_goal: f }),
       saveUserProfile({
         weight: weight ? parseFloat(weight) : null,
         height: height ? parseFloat(height) : null,
@@ -133,6 +149,7 @@ export default function SettingsScreen() {
       }),
     ]);
 
+    if (!trainingOnly) setHasGoals(true);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -147,14 +164,21 @@ export default function SettingsScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
-          <View style={styles.section}>
+          {!trainingOnly && (
+          <View
+            style={styles.section}
+            onLayout={(e) => {
+              goalsY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily Goals</Text>
 
             <Text style={labelStyle}>Calories</Text>
             <TextInput
+              ref={caloriesRef}
               style={inputStyle}
               value={calories}
               onChangeText={setCalories}
@@ -190,7 +214,9 @@ export default function SettingsScreen() {
               placeholderTextColor={colors.icon}
             />
           </View>
+          )}
 
+          {!trainingOnly && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
             <View style={[styles.preferenceRow, bg]}>
@@ -232,6 +258,7 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+          )}
 
           {Platform.OS === 'ios' && available && (
             <View style={styles.section}>
@@ -302,7 +329,7 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <TrainingSection />
+          <TrainingSection hasGoals={hasGoals} onSetGoals={handleSetGoals} />
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
