@@ -63,6 +63,3 @@ app-example
 # impeccable
 .impeccable.md
 .impeccable/
-
-# project hooks config
-!.claude/settings.json
