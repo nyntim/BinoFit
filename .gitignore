@@ -12,6 +12,7 @@ node_modules/
 # parallel feature workspaces (scripts/agents/ship.sh)
 .worktrees/
 .claude/worktrees/
+.plans/
 
 # Expo
 .expo/

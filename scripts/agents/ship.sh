@@ -123,9 +123,15 @@ cmd_land() {
   (cd "$path" && unset SKIP_VERSION_BUMP && git commit --quiet --amend --no-edit)
   version=$(cd "$path" && node -p "require('./package.json').version")
 
+  # Full output goes to a log; only the tail of a failure is printed, to keep
+  # the lead's context small.
   if [ "${SHIP_SKIP_CHECKS:-0}" != "1" ]; then
-    (cd "$path" && npm run --silent lint && npx tsc --noEmit && npm test --silent -- --ci) ||
-      die "checks failed in $path; fix, amend the commit, and land again"
+    log="$WT_DIR/$1.checks.log"
+    if ! (cd "$path" && npm run --silent lint && npx tsc --noEmit && npm test --silent -- --ci) >"$log" 2>&1; then
+      tail -n 40 "$log" >&2
+      die "checks failed in $path (full log: $log); fix, amend the commit, and land again"
+    fi
+    echo "checks passed"
   fi
 
   # Fast-forward main wherever it is checked out, or move the ref directly.

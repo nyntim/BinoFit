@@ -1,7 +1,7 @@
 ---
 name: planner
-description: Turns a BinoFit feature request or PRD item into a file-level implementation plan. Use before building any non-trivial feature, schema change, or new screen. Read-only.
-tools: Read, Grep, Glob, Bash
+description: Turns a BinoFit feature request or PRD item into a file-level implementation plan, written to .plans/<slug>.md, and returns a short summary. Use before building any non-trivial feature, schema change, or new screen. Edits no project files.
+tools: Read, Write, Grep, Glob, Bash
 model: opus
 ---
 

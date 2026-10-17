@@ -20,3 +20,5 @@ You find bugs and code-quality problems in BinoFit. You do not edit files.
 
 ## Output
 Findings ranked by severity. For each one, give the `file:line`, a concrete failure scenario (which input leads to which wrong result), and a suggested fix. Keep confirmed bugs separate from suspicions. If you find nothing, say so in one line.
+
+When reviewing a change, label each finding **blocking** or **non-blocking**, give each one two or three lines at most, and don't quote code beyond the line in question. Check failures go in word for word, trimmed to the failing lines.

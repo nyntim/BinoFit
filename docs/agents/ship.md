@@ -9,11 +9,11 @@ This file is tool-agnostic. The git mechanics live in `scripts/agents/ship.sh` (
 ```
 User ──tasks──▶ Lead
                  │
-                 ├── 1. PLAN      one planner per task, in parallel (read-only)
-                 ├── 2. APPROVE   ✋ all plans + overlap map + landing order, in one stop
+                 ├── 1. PLAN      one planner per task, in parallel → .plans/<slug>.md + summary
+                 ├── 2. APPROVE   ✋ only if a plan needs it; else the lead approves and goes on
                  ├── 3. START     ship.sh start <slug>  → .worktrees/<slug> on its own branch
                  ├── 4. BUILD     per team, in parallel, inside its worktree:
-                 │                builder → test engineer → QA ∥ design review → fix (≤2 rounds)
+                 │                builder (with tests) → reviewer → fix (1 round)
                  ├── 5. COMMIT    one commit per team, in its worktree
                  ├── 6. RELAY     shared-surface changes passed between teams by the lead
                  ├── 7. LAND      in order: ship.sh rebase → resolve → ship.sh land
@@ -21,24 +21,23 @@ User ──tasks──▶ Lead
                  └── 9. REPORT
 ```
 
-The user is stopped twice at most: plan approval, and pushing. Everything in between runs without asking.
+The user is stopped only for a plan that needs approval, a blocker the lead can't resolve, and pushing. Everything in between runs without asking and without status updates; the lead writes to the user only at a stop and in the final report.
 
 ## 1. Plan
 
 - Split the request into tasks. Give each a **slug** (`meal-photos`, `water-reminders`): lowercase, digits and dashes. The slug is also the branch name, so it must not mention AI or assistants.
-- Run one **planner** per task in parallel, from the main checkout. Planners don't edit files, so they don't need a worktree.
+- Run one **planner** per task in parallel, from the main checkout, each with the plan path `<repo root>/.plans/<slug>.md`. Planners write only that file, so they don't need a worktree. Each returns a five-line summary ending in `Needs approval: yes | no`.
 - If the request is ambiguous enough that plans would diverge, ask before planning, not after.
 
-## 2. Approve (the one planning stop)
+## 2. Approve (only when needed)
 
-Show the user, in one message:
+From the summaries' `Files` lines, work out:
 
-1. **Each plan**, in full.
-2. **Overlap map**: every file that more than one plan touches, and who touches it. Watch `lib/database.ts` (migrations and schema), `lib/types.ts`, `supabase/schema.sql`, `lib/sync.ts`, `lib/storage.ts`, `constants/theme.ts`, shared components, and `package.json` (new dependencies).
-3. **Landing order**: smallest and least risky first, and anything others depend on before its dependents. If two tasks change the same function heavily, say so and propose running the second **after** the first lands rather than in parallel.
-4. **Parallelism**: run at most **3 teams at once** by default (each worktree runs its own `npm ci`, lint, typecheck and tests). Queue the rest.
+1. **Overlap map**: every file that more than one plan touches, and who touches it. Watch `lib/database.ts` (migrations and schema), `lib/types.ts`, `supabase/schema.sql`, `lib/sync.ts`, `lib/storage.ts`, `constants/theme.ts`, shared components, and `package.json` (new dependencies).
+2. **Landing order**: smallest and least risky first, and anything others depend on before its dependents. If two tasks change the same function heavily, run the second **after** the first lands rather than in parallel.
+3. **Parallelism**: run at most **3 teams at once** by default (each worktree runs its own `npm ci`, lint, typecheck and tests). Queue the rest.
 
-Wait for approval. If the user changes a plan, re-run that planner only.
+If every summary says `Needs approval: no`, approve them yourself and go straight on; don't write to the user. If any says `yes`, stop once for all of them: give the plan paths, every summary, why approval is needed, the overlap map and the landing order, and wait. If the user changes a plan, send it to that planner with `SendMessage`.
 
 ## 3. Start a workspace per task
 
@@ -52,10 +51,10 @@ This fetches, checks that local `main` isn't behind `origin/main`, creates `.wor
 
 For each task, run the single-feature steps from the [README workflow](README.md#workflow) (BUILD, REVIEW, FIX), with every role pointed at that task's worktree. Start every role prompt with:
 
-> Your workspace is `<absolute worktree path>`. Read, edit and run commands only inside it; `cd` there before any shell command and use absolute paths under it for file edits. The main checkout and other worktrees belong to other teams; don't touch them. The approved plan is: …
+> Your workspace is `<absolute worktree path>`. Read, edit and run commands only inside it; `cd` there before any shell command and use absolute paths under it for file edits. The main checkout and other worktrees belong to other teams; don't touch them. The one exception: read the approved plan at `<repo root>/.plans/<slug>.md`.
 
-- **Builder** gets the plan. **Test engineer** gets the plan's Tests section and the builder's report. **QA reviewer** reviews `git -C <path> diff main` (plus untracked files). **Design reviewer** runs only if the diff touches `app/`, `components/` or `hooks/`.
-- Fix loop: at most 2 rounds per team, same as the single-feature workflow. Unresolved blocking findings mean that task **does not land**; report it and leave its worktree in place.
+- **Builder** gets the plan path and writes the plan's tests. **Reviewer** reviews `git -C <path> diff main` (plus untracked files), including design if the diff touches `app/` or `components/`.
+- Fix: one round per team, same as the single-feature workflow. If the builder and reviewer disagree on something in sync, schema, migrations or tombstones, send both sides to that task's `planner` and apply its answer. Unresolved blocking findings mean that task **does not land**; report it and leave its worktree in place.
 - Roles never commit, push or create branches. Only the lead does.
 
 ## 5. Commit (one per team)
@@ -94,6 +93,7 @@ scripts/agents/ship.sh land <slug>     # re-bump version, lint + tsc + tests, fa
 | Migrations in `lib/database.ts` (`ALTER TABLE … ADD COLUMN`) and `supabase/schema.sql` | Keep both sides' lines. They're idempotent and order-independent. |
 | `lib/types.ts`, imports, lists of exports | Keep both sides. |
 | The same function or component changed by both | Combine both intents, using both approved plans as the spec. If they can't both hold, stop and ask the user. |
+| Anything in sync, schema, migrations or tombstones beyond the line-level cases above | Don't resolve it yourself: send both sides and both plans to `planner` and apply its resolution (see [Keeping the lead cheap](README.md#keeping-the-lead-cheap)). |
 
 If `land` reports failing checks, send the failures to that team's **builder** (same worktree), then `git -C <path> add -A && git -C <path> commit --amend --no-edit` and run `land` again. Two failed attempts: stop landing that task and report it.
 
@@ -110,7 +110,7 @@ scripts/agents/ship.sh status          # anything left over
 
 ## 9. Report
 
-One section per task: branch, what changed, landed or not (and why), version it landed as, test results, review outcomes including unresolved non-blocking findings, conflicts resolved during landing and how, and what to check by hand on a device. End with whether `main` was pushed.
+One short block per task: branch, what changed (a few lines), landed or not (and why), version it landed as, checks result, unresolved findings, conflicts resolved during landing, and what to check by hand on a device. End with whether `main` was pushed.
 
 ## Running this in different tools
 

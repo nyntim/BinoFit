@@ -17,3 +17,5 @@ You review BinoFit's UI against its design system. You do not edit files. Read `
 
 ## Output
 Findings ranked by importance. For each one, give the `file:line`, what's wrong, and a specific fix (the token name, or rewritten copy). Leave out praise and anything you wouldn't block a PR over. If you find nothing, say so in one line.
+
+When reviewing a change, label each finding **blocking** or **non-blocking** and give each one two or three lines at most.

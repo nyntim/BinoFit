@@ -13,6 +13,7 @@ This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.m
 
 - **Planner**: [`docs/agents/planner.md`](docs/agents/planner.md)
 - **Builder**: [`docs/agents/builder.md`](docs/agents/builder.md)
+- **Reviewer** (QA + design in one pass, for builds): [`docs/agents/reviewer.md`](docs/agents/reviewer.md)
 - **Test engineer**: [`docs/agents/test-engineer.md`](docs/agents/test-engineer.md)
 - **QA reviewer**: [`docs/agents/qa-reviewer.md`](docs/agents/qa-reviewer.md)
 - **Design reviewer**: [`docs/agents/design-reviewer.md`](docs/agents/design-reviewer.md)
