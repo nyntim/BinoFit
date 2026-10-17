@@ -15,6 +15,8 @@ import { supabase } from '@/lib/supabase';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { useSyncAutoRetry } from '@/hooks/useSyncAutoRetry';
 import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
+import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
+import { purgeStaleDrafts } from '@/lib/workouts/drafts';
 
 configureNotificationHandler();
 
@@ -39,6 +41,10 @@ export default function RootLayout() {
   useEffect(() => {
     restoreMealReminders();
     loadPreferences();
+    // Workouts: drop abandoned drafts, then read the active session (never throws).
+    purgeStaleDrafts(new Date())
+      .catch(() => undefined)
+      .then(() => refreshActiveWorkout());
     // Establishes the session first; initAuth triggers the first sync once there is a user id.
     initAuth().then((result) => {
       // A signed-in session survived a reinstall and its data came back. Onboarding is already
@@ -87,6 +93,14 @@ export default function RootLayout() {
             })}
           />
           <Stack.Screen name="workout/new-exercise" options={{ presentation: 'modal', headerShown: false }} />
+          {/* Screen files arrive in later chunks (session: C9, history: C8); registered up front. */}
+          <Stack.Screen
+            name="workout/session"
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
+          />
+          <Stack.Screen name="workout/log" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="workout/[id]" options={{ presentation: 'card', headerShown: false }} />
+          <Stack.Screen name="workout/history" options={{ presentation: 'card', headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

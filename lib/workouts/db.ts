@@ -231,25 +231,31 @@ export async function updateWorkout(id: string, patch: WorkoutPatch): Promise<Wo
 // ── Exercises in a workout ─────────────────────────────────────
 
 export type NewWorkoutExerciseInput = {
+  /** Client-generated id, so a caller can keep editing the row before the insert finishes. */
+  id?: string;
   workout_id: string;
   exercise_id: string;
   rest_seconds?: number | null;
   notes?: string | null;
 };
 
-/** Appends an exercise at the next position (positions of removed rows are never reused). */
-export async function addWorkoutExercise(input: NewWorkoutExerciseInput): Promise<WorkoutExercise> {
-  const db = await getDatabase();
-  const now = new Date().toISOString();
+/** The next free position for an exercise in a workout (positions of removed rows are never reused). */
+export async function nextExercisePosition(db: SQLite.SQLiteDatabase, workoutId: string): Promise<number> {
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position), -1) + 1 AS next FROM workout_exercises WHERE workout_id = ?',
-    [input.workout_id]
+    [workoutId]
   );
-  const link: WorkoutExercise = {
-    id: Crypto.randomUUID(),
+  return row?.next ?? 0;
+}
+
+/** Builds a workout exercise row without touching the database. */
+export function buildWorkoutExerciseRow(input: NewWorkoutExerciseInput, position: number): WorkoutExercise {
+  const now = new Date().toISOString();
+  return {
+    id: input.id ?? Crypto.randomUUID(),
     workout_id: input.workout_id,
     exercise_id: input.exercise_id,
-    position: row?.next ?? 0,
+    position,
     rest_seconds: input.rest_seconds ?? null,
     notes: input.notes ?? null,
     created_at: now,
@@ -257,13 +263,47 @@ export async function addWorkoutExercise(input: NewWorkoutExerciseInput): Promis
     synced_at: null,
     deleted_at: null,
   };
+}
+
+/** Inserts a prepared row. Use the `txn` of a transaction to insert several rows together. */
+export async function insertWorkoutExercise(db: SQLite.SQLiteDatabase, row: WorkoutExercise): Promise<void> {
   await db.runAsync(
     `INSERT INTO workout_exercises
        (id, workout_id, exercise_id, position, rest_seconds, notes, created_at, updated_at, synced_at, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
-    [link.id, link.workout_id, link.exercise_id, link.position, link.rest_seconds, link.notes, now, now]
+    [row.id, row.workout_id, row.exercise_id, row.position, row.rest_seconds, row.notes, row.created_at, row.updated_at]
   );
+}
+
+/** Appends an exercise at the next position. */
+export async function addWorkoutExercise(input: NewWorkoutExerciseInput): Promise<WorkoutExercise> {
+  const db = await getDatabase();
+  const link = buildWorkoutExerciseRow(input, await nextExercisePosition(db, input.workout_id));
+  await insertWorkoutExercise(db, link);
   return link;
+}
+
+export type WorkoutExercisePatch = { rest_seconds?: number | null; notes?: string | null };
+
+/** Updates the rest and notes of a live workout exercise (bumps updated_at, clears synced_at). */
+export async function updateWorkoutExercise(id: string, patch: WorkoutExercisePatch): Promise<void> {
+  const db = await getDatabase();
+  const sets: string[] = [];
+  const params: (string | number | null)[] = [];
+  if (patch.rest_seconds !== undefined) {
+    sets.push('rest_seconds = ?');
+    params.push(patch.rest_seconds);
+  }
+  if (patch.notes !== undefined) {
+    sets.push('notes = ?');
+    params.push(patch.notes);
+  }
+  sets.push('updated_at = ?', 'synced_at = NULL');
+  params.push(new Date().toISOString(), id);
+  await db.runAsync(
+    `UPDATE workout_exercises SET ${sets.join(', ')} WHERE id = ? AND deleted_at IS NULL`,
+    params
+  );
 }
 
 async function isWorkoutDone(db: SQLite.SQLiteDatabase, workoutId: string): Promise<boolean> {
@@ -317,26 +357,33 @@ export type SetValues = {
   completed_at?: string | null;
 };
 
-export type NewWorkoutSetInput = SetValues & { workout_exercise_id: string };
+export type NewWorkoutSetInput = SetValues & {
+  /** Client-generated id, so a caller can edit the set before the insert finishes. */
+  id?: string;
+  workout_exercise_id: string;
+};
 
-/** Appends a set to a workout exercise (workout_id is taken from the exercise row). */
-export async function addWorkoutSet(input: NewWorkoutSetInput): Promise<WorkoutSet> {
-  const db = await getDatabase();
-  const link = await db.getFirstAsync<{ workout_id: string }>(
-    'SELECT workout_id FROM workout_exercises WHERE id = ? AND deleted_at IS NULL',
-    [input.workout_exercise_id]
-  );
-  if (!link) throw new Error('Workout exercise not found');
-  const now = new Date().toISOString();
+/** The next free position for a set in a workout exercise. */
+export async function nextSetPosition(db: SQLite.SQLiteDatabase, workoutExerciseId: string): Promise<number> {
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position), -1) + 1 AS next FROM workout_sets WHERE workout_exercise_id = ?',
-    [input.workout_exercise_id]
+    [workoutExerciseId]
   );
-  const set: WorkoutSet = {
-    id: Crypto.randomUUID(),
-    workout_id: link.workout_id,
+  return row?.next ?? 0;
+}
+
+/** Builds a set row without touching the database. */
+export function buildWorkoutSetRow(
+  input: NewWorkoutSetInput,
+  workoutId: string,
+  position: number
+): WorkoutSet {
+  const now = new Date().toISOString();
+  return {
+    id: input.id ?? Crypto.randomUUID(),
+    workout_id: workoutId,
     workout_exercise_id: input.workout_exercise_id,
-    position: row?.next ?? 0,
+    position,
     set_type: input.set_type ?? 'normal',
     weight_kg: input.weight_kg ?? null,
     reps: input.reps ?? null,
@@ -349,6 +396,10 @@ export async function addWorkoutSet(input: NewWorkoutSetInput): Promise<WorkoutS
     synced_at: null,
     deleted_at: null,
   };
+}
+
+/** Inserts a prepared row. Use the `txn` of a transaction to insert several rows together. */
+export async function insertWorkoutSet(db: SQLite.SQLiteDatabase, set: WorkoutSet): Promise<void> {
   await db.runAsync(
     `INSERT INTO workout_sets
        (id, workout_id, workout_exercise_id, position, set_type, weight_kg, reps, duration_seconds,
@@ -366,10 +417,22 @@ export async function addWorkoutSet(input: NewWorkoutSetInput): Promise<WorkoutS
       set.distance_m,
       set.rpe,
       set.completed_at,
-      now,
-      now,
+      set.created_at,
+      set.updated_at,
     ]
   );
+}
+
+/** Appends a set to a workout exercise (workout_id is taken from the exercise row). */
+export async function addWorkoutSet(input: NewWorkoutSetInput): Promise<WorkoutSet> {
+  const db = await getDatabase();
+  const link = await db.getFirstAsync<{ workout_id: string }>(
+    'SELECT workout_id FROM workout_exercises WHERE id = ? AND deleted_at IS NULL',
+    [input.workout_exercise_id]
+  );
+  if (!link) throw new Error('Workout exercise not found');
+  const set = buildWorkoutSetRow(input, link.workout_id, await nextSetPosition(db, input.workout_exercise_id));
+  await insertWorkoutSet(db, set);
   return set;
 }
 

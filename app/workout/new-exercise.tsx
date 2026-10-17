@@ -23,7 +23,8 @@ import { useExercises } from '@/hooks/useExercises';
 import { usePreferences } from '@/hooks/usePreferences';
 import { syncToSupabase } from '@/lib/sync';
 import { parseDecimal } from '@/lib/units';
-import { addWorkoutExercise, getWorkout } from '@/lib/workouts/db';
+import { getWorkout } from '@/lib/workouts/db';
+import { addExerciseToWorkout } from '@/lib/workouts/previous';
 import {
   EQUIPMENT_LABELS,
   EQUIPMENT_OPTIONS,
@@ -169,7 +170,7 @@ export default function NewExerciseScreen() {
         try {
           const workout = await getWorkout(workoutId);
           if (!workout) throw new Error('Workout not found');
-          await addWorkoutExercise({ workout_id: workoutId, exercise_id: exercise.id });
+          await addExerciseToWorkout(workoutId, exercise.id);
           addedTo = workoutDisplayName(workout);
         } catch {
           addFailed = true;

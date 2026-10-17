@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { TimePickerSheetProps } from '@/components/time-picker-sheet.types';
 
-// Native iOS time wheel in a bottom sheet; the time applies on Done
-export function TimePickerSheet({ visible, value, onChange, onClose, colors }: TimePickerSheetProps) {
+// Native iOS time or date wheel in a bottom sheet; the time applies on Done
+export function TimePickerSheet({ visible, value, onChange, onClose, colors, mode = 'time', maximumDate, title }: TimePickerSheetProps) {
   const { bottom } = useSafeAreaInsets();
   const scheme = useColorScheme() ?? 'light';
   const [draft, setDraft] = useState(value);
@@ -20,12 +20,13 @@ export function TimePickerSheet({ visible, value, onChange, onClose, colors }: T
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close time picker" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={mode === 'date' ? 'Close date picker' : 'Close time picker'} />
         <View style={[styles.sheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
-          <Text style={[styles.title, { color: colors.text }]}>Time</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{title ?? (mode === 'date' ? 'Date' : 'Time')}</Text>
           <DateTimePicker
             value={draft}
-            mode="time"
+            mode={mode}
+            maximumDate={maximumDate}
             display="spinner"
             themeVariant={scheme}
             textColor={colors.text}

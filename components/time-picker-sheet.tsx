@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TimePickerSheetProps } from '@/components/time-picker-sheet.types';
 
 // Web fallback: the native time picker module has no web implementation
-export function TimePickerSheet({ visible, value, onChange, onClose, colors }: TimePickerSheetProps) {
+export function TimePickerSheet({ visible, value, onChange, onClose, colors, title }: TimePickerSheetProps) {
   const { bottom } = useSafeAreaInsets();
   const [hour, setHour] = useState(value.getHours() % 12 || 12);
   const [minute, setMinute] = useState(value.getMinutes());
@@ -29,7 +29,7 @@ export function TimePickerSheet({ visible, value, onChange, onClose, colors }: T
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
-          <Text style={[styles.title, { color: colors.text }]}>Time</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{title ?? 'Time'}</Text>
 
           <View style={styles.row}>
             <View style={styles.column}>

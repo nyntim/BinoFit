@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-// Placeholder until the Training tab is built (C8 replaces the Exercises entry row).
+// Placeholder until the Training tab is built (C8 replaces the Exercises and Log past workout entry rows).
 export default function TrainingScreen() {
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
@@ -23,6 +23,15 @@ export default function TrainingScreen() {
         style={[styles.row, { backgroundColor: card }]}
       >
         <Text style={[styles.rowLabel, { color: text }]}>Exercises</Text>
+        <IconSymbol name="chevron.right" size={20} color={muted} />
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/workout/log')}
+        accessibilityRole="button"
+        accessibilityLabel="Log past workout"
+        style={[styles.row, { backgroundColor: card }]}
+      >
+        <Text style={[styles.rowLabel, { color: text }]}>Log past workout</Text>
         <IconSymbol name="chevron.right" size={20} color={muted} />
       </Pressable>
     </SafeAreaView>

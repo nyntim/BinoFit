@@ -28,6 +28,20 @@ const MAPPING = {
   'magnifyingglass': 'search',
   'plus': 'add',
   'checkmark': 'check',
+  // Training (C7-C10)
+  'chevron.down': 'keyboard-arrow-down',
+  'chevron.up': 'keyboard-arrow-up',
+  'xmark': 'close',
+  'trash': 'delete',
+  'minus': 'remove',
+  'timer': 'timer',
+  'clock': 'schedule',
+  'calendar': 'calendar-today',
+  'list.bullet': 'list',
+  'clock.arrow.circlepath': 'history',
+  'arrow.clockwise': 'refresh',
+  'checkmark.circle': 'check-circle',
+  'stopwatch': 'timer',
 } as IconMapping;
 
 /**

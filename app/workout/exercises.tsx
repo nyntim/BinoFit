@@ -7,7 +7,7 @@ import { ChipToggle } from '@/components/workouts/ChipToggle';
 import { ExerciseRow } from '@/components/workouts/ExerciseRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
-import { addWorkoutExercise } from '@/lib/workouts/db';
+import { addExerciseToWorkout } from '@/lib/workouts/previous';
 import {
   EQUIPMENT_LABELS,
   REGIONS,
@@ -53,7 +53,7 @@ export default function ExerciseLibraryScreen() {
       if (adding) return;
       setAdding(true);
       try {
-        await addWorkoutExercise({ workout_id: workoutId, exercise_id: e.id });
+        await addExerciseToWorkout(workoutId, e.id);
         router.back();
       } catch {
         setAdding(false);
