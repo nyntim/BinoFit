@@ -14,6 +14,8 @@
 --   STEP A  tables, functions and the still-open policies. Safe for installs that predate auth.
 --   STEP B  tightened row level security. Run only AFTER every device you use runs the build
 --           with account support. Older builds stop syncing once B is applied.
+--   Both are applied to production (migrations account_support_step_a, account_support_step_b
+--   on 2026-10-17). For a fresh project, run A, then B.
 
 -- ─────────────────────────────────────────────────────────
 -- foods: extended/branded foods queried on cache miss
@@ -501,7 +503,8 @@ create policy "workout_sets: own rows"
   with check (user_id = (select auth.uid())::text);
 
 -- ═════════════════════════════════════════════════════════
--- STEP B: run LATER, only after all your devices run the build with account support.
+-- STEP B: applied to production 2026-10-17 (migration account_support_step_b).
+-- On a fresh project, run it after all your devices run the build with account support.
 -- Replaces the open policies with per-user ones. Builds without auth will stop syncing.
 -- ═════════════════════════════════════════════════════════
 /*
