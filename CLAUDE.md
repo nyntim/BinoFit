@@ -74,6 +74,8 @@ Use `useThemeColor` in components; don't read `Colors` directly.
 
 **Sync status** — `lib/sync-status.ts` is a pub/sub store (`status`, `lastSuccessAt`, `failingSince`, `isOffline`) fed by `syncToSupabase()`, which throws per-step on Supabase `{ error }`, runs every step (`allSettled`), and coalesces calls made mid-sync into one extra pass. `deriveIndicator` hides failures for a 30s grace period. UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt`/`setLastSyncAt` in `lib/storage.ts`). `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30s/1m/2m/5m backoff while active and failing. Sync also runs on cold start.
 
+**Training preferences** — Device-only, in AsyncStorage (`lib/storage.ts`: tracking mode, weight unit, Show RPE, active rest timer). `lib/app-preferences.ts` is a pub/sub store loaded once at launch (`loadPreferences`, write-through setters); read it with `usePreferences`. Sign-out clears tracking mode and rest timer, keeps unit and RPE. `lib/units.ts` is pure: weight is stored in kg and distance in metres; display follows the unit (kg with km, lb with mi). UI: `components/settings/TrainingSection.tsx`.
+
 **Food search** — `lib/food-service.ts` searches SQLite first; falls back to Supabase remote query (≥4 chars) and caches results locally.
 
 **Barcode scan** — `lib/open-food-facts.ts` (`normalizeBarcode`, `mapOffProduct`, `buildServingUnits`, `fetchOffProduct`; never throws, 8s timeout) maps Open Food Facts products to `Food` rows (`id: off:{barcode}`, `source: 'open_food_facts'`). `lookupBarcode()` in `lib/food-service.ts` checks SQLite, then OFF, and caches found products; not-found/errors are never cached.

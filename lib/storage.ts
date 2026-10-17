@@ -1,5 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { LogStatus, RemoteUserGoals, RemoteUserProfile, UserGoals, UserProfile } from '@/lib/types';
+import type {
+  LogStatus,
+  RestTimerState,
+  TrackingMode,
+  WeightUnit,   RemoteUserGoals,
+  RemoteUserProfile,
+  UserGoals,
+  UserProfile,
+} from '@/lib/types';
 
 const KEYS = {
   USER_GOALS: 'user_goals',
@@ -14,6 +22,10 @@ const KEYS = {
   PENDING_WIPE: 'pending_wipe',
   RESTORE_PENDING: 'restore_pending',
   SYNCED_UID: 'last_synced_uid',
+  TRACKING_MODE: 'tracking_mode',
+  WEIGHT_UNIT: 'weight_unit',
+  SHOW_RPE: 'show_rpe',
+  ACTIVE_REST_TIMER: 'active_rest_timer',
 } as const;
 
 type StoredUserGoals = UserGoals & { synced_at?: string };
@@ -74,6 +86,63 @@ export async function getDefaultLogStatus(): Promise<LogStatus> {
 
 export async function setDefaultLogStatus(status: LogStatus): Promise<void> {
   await AsyncStorage.setItem(KEYS.DEFAULT_LOG_STATUS, status);
+}
+
+// ── Training preferences (device only) ──────────────────────────
+
+export function resolveTrackingMode(stored: string | null): TrackingMode {
+  return stored === 'nutrition' || stored === 'training' ? stored : 'both';
+}
+
+export async function getTrackingMode(): Promise<TrackingMode> {
+  return resolveTrackingMode(await AsyncStorage.getItem(KEYS.TRACKING_MODE));
+}
+
+export async function setTrackingMode(mode: TrackingMode): Promise<void> {
+  await AsyncStorage.setItem(KEYS.TRACKING_MODE, mode);
+}
+
+export function resolveWeightUnit(stored: string | null): WeightUnit {
+  return stored === 'lb' ? 'lb' : 'kg';
+}
+
+export async function getWeightUnit(): Promise<WeightUnit> {
+  return resolveWeightUnit(await AsyncStorage.getItem(KEYS.WEIGHT_UNIT));
+}
+
+export async function setWeightUnit(unit: WeightUnit): Promise<void> {
+  await AsyncStorage.setItem(KEYS.WEIGHT_UNIT, unit);
+}
+
+export async function getShowRpe(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.SHOW_RPE)) === 'true';
+}
+
+export async function setShowRpe(show: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.SHOW_RPE, show ? 'true' : 'false');
+}
+
+export function parseRestTimer(raw: string | null): RestTimerState | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as Partial<RestTimerState>;
+    return typeof v.workoutId === 'string' &&
+      typeof v.endsAt === 'number' &&
+      typeof v.durationSeconds === 'number'
+      ? { workoutId: v.workoutId, endsAt: v.endsAt, durationSeconds: v.durationSeconds }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getActiveRestTimer(): Promise<RestTimerState | null> {
+  return parseRestTimer(await AsyncStorage.getItem(KEYS.ACTIVE_REST_TIMER));
+}
+
+export async function setActiveRestTimer(timer: RestTimerState | null): Promise<void> {
+  if (timer) await AsyncStorage.setItem(KEYS.ACTIVE_REST_TIMER, JSON.stringify(timer));
+  else await AsyncStorage.removeItem(KEYS.ACTIVE_REST_TIMER);
 }
 
 export async function getQuickAddDrinks(): Promise<any[] | null> {
@@ -208,8 +277,8 @@ export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<voi
 
 /**
  * Removes everything a signed-out user owns in AsyncStorage: goals, profile, the onboarding
- * flag, quick-add drinks, the pending merge ticket and the last-sync stamp. Keeps the device
- * id, the legacy-claimed flag and the default log status preference.
+ * flag, quick-add drinks, the pending merge ticket, the last-sync stamp, the tracking mode and the active rest timer. Keeps the device
+ * id, the legacy-claimed flag, the default log status, weight unit and Show RPE preferences.
  */
 export async function clearUserStorage(): Promise<void> {
   await AsyncStorage.multiRemove([
@@ -221,5 +290,7 @@ export async function clearUserStorage(): Promise<void> {
     KEYS.LAST_SYNC_AT,
     KEYS.RESTORE_PENDING,
     KEYS.SYNCED_UID,
+    KEYS.TRACKING_MODE,
+    KEYS.ACTIVE_REST_TIMER,
   ]);
 }

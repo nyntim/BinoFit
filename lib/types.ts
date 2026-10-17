@@ -80,6 +80,18 @@ export type MealSlotConfirmation = {
 
 export type LogStatus = 'eaten' | 'planned';
 
+export type TrackingMode = 'both' | 'nutrition' | 'training';
+
+export type WeightUnit = 'kg' | 'lb';
+
+/** Absolute end time so the remaining time survives backgrounding and app kills. */
+export type RestTimerState = {
+  workoutId: string;
+  /** Epoch ms. */
+  endsAt: number;
+  durationSeconds: number;
+};
+
 export type UserGoals = {
   calorie_goal: number;
   protein_goal: number;

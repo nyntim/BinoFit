@@ -8,6 +8,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
+import { loadPreferences } from '@/lib/app-preferences';
 import { initAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { isSyncConfigured } from '@/lib/sync-status';
@@ -36,6 +37,7 @@ export default function RootLayout() {
   // or notification permission changed in system settings.
   useEffect(() => {
     restoreMealReminders();
+    loadPreferences();
     // Establishes the session first; initAuth triggers the first sync once there is a user id.
     initAuth().then((result) => {
       // A signed-in session survived a reinstall and its data came back. Onboarding is already

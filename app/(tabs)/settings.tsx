@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { AccountSection } from '@/components/settings/AccountSection';
+import { TrainingSection } from '@/components/settings/TrainingSection';
 import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useHealthKit } from '@/hooks/use-health-kit';
@@ -300,6 +301,8 @@ export default function SettingsScreen() {
               })}
             </View>
           </View>
+
+          <TrainingSection />
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>

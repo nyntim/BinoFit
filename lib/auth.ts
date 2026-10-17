@@ -1,3 +1,4 @@
+import { reloadPreferences } from '@/lib/app-preferences';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -87,6 +88,7 @@ async function restoreTracked(
 async function finishWipe(): Promise<void> {
   await clearUserData();
   await clearUserStorage();
+  await reloadPreferences(); // tracking mode was cleared; refresh the in-memory copy
   await restoreMealReminders(); // reseeded meals have no reminders, so this cancels them all
   await clearPendingWipe();
 }
