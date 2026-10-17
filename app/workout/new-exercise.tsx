@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -146,6 +147,17 @@ export default function NewExerciseScreen() {
       },
     ]);
   });
+
+  // Android back goes back one step, like the footer Back; on the first step it falls through to close (and the discard prompt).
+  const previousStep = !saved && index > 0 ? steps[index - 1] : null;
+  useEffect(() => {
+    if (!previousStep) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setStepId(previousStep);
+      return true;
+    });
+    return () => sub.remove();
+  }, [previousStep]);
 
   const patch = (p: Partial<BuilderDraft>) => setDraft((d) => ({ ...d, ...p }));
   const goTo = (target: BuilderStepId) => setStepId(target);

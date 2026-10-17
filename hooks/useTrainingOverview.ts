@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
+import { useNow } from '@/hooks/useNow';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getDoneWorkoutsBetween, getRecentDoneWorkouts } from '@/lib/workouts/history';
 import {
@@ -55,9 +57,11 @@ export function useTrainingOverview(): TrainingOverview {
   }, [weightUnit]);
 
   useFocusEffect(reload);
+  // Ticks while the tab is focused so the week rolls over at midnight on Sunday.
+  const now = useNow(60_000, useIsFocused());
   // Reload when the active workout or the current week changes (not on mount: focus did that).
   const activeId = active?.id ?? null;
-  const thisWeek = weekRange(new Date());
+  const thisWeek = weekRange(new Date(now));
   const weekStart = thisWeek.start;
   const lastKey = useRef(`${activeId}|${weekStart}`);
   useEffect(() => {
