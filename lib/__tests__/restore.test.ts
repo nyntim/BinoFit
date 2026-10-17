@@ -34,6 +34,10 @@ jest.mock('@/lib/database', () => ({
   getMissingFoodIds: jest.fn(async () => []),
   replaceMealsFromRemote: jest.fn(async () => {}),
 }));
+jest.mock('@/lib/weight', () => ({
+  applyRemoteWeightEntries: jest.fn(async (rows: unknown[]) => rows.length),
+  syncProfileWeightFromLatest: jest.fn(async () => {}),
+}));
 jest.mock('@/lib/foods-db', () => ({ getUSDAFoodById: jest.fn(async () => null) }));
 jest.mock('@/lib/food-service', () => ({ lookupBarcode: jest.fn() }));
 jest.mock('@/lib/reminders', () => ({ restoreMealReminders: jest.fn() }));
@@ -108,7 +112,7 @@ describe('pure helpers', () => {
     expect(describeProgress({ stage: 'logs', fetched: 12 })).toBe('Restoring 12 entries…');
     expect(describeProgress({ stage: 'foods', done: 1, total: 4 })).toBe('Looking up foods 1 of 4…');
     expect(describeProgress({ stage: 'saving' })).toBe('Saving to this device…');
-    const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false };
+    const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0 };
     expect(describeRestore(base)).toBe('No saved data found for this account.');
     expect(describeRestore({ ...base, logsRestored: 1 })).toBe('Restored 1 entry.');
     expect(describeRestore({ ...base, goalsRestored: true })).toBe('Restored your settings.');
@@ -117,13 +121,14 @@ describe('pure helpers', () => {
 });
 
 describe('hasRestoredData', () => {
-  const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false };
+  const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0 };
   it.each([
     [{}, false],
     [{ mealsRestored: true }, false],
     [{ goalsRestored: true }, true],
     [{ logsRestored: 1 }, true],
     [{ goalsRestored: true, logsRestored: 3 }, true],
+    [{ weightEntriesRestored: 1 }, true],
   ])('%j -> %s', (over, expected) => {
     expect(hasRestoredData({ ...base, ...over })).toBe(expected);
   });
@@ -176,6 +181,36 @@ describe('restoreFromAccount', () => {
     expect(storage.applyRemoteProfile).toHaveBeenCalled();
     expect(storage.setOnboardingComplete).toHaveBeenCalled();
     expect(res).toMatchObject({ ok: true, goalsRestored: true, mealsRestored: true });
+  });
+
+  it('applies weight entries after the profile, then recomputes profile.weight from the latest entry', async () => {
+    const weightMod = require('@/lib/weight');
+    mockTables.user_profile = [{ weight: 70 }];
+    mockTables.weight_entries = [{ id: 'w1' }, { id: 'w2', deleted_at: '2026-01-01T00:00:00Z' }];
+    await restoreFromAccount('u1');
+    const profileAt = (storage.applyRemoteProfile as jest.Mock).mock.invocationCallOrder[0];
+    const applyAt = (weightMod.applyRemoteWeightEntries as jest.Mock).mock.invocationCallOrder[0];
+    const syncAt = (weightMod.syncProfileWeightFromLatest as jest.Mock).mock.invocationCallOrder[0];
+    expect(profileAt).toBeLessThan(applyAt);
+    expect(applyAt).toBeLessThan(syncAt);
+    // tombstones are passed through so they can delete local rows
+    expect((weightMod.applyRemoteWeightEntries as jest.Mock).mock.calls[0][0].map((r: any) => r.id)).toEqual(['w1', 'w2']);
+  });
+
+  it('reports weightEntriesRestored from the apply count and 0 when the account has none', async () => {
+    const weightMod = require('@/lib/weight');
+    mockTables.weight_entries = [{ id: 'w1' }, { id: 'w2' }, { id: 'w3' }];
+    expect(await restoreFromAccount('u1')).toMatchObject({ ok: true, weightEntriesRestored: 3 });
+    delete mockTables.weight_entries;
+    (weightMod.applyRemoteWeightEntries as jest.Mock).mockResolvedValueOnce(0);
+    expect(await restoreFromAccount('u1')).toMatchObject({ ok: true, weightEntriesRestored: 0 });
+  });
+
+  it('treats a failed weight_entries fetch as zero rows and restores the rest', async () => {
+    mockFailTable = 'weight_entries';
+    mockTables.food_logs = logs(2);
+    const res = await restoreFromAccount('u1');
+    expect(res).toMatchObject({ ok: true, logsRestored: 2 });
   });
 
   it('does not mark onboarding complete when the account has no usable goals', async () => {

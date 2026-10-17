@@ -12,7 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { AccountSection } from '@/components/settings/AccountSection';
@@ -31,6 +31,14 @@ import {
   setDefaultLogStatus,
   getLastSyncAt,
 } from '@/lib/storage';
+import { formatWeight, lbToKg, parseDecimal } from '@/lib/units';
+import {
+  getLatestWeightEntry,
+  saveWeightEntry,
+  weightInputToKg,
+  weightRangeMessage,
+} from '@/lib/weight';
+import { syncToSupabase } from '@/lib/sync';
 import { deriveLastSynced, isSyncConfigured } from '@/lib/sync-status';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import type { LogStatus, UserProfile } from '@/lib/types';
@@ -79,6 +87,14 @@ export default function SettingsScreen() {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [weight, setWeight] = useState('');
+  const { weightUnit } = usePreferences();
+  const weightTouched = useRef(false);
+  // The weight shown when loaded: latest entry, else profile.weight. Save writes an entry only if the field differs.
+  const weightBase = useRef<{ kg: number | null; text: string; hasEntry: boolean }>({
+    kg: null,
+    text: '',
+    hasEntry: false,
+  });
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
@@ -102,7 +118,6 @@ export default function SettingsScreen() {
       setFat(String(goals.fat_goal));
     }
     if (profile) {
-      setWeight(profile.weight ? String(profile.weight) : '');
       setHeight(profile.height ? String(profile.height) : '');
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
@@ -114,6 +129,39 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadWeight = useCallback(async () => {
+    // Never replace what the user is typing.
+    if (weightTouched.current) return;
+    const [entry, profile] = await Promise.all([getLatestWeightEntry(), getUserProfile()]);
+    const kg = entry?.weight_kg ?? profile?.weight ?? null;
+    const text = kg ? formatWeight(kg, weightUnit) : '';
+    weightBase.current = { kg, text, hasEntry: entry !== null };
+    setWeight(text);
+  }, [weightUnit]);
+
+  // The tab stays mounted, so reload when it regains focus (an entry may have been logged elsewhere).
+  useFocusEffect(
+    useCallback(() => {
+      loadWeight();
+    }, [loadWeight])
+  );
+
+  // A unit change converts the typed text instead of refetching over it.
+  const prevUnit = useRef(weightUnit);
+  useEffect(() => {
+    const prev = prevUnit.current;
+    if (prev === weightUnit) return;
+    prevUnit.current = weightUnit;
+    if (!weightTouched.current) return;
+    const base = weightBase.current;
+    weightBase.current = { ...base, text: base.kg ? formatWeight(base.kg, weightUnit) : '' };
+    setWeight((current) => {
+      const v = parseDecimal(current);
+      if (v === null) return current;
+      return formatWeight(prev === 'kg' ? v : lbToKg(v), weightUnit);
+    });
+  }, [weightUnit]);
 
   async function handleSelectDefaultStatus(next: LogStatus) {
     if (next === defaultStatus) return;
@@ -138,12 +186,38 @@ export default function SettingsScreen() {
       return;
     }
 
+    const base = weightBase.current;
+    const typedWeight = parseDecimal(weight);
+    // Untouched field: keep whatever the profile holds now, not the base loaded earlier.
+    const currentProfile = await getUserProfile();
+    let weightKg = currentProfile?.weight ?? null;
+    if (weight.trim() === '') {
+      // Cleared field: entries stay as they are.
+      if (!base.hasEntry) weightKg = null;
+    } else if (typedWeight === null || typedWeight !== parseDecimal(base.text)) {
+      const kg = weightInputToKg(weight, weightUnit);
+      if (kg === null) {
+        Alert.alert('Invalid input', weightRangeMessage(weightUnit));
+        return;
+      }
+      try {
+        await saveWeightEntry({ weight_kg: kg });
+        syncToSupabase();
+      } catch {
+        Alert.alert("Couldn't save weight", 'Your entry was not saved. Try again.');
+        return;
+      }
+      weightKg = kg;
+      weightBase.current = { kg, text: weight, hasEntry: true };
+      weightTouched.current = false;
+    }
+
     await Promise.all([
       trainingOnly
         ? Promise.resolve()
         : saveUserGoals({ calorie_goal: cal, protein_goal: prot, carb_goal: carb, fat_goal: f }),
       saveUserProfile({
-        weight: weight ? parseFloat(weight) : null,
+        weight: weightKg,
         height: height ? parseFloat(height) : null,
         activity_level: activityLevel,
       }),
@@ -287,11 +361,14 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Stats</Text>
 
-            <Text style={labelStyle}>Weight (kg)</Text>
+            <Text style={labelStyle}>Weight ({weightUnit})</Text>
             <TextInput
-              style={inputStyle}
+              style={[inputStyle, styles.tabular]}
               value={weight}
-              onChangeText={setWeight}
+              onChangeText={(t) => {
+                weightTouched.current = true;
+                setWeight(t);
+              }}
               keyboardType="decimal-pad"
               placeholderTextColor={colors.icon}
             />
@@ -409,6 +486,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  tabular: { fontVariant: ['tabular-nums'] },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 0 },

@@ -16,6 +16,7 @@ import {
   setLastSyncAt,
 } from '@/lib/storage';
 import { markRowsSynced, purgeSyncedTombstones } from '@/lib/tombstones';
+import { getUnsyncedWeightEntries } from '@/lib/weight';
 import { reportSyncStart, reportSyncResult } from '@/lib/sync-status';
 
 let _current: Promise<void> | null = null;
@@ -75,6 +76,7 @@ async function runPass(): Promise<void> {
     syncUserProfile(userId),
     syncMealDefinitions(userId),
     syncMealNames(userId),
+    syncWeightEntries(userId),
   ]);
   const ok = results.every((r) => r.status === 'fulfilled');
   reportSyncResult(ok);
@@ -199,4 +201,29 @@ async function syncUserProfile(userId: string): Promise<void> {
 
   if (error) throw error;
   await markProfileSynced(new Date().toISOString());
+}
+
+async function syncWeightEntries(userId: string): Promise<void> {
+  const unsynced = await getUnsyncedWeightEntries();
+  if (unsynced.length === 0) return;
+
+  const rows = unsynced.map((e) => ({
+    id: e.id,
+    user_id: userId,
+    date: e.date,
+    weight_kg: e.weight_kg,
+    measured_at: e.measured_at,
+    created_at: e.created_at,
+    updated_at: e.updated_at,
+    deleted_at: e.deleted_at ?? null,
+  }));
+
+  const { error } = await supabase.from('weight_entries').upsert(rows, { onConflict: 'id' });
+
+  if (error) throw error;
+  await markRowsSynced(
+    'weight_entries',
+    unsynced.map((e) => ({ id: e.id, updated_at: e.updated_at }))
+  );
+  await purgeSyncedTombstones('weight_entries');
 }

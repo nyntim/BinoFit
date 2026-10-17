@@ -15,6 +15,7 @@ import type {
   WaterLog,
 } from '@/lib/types';
 import { decideRemoteApply, tombstoneSql } from '@/lib/tombstones';
+import { initWeightSchema } from '@/lib/weight';
 import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
 
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -133,6 +134,7 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
   await db.execAsync(`ALTER TABLE foods ADD COLUMN barcode TEXT;`).catch(() => {});
   await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_foods_barcode ON foods(barcode);`).catch(() => {});
+  await initWeightSchema(db);
 
   await seedDefaultMeals(db);
 }
@@ -890,6 +892,7 @@ export async function clearUserData(): Promise<void> {
   const db = await getDatabase();
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync('DELETE FROM food_logs');
+    await txn.runAsync('DELETE FROM weight_entries');
     await txn.runAsync('DELETE FROM meal_slot_confirmations');
     await txn.runAsync('DELETE FROM water_logs');
     await txn.runAsync('DELETE FROM meal_names');
@@ -904,6 +907,7 @@ export async function markAllUnsynced(): Promise<void> {
   const db = await getDatabase();
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync('UPDATE food_logs SET synced_at = NULL');
+    await txn.runAsync('UPDATE weight_entries SET synced_at = NULL');
     await txn.runAsync('UPDATE meal_definitions SET synced_at = NULL');
     await txn.runAsync('UPDATE meal_names SET synced_at = NULL');
   });

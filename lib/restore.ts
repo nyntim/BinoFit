@@ -7,6 +7,7 @@ import {
 } from '@/lib/database';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { lookupBarcode } from '@/lib/food-service';
+import { applyRemoteWeightEntries, syncProfileWeightFromLatest } from '@/lib/weight';
 import { restoreMealReminders } from '@/lib/reminders';
 import { applyRemoteGoals, applyRemoteProfile, setOnboardingComplete } from '@/lib/storage';
 import type {
@@ -16,6 +17,7 @@ import type {
   RemoteMealName,
   RemoteUserGoals,
   RemoteUserProfile,
+  RemoteWeightEntry,
 } from '@/lib/types';
 
 export const PAGE_SIZE = 1000;
@@ -95,18 +97,20 @@ export type RestoreSummary = {
   unresolvedFoods: number;
   mealsRestored: boolean;
   goalsRestored: boolean;
+  /** Live weight entries applied (not counting removals). */
+  weightEntriesRestored: number;
 };
 
 /** True when a restore brought back anything beyond meal layout (meals alone do not skip onboarding). */
 export function hasRestoredData(s: RestoreSummary): boolean {
-  return s.goalsRestored || s.logsRestored > 0;
+  return s.goalsRestored || s.logsRestored > 0 || s.weightEntriesRestored > 0;
 }
 
 export type RestoreResult =
   | ({ ok: true } & RestoreSummary)
   | { ok: false; error: string };
 
-type Table = 'food_logs' | 'meal_definitions' | 'meal_names' | 'user_goals' | 'user_profile';
+type Table = 'food_logs' | 'weight_entries' | 'meal_definitions' | 'meal_names' | 'user_goals' | 'user_profile';
 
 /** Every row of `table` owned by the user, in 1000-row pages with a stable order. */
 async function fetchAll<T>(
@@ -212,11 +216,13 @@ export async function restoreFromAccount(
     const allLogs = await fetchAll<RemoteFoodLog>('food_logs', userId, ['id'], (n) =>
       onProgress?.({ stage: 'logs', fetched: n })
     );
-    const [defs, names, goals, profile] = await Promise.all([
+    const [defs, names, goals, profile, weightRows] = await Promise.all([
       fetchAll<RemoteMealDefinition>('meal_definitions', userId, ['id']),
       fetchAll<RemoteMealName>('meal_names', userId, ['meal_id', 'effective_from']),
       fetchSingle<RemoteUserGoals>('user_goals', userId),
       fetchSingle<RemoteUserProfile>('user_profile', userId),
+      // Fails soft: the table may not exist yet on the server, which must not block restoring the rest.
+      fetchAll<RemoteWeightEntry>('weight_entries', userId, ['id']).catch((): RemoteWeightEntry[] => []),
     ]);
 
     const missing = await getMissingFoodIds(uniqueFoodIds(allLogs.filter(isLiveRow)));
@@ -230,7 +236,10 @@ export async function restoreFromAccount(
     let goalsRestored = false;
     if (goals) goalsRestored = await applyRemoteGoals(goals);
     if (profile) await applyRemoteProfile(profile);
-    if (hasRestoredData({ logsRestored, unresolvedFoods: 0, mealsRestored: false, goalsRestored })) {
+    // After the profile, so the latest weight entry wins over the account's stored weight.
+    const weightEntriesRestored = await applyRemoteWeightEntries(weightRows);
+    await syncProfileWeightFromLatest();
+    if (hasRestoredData({ logsRestored, unresolvedFoods: 0, mealsRestored: false, goalsRestored, weightEntriesRestored })) {
       await setOnboardingComplete();
     }
 
@@ -242,6 +251,7 @@ export async function restoreFromAccount(
       unresolvedFoods: unresolved.length,
       mealsRestored: defs.length > 0,
       goalsRestored,
+      weightEntriesRestored,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Restore failed' };

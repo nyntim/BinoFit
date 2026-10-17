@@ -121,6 +121,28 @@ create table if not exists public.meal_names (
   primary key (user_id, meal_id, effective_from)
 );
 
+-- ─────────────────────────────────────────────────────────
+-- weight_entries: body weight log (weight_kg is always kg). Soft-deleted via deleted_at.
+-- New table, so it gets the strict per-user policy right away (no older build uses it).
+-- ─────────────────────────────────────────────────────────
+create table if not exists public.weight_entries (
+  id          text primary key,
+  user_id     text not null,
+  date        text not null,   -- yyyy-MM-dd
+  weight_kg   double precision not null,
+  measured_at timestamptz,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now(),
+  deleted_at  timestamptz
+);
+create index if not exists idx_weight_entries_user_date on public.weight_entries (user_id, date);
+alter table public.weight_entries enable row level security;
+drop policy if exists "weight_entries: own rows" on public.weight_entries;
+create policy "weight_entries: own rows"
+  on public.weight_entries for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
 -- ═════════════════════════════════════════════════════════
 -- STEP A: run now. New tables and functions; open policies are kept so older app builds
 -- keep syncing.
@@ -172,6 +194,7 @@ begin
   -- Ids are globally unique, so these never conflict.
   update public.food_logs set user_id = p_to where user_id = p_from;
   update public.foods     set user_id = p_to where user_id = p_from;
+  update public.weight_entries set user_id = p_to where user_id = p_from;
 
   delete from public.user_goals d
    where d.user_id = p_from

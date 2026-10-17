@@ -14,7 +14,10 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePreferences } from '@/hooks/usePreferences';
 import { saveUserGoals, saveUserProfile } from '@/lib/storage';
+import { syncToSupabase } from '@/lib/sync';
+import { saveWeightEntry, weightInputToKg, weightRangeMessage } from '@/lib/weight';
 
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 
@@ -34,6 +37,7 @@ export default function GoalsScreen() {
   const [protein, setProtein] = useState('150');
   const [carbs, setCarbs] = useState('200');
   const [fat, setFat] = useState('65');
+  const { weightUnit } = usePreferences();
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
@@ -49,6 +53,16 @@ export default function GoalsScreen() {
       return;
     }
 
+    // Weight is optional; when given it must be a valid weight and becomes today's entry.
+    let weightKg: number | null = null;
+    if (weight.trim()) {
+      weightKg = weightInputToKg(weight, weightUnit);
+      if (weightKg === null) {
+        Alert.alert('Invalid weight', weightRangeMessage(weightUnit));
+        return;
+      }
+    }
+
     await saveUserGoals({
       calorie_goal: cal,
       protein_goal: prot,
@@ -57,10 +71,15 @@ export default function GoalsScreen() {
     });
 
     await saveUserProfile({
-      weight: weight ? parseFloat(weight) : null,
+      weight: weightKg,
       height: height ? parseFloat(height) : null,
       activity_level: activityLevel,
     });
+
+    if (weightKg !== null) {
+      await saveWeightEntry({ weight_kg: weightKg });
+      syncToSupabase();
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push('/onboarding/complete' as any);
@@ -136,13 +155,13 @@ export default function GoalsScreen() {
               <Text style={[styles.optional, { color: colors.icon }]}>(optional)</Text>
             </Text>
 
-            <Text style={labelStyle}>Weight (kg)</Text>
+            <Text style={labelStyle}>Weight ({weightUnit})</Text>
             <TextInput
-              style={inputStyle}
+              style={[inputStyle, styles.tabular]}
               value={weight}
               onChangeText={setWeight}
               keyboardType="decimal-pad"
-              placeholder="e.g. 75"
+              placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
               placeholderTextColor={colors.icon}
             />
 
@@ -209,6 +228,7 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
+  tabular: { fontVariant: ['tabular-nums'] },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 0 },

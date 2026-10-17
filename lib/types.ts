@@ -197,3 +197,29 @@ export type RemoteUserProfile = {
   activity_level: string | null;
   updated_at: string | null;
 };
+
+// ── Weight log ──────────────────────────────────────────────────
+export type WeightEntry = {
+  id: string;
+  /** Local calendar day, yyyy-MM-dd. */
+  date: string;
+  /** Always kg; display converts with lib/units. */
+  weight_kg: number;
+  /** ISO time of the weighing; the latest per day wins. */
+  measured_at: string;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteWeightEntry = {
+  id: string;
+  user_id: string;
+  date: string;
+  weight_kg: number;
+  measured_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
