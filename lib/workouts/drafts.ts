@@ -7,7 +7,6 @@ import {
   createWorkout,
   discardWorkout,
   getWorkoutWithExercises,
-  updateWorkout,
 } from '@/lib/workouts/db';
 
 export const DRAFT_MAX_AGE_DAYS = 7;
@@ -81,9 +80,25 @@ export async function applyCompletionPlan(workoutId: string, plan: SavePlan): Pr
         [plan.tickedAt, now, id]
       );
     }
+    // The workout patch is part of the same transaction: no half-finished state on a crash.
+    const sets: string[] = [];
+    const params: (string | number | null)[] = [];
+    for (const col of PATCH_COLUMNS) {
+      const v = plan.patch[col];
+      if (v !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(v as string | number | null);
+      }
+    }
+    if (sets.length > 0) {
+      sets.push('updated_at = ?', 'synced_at = NULL');
+      params.push(now, workoutId);
+      await txn.runAsync(`UPDATE workouts SET ${sets.join(', ')} WHERE id = ? AND deleted_at IS NULL`, params);
+    }
   });
-  if (Object.keys(plan.patch).length > 0) await updateWorkout(workoutId, plan.patch);
 }
+
+const PATCH_COLUMNS = ['status', 'source', 'name', 'date', 'started_at', 'ended_at', 'duration_seconds', 'notes'] as const;
 
 /** Saves a draft: marks it done and ticks its sets with data. 'empty' (nothing changes) when no set has data. */
 export async function saveDraft(id: string, now: Date): Promise<'saved' | 'empty'> {

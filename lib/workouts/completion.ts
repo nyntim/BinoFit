@@ -101,3 +101,79 @@ export function tickPatch(
   }
   return patch;
 }
+
+export type FinishPlan = SavePlan & {
+  /** Sets that have values but are not ticked (discarded when the user confirms). */
+  filledUntickedSetIds: string[];
+  /** True when finishing would discard filled unticked sets and the user has not agreed yet. */
+  needsConfirm: boolean;
+};
+
+export type FinishOptions = {
+  /** When the session ended; defaults to `now`. Clamped to the start and to `now`. */
+  endAt?: Date;
+  /** The user agreed to discard sets that have values but are not ticked. */
+  discardUnticked: boolean;
+};
+
+/**
+ * What Finish does to a live session. Ticked sets stay. Unticked sets without data are dropped;
+ * unticked sets with data are dropped only when `discardUnticked` (otherwise `needsConfirm`).
+ * Exercises left with no set are removed. The workout becomes done, ends at `endAt` (default
+ * `now`), gets its duration from the start, and is dated by its start (local date). `hasData` is
+ * false when no set is ticked.
+ */
+export function planFinish(w: WorkoutWithExercises, now: Date, options: FinishOptions): FinishPlan {
+  const deleteSetIds: string[] = [];
+  const removeExerciseIds: string[] = [];
+  const filledUntickedSetIds: string[] = [];
+  let hasData = false;
+
+  for (const ex of w.exercises) {
+    const logType: ExerciseLogType = ex.exercise?.log_type ?? 'weight_reps';
+    let kept = 0;
+    for (const s of ex.sets) {
+      if (s.completed_at) {
+        kept += 1;
+        hasData = true;
+      } else if (isSetFilled(s, logType)) {
+        filledUntickedSetIds.push(s.id);
+        if (options.discardUnticked) deleteSetIds.push(s.id);
+        else kept += 1;
+      } else {
+        deleteSetIds.push(s.id);
+      }
+    }
+    if (kept === 0) removeExerciseIds.push(ex.id);
+  }
+
+  const startIso = w.started_at ?? w.created_at;
+  const startMs = new Date(startIso).getTime();
+  const nowMs = now.getTime();
+  const requestedEnd = options.endAt ? options.endAt.getTime() : nowMs;
+  const endMs = Math.max(Math.min(requestedEnd, nowMs), Number.isNaN(startMs) ? requestedEnd : startMs);
+  const patch: WorkoutPatch = {
+    status: 'done',
+    ended_at: new Date(endMs).toISOString(),
+    duration_seconds: Number.isNaN(startMs) ? null : Math.max(0, Math.floor((endMs - startMs) / 1000)),
+  };
+  if (!w.started_at) patch.started_at = startIso;
+  if (!Number.isNaN(startMs)) patch.date = localDateString(new Date(startMs));
+
+  return {
+    deleteSetIds,
+    tickSetIds: [],
+    removeExerciseIds,
+    patch,
+    hasData,
+    tickedAt: patch.ended_at as string,
+    filledUntickedSetIds,
+    needsConfirm: hasData && !options.discardUnticked && filledUntickedSetIds.length > 0,
+  };
+}
+
+function localDateString(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}

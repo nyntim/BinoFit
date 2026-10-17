@@ -14,6 +14,7 @@ import { initAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { useSyncAutoRetry } from '@/hooks/useSyncAutoRetry';
+import { useStaleSessionPrompt } from '@/hooks/useStaleSessionPrompt';
 import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
 import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
 import { purgeStaleDrafts } from '@/lib/workouts/drafts';
@@ -29,6 +30,7 @@ export default function RootLayout() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useSyncAutoRetry();
+  useStaleSessionPrompt();
 
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
