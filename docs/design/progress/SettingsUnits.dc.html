@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings, weight unit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit}
+input{font:inherit}
+a{color:inherit}
+</style>
+</helmet>
+<div style="width: 390px; min-height: 1100px; box-sizing: border-box; display: flex; flex-direction: column; background: #f8f5ef; color: #1a1a22; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-variant-numeric: tabular-nums;">
+  <div style="padding: 24px 16px 24px 16px; display: flex; flex-direction: column; gap: 24px; flex-grow: 1;">
+    <h1 style="margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700;">Settings</h1>
+
+    <section aria-label="Preferences" style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Preferences</h2>
+      <div style="background: #eeeae2; border-radius: 18px; padding: 16px; display: flex; align-items: center; gap: 12px;">
+        <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 15px; line-height: 1.4;">Default for new food</span>
+          <span style="font-size: 12px; line-height: 1.4; color: #606070;">Planned meals don't count toward your daily totals until you mark them eaten.</span>
+        </div>
+        <div role="radiogroup" aria-label="Default for new food" style="flex: 0 0 auto; display: flex; padding: 3px; border-radius: 12px; background: #e4e0d6;">
+          <button role="radio" aria-checked="true" style="min-width: 64px; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: #3d4b7a; color: #f8f5ef; font-size: 13px; font-weight: 500;">Planned</button>
+          <button role="radio" aria-checked="false" style="min-width: 64px; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #606070; font-size: 13px; font-weight: 500;">Eaten</button>
+        </div>
+      </div>
+      <div style="background: #eeeae2; border-radius: 18px; padding: 16px; display: flex; align-items: center; gap: 12px;">
+        <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 15px; line-height: 1.4;">Weight unit</span>
+          <span style="font-size: 12px; line-height: 1.4; color: #606070;">Used in Progress, the weight sheet and Personal Stats.</span>
+        </div>
+        <div role="radiogroup" aria-label="Weight unit" style="flex: 0 0 auto; display: flex; padding: 3px; border-radius: 12px; background: #e4e0d6;">
+          <button role="radio" aria-checked="true" style="min-width: 52px; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: #3d4b7a; color: #f8f5ef; font-size: 13px; font-weight: 500;">lb</button>
+          <button role="radio" aria-checked="false" style="min-width: 52px; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #606070; font-size: 13px; font-weight: 500;">kg</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Apple Health" style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Apple Health</h2>
+      <div style="background: #eeeae2; border-radius: 18px; display: flex; flex-direction: column;">
+        <div style="padding: 16px; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; line-height: 1.4;">Sync nutrition data</span>
+            <span style="font-size: 12px; color: #606070;">Connected</span>
+          </div>
+          <button style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: rgba(61, 75, 122, 0.08); color: #3d4b7a; font-size: 15px; font-weight: 600;">Manage</button>
+        </div>
+        <div style="margin: 0 16px; border-top: 1px solid #d6d2c8;"></div>
+        <div style="padding: 16px; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; line-height: 1.4;">Read weight</span>
+            <span style="font-size: 12px; line-height: 1.4; color: #606070;">Connected. Imports one weight per day. Entries you type are kept.</span>
+          </div>
+          <button style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: rgba(61, 75, 122, 0.08); color: #3d4b7a; font-size: 15px; font-weight: 600;">Manage</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Personal stats" style="display: flex; flex-direction: column; gap: 8px;">
+      <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Personal Stats</h2>
+      <label for="s-weight" style="font-size: 13px; font-weight: 500; color: #606070;">Weight (lb)</label>
+      <input id="s-weight" value="172.4" inputmode="decimal" style="height: 48px; padding: 0 16px; box-sizing: border-box; border: 0; border-radius: 8px; background: #eeeae2; color: #1a1a22; font-size: 15px; font-variant-numeric: tabular-nums;">
+      <span style="font-size: 12px; color: #606070;">Saving logs this as today's weight.</span>
+      <label for="s-height" style="margin-top: 8px; font-size: 13px; font-weight: 500; color: #606070;">Height (cm)</label>
+      <input id="s-height" value="178" inputmode="decimal" style="height: 48px; padding: 0 16px; box-sizing: border-box; border: 0; border-radius: 8px; background: #eeeae2; color: #1a1a22; font-size: 15px; font-variant-numeric: tabular-nums;">
+    </section>
+  </div>
+
+  <nav aria-label="Tabs" style="display: flex; border-top: 1px solid #d6d2c8; background: #f8f5ef; padding: 8px 0 28px 0;">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+      <a href="#" style="flex: 1 1 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: {{t.color}}; font-size: 11px; font-weight: 500;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.d}}"></path></svg>
+        {{t.label}}
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+const TABS = [
+  { label: 'Home', d: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+  { label: 'Exercise', d: 'M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12' },
+  { label: 'Progress', d: 'M5 20V11M12 20V4M19 20v-6' },
+  { label: 'Settings', d: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4' },
+];
+class Component extends DCLogic {
+  renderVals() {
+    return { tabs: TABS.map((t) => ({ label: t.label, d: t.d, color: t.label === 'Settings' ? '#3d4b7a' : '#606070' })) };
+  }
+}
+</script>
+</body>
+</html>

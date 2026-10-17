@@ -11,7 +11,7 @@ Plan for the Training module: Phase 1 foundations and Phase 2 workout core, with
 - Logging: live session and log-afterward, sharing one editor. Past workouts are editable (write-through, no Cancel).
 - Live session: start empty (routines come in Phase 3), previous session's sets prefilled, tick to complete, rest timer auto-starts, full-screen layer that minimizes to a bar above the tab bar.
 - Set types: normal, warmup, drop, failure. RPE behind a setting (off by default).
-- Units: kg or lb, stored as kg. **Distance follows the weight unit** (kg uses km, lb uses mi).
+- Units: lb (default) or kg, stored as kg. **Distance follows the weight unit** (kg uses km, lb uses mi).
 - Onboarding asks "Track nutrition, training, or both" and hides tabs to match. **Cleared on sign-out.**
 - **The latest weight entry is canonical** and writes `profile.weight`; the Settings weight field shows it.
 - **Rest default:** last rest used for that exercise, else the exercise default, else 90 s. No global setting.
@@ -72,7 +72,7 @@ Editing a custom exercise reopens the review card. Deleting tombstones it; past 
 Times ISO, dates `yyyy-MM-dd` local, units kg / metres / seconds. All tables carry `created_at, updated_at, synced_at, deleted_at` unless noted.
 
 - `app_meta (key PK, value)`: local only; `exercise_seed_version`.
-- `weight_entries`: `id, date, weight_kg, measured_at`. Index `(date)`. Latest `measured_at` per day wins.
+- `weight_entries`: `id, date, weight_kg, measured_at, source ('manual' | 'healthkit')`. Index `(date)`. Latest `measured_at` per day wins (a `manual` entry is never replaced by an Apple Health import; see `docs/phase-5-progress.md`).
 - `exercises`: `id, name, log_type, primary_muscles (JSON), secondary_muscles (JSON), equipment, brand, load_type ('stack' | 'plate' | null), base_weight_kg, per_side (0/1), setup_notes, default_rest_seconds, met, source ('seed' | 'custom'), hidden`. Index `(name)`.
 - `workouts`: `id, status ('active' | 'draft' | 'done'), source ('live' | 'manual'), name, date, started_at, ended_at, duration_seconds, notes, routine_id (Phase 3)`. Indexes `(date)`, `(status, started_at)`, partial unique on `status` where active and not deleted.
 - `workout_exercises`: `id, workout_id, exercise_id, position, rest_seconds, notes`. Indexes `(workout_id, position)`, `(exercise_id)`. Phase 3 adds `superset_group`.
@@ -92,7 +92,7 @@ Five tables mirroring SQLite plus `user_id text not null`, `timestamptz` times, 
 `TrackingMode`, `WeightUnit`, `ExerciseLogType`, `MuscleGroup`, `Equipment`, `LoadType`, `SetType`, `WorkoutStatus`, `WorkoutSource`; rows `WeightEntry`, `Exercise`, `Workout`, `WorkoutExercise`, `WorkoutSet`; joined `WorkoutExerciseWithSets`, `WorkoutWithExercises`, `WorkoutSummary`, `WeekSummary`, `RestTimerState`; matching `Remote*` types; `FoodLog.deleted_at`.
 
 ### Preferences (`lib/storage.ts`, device only)
-`TRACKING_MODE` (unset resolves to `both`), `WEIGHT_UNIT` (kg), `SHOW_RPE` (false), `ACTIVE_REST_TIMER`. Exposed through `lib/app-preferences.ts` (pub/sub) and `hooks/usePreferences.ts`. Sign-out clears tracking mode and rest timer, keeps unit and RPE.
+`TRACKING_MODE` (unset resolves to `both`), `WEIGHT_UNIT` (lb), `SHOW_RPE` (false), `ACTIVE_REST_TIMER`. Exposed through `lib/app-preferences.ts` (pub/sub) and `hooks/usePreferences.ts`. Sign-out clears tracking mode and rest timer, keeps unit and RPE.
 
 ### Restore and wipe
 - Restore fetches the five tables, applies custom exercises, then workouts and children in one transaction, then weight. Restored workouts are `done`. Onboarding completes when goals or any data came back. Unknown exercise ids show as "Unknown exercise".
@@ -119,7 +119,7 @@ Five tables mirroring SQLite plus `user_id text not null`, `timestamptz` times, 
 
 **Settings:** `TrainingSection` with Units, Show RPE, Track mode, and a "Set goals" prompt when switching to a nutrition mode without goals.
 
-**Progress:** `WeightCard` and `WeightEntrySheet` (chart later).
+**Progress:** `WeightCard` and `WeightEntrySheet`; the chart, edit and Apple Health import are `docs/phase-5-progress.md` P2 and P3.
 
 ## Session and timer design
 - SQLite is the source of truth; every action writes through, serialized per editor; numeric cells commit on blur with a 300 ms debounce.

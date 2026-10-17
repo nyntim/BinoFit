@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit}
+a{color:inherit}
+</style>
+</helmet>
+<div style="width: 390px; min-height: 1900px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.bg}}; color: {{c.text}}; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-variant-numeric: tabular-nums;">
+  <div style="padding: 24px 16px 24px 16px; display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
+    <h1 style="margin: 0 0 2px 0; font-size: 22px; line-height: 1.2; font-weight: 700;">Progress</h1>
+
+    <div role="group" aria-label="Range" style="display: flex; gap: 8px;">
+      <sc-for list="{{chips}}" as="ch" hint-placeholder-count="4">
+        <button onClick="{{ch.pick}}" aria-pressed="{{ch.pressed}}" style="min-width: 64px; height: 44px; padding: 0 16px; border: 0; border-radius: 20px; background: {{ch.bg}}; color: {{ch.fg}}; font-size: 13px; font-weight: 500; cursor: pointer;">{{ch.label}}</button>
+      </sc-for>
+    </div>
+
+    <section aria-label="Calories" style="background: {{c.card}}; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Calories</h2>
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+          <span style="font-size: 22px; line-height: 1.2; font-weight: 700;">{{sum.avg}}</span>
+          <span style="font-size: 12px; color: {{c.icon}};">cal avg per day</span>
+        </div>
+        <span style="font-size: 12px; line-height: 1.4; color: {{c.icon}};">{{sum.caption}}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: {{c.icon}};">
+        <span style="width: 18px; border-top: 1.5px dashed {{c.icon}};"></span>
+        <span>Goal 2,100 cal</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="position: relative; height: 160px; display: flex; align-items: flex-end; gap: {{chart.gap}};">
+          <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: {{chart.goalPct}}; border-top: 1.5px dashed {{c.icon}}; pointer-events: none; z-index: 1;"></div>
+          <sc-for list="{{chart.bars}}" as="b" hint-placeholder-count="7">
+            <button onClick="{{b.pick}}" aria-label="{{b.aria}}" style="flex: 1 1 0; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; display: flex; align-items: flex-end; cursor: pointer;">
+              <span style="display: block; width: 100%; height: {{b.h}}; background: {{b.fill}}; border-radius: {{chart.radius}};"></span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{chart.perBar}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; gap: {{chart.gap}};">
+            <sc-for list="{{chart.bars}}" as="b" hint-placeholder-count="7">
+              <span style="flex: 1 1 0; min-width: 0; text-align: center; font-size: 12px; color: {{b.labelColor}}; white-space: nowrap;">{{b.label}}</span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{chart.tickMode}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: {{c.icon}};">
+            <sc-for list="{{chart.ticks}}" as="t" hint-placeholder-count="3">
+              <span>{{t}}</span>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid {{c.sep}};">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 13px; font-weight: 500; color: {{c.icon}};">{{sel.label}}</span>
+          <span style="font-size: 17px; font-weight: 600;">{{sel.value}}</span>
+        </div>
+        <sc-if value="{{sel.canOpen}}" hint-placeholder-val="{{true}}">
+          <a href="#" style="display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px; box-sizing: border-box; border: 1px solid {{c.field}}; border-radius: 12px; text-decoration: none; color: {{c.tint}}; font-size: 15px; font-weight: 600;">View day
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+          </a>
+        </sc-if>
+      </div>
+    </section>
+
+    <section aria-label="Macro averages" style="background: {{c.card}}; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Macro averages</h2>
+        <span style="font-size: 12px; color: {{c.icon}};">Per logged day, against current goals</span>
+      </div>
+      <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; line-height: 1.4; font-weight: 500;">
+            <span>{{m.name}}</span>
+            <span><span>{{m.avg}}</span><span style="color: {{c.icon}};"> / {{m.goal}}</span></span>
+          </div>
+          <div style="height: 8px; border-radius: 4px; background: {{c.track}}; overflow: hidden;">
+            <div style="width: {{m.pct}}; height: 100%; background: {{m.color}}; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-label="Weight" style="background: {{c.card}}; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Weight</h2>
+        <button style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid {{c.field}}; border-radius: 12px; background: transparent; color: {{c.tint}}; font-size: 15px; font-weight: 600; cursor: pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          Log weight
+        </button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 22px; line-height: 1.2; font-weight: 700;">{{w.latest}}</span>
+        <span style="font-size: 12px; color: {{c.icon}};">{{w.latestMeta}}</span>
+        <span style="font-size: 13px; font-weight: 500;">{{w.change}}</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: {{c.icon}};">
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{c.icon}};"></span>Manual</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid {{c.icon}};"></span>Apple Health</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 16px; height: 2px; border-radius: 1px; background: {{c.tint}};"></span>7-day average</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div role="img" aria-label="{{w.aria}}" style="position: relative; width: 318px; height: 140px;">
+          <svg width="318" height="140" viewBox="0 0 318 140" aria-hidden="true" style="position: absolute; left: 0; top: 0; overflow: visible;">
+            <line x1="0" y1="8" x2="318" y2="8" stroke="{{c.sep}}" stroke-width="1"></line>
+            <line x1="0" y1="132" x2="318" y2="132" stroke="{{c.sep}}" stroke-width="1"></line>
+            <polyline points="{{w.avgPoints}}" fill="none" stroke="{{c.tint}}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+          </svg>
+          <sc-for list="{{w.dots}}" as="d" hint-placeholder-count="6">
+            <span style="position: absolute; left: {{d.left}}; top: {{d.top}}; width: {{w.dot}}; height: {{w.dot}}; margin-left: {{w.dotOff}}; margin-top: {{w.dotOff}}; box-sizing: border-box; border-radius: 50%; background: {{d.fill}}; border: 1.5px solid {{c.icon}};"></span>
+          </sc-for>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: {{c.icon}};">
+          <span>{{w.startLabel}}</span>
+          <span>High {{w.high}} · Low {{w.low}}</span>
+          <span>Today</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <sc-for list="{{w.recent}}" as="r" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-top: 1px solid {{c.sep}};">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 15px; line-height: 1.4;">{{r.date}}</span>
+              <span style="font-size: 12px; color: {{c.icon}};">{{r.source}}</span>
+            </div>
+            <span style="font-size: 15px;">{{r.value}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Consistency" style="background: {{c.card}}; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <h2 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Consistency</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 17px; font-weight: 600;">{{cons.logged}}</span>
+          <span style="font-size: 12px; color: {{c.icon}};">Days logged</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 17px; font-weight: 600;">4 days</span>
+          <span style="font-size: 12px; color: {{c.icon}};">Current streak</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 17px; font-weight: 600;">31 days</span>
+          <span style="font-size: 12px; color: {{c.icon}};">Longest streak</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid {{c.sep}};">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <button aria-label="Previous month" style="width: 44px; height: 44px; border: 0; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+          </button>
+          <span style="font-size: 15px; font-weight: 600;">October 2026</span>
+          <button aria-label="Next month" disabled="{{yes}}" style="width: 44px; height: 44px; border: 0; background: transparent; color: {{c.icon}}; opacity: 0.5; display: flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 12px; color: {{c.icon}};">
+          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));">
+          <sc-for list="{{cal}}" as="cell" hint-placeholder-count="34">
+            <div style="height: 44px; display: flex; align-items: center; justify-content: center;">
+              <sc-if value="{{cell.isDay}}" hint-placeholder-val="{{true}}">
+                <button disabled="{{cell.future}}" aria-label="{{cell.aria}}" style="width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: {{c.text}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; opacity: {{cell.op}}; cursor: pointer;">
+                  <span style="width: 30px; height: 30px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid {{cell.ring}}; font-size: 13px; font-weight: {{cell.fw}};">{{cell.d}}</span>
+                  <span style="width: 4px; height: 4px; border-radius: 50%; background: {{cell.dot}};"></span>
+                </button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <nav aria-label="Tabs" style="display: flex; border-top: 1px solid {{c.sep}}; background: {{c.bg}}; padding: 8px 0 28px 0;">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+      <a href="#" aria-current="{{t.current}}" style="flex: 1 1 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: {{t.color}}; font-size: 11px; font-weight: 500;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.d}}"></path></svg>
+        {{t.label}}
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"range":{"editor":"enum","options":["7d","30d","90d","all"],"default":"7d"},"$preview":{"width":390,"height":1900}}'>
+const LIGHT = { bg: '#f8f5ef', card: '#eeeae2', card2: '#e4e0d6', text: '#1a1a22', icon: '#606070', sep: '#d6d2c8', field: '#d6d2c8', track: '#d6d2c8', tint: '#3d4b7a', onTint: '#f8f5ef', bar: '#a09ea3' };
+const DARK = { bg: '#0e0e10', card: '#1a1a1d', card2: '#242428', text: '#ededf0', icon: '#8e8e96', sep: 'rgba(237,237,240,0.10)', field: 'rgba(237,237,240,0.28)', track: 'rgba(237,237,240,0.14)', tint: '#8fa3d6', onTint: '#0e0e10', bar: '#5a5a60' };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const N = 229; // Mar 3 to Oct 17, 2026 inclusive
+const SCALE = 2400;
+const GOAL = 2100;
+const W = 318;
+
+function dayAt(i) { return new Date(2026, 2, 3 + i); }
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+function short(d) { return MON[d.getMonth()] + ' ' + d.getDate(); }
+function lb(v) { return v.toFixed(1); }
+
+const CAL = [];
+for (let i = 0; i < N; i++) {
+  let v = Math.round(1930 + Math.sin(i * 1.7) * 170 + Math.sin(i * 0.31) * 90);
+  if ((i * 7 + 3) % 11 === 0) v = 0;
+  CAL.push(v);
+}
+[1980, 2140, 0, 1760, 2020, 1890, 1240].forEach((v, k) => { CAL[N - 7 + k] = v; });
+
+const WT = [];
+for (let i = 0; i < N; i++) {
+  if (i % 3 === 1) { WT.push(null); continue; }
+  const v = 186 - 13.6 * (i / (N - 1)) + 0.6 * Math.sin(i * 1.3);
+  WT.push({ v: Math.round(v * 10) / 10, hk: i % 4 === 0 });
+}
+[{ v: 173.4, hk: false }, { v: 173.0, hk: false }, null, { v: 172.8, hk: true }, { v: 172.9, hk: false }, { v: 172.6, hk: true }, { v: 172.4, hk: false }]
+  .forEach((e, k) => { WT[N - 7 + k] = e; });
+
+const RANGES = {
+  '7d': { days: 7, label: '7D', bucket: 'day', phrase: 'the last 7 days' },
+  '30d': { days: 30, label: '30D', bucket: 'day', phrase: 'the last 30 days' },
+  '90d': { days: 90, label: '90D', bucket: 'week', phrase: 'the last 90 days' },
+  'all': { days: N, label: 'All', bucket: 'month', phrase: 'since Mar 3' },
+};
+
+const TABS = [
+  { label: 'Home', d: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+  { label: 'Exercise', d: 'M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12' },
+  { label: 'Progress', d: 'M5 20V11M12 20V4M19 20v-6' },
+  { label: 'Settings', d: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4' },
+];
+
+function avgNonZero(vals) {
+  const xs = vals.filter((v) => v > 0);
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    const c = this.props.dark ? DARK : LIGHT;
+    const st = this.state || {};
+    const rangeId = st.range || (RANGES[this.props.range] ? this.props.range : '7d');
+    const R = RANGES[rangeId];
+    const s = N - R.days;
+
+    // Buckets
+    let buckets = [];
+    if (R.bucket === 'day') {
+      for (let i = s; i < N; i++) {
+        const d = dayAt(i);
+        const isToday = i === N - 1;
+        buckets.push({
+          v: CAL[i],
+          label: isToday ? 'Today' : DOW[d.getDay()],
+          selLabel: isToday ? 'Today so far' : DOW[d.getDay()] + ', ' + short(d),
+          aria: (isToday ? 'Today' : DOW[d.getDay()] + ' ' + short(d)) + ', ' + (CAL[i] ? fmt(CAL[i]) + ' cal' : 'nothing logged'),
+          isToday,
+        });
+      }
+    } else {
+      const groups = [];
+      const keyOf = (i) => {
+        const d = dayAt(i);
+        return R.bucket === 'week' ? i - ((d.getDay() + 6) % 7) : d.getMonth();
+      };
+      for (let i = s; i < N; i++) {
+        const k = keyOf(i);
+        if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, vals: [] });
+        groups[groups.length - 1].vals.push(CAL[i]);
+      }
+      buckets = groups.map((g, gi) => {
+        const isLast = gi === groups.length - 1;
+        const v = Math.round(avgNonZero(g.vals));
+        let label, selLabel;
+        if (R.bucket === 'week') {
+          label = '';
+          selLabel = isLast ? 'This week so far' : 'Week of ' + short(dayAt(g.k));
+        } else {
+          label = MON[g.k];
+          selLabel = MONTH_FULL[g.k] + (isLast ? ' so far' : '');
+        }
+        return { v, label, selLabel, aria: selLabel + ', ' + fmt(v) + ' cal average per logged day', isToday: isLast };
+      });
+    }
+
+    const defaultSel = R.bucket === 'day' ? buckets.length - 2 : buckets.length - 1;
+    const sel = st.sel == null ? defaultSel : st.sel;
+    const n = buckets.length;
+    const bars = buckets.map((b, i) => ({
+      h: b.v ? ((b.v / SCALE) * 100).toFixed(1) + '%' : '3px',
+      fill: i === sel ? c.tint : (b.v ? c.bar : c.track),
+      label: b.label,
+      labelColor: i === sel ? c.text : c.icon,
+      aria: b.aria,
+      pick: () => this.setState({ range: rangeId, sel: i }),
+    }));
+
+    let ticks = [];
+    if (R.bucket === 'week') ticks = [short(dayAt(s)), short(dayAt(s + 45)), 'This week'];
+    if (rangeId === '30d') ticks = [short(dayAt(s)), short(dayAt(s + 15)), 'Today'];
+    const perBar = rangeId === '7d' || R.bucket === 'month';
+
+    const chart = {
+      bars,
+      gap: n <= 8 ? '10px' : n <= 14 ? '6px' : '3px',
+      radius: n > 14 ? '2px 2px 0 0' : '4px 4px 0 0',
+      goalPct: ((GOAL / SCALE) * 100).toFixed(1) + '%',
+      perBar,
+      tickMode: !perBar,
+      ticks,
+    };
+
+    const selB = buckets[sel];
+    const selVal = selB.v ? fmt(selB.v) + ' cal' + (R.bucket === 'day' ? '' : ' avg') : 'Nothing logged';
+    const selObj = { label: selB.selLabel, value: selVal, canOpen: R.bucket === 'day' };
+
+    // Summary over past days in range (today excluded)
+    const past = CAL.slice(s, N - 1).filter((v) => v > 0);
+    const avg = past.length ? past.reduce((a, b) => a + b, 0) / past.length : 0;
+    const sum = { avg: fmt(avg), caption: past.length + ' logged days in ' + R.phrase + ', today excluded' };
+
+    const macroDefs = [
+      { name: 'Protein', k: 0.06, goal: 150, color: '#e74c3c' },
+      { name: 'Carbs', k: 0.11, goal: 230, color: '#f39c12' },
+      { name: 'Fat', k: 0.033, goal: 70, color: '#3498db' },
+    ];
+    const macros = macroDefs.map((m) => {
+      const g = Math.round(avg * m.k);
+      return { name: m.name, avg: g + 'g', goal: m.goal + 'g', pct: Math.min(100, (g / m.goal) * 100).toFixed(1) + '%', color: m.color };
+    });
+
+    const loggedDays = CAL.slice(s, N).filter((v) => v > 0).length;
+    const cons = { logged: loggedDays + ' of ' + R.days };
+
+    // Weight
+    const entries = [];
+    for (let i = s; i < N; i++) if (WT[i]) entries.push({ i, v: WT[i].v, hk: WT[i].hk });
+    const vs = entries.map((e) => e.v);
+    const hi = Math.max.apply(null, vs);
+    const lo = Math.min.apply(null, vs);
+    const span = Math.max(0.5, hi - lo);
+    const xOf = (i) => ((i - s) / Math.max(1, R.days - 1)) * W;
+    const yOf = (v) => 8 + ((hi - v) / span) * 124;
+    const dots = entries.map((e) => ({
+      left: xOf(e.i).toFixed(1) + 'px',
+      top: yOf(e.v).toFixed(1) + 'px',
+      fill: e.hk ? c.card : c.icon,
+    }));
+    const avgPoints = entries.map((e) => {
+      const win = [];
+      for (let j = Math.max(0, e.i - 6); j <= e.i; j++) if (WT[j]) win.push(WT[j].v);
+      const m = win.reduce((a, b) => a + b, 0) / win.length;
+      return xOf(e.i).toFixed(1) + ',' + Math.min(132, Math.max(8, yOf(m))).toFixed(1);
+    }).join(' ');
+    const first = entries[0];
+    const last = entries[entries.length - 1];
+    const delta = Math.round((last.v - first.v) * 10) / 10;
+    const sign = delta < 0 ? '−' : delta > 0 ? '+' : '';
+    const recent = [];
+    const recentLabels = ['Today', 'Yesterday'];
+    for (let i = N - 1; i >= 0 && recent.length < 3; i--) {
+      if (!WT[i]) continue;
+      const d = dayAt(i);
+      const ago = N - 1 - i;
+      recent.push({
+        date: ago < 2 ? recentLabels[ago] : DOW[d.getDay()] + ', ' + short(d),
+        source: WT[i].hk ? 'Apple Health' : 'Manual',
+        value: lb(WT[i].v) + ' lb',
+      });
+    }
+    const dot = R.days <= 30 ? 8 : 5;
+    const w = {
+      latest: lb(last.v) + ' lb',
+      latestMeta: 'Today · ' + (last.hk ? 'Apple Health' : 'Manual'),
+      change: sign + Math.abs(delta).toFixed(1) + ' lb in ' + R.phrase,
+      dots,
+      avgPoints,
+      dot: dot + 'px',
+      dotOff: -(dot / 2) + 'px',
+      high: lb(hi),
+      low: lb(lo),
+      startLabel: short(dayAt(s)),
+      recent,
+      aria: 'Weight from ' + lb(first.v) + ' to ' + lb(last.v) + ' lb in ' + R.phrase,
+    };
+
+    // October 2026, Monday first
+    const cal = [];
+    const firstDow = (new Date(2026, 9, 1).getDay() + 6) % 7;
+    for (let k = 0; k < firstDow; k++) cal.push({ isDay: false });
+    for (let d = 1; d <= 31; d++) {
+      const idx = N - 1 - (17 - d);
+      const future = d > 17;
+      const logged = !future && CAL[idx] > 0;
+      const isToday = d === 17;
+      cal.push({
+        isDay: true,
+        d,
+        future,
+        op: future ? 0.5 : 1,
+        ring: isToday ? c.tint : 'transparent',
+        fw: isToday ? 600 : 400,
+        dot: logged ? c.tint : 'transparent',
+        aria: 'October ' + d + (isToday ? ', today' : '') + (future ? '' : logged ? ', logged' : ', nothing logged'),
+      });
+    }
+
+    const chips = Object.keys(RANGES).map((id) => ({
+      label: RANGES[id].label,
+      pressed: id === rangeId,
+      bg: id === rangeId ? c.tint : c.card2,
+      fg: id === rangeId ? c.onTint : c.text,
+      pick: () => this.setState({ range: id, sel: null }),
+    }));
+
+    const tabs = TABS.map((t) => ({
+      label: t.label,
+      d: t.d,
+      color: t.label === 'Progress' ? c.tint : c.icon,
+      current: t.label === 'Progress' ? 'page' : undefined,
+    }));
+
+    return { c, chips, chart, sel: selObj, sum, macros, cons, w, cal, tabs, yes: true };
+  }
+}
+</script>
+</body>
+</html>

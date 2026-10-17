@@ -100,6 +100,7 @@ RLS is deployed in two steps in `supabase/schema.sql` (STEP A then STEP B).
 - `constants/theme.ts` — Theme colors, macro colors, fonts
 - `supabase/schema.sql` — Supabase DB schema
 - `docs/phase-4-training.md` — Training module plan; `docs/design/training/` — approved Training mockups (build UI to match them; README maps screens to chunks)
+- `docs/phase-5-progress.md`: Progress tab plan (builds on Training C1, C2, C4 for tombstones, units and the weight log); `docs/design/progress/`: approved Progress mockups (build UI to match them; README maps screens to chunks)
 
 ## Data Model
 

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Progress, nothing logged</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #f8f5ef; color: #1a1a22; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <div style="padding: 24px 16px 0 16px;">
+    <h1 style="margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700;">Progress</h1>
+  </div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 0 40px; text-align: center;">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#606070" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"></path></svg>
+    <p style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600;">Nothing logged yet</p>
+    <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #606070;">Calorie, macro and weight trends show here after your first log.</p>
+  </div>
+  <nav aria-label="Tabs" style="display: flex; border-top: 1px solid #d6d2c8; background: #f8f5ef; padding: 8px 0 28px 0;">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+      <a href="#" style="flex: 1 1 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: {{t.color}}; font-size: 11px; font-weight: 500;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.d}}"></path></svg>
+        {{t.label}}
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const TABS = [
+  { label: 'Home', d: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+  { label: 'Exercise', d: 'M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12' },
+  { label: 'Progress', d: 'M5 20V11M12 20V4M19 20v-6' },
+  { label: 'Settings', d: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4' },
+];
+class Component extends DCLogic {
+  renderVals() {
+    return { tabs: TABS.map((t) => ({ label: t.label, d: t.d, color: t.label === 'Progress' ? '#3d4b7a' : '#606070' })) };
+  }
+}
+</script>
+</body>
+</html>
