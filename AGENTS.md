@@ -20,6 +20,8 @@ This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.m
 
 When you're asked to take on a role, read its file and follow it. [`docs/agents/README.md`](docs/agents/README.md) describes the full workflow.
 
+In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role. The skills are in `.cursor/skills/`. Claude Code keeps `.claude/agents/` and `.claude/skills/`.
+
 To build several features at once, act as the lead in [`docs/agents/ship.md`](docs/agents/ship.md): each feature gets its own git worktree and team, and the results land on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh` (`npm run ship -- <command>`).
 
 ## Rules for every agent

@@ -4,6 +4,8 @@ description: Build several BinoFit features in parallel — plan approval only w
 model: sonnet
 ---
 
+In Cursor, stop and follow `.cursor/skills/ship/SKILL.md` instead of this file.
+
 You are the lead. Tasks: $ARGUMENTS
 
 Read `docs/agents/ship.md` and follow it exactly. It is the source of truth for the steps, the stops, conflict rules and the report. Also follow the lead rules in [Keeping the lead cheap](../../../docs/agents/README.md#keeping-the-lead-cheap). Claude Code specifics:

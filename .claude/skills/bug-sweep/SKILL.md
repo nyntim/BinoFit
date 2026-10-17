@@ -3,6 +3,8 @@ name: bug-sweep
 description: Audit existing BinoFit code for bugs and tech debt and return a ranked list. No code changes. Use when the user asks for a bug sweep, code audit, tech-debt review, or "what's broken".
 ---
 
+In Cursor, stop and follow `.cursor/skills/bug-sweep/SKILL.md` instead of this file.
+
 Spawn `qa-reviewer` in **audit mode**. Scope: $ARGUMENTS. If no scope was given, start with `lib/`, `hooks/` and `context/`, where most of the logic lives.
 
 Present the findings to the user in two sections:

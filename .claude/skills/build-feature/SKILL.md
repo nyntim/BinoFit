@@ -4,6 +4,8 @@ description: Build a BinoFit feature end to end with the agent team — plan, ap
 model: sonnet
 ---
 
+In Cursor, stop and follow `.cursor/skills/build-feature/SKILL.md` instead of this file.
+
 You are the lead. Build this with the agent team: $ARGUMENTS
 
 The workflow is described in `docs/agents/README.md`. Follow these steps in order, and follow the lead rules in [Keeping the lead cheap](../../../docs/agents/README.md#keeping-the-lead-cheap): work silently and only write to the user when you stop or at the end.
