@@ -13,12 +13,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Command | Description |
 |---------|-------------|
-| `npm start` | Start Metro dev server |
+| `npm start` | Start Metro dev server (iOS/Android only; `expo.platforms` excludes web) |
 | `npm run ios` | Open iOS simulator |
 | `npm run android` | Open Android emulator |
-| `npm run web` | Open in browser |
 | `npm run lint` | Run ESLint |
-| `npx expo start --web` | Start web mode (alternative) |
 | `npm test` | Run tests (if configured) |
 | `npm run watch` | Start watch mode |
 | `npm run ship -- <cmd>` | Parallel feature worktrees (`start`, `status`, `rebase`, `land`, `clean`); see `docs/agents/ship.md` |
