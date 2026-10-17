@@ -215,6 +215,7 @@ export default function SettingsScreen() {
   const bg = { backgroundColor: colors.cardBackground };
   const inputStyle = [styles.input, bg, { color: colors.text }];
   const labelStyle = [styles.label, { color: colors.text }];
+  const showAppleHealth = Platform.OS === 'ios' && available;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -225,112 +226,14 @@ export default function SettingsScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily Goals</Text>
+          <Text
+            style={[styles.sectionTitle, { color: colors.text }]}
+            accessibilityRole="header"
+          >
+            General
+          </Text>
 
-            <Text style={labelStyle}>Calories</Text>
-            <TextInput
-              style={inputStyle}
-              value={calories}
-              onChangeText={setCalories}
-              keyboardType="numeric"
-              placeholder="cal"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Protein (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={protein}
-              onChangeText={setProtein}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Carbohydrates (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={carbs}
-              onChangeText={setCarbs}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Fat (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={fat}
-              onChangeText={setFat}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
-            <View style={[styles.preferenceRow, bg]}>
-              <View style={styles.preferenceInfo}>
-                <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                  Default for new food
-                </Text>
-                <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
-                  Planned meals don&apos;t count toward your daily totals until you mark them eaten.
-                </Text>
-              </View>
-              <View
-                style={[styles.statusSwitch, { backgroundColor: colors.cardSecondary }]}
-                accessibilityRole="radiogroup"
-                accessibilityLabel="Default for new food"
-              >
-                {(['planned', 'eaten'] as const).map((status) => {
-                  const selected = defaultStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.statusSegment, selected && { backgroundColor: colors.tint }]}
-                      onPress={() => handleSelectDefaultStatus(status)}
-                      activeOpacity={0.7}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                    >
-                      <Text
-                        style={[
-                          styles.statusSegmentText,
-                          { color: selected ? colors.background : colors.icon },
-                        ]}
-                      >
-                        {status === 'eaten' ? 'Eaten' : 'Planned'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          {Platform.OS === 'ios' && available && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Apple Health</Text>
-              <View style={[styles.preferenceRow, bg]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                    Sync nutrition data
-                  </Text>
-                  <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
-                    {writeGranted ? 'Connected' : 'Not connected'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.connectBtn, { backgroundColor: colors.tint + '12' }]}
-                  onPress={writeGranted ? () => Linking.openURL('x-apple-health://') : initHealthKit}
-                >
-                  <Text style={[styles.connectBtnText, { color: colors.tint }]}>
-                    {writeGranted ? 'Manage' : 'Connect'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          <AccountSection />
 
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Stats</Text>
@@ -380,8 +283,6 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <TrainingSection />
-
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Data</Text>
             <View style={[styles.preferenceRow, bg]}>
@@ -402,8 +303,6 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <AccountSection />
-
           <View style={[styles.section, styles.appInfoSection]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>App Info</Text>
             <View style={[styles.infoRow, bg, { borderRadius: 12 }]}>
@@ -421,6 +320,125 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          <Text
+            style={[styles.sectionTitle, { color: colors.text }]}
+            accessibilityRole="header"
+          >
+            Nutrition
+          </Text>
+
+          <View style={styles.section}>
+            <Text style={labelStyle}>Calories</Text>
+            <TextInput
+              style={inputStyle}
+              value={calories}
+              onChangeText={setCalories}
+              keyboardType="numeric"
+              placeholder="cal"
+              placeholderTextColor={colors.icon}
+            />
+
+            <Text style={labelStyle}>Protein (g)</Text>
+            <TextInput
+              style={inputStyle}
+              value={protein}
+              onChangeText={setProtein}
+              keyboardType="numeric"
+              placeholderTextColor={colors.icon}
+            />
+
+            <Text style={labelStyle}>Carbohydrates (g)</Text>
+            <TextInput
+              style={inputStyle}
+              value={carbs}
+              onChangeText={setCarbs}
+              keyboardType="numeric"
+              placeholderTextColor={colors.icon}
+            />
+
+            <Text style={labelStyle}>Fat (g)</Text>
+            <TextInput
+              style={inputStyle}
+              value={fat}
+              onChangeText={setFat}
+              keyboardType="numeric"
+              placeholderTextColor={colors.icon}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <View style={[styles.preferenceRow, bg]}>
+              <View style={styles.preferenceInfo}>
+                <Text style={[styles.preferenceLabel, { color: colors.text }]}>
+                  Default for new food
+                </Text>
+                <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
+                  Planned meals don&apos;t count toward your daily totals until you mark them eaten.
+                </Text>
+              </View>
+              <View
+                style={[styles.statusSwitch, { backgroundColor: colors.cardSecondary }]}
+                accessibilityRole="radiogroup"
+                accessibilityLabel="Default for new food"
+              >
+                {(['planned', 'eaten'] as const).map((status) => {
+                  const selected = defaultStatus === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.statusSegment, selected && { backgroundColor: colors.tint }]}
+                      onPress={() => handleSelectDefaultStatus(status)}
+                      activeOpacity={0.7}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          styles.statusSegmentText,
+                          { color: selected ? colors.background : colors.icon },
+                        ]}
+                      >
+                        {status === 'eaten' ? 'Eaten' : 'Planned'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {showAppleHealth ? (
+            <View style={styles.section}>
+              <View style={[styles.preferenceRow, bg]}>
+                <View style={styles.preferenceInfo}>
+                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>
+                    Sync nutrition data
+                  </Text>
+                  <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
+                    {writeGranted ? 'Connected' : 'Not connected'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.connectBtn, { backgroundColor: colors.tint + '12' }]}
+                  onPress={writeGranted ? () => Linking.openURL('x-apple-health://') : initHealthKit}
+                >
+                  <Text style={[styles.connectBtnText, { color: colors.tint }]}>
+                    {writeGranted ? 'Manage' : 'Connect'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          <Text
+            style={[styles.sectionTitle, { color: colors.text }]}
+            accessibilityRole="header"
+          >
+            Training
+          </Text>
+
+          <TrainingSection />
 
           <View style={[styles.section, { marginBottom: 16 }]}>
             <TouchableOpacity

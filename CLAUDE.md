@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Routing** — Expo Router v6 with file-based routing. App structure:
 - `app/` — File-based routes using Expo Router
-  - `(tabs)/` — Bottom tab navigator: `index` (dashboard), `training` (week summary, last 3 workouts, entry rows), `progress`, `settings`. Home and Training always show; Progress and More always show
+  - `(tabs)/` — Bottom tab navigator: `index` (Nutrition tab, dashboard), `training` (week summary, last 3 workouts, entry rows), `progress`, `settings` (More). All four tabs always show
   - `onboarding/` — Welcome → goals → complete
   - `food-search.tsx`, `serving-picker.tsx`, `custom-food.tsx` — Feature screens
   - `barcode-scanner.tsx` — Full-screen camera scanner (native only; reached from the food-search scan button). Looks up via `lookupBarcode`, then replaces itself with `serving-picker`, or `custom-food` (prefilled, with barcode) when not found
