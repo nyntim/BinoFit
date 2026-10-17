@@ -139,6 +139,7 @@ QuickAddDrink = { id, name, amount, food_id? }
 
 ## Development Tips
 
+- **Recurring bug, `fullScreenModal` safe area:** `SafeAreaView` can report zero insets the first time a native `fullScreenModal` opens on iOS (it fixes itself after a reload), so the header sits under the status bar and Dynamic Island and its buttons can't be tapped. Hit in `barcode-scanner.tsx` and `workout/session.tsx`. In any `fullScreenModal` screen, use `useSafeAreaInsets()` and pad the root `View` instead of `SafeAreaView`
 - Use `@/` path aliases instead of relative imports
 - Respect platform-specific files (`.ios.tsx`, `.web.ts`)
 - Use `expo-router` navigation via `router.push()` and `router.back()`

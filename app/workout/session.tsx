@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { RestBanner } from '@/components/workouts/RestBanner';
@@ -37,6 +37,9 @@ export default function SessionScreen() {
     flushRef.current = editor.flush;
   });
   const now = useNow(1000, !!active);
+  // Explicit insets: SafeAreaView can report zero inside a native fullScreenModal,
+  // which put the header (and Finish) under the status bar and Dynamic Island.
+  const insets = useSafeAreaInsets();
 
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
@@ -194,7 +197,18 @@ export default function SessionScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: background,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <View style={[styles.header, { borderBottomColor: separator }]}>
         <Pressable
           onPress={() => void minimize()}
@@ -227,7 +241,7 @@ export default function SessionScreen() {
       </View>
       <RestBanner />
       {body}
-    </SafeAreaView>
+    </View>
   );
 }
 
