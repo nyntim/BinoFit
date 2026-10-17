@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
+index e8ddce1..a8da53e 100644
+--- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
++++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
+@@ -840,8 +840,6 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
+ 
+ - (void)emitEventInternal:(NSNotification *)notification {
+   if (self.hasListeners) {
+-    self.callableJSModules = [RCTAppleHealthKit sharedJsModule];
+-    [self.callableJSModules setBridge:self.bridge];
+     [self sendEventWithName:notification.name
+                    body:notification.userInfo];
+   }
