@@ -79,6 +79,14 @@ export default function RootLayout() {
           <Stack.Screen name="barcode-scanner" options={{ presentation: 'fullScreenModal', headerShown: false }} />
           <Stack.Screen name="day-detail" options={{ headerShown: false }} />
           <Stack.Screen name="custom-food" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen
+            name="workout/exercises"
+            options={({ route }) => ({
+              presentation: (route.params as { pick?: string } | undefined)?.pick ? 'modal' : 'card',
+              headerShown: false,
+            })}
+          />
+          <Stack.Screen name="workout/new-exercise" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

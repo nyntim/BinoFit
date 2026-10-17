@@ -24,6 +24,10 @@ const MAPPING = {
   'dumbbell.fill': 'fitness-center',
   'chart.bar.fill': 'bar-chart',
   'ellipsis': 'more-horiz',
+  'chevron.left': 'chevron-left',
+  'magnifyingglass': 'search',
+  'plus': 'add',
+  'checkmark': 'check',
 } as IconMapping;
 
 /**

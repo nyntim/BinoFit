@@ -93,7 +93,7 @@ describe('applyRemoteExercises', () => {
 
   it('a remote tombstone with no local row is skipped', async () => {
     expect(await apply.applyRemoteExercises([rEx({ deleted_at: MID })])).toBe(0);
-    expect(count('exercises')).toBe(0);
+    expect(count('exercises WHERE source = \'custom\'')).toBe(0);
   });
 
   it('returns 0 for no rows', async () => {

@@ -60,7 +60,8 @@ describe('workout schema', () => {
     insertExercise('ex1');
     load();
     await database.getDatabase();
-    expect(count('exercises')).toBe(1);
+    expect(count('exercises', "source = 'custom'")).toBe(1);
+    expect(count('exercises', "source = 'seed'")).toBe(46);
   });
 
   it('every workout table has the sync columns', () => {
@@ -353,7 +354,8 @@ describe('wipe', () => {
     await tree('done');
     await tree('draft');
     await database.clearUserData();
-    expect(count('exercises')).toBe(1);
+    expect(count('exercises', "source = 'custom'")).toBe(0);
+    expect(count('exercises', "source = 'seed'")).toBe(47);
     expect(rowOf('exercises', 'seed1')).toBeDefined();
     expect(count('workouts') + count('workout_exercises') + count('workout_sets')).toBe(0);
   });

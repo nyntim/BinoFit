@@ -1,4 +1,5 @@
 import type * as SQLite from 'expo-sqlite';
+import { seedExercises } from '@/lib/workouts/exercise-seed';
 
 /**
  * Creates the workout tables. Safe to run on every launch (all statements are IF NOT EXISTS) and
@@ -93,4 +94,5 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
     CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(workout_exercise_id, position);
     CREATE INDEX IF NOT EXISTS idx_workout_sets_workout ON workout_sets(workout_id);
   `);
+  await seedExercises(db);
 }
