@@ -124,7 +124,7 @@ create table if not exists public.meal_names (
 );
 
 -- ─────────────────────────────────────────────────────────
--- weight_entries: body weight log (weight_kg is always kg). Soft-deleted via deleted_at.
+-- weight_entries: body weight log (weight_kg is always kg; source manual | healthkit). Soft-deleted via deleted_at.
 -- New table, so it gets the strict per-user policy right away (no older build uses it).
 -- ─────────────────────────────────────────────────────────
 create table if not exists public.weight_entries (
@@ -137,6 +137,7 @@ create table if not exists public.weight_entries (
   updated_at  timestamptz default now(),
   deleted_at  timestamptz
 );
+alter table public.weight_entries add column if not exists source text not null default 'manual';
 create index if not exists idx_weight_entries_user_date on public.weight_entries (user_id, date);
 alter table public.weight_entries enable row level security;
 drop policy if exists "weight_entries: own rows" on public.weight_entries;

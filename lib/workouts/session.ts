@@ -86,6 +86,7 @@ export async function finishWorkout(
   setActiveWorkout(null);
   await stopRestTimer(id);
   syncToSupabase();
+  void import('@/lib/health-schedule').then((m) => m.scheduleAppleHealthSync());
   return 'finished';
 }
 

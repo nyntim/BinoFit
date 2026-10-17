@@ -77,6 +77,20 @@ export async function getDoneWorkoutsBetween(startDate: string, endDate: string)
   return hydrate(rows);
 }
 
+/** Done workouts for Apple Health export (includes tombstones). */
+export async function getDoneWorkoutsForHealth(): Promise<
+  Pick<
+    Workout,
+    'id' | 'started_at' | 'ended_at' | 'duration_seconds' | 'updated_at' | 'deleted_at'
+  >[]
+> {
+  const db = await getDatabase();
+  return db.getAllAsync(
+    `SELECT id, started_at, ended_at, duration_seconds, updated_at, deleted_at
+     FROM workouts WHERE status = 'done'`
+  );
+}
+
 /** Done workouts, newest first, one page at a time. */
 export async function getRecentDoneWorkouts(limit: number, offset = 0): Promise<WorkoutWithExercises[]> {
   const db = await getDatabase();

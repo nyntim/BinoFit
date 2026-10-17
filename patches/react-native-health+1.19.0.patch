@@ -1,8 +1,161 @@
+diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Body.m b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Body.m
+index a998998..069120e 100644
+--- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Body.m
++++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Body.m
+@@ -77,17 +77,18 @@
+     double weight = [RCTAppleHealthKit doubleValueFromOptions:input];
+     NSDate *sampleDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:[NSDate date]];
+     HKUnit *unit = [RCTAppleHealthKit hkUnitFromOptions:input key:@"unit" withDefault:[HKUnit poundUnit]];
++    NSDictionary *metadata = [RCTAppleHealthKit metadataFromOptions:input withDefault:nil];
+ 
+     HKQuantity *weightQuantity = [HKQuantity quantityWithUnit:unit doubleValue:weight];
+     HKQuantityType *weightType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyMass];
+-    HKQuantitySample *weightSample = [HKQuantitySample quantitySampleWithType:weightType quantity:weightQuantity startDate:sampleDate endDate:sampleDate];
++    HKQuantitySample *weightSample = [HKQuantitySample quantitySampleWithType:weightType quantity:weightQuantity startDate:sampleDate endDate:sampleDate metadata:metadata];
+ 
+     [self.healthStore saveObject:weightSample withCompletion:^(BOOL success, NSError *error) {
+         if (!success) {
+             callback(@[RCTJSErrorFromNSError(error)]);
+             return;
+         }
+-        callback(@[[NSNull null], @(weight)]);
++        callback(@[[NSNull null], @{ @"id": [weightSample.UUID UUIDString], @"value": @(weight) }]);
+     }];
+ }
+ 
+diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.h b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.h
+index 366a95f..332ce8c 100644
+--- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.h
++++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.h
+@@ -18,6 +18,8 @@
+ - (void)results_deleteCarbohydratesSample:(NSString *)oid callback:(RCTResponseSenderBlock)callback;
+ - (void)results_saveInsulinDeliverySample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
+ - (void)results_deleteInsulinDeliverySample:(NSString *)oid callback:(RCTResponseSenderBlock)callback;
++- (void)results_saveDietarySample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
++- (void)results_deleteHealthSample:(NSString *)type uuid:(NSString *)oid callback:(RCTResponseSenderBlock)callback;
+ - (void)results_registerObservers:(RCTBridge *)bridge hasListeners:(bool)hasListeners;
+ 
+ @end
+diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.m b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.m
+index 0c93946..3d184bf 100644
+--- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.m
++++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Results.m
+@@ -241,6 +241,76 @@
+     }];
+ }
+ 
++- (void)results_saveDietarySample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
++{
++    NSString *type = [RCTAppleHealthKit stringFromOptions:input key:@"type" withDefault:@""];
++    HKQuantityType *quantityType = nil;
++    if ([type isEqualToString:@"EnergyConsumed"]) {
++        quantityType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryEnergyConsumed];
++    } else if ([type isEqualToString:@"Protein"]) {
++        quantityType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryProtein];
++    } else if ([type isEqualToString:@"Carbohydrates"]) {
++        quantityType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCarbohydrates];
++    } else if ([type isEqualToString:@"FatTotal"]) {
++        quantityType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryFatTotal];
++    } else {
++        callback(@[RCTMakeError(@"Unknown dietary type", nil, nil)]);
++        return;
++    }
++
++    double value = [RCTAppleHealthKit doubleValueFromOptions:input];
++    NSDate *startDate = [RCTAppleHealthKit dateFromOptions:input key:@"startDate" withDefault:[NSDate date]];
++    NSDate *endDate = [RCTAppleHealthKit dateFromOptions:input key:@"endDate" withDefault:startDate];
++    HKUnit *unit = [RCTAppleHealthKit hkUnitFromOptions:input key:@"unit" withDefault:[HKUnit gramUnit]];
++    NSDictionary *metadata = [RCTAppleHealthKit metadataFromOptions:input withDefault:nil];
++
++    HKQuantity *quantity = [HKQuantity quantityWithUnit:unit doubleValue:value];
++    HKQuantitySample *sample = [HKQuantitySample quantitySampleWithType:quantityType
++                                                               quantity:quantity
++                                                              startDate:startDate
++                                                                endDate:endDate
++                                                               metadata:metadata];
++
++    [self.healthStore saveObject:sample withCompletion:^(BOOL success, NSError *error) {
++        if (!success) {
++            callback(@[RCTMakeError(@"An error occured while saving the dietary sample", error, nil)]);
++            return;
++        }
++        callback(@[[NSNull null], [sample.UUID UUIDString]]);
++    }];
++}
++
++- (void)results_deleteHealthSample:(NSString *)type uuid:(NSString *)oid callback:(RCTResponseSenderBlock)callback
++{
++    HKObjectType *objectType = nil;
++    if ([type isEqualToString:@"BodyMass"]) {
++        objectType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBodyMass];
++    } else if ([type isEqualToString:@"EnergyConsumed"]) {
++        objectType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryEnergyConsumed];
++    } else if ([type isEqualToString:@"Protein"]) {
++        objectType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryProtein];
++    } else if ([type isEqualToString:@"Carbohydrates"]) {
++        objectType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryCarbohydrates];
++    } else if ([type isEqualToString:@"FatTotal"]) {
++        objectType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDietaryFatTotal];
++    } else if ([type isEqualToString:@"Workout"]) {
++        objectType = [HKObjectType workoutType];
++    } else {
++        callback(@[RCTMakeError(@"Unknown Health sample type", nil, nil)]);
++        return;
++    }
++
++    NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:oid];
++    NSPredicate *uuidPredicate = [HKQuery predicateForObjectWithUUID:uuid];
++    [self.healthStore deleteObjectsOfType:objectType predicate:uuidPredicate withCompletion:^(BOOL success, NSUInteger deletedObjectCount, NSError * _Nullable error) {
++        if (!success) {
++            callback(@[RCTMakeError(@"An error occured while deleting the Health sample", error, nil)]);
++            return;
++        }
++        callback(@[[NSNull null], @(deletedObjectCount)]);
++    }];
++}
++
+ - (void)results_registerObservers:(RCTBridge *)bridge hasListeners:(bool)hasListeners
+ {
+     if (@available(iOS 11.0, *)) {
+diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Workout.m b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Workout.m
+index c1c4f42..7351c8a 100644
+--- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Workout.m
++++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit+Methods_Workout.m
+@@ -132,8 +132,9 @@
+     HKQuantity *totalDistance = [RCTAppleHealthKit hkQuantityFromOptions:input valueKey:@"distance" unitKey:@"distanceUnit"];
+ 
+ 
++    NSDictionary *metadata = [RCTAppleHealthKit metadataFromOptions:input withDefault:nil];
+     HKWorkout *workout = [
+-                          HKWorkout workoutWithActivityType:type startDate:startDate endDate:endDate workoutEvents:nil totalEnergyBurned:totalEnergyBurned totalDistance:totalDistance metadata: nil
++                          HKWorkout workoutWithActivityType:type startDate:startDate endDate:endDate workoutEvents:nil totalEnergyBurned:totalEnergyBurned totalDistance:totalDistance metadata:metadata
+                           ];
+ 
+     void (^completion)(BOOL success, NSError *error);
 diff --git a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
-index e8ddce1..a8da53e 100644
+index e8ddce1..4f3b36d 100644
 --- a/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
 +++ b/node_modules/react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m
-@@ -840,8 +840,6 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
+@@ -513,6 +513,18 @@ RCT_EXPORT_METHOD(deleteCarbohydratesSample:(NSString *)oid callback:(RCTRespons
+     [self results_deleteCarbohydratesSample:oid callback:callback];
+ }
+ 
++RCT_EXPORT_METHOD(saveDietarySample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
++{
++    [self _initializeHealthStore];
++    [self results_saveDietarySample:input callback:callback];
++}
++
++RCT_EXPORT_METHOD(deleteHealthSample:(NSString *)type uuid:(NSString *)uuid callback:(RCTResponseSenderBlock)callback)
++{
++    [self _initializeHealthStore];
++    [self results_deleteHealthSample:type uuid:uuid callback:callback];
++}
++
+ RCT_EXPORT_METHOD(saveBloodGlucoseSample:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+ {
+     [self _initializeHealthStore];
+@@ -840,8 +852,6 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
  
  - (void)emitEventInternal:(NSNotification *)notification {
    if (self.hasListeners) {

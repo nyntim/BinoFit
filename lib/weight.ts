@@ -7,7 +7,9 @@ import { getDatabase } from '@/lib/database';
 import { getUserProfile, saveUserProfile } from '@/lib/storage';
 import { decideRemoteApply, tombstoneSql } from '@/lib/tombstones';
 import { formatWeight, kgToLb, lbToKg, parseDecimal } from '@/lib/units';
-import type { RemoteWeightEntry, WeightEntry, WeightUnit } from '@/lib/types';
+import { initHealthLinksSchema, markPendingDelete } from '@/lib/health-links';
+import type { RemoteWeightEntry, WeightEntry, WeightEntrySource, WeightUnit } from '@/lib/types';
+import type { WeightImportAction } from '@/lib/health-sync';
 
 export const WEIGHT_MIN_KG = 20;
 export const WEIGHT_MAX_KG = 400;
@@ -105,6 +107,7 @@ export async function initWeightSchema(db: SQLite.SQLiteDatabase): Promise<void>
       date TEXT NOT NULL,
       weight_kg REAL NOT NULL,
       measured_at TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       synced_at TEXT,
@@ -112,6 +115,12 @@ export async function initWeightSchema(db: SQLite.SQLiteDatabase): Promise<void>
     );
     CREATE INDEX IF NOT EXISTS idx_weight_entries_date ON weight_entries(date);
   `);
+  await db.execAsync(`ALTER TABLE weight_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';`).catch(() => {});
+  await initHealthLinksSchema(db);
+}
+
+function fireAppleHealthSync(): void {
+  void import('@/lib/health-schedule').then((m) => m.scheduleAppleHealthSync());
 }
 
 // ── Reads (always exclude tombstones, except getUnsyncedWeightEntries) ──
@@ -153,6 +162,19 @@ export async function getUnsyncedWeightEntries(): Promise<WeightEntry[]> {
   return db.getAllAsync<WeightEntry>('SELECT * FROM weight_entries WHERE synced_at IS NULL');
 }
 
+/** Live and tombstoned rows for Apple Health reconcile (the only other tombstone read). */
+export async function getWeightRowsForHealth(): Promise<
+  (Pick<
+    WeightEntry,
+    'date' | 'id' | 'source' | 'weight_kg' | 'measured_at' | 'updated_at' | 'deleted_at'
+  >)[]
+> {
+  const db = await getDatabase();
+  return db.getAllAsync(
+    `SELECT date, id, source, weight_kg, measured_at, updated_at, deleted_at FROM weight_entries`
+  );
+}
+
 // ── Writes ──────────────────────────────────────────────────────
 
 /**
@@ -192,16 +214,23 @@ export async function saveWeightEntry(input: { date?: string; weight_kg: number 
   let saved: WeightEntry;
   if (existing) {
     await db.runAsync(
-      `UPDATE weight_entries SET weight_kg = ?, measured_at = ?, updated_at = ?, synced_at = NULL
+      `UPDATE weight_entries SET weight_kg = ?, measured_at = ?, source = 'manual', updated_at = ?, synced_at = NULL
        WHERE id = ? AND deleted_at IS NULL`,
       [input.weight_kg, measuredAt, nowIso, existing.id]
     );
-    saved = { ...existing, weight_kg: input.weight_kg, measured_at: measuredAt, updated_at: nowIso, synced_at: null };
+    saved = {
+      ...existing,
+      weight_kg: input.weight_kg,
+      measured_at: measuredAt,
+      source: 'manual',
+      updated_at: nowIso,
+      synced_at: null,
+    };
   } else {
     const id = Crypto.randomUUID();
     await db.runAsync(
-      `INSERT INTO weight_entries (id, date, weight_kg, measured_at, created_at, updated_at, synced_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)`,
+      `INSERT INTO weight_entries (id, date, weight_kg, measured_at, source, created_at, updated_at, synced_at, deleted_at)
+       VALUES (?, ?, ?, ?, 'manual', ?, ?, NULL, NULL)`,
       [id, date, input.weight_kg, measuredAt, nowIso, nowIso]
     );
     saved = {
@@ -209,6 +238,7 @@ export async function saveWeightEntry(input: { date?: string; weight_kg: number 
       date,
       weight_kg: input.weight_kg,
       measured_at: measuredAt,
+      source: 'manual',
       created_at: nowIso,
       updated_at: nowIso,
       synced_at: null,
@@ -216,15 +246,64 @@ export async function saveWeightEntry(input: { date?: string; weight_kg: number 
     };
   }
   await syncProfileWeightFromLatest();
+  fireAppleHealthSync();
   return saved;
+}
+
+/** Applies HealthKit import actions without calling saveWeightEntry. Caller syncs once after the batch. */
+export async function applyHealthWeightPlan(actions: WeightImportAction[]): Promise<boolean> {
+  if (actions.length === 0) return false;
+  const db = await getDatabase();
+  const nowIso = new Date().toISOString();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const a of actions) {
+      if (a.type === 'insert') {
+        const id = Crypto.randomUUID();
+        await txn.runAsync(
+          `INSERT INTO weight_entries (id, date, weight_kg, measured_at, source, created_at, updated_at, synced_at, deleted_at)
+           VALUES (?, ?, ?, ?, 'healthkit', ?, ?, NULL, NULL)`,
+          [id, a.date, a.weight_kg, a.measured_at, nowIso, nowIso]
+        );
+        await txn.runAsync(
+          `INSERT INTO health_links (kind, local_id, nutrient, origin, hk_id, hk_type, content_hash, sync_version, pending_delete, updated_at)
+           VALUES ('weight', ?, '', 'in', ?, 'BodyMass', NULL, 0, 0, ?)`,
+          [id, a.hkSampleId, nowIso]
+        );
+      } else {
+        await txn.runAsync(
+          `UPDATE weight_entries SET weight_kg = ?, measured_at = ?, updated_at = ?, synced_at = NULL
+           WHERE id = ? AND deleted_at IS NULL AND source = 'healthkit'`,
+          [a.weight_kg, a.measured_at, nowIso, a.id]
+        );
+        await txn.runAsync(
+          `UPDATE health_links SET hk_id = ?, updated_at = ? WHERE kind = 'weight' AND local_id = ? AND origin = 'in'`,
+          [a.hkSampleId, nowIso, a.id]
+        );
+      }
+    }
+  });
+  await syncProfileWeightFromLatest();
+  return true;
 }
 
 /** Tombstones every entry of the day. Call syncToSupabase() after. */
 export async function deleteWeightEntriesForDate(date: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
+  const live = await db.getAllAsync<{ id: string }>(
+    'SELECT id FROM weight_entries WHERE date = ? AND deleted_at IS NULL',
+    [date]
+  );
+  for (const row of live) {
+    await markPendingDelete('weight', row.id);
+    await db.runAsync(
+      `DELETE FROM health_links WHERE kind = 'weight' AND local_id = ? AND origin = 'in'`,
+      [row.id]
+    );
+  }
   await db.runAsync(`${tombstoneSql('weight_entries')} WHERE date = ? AND deleted_at IS NULL`, [now, now, date]);
   await syncProfileWeightFromLatest();
+  fireAppleHealthSync();
 }
 
 /**
@@ -251,17 +330,19 @@ export async function applyRemoteWeightEntries(rows: RemoteWeightEntry[]): Promi
         continue;
       }
       const createdAt = toIso(r.created_at, updatedAt);
+      const source: WeightEntrySource = r.source === 'healthkit' ? 'healthkit' : 'manual';
       await txn.runAsync(
-        `INSERT INTO weight_entries (id, date, weight_kg, measured_at, created_at, updated_at, synced_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+        `INSERT INTO weight_entries (id, date, weight_kg, measured_at, source, created_at, updated_at, synced_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(id) DO UPDATE SET
            date = excluded.date,
            weight_kg = excluded.weight_kg,
            measured_at = excluded.measured_at,
+           source = excluded.source,
            updated_at = excluded.updated_at,
            deleted_at = NULL,
            synced_at = excluded.synced_at`,
-        [r.id, r.date, r.weight_kg, toIso(r.measured_at, createdAt), createdAt, updatedAt, now]
+        [r.id, r.date, r.weight_kg, toIso(r.measured_at, createdAt), source, createdAt, updatedAt, now]
       );
       applied++;
     }

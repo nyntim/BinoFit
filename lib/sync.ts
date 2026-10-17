@@ -334,6 +334,7 @@ async function syncWeightEntries(userId: string): Promise<void> {
     date: e.date,
     weight_kg: e.weight_kg,
     measured_at: e.measured_at,
+    source: e.source ?? 'manual',
     created_at: e.created_at,
     updated_at: e.updated_at,
     deleted_at: e.deleted_at ?? null,

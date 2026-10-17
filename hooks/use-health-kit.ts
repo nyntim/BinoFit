@@ -1,21 +1,24 @@
-// v1.1.0 - Apple Health Integration
+// Apple Health: dashboard activity reads and Settings sync.
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import AppleHealthKit from 'react-native-health';
 import type { HealthKitPermissions } from 'react-native-health';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchTodayActivityFromHealthKit } from '@/lib/health-kit-activity';
+import { HEALTH_KIT_SYNC_V1_KEY } from '@/lib/health-schedule';
+import {
+  getLastHealthSyncAt,
+  getLastHealthSyncFailed,
+  runAppleHealthSyncPass,
+} from '@/services/healthKitService';
 
 const HEALTH_KIT_INITIALIZED_KEY = 'healthKitInitialized';
 
-// Handle both default and namespace imports for interop
 const HK = (AppleHealthKit as any)?.default || AppleHealthKit;
 
-const PERMISSIONS: HealthKitPermissions = {
+const LEGACY_PERMISSIONS: HealthKitPermissions = {
   permissions: {
-    read: [
-      HK.Constants?.Permissions?.StepCount,
-      HK.Constants?.Permissions?.ActiveEnergyBurned,
-    ],
+    read: [HK.Constants?.Permissions?.StepCount, HK.Constants?.Permissions?.ActiveEnergyBurned],
     write: [
       HK.Constants?.Permissions?.EnergyConsumed,
       HK.Constants?.Permissions?.Protein,
@@ -25,19 +28,41 @@ const PERMISSIONS: HealthKitPermissions = {
   },
 };
 
-let cachedActivity = { steps: 0, activeCalories: 0 };
-let lastFetchTime = 0;
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const FULL_PERMISSIONS: HealthKitPermissions = {
+  permissions: {
+    read: [
+      HK.Constants?.Permissions?.StepCount,
+      HK.Constants?.Permissions?.ActiveEnergyBurned,
+      HK.Constants?.Permissions?.BodyMass,
+      HK.Constants?.Permissions?.EnergyConsumed,
+      HK.Constants?.Permissions?.Protein,
+      HK.Constants?.Permissions?.Carbohydrates,
+      HK.Constants?.Permissions?.FatTotal,
+    ],
+    write: [
+      HK.Constants?.Permissions?.EnergyConsumed,
+      HK.Constants?.Permissions?.Protein,
+      HK.Constants?.Permissions?.Carbohydrates,
+      HK.Constants?.Permissions?.FatTotal,
+      HK.Constants?.Permissions?.BodyMass,
+      HK.Constants?.Permissions?.Workout,
+    ],
+  },
+};
 
 export function useHealthKit() {
   const [available, setAvailable] = useState(false);
-  const [readGranted, setReadGranted] = useState(false);
-  const [writeGranted, setWriteGranted] = useState(false);
+  const [syncV1, setSyncV1] = useState(false);
+  const [legacyInit, setLegacyInit] = useState(false);
+  const [initFailed, setInitFailed] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
 
   const checkAvailability = useCallback(() => {
     if (Platform.OS !== 'ios') return;
     if (typeof HK.isAvailable === 'function') {
-      HK.isAvailable((err: any, isAvailable: boolean) => {
+      HK.isAvailable((err: unknown, isAvailable: boolean) => {
         if (err) return;
         setAvailable(isAvailable);
       });
@@ -46,82 +71,84 @@ export function useHealthKit() {
     }
   }, []);
 
-  const initHealthKit = useCallback(async () => {
-    if (Platform.OS !== 'ios') return;
-    
-    if (typeof HK.initHealthKit === 'function') {
-      HK.initHealthKit(PERMISSIONS, (err: any) => {
-        if (err) {
-          console.warn('Error initializing HealthKit:', err);
-          return;
-        }
-        setReadGranted(true);
-        setWriteGranted(true);
-        AsyncStorage.setItem(HEALTH_KIT_INITIALIZED_KEY, 'true');
+  const initWithPermissions = useCallback((permissions: HealthKitPermissions) => {
+    return new Promise<boolean>((resolve) => {
+      if (typeof HK.initHealthKit !== 'function') {
+        resolve(false);
+        return;
+      }
+      HK.initHealthKit(permissions, (err: unknown) => {
+        resolve(!err);
       });
-    }
+    });
   }, []);
 
+  const initLegacyHealthKit = useCallback(async () => {
+    if (Platform.OS !== 'ios') return;
+    const ok = await initWithPermissions(LEGACY_PERMISSIONS);
+    if (ok) {
+      setInitFailed(false);
+      await AsyncStorage.setItem(HEALTH_KIT_INITIALIZED_KEY, 'true');
+    } else {
+      setInitFailed(true);
+    }
+  }, [initWithPermissions]);
+
   useEffect(() => {
-    if (Platform.OS === 'ios') {
-      checkAvailability();
-      AsyncStorage.getItem(HEALTH_KIT_INITIALIZED_KEY).then((val) => {
-        if (val === 'true') {
-          initHealthKit();
-        }
-      });
-    }
-  }, [checkAvailability, initHealthKit]);
-
-  const fetchTodayActivity = useCallback(async (): Promise<{ steps: number, activeCalories: number }> => {
-    if (Platform.OS !== 'ios' || !available) return { steps: 0, activeCalories: 0 };
-
-    const now = Date.now();
-    if (now - lastFetchTime < CACHE_DURATION) {
-      return cachedActivity;
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const options = {
-      startDate: todayStart.toISOString(),
-    };
-
-    const getSteps = (): Promise<number> => new Promise((resolve) => {
-      if (typeof HK.getStepCount !== 'function') {
-        resolve(0);
-        return;
+    if (Platform.OS !== 'ios') return;
+    checkAvailability();
+    AsyncStorage.multiGet([HEALTH_KIT_SYNC_V1_KEY, HEALTH_KIT_INITIALIZED_KEY]).then(([v1, legacy]) => {
+      setSyncV1(v1[1] === 'true');
+      setLegacyInit(legacy[1] === 'true');
+      if (v1[1] === 'true') {
+        void initWithPermissions(FULL_PERMISSIONS).then((ok) => setInitFailed(!ok));
+      } else if (legacy[1] === 'true') {
+        void initLegacyHealthKit();
       }
-      HK.getStepCount(options, (err: any, results: any) => {
-        if (err || !results) resolve(0);
-        else resolve(results.value);
-      });
     });
+  }, [checkAvailability, initLegacyHealthKit, initWithPermissions]);
 
-    const getActiveCalories = (): Promise<number> => new Promise((resolve) => {
-      if (typeof HK.getActiveEnergyBurned !== 'function') {
-        resolve(0);
-        return;
-      }
-      HK.getActiveEnergyBurned(options, (err: any, results: any) => {
-        if (err || !results || results.length === 0) resolve(0);
-        else {
-          const total = results.reduce((acc: number, cur: any) => acc + (cur.value || 0), 0);
-          resolve(total);
-        }
-      });
-    });
+  useEffect(() => {
+    setLastSyncedAt(getLastHealthSyncAt());
+    setSyncFailed(getLastHealthSyncFailed());
+  }, [syncing]);
 
-    try {
-      const [steps, activeCalories] = await Promise.all([getSteps(), getActiveCalories()]);
-      cachedActivity = { steps, activeCalories };
-      lastFetchTime = Date.now();
-      return cachedActivity;
-    } catch (error) {
-      return { steps: 0, activeCalories: 0 };
+  const fetchTodayActivity = useCallback(
+    async (force = false) => fetchTodayActivityFromHealthKit(available, force),
+    [available]
+  );
+
+  const runSync = useCallback(async () => {
+    if (Platform.OS !== 'ios' || syncing) return;
+    setSyncing(true);
+    setSyncFailed(false);
+    const ok = await initWithPermissions(FULL_PERMISSIONS);
+    if (!ok) {
+      setInitFailed(true);
+      setSyncing(false);
+      setSyncFailed(true);
+      return;
     }
-  }, [available]);
+    setInitFailed(false);
+    await AsyncStorage.setItem(HEALTH_KIT_SYNC_V1_KEY, 'true');
+    setSyncV1(true);
+    const result = await runAppleHealthSyncPass();
+    setLastSyncedAt(getLastHealthSyncAt());
+    setSyncFailed(result === 'failed' || getLastHealthSyncFailed());
+    setSyncing(false);
+  }, [initWithPermissions, syncing]);
 
-  return { available, readGranted, writeGranted, initHealthKit, fetchTodayActivity };
+  return {
+    available,
+    syncV1,
+    legacyInit,
+    /** Steps and active calories after legacy or full Health init. */
+    readGranted: legacyInit || syncV1,
+    initFailed,
+    syncing,
+    lastSyncedAt,
+    syncFailed,
+    fetchTodayActivity,
+    runSync,
+  };
 }

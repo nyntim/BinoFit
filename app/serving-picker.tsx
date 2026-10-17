@@ -37,7 +37,6 @@ import { getFullBrandedFood } from '@/lib/food-service';
 import { parseBaseGrams } from '@/lib/serving-units';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { getUserGoals, getDefaultLogStatus } from '@/lib/storage';
-import { writeNutritionLog } from '@/services/healthKitService';
 import type { Food, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 // Food ids already refetched for micronutrients this app session
@@ -256,7 +255,6 @@ export default function ServingPickerScreen() {
         eaten = await ensureMealSlotStatus(date, slot, defaultStatus === 'eaten');
       }
 
-      if (eaten) writeNutritionLog(date, calSave, proSave, carbSave, fatSave);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {

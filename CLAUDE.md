@@ -151,5 +151,5 @@ QuickAddDrink = { id, name, amount, food_id? }
 - Meals are user-defined: resolve names with `nameForDate` / `mealsForDay` from `@/lib/meals` (via `@/hooks/useMealDefinitions`), never hardcode slot labels. Dashboard Edit mode edits a draft (`@/hooks/useMealDraft`) saved on Done; drag-reorder is `components/dashboard/ReorderableList.tsx`
 - Meal reminders: `lib/reminders.ts` (`expo-notifications`, local only). `syncMealReminders(defs, names)` cancels all `meal-reminder:<id>` notifications and reschedules one daily notification per meal with `reminder_time`; call `restoreMealReminders()` (fire-and-forget) after saving meals and on app start. Permission is requested only when a reminder is turned on (`MealSettingsSheet`)
 - Streak data via `@/hooks/useStreak` (current + longest streak from logged dates)
-- Apple HealthKit integration (iOS only) via `@/hooks/use-health-kit` — reads steps/active calories, writes nutrition
+- Apple HealthKit (iOS only) via `@/hooks/use-health-kit` — Settings syncs weight both ways; reads steps and active calories; writes eaten nutrition and finished workouts (`services/healthKitService.ts`)
 - Call `syncToSupabase()` from `@/lib/sync` fire-and-forget after any food log write; never await inline

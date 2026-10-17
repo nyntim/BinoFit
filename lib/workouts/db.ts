@@ -1,7 +1,12 @@
 import * as Crypto from 'expo-crypto';
 import type * as SQLite from 'expo-sqlite';
 import { getDatabase } from '@/lib/database';
+import { markPendingDelete } from '@/lib/health-links';
 import { tombstoneSql } from '@/lib/tombstones';
+
+function fireAppleHealthSync(): void {
+  void import('@/lib/health-schedule').then((m) => m.scheduleAppleHealthSync());
+}
 import type {
   Exercise,
   MuscleGroup,
@@ -225,7 +230,9 @@ export async function updateWorkout(id: string, patch: WorkoutPatch): Promise<Wo
     if (isUniqueViolation(e)) throw new ActiveWorkoutExistsError();
     throw e;
   }
-  return getWorkout(id);
+  const updated = await getWorkout(id);
+  if (updated?.status === 'done') fireAppleHealthSync();
+  return updated;
 }
 
 // ── Exercises in a workout ─────────────────────────────────────
@@ -508,6 +515,10 @@ export async function deleteWorkout(id: string): Promise<void> {
     ]);
     await txn.runAsync(`${tombstoneSql('workouts')} WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
   });
+  if (w.status === 'done') {
+    await markPendingDelete('workout', id);
+    fireAppleHealthSync();
+  }
 }
 
 /** Throws away an active or draft session. Throws for a done workout (use deleteWorkout). */

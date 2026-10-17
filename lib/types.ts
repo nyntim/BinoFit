@@ -202,6 +202,8 @@ export type RemoteUserProfile = {
 };
 
 // ── Weight log ──────────────────────────────────────────────────
+export type WeightEntrySource = 'manual' | 'healthkit';
+
 export type WeightEntry = {
   id: string;
   /** Local calendar day, yyyy-MM-dd. */
@@ -210,6 +212,7 @@ export type WeightEntry = {
   weight_kg: number;
   /** ISO time of the weighing; the latest per day wins. */
   measured_at: string;
+  source: WeightEntrySource;
   created_at: string;
   updated_at: string;
   synced_at?: string | null;
@@ -222,6 +225,7 @@ export type RemoteWeightEntry = {
   date: string;
   weight_kg: number;
   measured_at: string | null;
+  source?: WeightEntrySource | null;
   created_at: string | null;
   updated_at: string | null;
   deleted_at?: string | null;

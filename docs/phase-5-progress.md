@@ -38,7 +38,7 @@ Plan for the Progress tab (issue #40). Read alongside `CLAUDE.md`, `PRODUCT.md`,
 
 **Settings**
 - Weight unit must be reachable in every tracking mode, including nutrition only. The mockup puts it under Preferences; if Training C2/C3 already put Units in `TrainingSection`, make sure that section (or at least Units) stays visible when training is hidden.
-- New Apple Health row "Read weight" next to the existing nutrition row.
+- Superseded by issue #80: one Settings button syncs weight both ways (no separate "Read weight" row).
 - Personal Stats weight shows the chosen unit; saving it logs today's entry (Training C4 behavior).
 
 ## Code structure
@@ -56,7 +56,7 @@ Computation lives in pure, unit-tested modules; hooks only fetch.
 
 1. **P1 Trends and consistency.** No dependencies, no schema change. Mockups: `Main`, `Light30`, `Light90`, `LightAll`, dark variants, `Sparse`, `FirstRun`. If Training C1 has landed, every new read filters tombstones; if not, C1 must cover the new queries.
 2. **P2 Weight on Progress.** After Training C1, C2, C4. Adds `source` to `weight_entries` (in C4 if not yet built, else a migration plus `supabase/schema.sql` change), `WeightChart`, recent entries, edit and delete, unit display. Mockups: weight card in `Main`, `WeightSheet`, `WeightEdit`, `SettingsUnits`.
-3. **P3 Apple Health weight import (iOS).** After P2. Weight read permission and `fetchWeightSamples(start)` in `hooks/use-health-kit.ts` (check the unit option in the patched react-native-health), import on Progress focus, Settings "Read weight" row. Mockup: `SettingsUnits`.
+3. **P3 Apple Health weight import (iOS).** Superseded by issue #80 (full Settings sync button; see `.plans/apple-health-sync.md`).
 4. **CLAUDE.md update**, folded into each chunk.
 
 ## Tests

@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Linking,
 } from 'react-native';
+import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
@@ -96,7 +96,16 @@ export default function SettingsScreen() {
   const [persistedSyncAt, setPersistedSyncAt] = useState<number | null>(null);
   const { state: syncState, now: syncNow } = useSyncStatus();
 
-  const { available, writeGranted, initHealthKit } = useHealthKit();
+  const { available, syncing, lastSyncedAt, syncFailed, initFailed, syncV1, runSync } = useHealthKit();
+
+  const healthSubtitle = (() => {
+    if (syncing) return 'Syncing…';
+    if (initFailed) return 'Health access is off.';
+    if (syncFailed) return "Couldn't sync.";
+    if (lastSyncedAt) return `Last synced ${format(lastSyncedAt, 'h:mm a')}`;
+    if (!syncV1) return 'Weight, steps, calories, nutrition, and workouts.';
+    return 'Weight, steps, calories, nutrition, and workouts.';
+  })();
 
   const loadData = useCallback(async () => {
     const [goals, profile, status] = await Promise.all([
@@ -410,24 +419,17 @@ export default function SettingsScreen() {
 
           {showAppleHealth ? (
             <View style={styles.section}>
-              <View style={[styles.preferenceRow, bg]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                    Sync nutrition data
-                  </Text>
-                  <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
-                    {writeGranted ? 'Connected' : 'Not connected'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.connectBtn, { backgroundColor: colors.tint + '12' }]}
-                  onPress={writeGranted ? () => Linking.openURL('x-apple-health://') : initHealthKit}
-                >
-                  <Text style={[styles.connectBtnText, { color: colors.tint }]}>
-                    {writeGranted ? 'Manage' : 'Connect'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.healthSyncBtn, { backgroundColor: colors.tint + '12' }]}
+                onPress={runSync}
+                disabled={syncing}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Sync with Apple Health"
+              >
+                <Text style={[styles.connectBtnText, { color: colors.tint }]}>Sync with Apple Health</Text>
+              </TouchableOpacity>
+              <Text style={[styles.healthSyncSubtitle, { color: colors.icon }]}>{healthSubtitle}</Text>
             </View>
           ) : null}
 
@@ -513,6 +515,19 @@ const styles = StyleSheet.create({
   },
   statusSegmentText: { fontSize: 13, fontWeight: '600' },
   exportBtn: { minHeight: 44, justifyContent: 'center' },
+  healthSyncBtn: {
+    minHeight: 44,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthSyncSubtitle: {
+    fontSize: 13,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
   connectBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,

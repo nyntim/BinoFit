@@ -20,6 +20,10 @@ import { initWeightSchema } from '@/lib/weight';
 import { initWorkoutSchema } from '@/lib/workouts/schema';
 import { ALWAYS_EFFECTIVE, DEFAULT_MEALS, nameForDate, type MealDraft } from '@/lib/meals';
 
+function fireAppleHealthSync(): void {
+  void import('@/lib/health-schedule').then((m) => m.scheduleAppleHealthSync());
+}
+
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -256,6 +260,7 @@ export async function addFoodLog(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
     [id, entry.date, entry.meal_slot, entry.food_id, entry.serving_amount, entry.serving_unit, entry.logged_time ?? null, now, now]
   );
+  fireAppleHealthSync();
   return { ...entry, id, created_at: now, updated_at: now, synced_at: null };
 }
 
@@ -269,6 +274,7 @@ export async function deleteFoodLog(id: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   await db.runAsync(`${tombstoneSql('food_logs')} WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
+  fireAppleHealthSync();
 }
 
 export async function getUnsyncedFoodLogs(): Promise<FoodLog[]> {
@@ -362,6 +368,7 @@ export async function updateFoodLog(
     'UPDATE food_logs SET serving_amount = ?, serving_unit = ?, logged_time = ?, updated_at = ?, synced_at = NULL WHERE id = ? AND deleted_at IS NULL',
     [serving_amount, serving_unit, logged_time ?? null, now, id]
   );
+  fireAppleHealthSync();
 }
 
 const FOOD_LOG_WITH_FOOD_SELECT = `SELECT fl.*,
@@ -491,6 +498,7 @@ export async function upsertMealSlotConfirmation(
        updated_at = EXCLUDED.updated_at`,
     [id, date, meal_slot, confirmedInt, now]
   );
+  fireAppleHealthSync();
 }
 
 /**
@@ -523,6 +531,7 @@ export async function deleteMealSlotConfirmation(date: string, meal_slot: MealSl
     'DELETE FROM meal_slot_confirmations WHERE date = ? AND meal_slot = ?',
     [date, meal_slot]
   );
+  fireAppleHealthSync();
 }
 
 export async function addWaterLog(
@@ -898,6 +907,7 @@ export async function clearUserData(): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync('DELETE FROM food_logs');
     await txn.runAsync('DELETE FROM weight_entries');
+    await txn.runAsync('DELETE FROM health_links');
     await txn.runAsync('DELETE FROM meal_slot_confirmations');
     await txn.runAsync('DELETE FROM water_logs');
     await txn.runAsync('DELETE FROM meal_names');

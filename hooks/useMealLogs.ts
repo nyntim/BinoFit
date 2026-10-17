@@ -6,7 +6,6 @@ import {
   deleteMealSlotConfirmation,
 } from '@/lib/database';
 import { isSlotEaten, sumEatenTotals, logsForSlot } from '@/lib/nutrition-totals';
-import { writeNutritionLog } from '@/services/healthKitService';
 import type { FoodLogWithFood, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 /**
@@ -47,18 +46,6 @@ export function useMealLogs(selectedDate: string) {
 
     try {
       await upsertMealSlotConfirmation(selectedDate, slot, newStatus);
-      // Planned -> Eaten writes the slot's totals to HealthKit. Eaten -> Planned
-      // cannot retract what was already written.
-      if (newStatus) {
-        const slotTotals = sumEatenTotals(logsForSlot(logs, slot), []);
-        writeNutritionLog(
-          selectedDate,
-          Math.round(slotTotals.calories),
-          Math.round(slotTotals.protein * 10) / 10,
-          Math.round(slotTotals.carbs * 10) / 10,
-          Math.round(slotTotals.fat * 10) / 10
-        );
-      }
     } catch (error) {
       console.error('Failed to update confirmation:', error);
       Alert.alert('Error', 'Failed to save confirmation. Please try again.');

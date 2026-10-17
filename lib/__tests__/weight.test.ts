@@ -48,18 +48,26 @@ const insert = (
   id: string,
   date: string,
   kg: number,
-  o: { measured?: string; created?: string; deleted?: string | null; synced?: string | null; updated?: string } = {}
+  o: {
+    measured?: string;
+    created?: string;
+    deleted?: string | null;
+    synced?: string | null;
+    updated?: string;
+    source?: string;
+  } = {}
 ) =>
   mem.raw
     .prepare(
-      `INSERT INTO weight_entries (id,date,weight_kg,measured_at,created_at,updated_at,synced_at,deleted_at)
-       VALUES (?,?,?,?,?,?,?,?)`
+      `INSERT INTO weight_entries (id,date,weight_kg,measured_at,source,created_at,updated_at,synced_at,deleted_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`
     )
     .run(
       id,
       date,
       kg,
       o.measured ?? `${date}T12:00:00.000Z`,
+      o.source ?? 'manual',
       o.created ?? `${date}T12:00:00.000Z`,
       o.updated ?? `${date}T12:00:00.000Z`,
       o.synced ?? null,
@@ -195,6 +203,50 @@ describe('reads exclude tombstones', () => {
     insert('b', '2026-06-02', 79);
     insert('dead', '2026-06-03', 70, { deleted: '2026-06-03T13:00:00.000Z' });
     expect((await weight.getRecentWeightDays(2)).map((x) => x.id)).toEqual(['b', 'a']);
+  });
+});
+
+describe('weight_entries.source', () => {
+  it('defaults existing rows to manual', () => {
+    insert('legacy', '2026-06-01', 80);
+    expect(row('legacy').source).toBe('manual');
+  });
+
+  it('saveWeightEntry on a healthkit row sets source to manual', async () => {
+    insert('hk', '2026-06-01', 80, { source: 'healthkit' });
+    await weight.saveWeightEntry({ date: '2026-06-01', weight_kg: 81 });
+    expect(row('hk')).toMatchObject({ source: 'manual', weight_kg: 81 });
+  });
+
+  it('applyHealthWeightPlan with an empty import plan does not add rows', async () => {
+    insert('m', '2026-06-01', 80);
+    expect(await weight.applyHealthWeightPlan([])).toBe(false);
+    expect(count()).toBe(1);
+  });
+
+  it('profile updates only when the imported row is the latest', async () => {
+    await weight.saveWeightEntry({ date: '2026-06-10', weight_kg: 78 });
+    const back = await weight.applyHealthWeightPlan([
+      {
+        type: 'insert',
+        date: '2026-06-01',
+        weight_kg: 90,
+        measured_at: '2026-06-01T08:00:00.000Z',
+        hkSampleId: 'sample-1',
+      },
+    ]);
+    expect(back).toBe(true);
+    expect(mockProfile!.weight).toBe(78);
+    await weight.applyHealthWeightPlan([
+      {
+        type: 'insert',
+        date: '2026-06-20',
+        weight_kg: 76,
+        measured_at: '2026-06-20T08:00:00.000Z',
+        hkSampleId: 'sample-2',
+      },
+    ]);
+    expect(mockProfile!.weight).toBe(76);
   });
 });
 
