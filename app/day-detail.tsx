@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Colors, MacroColors } from '@/constants/theme';
@@ -43,16 +43,25 @@ export default function DayDetailScreen() {
 
   const displayDate = date ? format(parseISO(date), 'EEEE, MMM d') : '';
 
-  useEffect(() => {
-    if (!date) return;
-    Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(date), getMealSlotConfirmationsByDate(date)])
-      .then(([userGoals, foodLogs, slotConfirmations]) => {
-        if (userGoals) setGoals(userGoals);
-        setLogs(foodLogs);
-        setConfirmations(slotConfirmations);
-      })
-      .finally(() => setLoading(false));
-  }, [date]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!date) return;
+      let cancelled = false;
+      Promise.all([getUserGoals(), getFoodLogsWithFoodByDate(date), getMealSlotConfirmationsByDate(date)])
+        .then(([userGoals, foodLogs, slotConfirmations]) => {
+          if (cancelled) return;
+          if (userGoals) setGoals(userGoals);
+          setLogs(foodLogs);
+          setConfirmations(slotConfirmations);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [date])
+  );
 
   const { defs, names, loaded: mealsLoaded } = useMealDefinitions();
   const meals = mealsForDay(defs, names, logs, date ?? '');
