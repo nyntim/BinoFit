@@ -15,4 +15,20 @@ module.exports = defineConfig([
       'react-hooks/preserve-manual-memoization': 'warn',
     },
   },
+  {
+    // Since SDK 56 the bundler rejects app imports of @react-navigation/*
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@react-navigation/*'],
+              message: "Import from 'expo-router' or 'expo-router/react-navigation' instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
