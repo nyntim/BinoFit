@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Training tab</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.bf a{color:var(--tint);text-decoration:none}
+.primary{background:var(--tint);color:var(--on-tint);border:0;border-radius:18px;padding:14px 24px;font-size:17px;font-weight:600}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--sep)}
+.row:last-child{border-bottom:0}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--icon);background:none;border:0;padding:0}
+.tab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--text);font-weight:600}.tab.on svg{stroke:var(--tint)}
+.link{display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-size:15px;color:var(--text);border-bottom:1px solid var(--sep)}
+.link:last-child{border-bottom:0}
+.chev{width:16px;height:16px;fill:none;stroke:var(--icon);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <div style="flex-grow:1;overflow:hidden;padding:64px 16px 16px;display:flex;flex-direction:column;gap:20px">
+    <h1 style="margin:0;font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-0.5px">Training</h1>
+
+    <button class="primary" style="width:100%">Start empty workout</button>
+
+    <section style="background:var(--card);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h2 style="margin:0;font-size:17px;font-weight:600">This week</h2>
+        <span style="font-size:13px;font-weight:500;color:var(--icon)">Mon 13 to Sun 19 Oct</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+        <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:700">3</span><span style="font-size:12px;color:var(--icon)">sessions</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:700">12,450</span><span style="font-size:12px;color:var(--icon)">kg volume</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:700">3h 10m</span><span style="font-size:12px;color:var(--icon)">time</span></div>
+      </div>
+    </section>
+
+    <section style="background:var(--card);border-radius:18px;padding:8px 20px;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 4px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">History</h2>
+        <a href="#" style="font-size:13px;font-weight:500">All workouts</a>
+      </div>
+      <div class="row">
+        <div style="min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:15px">Pull Day</span>
+          <span style="font-size:12px;color:var(--icon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thu 16 Oct · Deadlift, Lat pulldown, Dumbbell row</span>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;gap:2px;flex-shrink:0"><span style="font-size:13px;font-weight:700">58 min</span><span style="font-size:12px;color:var(--icon)">4,820 kg</span></div>
+      </div>
+      <div class="row">
+        <div style="min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:15px">Workout · Tue 14 Oct</span>
+          <span style="font-size:12px;color:var(--icon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Tue 14 Oct · Bench press, Chest Press · Hammer Strength</span>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;gap:2px;flex-shrink:0"><span style="font-size:13px;font-weight:700">1h 04m</span><span style="font-size:12px;color:var(--icon)">5,310 kg</span></div>
+      </div>
+      <div class="row">
+        <div style="min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:15px">Run</span>
+          <span style="font-size:12px;color:var(--icon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Mon 13 Oct · 5.00 km · 5:30 /km</span>
+        </div>
+        <div style="text-align:right;display:flex;flex-direction:column;gap:2px;flex-shrink:0"><span style="font-size:13px;font-weight:700">27 min</span><span style="font-size:12px;color:var(--icon)">cardio</span></div>
+      </div>
+    </section>
+
+    <section style="background:var(--card);border-radius:18px;padding:0 20px;display:flex;flex-direction:column">
+      <a class="link" href="#"><span>Exercises</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></a>
+      <a class="link" href="#"><span>Log past workout</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></a>
+    </section>
+  </div>
+
+  <nav style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--sep);padding:8px 0 30px;background:var(--background)">
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button class="tab on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>Training</button>
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>More</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

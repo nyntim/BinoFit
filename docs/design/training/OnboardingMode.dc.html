@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding: what to track</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--track:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background)}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--track:rgba(237,237,240,0.14);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--card);color:var(--text);border:1.5px solid transparent;border-radius:18px;padding:18px 16px}
+.opt.on{border-color:var(--tint)}
+.radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--field);flex-shrink:0;box-sizing:border-box}
+.opt.on .radio{border:7px solid var(--tint)}
+.optl{font-size:17px;font-weight:600}
+.optd{font-size:13px;line-height:1.4;color:var(--icon)}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <div style="flex-grow:1;padding:96px 16px 16px;display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h1 style="margin:0;font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-0.5px">What do you want to track?</h1>
+      <p style="margin:0;font-size:15px;line-height:1.5;color:var(--icon)">You can change this later in More.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px" role="radiogroup" aria-label="What to track">
+      <sc-for list="{{options}}" as="o" hint-placeholder-count="3">
+        <button class="{{o.cls}}" role="radio" aria-checked="{{o.checked}}" onClick="{{o.pick}}">
+          <span class="radio" aria-hidden="true"></span>
+          <span style="display:flex;flex-direction:column;gap:2px"><span class="optl">{{o.label}}</span><span class="optd">{{o.desc}}</span></span>
+        </button>
+      </sc-for>
+    </div>
+  </div>
+  <footer style="padding:12px 16px 34px;display:flex">
+    <button style="flex-grow:1;background:var(--tint);color:var(--on-tint);border:0;border-radius:18px;padding:14px 24px;font-size:17px;font-weight:600">Continue</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: 'both' };
+  }
+  renderVals() {
+    var self = this;
+    var opts = [
+      { id: 'nutrition', label: 'Nutrition', desc: 'Meals, calories and macros. Next: set your goals.' },
+      { id: 'training', label: 'Training', desc: 'Workouts, sets and your own exercises. No calorie goals needed.' },
+      { id: 'both', label: 'Both', desc: 'Everything, with training shown next to what you eat.' }
+    ];
+    return {
+      themeClass: this.props.dark ? 'dark' : '',
+      options: opts.map(function (o) {
+        var on = self.state.mode === o.id;
+        return { label: o.label, desc: o.desc, cls: on ? 'opt on' : 'opt', checked: on ? 'true' : 'false', pick: function () { self.setState({ mode: o.id }); } };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

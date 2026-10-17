@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log past workout</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.textbtn{background:none;border:0;color:var(--tint);font-size:17px;padding:10px 4px;min-height:44px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--icon)}
+.in{box-sizing:border-box;height:44px;border:1.5px solid transparent;border-radius:8px;background:var(--card2);color:var(--text);font:inherit;font-size:15px;padding:0 12px;width:100%;font-variant-numeric:tabular-nums}
+.block{background:var(--card);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.th{font-size:12px;font-weight:500;color:var(--icon);letter-spacing:0.4px;text-transform:uppercase}
+.g4{display:grid;grid-template-columns:36px minmax(0,1fr) 64px 56px;gap:8px;align-items:center}
+.gc{display:grid;grid-template-columns:36px 80px 80px minmax(0,1fr);gap:8px;align-items:center}
+.num{width:100%;box-sizing:border-box;height:36px;border:1.5px solid transparent;border-radius:8px;background:var(--card2);color:var(--text);font:inherit;font-size:15px;text-align:center;font-variant-numeric:tabular-nums}
+.badge{font-size:13px;font-weight:600;text-align:center}
+.prev{font-size:13px;color:var(--icon)}
+.addset{background:none;border:0;color:var(--tint);font-size:15px;font-weight:600;padding:8px 0 0;text-align:left}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <header style="padding:52px 12px 8px;display:grid;grid-template-columns:80px minmax(0,1fr) 80px;align-items:center;border-bottom:1px solid var(--sep)">
+    <button class="textbtn" style="text-align:left">Cancel</button>
+    <span style="text-align:center;font-size:17px;font-weight:600">Log past workout</span>
+    <button class="textbtn" style="text-align:right;font-weight:600">Save</button>
+  </header>
+
+  <div style="flex-grow:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">
+    <section style="background:var(--card);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px">
+      <label class="field">Name<input class="in" placeholder="Workout · Wed 15 Oct"></label>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+        <label class="field">Date<input class="in" value="Wed 15 Oct"></label>
+        <label class="field">Start<input class="in" value="6:30 PM"></label>
+        <label class="field">Duration<input class="in" value="0:50"></label>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2 style="margin:0;font-size:17px;font-weight:600;color:var(--tint)">Run</h2>
+      <div class="gc"><span class="th" style="text-align:center">Set</span><span class="th" style="text-align:center">km</span><span class="th" style="text-align:center">Time</span><span class="th" style="text-align:right">Pace</span></div>
+      <div class="gc" style="height:44px"><span class="badge">1</span><input class="num" aria-label="Distance in km" value="5.00"><input class="num" aria-label="Time" value="27:30"><span style="text-align:right;font-size:15px;font-weight:600">5:30 /km</span></div>
+    </section>
+
+    <section class="block">
+      <h2 style="margin:0;font-size:17px;font-weight:600;color:var(--tint)">Lat pulldown</h2>
+      <div class="g4"><span class="th" style="text-align:center">Set</span><span class="th">Previous</span><span class="th" style="text-align:center">kg</span><span class="th" style="text-align:center">Reps</span></div>
+      <div class="g4" style="height:44px"><span class="badge">1</span><span class="prev">55 × 10</span><input class="num" aria-label="Set 1 weight" value="55"><input class="num" aria-label="Set 1 reps" value="10"></div>
+      <div class="g4" style="height:44px"><span class="badge">2</span><span class="prev">55 × 10</span><input class="num" aria-label="Set 2 weight" value="55"><input class="num" aria-label="Set 2 reps" value="9"></div>
+      <div class="g4" style="height:44px"><span class="badge">3</span><span class="prev">55 × 9</span><input class="num" aria-label="Set 3 weight" value="" placeholder="55"><input class="num" aria-label="Set 3 reps" value="" placeholder="9"></div>
+      <button class="addset">+ Add set</button>
+    </section>
+
+    <button style="height:48px;border-radius:12px;border:1px solid var(--field);background:transparent;color:var(--tint);font-size:15px;font-weight:600">+ Add exercises</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

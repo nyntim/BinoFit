@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live session</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.iconbtn{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;border-radius:12px;color:var(--text)}
+.iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.small{background:var(--tint);color:var(--on-tint);border:0;border-radius:12px;padding:10px 16px;font-size:15px;font-weight:600}
+.ghost{background:transparent;color:var(--tint);border:1px solid var(--field);border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600}
+.grid{display:grid;grid-template-columns:36px minmax(0,1fr) 64px 56px 44px;gap:8px;align-items:center}
+.th{font-size:12px;font-weight:500;color:var(--icon);letter-spacing:0.4px;text-transform:uppercase}
+.set{height:44px}
+.num{width:100%;box-sizing:border-box;height:36px;border:1.5px solid transparent;border-radius:8px;background:var(--card2);color:var(--text);font:inherit;font-size:15px;text-align:center;font-variant-numeric:tabular-nums}
+.badge{font-size:13px;font-weight:600;text-align:center}
+.prev{font-size:13px;color:var(--icon)}
+.check{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--field);background:transparent;display:grid;place-items:center;color:transparent;padding:0}
+.check svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.check.done{background:var(--tint);border-color:var(--tint);color:var(--on-tint)}
+.block{background:var(--card);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.addset{background:none;border:0;color:var(--tint);font-size:15px;font-weight:600;padding:8px 0 0;text-align:left}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <header style="padding:52px 12px 8px 4px;display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--sep)">
+    <button class="iconbtn" aria-label="Minimize workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div style="flex-grow:1;min-width:0;display:flex;flex-direction:column">
+      <span style="font-size:17px;font-weight:600">Workout · Fri 17 Oct</span>
+      <span style="font-size:13px;font-weight:500;color:var(--icon)">42:10 elapsed</span>
+    </div>
+    <button class="small">Finish</button>
+  </header>
+
+  <div style="margin:12px 16px 0;background:var(--card2);border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:10px">
+    <div style="flex-grow:1;display:flex;flex-direction:column">
+      <span style="font-size:12px;font-weight:500;color:var(--icon)">Rest · Barbell bench press</span>
+      <span style="font-size:22px;font-weight:700">1:24</span>
+    </div>
+    <button class="ghost" aria-label="Subtract 15 seconds">−15s</button>
+    <button class="ghost" aria-label="Add 15 seconds">+15s</button>
+    <button class="ghost">Skip</button>
+  </div>
+
+  <div style="flex-grow:1;overflow:hidden;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px">
+    <section class="block">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;flex-grow:1;font-size:17px;font-weight:600;color:var(--tint)">Barbell bench press</h2>
+        <span style="font-size:12px;color:var(--icon)">Rest 2:00</span>
+        <button class="iconbtn" style="width:32px;height:32px" aria-label="Exercise options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+      </div>
+      <div class="grid"><span class="th" style="text-align:center">Set</span><span class="th">Previous</span><span class="th" style="text-align:center">kg</span><span class="th" style="text-align:center">Reps</span><span class="th" style="text-align:center">Done</span></div>
+      <div class="grid set"><span class="badge" style="color:var(--icon)">W</span><span class="prev">40 × 10</span><input class="num" aria-label="Warmup weight" value="40"><input class="num" aria-label="Warmup reps" value="10"><button class="check done" aria-label="Warmup set done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="grid set"><span class="badge">1</span><span class="prev">80 × 8</span><input class="num" aria-label="Set 1 weight" value="82.5"><input class="num" aria-label="Set 1 reps" value="8"><button class="check done" aria-label="Set 1 done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="grid set"><span class="badge">2</span><span class="prev">80 × 8</span><input class="num" aria-label="Set 2 weight" value="82.5"><input class="num" aria-label="Set 2 reps" value="7"><button class="check done" aria-label="Set 2 done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="grid set"><span class="badge">3</span><span class="prev">80 × 7</span><input class="num" aria-label="Set 3 weight" value="82.5"><input class="num" aria-label="Set 3 reps" value="7"><button class="check" aria-label="Complete set 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <button class="addset">+ Add set</button>
+    </section>
+
+    <section class="block">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;flex-grow:1;font-size:17px;font-weight:600;color:var(--tint)">Chest Press · Hammer Strength</h2>
+        <span style="font-size:12px;color:var(--icon)">Rest 1:30</span>
+        <button class="iconbtn" style="width:32px;height:32px" aria-label="Exercise options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+      </div>
+      <p style="margin:0 0 4px;font-size:13px;font-weight:500;color:var(--icon)">Seat 4, back pad 2 · Plate-loaded, 20 kg sled</p>
+      <div class="grid"><span class="th" style="text-align:center">Set</span><span class="th">Previous</span><span class="th" style="text-align:center">kg</span><span class="th" style="text-align:center">Reps</span><span class="th" style="text-align:center">Done</span></div>
+      <div class="grid set"><span class="badge">1</span><span class="prev">40 × 10</span><input class="num" aria-label="Set 1 weight" value="40"><input class="num" aria-label="Set 1 reps" value="10"><button class="check" aria-label="Complete set 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <div class="grid set"><span class="badge">2</span><span class="prev">40 × 9</span><input class="num" aria-label="Set 2 weight" value="40"><input class="num" aria-label="Set 2 reps" value="9"><button class="check" aria-label="Complete set 2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+      <button class="addset">+ Add set</button>
+    </section>
+
+    <section class="block">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;flex-grow:1;font-size:17px;font-weight:600;color:var(--tint)">Dumbbell row</h2>
+        <span style="font-size:12px;color:var(--icon)">Rest 1:30</span>
+      </div>
+      <div class="grid"><span class="th" style="text-align:center">Set</span><span class="th">Previous</span><span class="th" style="text-align:center">kg</span><span class="th" style="text-align:center">Reps/side</span><span class="th" style="text-align:center">Done</span></div>
+      <div class="grid set"><span class="badge">1</span><span class="prev">30 × 10/side</span><input class="num" aria-label="Set 1 weight" value="30"><input class="num" aria-label="Set 1 reps per side" value="10"><button class="check" aria-label="Complete set 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

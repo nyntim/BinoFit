@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Builder review card</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--track:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--track:rgba(237,237,240,0.14);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.textbtn{background:none;border:0;color:var(--tint);font-size:17px;padding:10px 4px;min-height:44px}
+.lab{font-size:12px;font-weight:500;color:var(--icon);letter-spacing:0.4px;text-transform:uppercase;margin:0}
+.rv{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;width:100%;background:none;border:0;border-bottom:1px solid var(--sep);padding:12px 0;text-align:left;color:var(--text)}
+.rv:last-child{border-bottom:0}
+.rvk{font-size:13px;font-weight:500;color:var(--icon);flex-shrink:0;width:96px}
+.rvv{font-size:15px;flex-grow:1;min-width:0}
+.chev{width:16px;height:16px;fill:none;stroke:var(--icon);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;margin-top:2px}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <header style="padding:52px 12px 8px;display:grid;grid-template-columns:80px minmax(0,1fr) 80px;align-items:center">
+    <button class="textbtn" style="text-align:left">Cancel</button>
+    <span style="text-align:center;font-size:17px;font-weight:600">New exercise</span>
+    <span></span>
+  </header>
+  <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:6px">
+    <span style="font-size:13px;font-weight:500;color:var(--icon)">Step 8 of 8</span>
+    <div style="height:4px;border-radius:4px;background:var(--tint)"></div>
+  </div>
+
+  <div style="flex-grow:1;padding:16px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <p class="lab">Your exercise</p>
+      <h1 style="margin:0;font-size:22px;font-weight:700;line-height:1.2">Chest press · Hammer Strength</h1>
+      <span style="font-size:13px;font-weight:500;color:var(--icon)">Machine · tap any line to change it</span>
+    </div>
+    <div style="background:var(--card);border-radius:18px;padding:0 16px">
+      <button class="rv"><span class="rvk">Equipment</span><span class="rvv">Machine</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Brand</span><span class="rvv">Hammer Strength</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Loading</span><span class="rvv">Plate-loaded, 20 kg sled</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Name</span><span class="rvv">Chest press</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Muscles</span><span class="rvv">Chest · also Triceps, Front delts</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Logged as</span><span class="rvv">Weight × reps</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+      <button class="rv"><span class="rvk">Setup notes</span><span class="rvv">Seat 4, back pad 2</span><svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+    </div>
+    <p style="margin:0;font-size:13px;line-height:1.4;color:var(--icon)">Volume counts the plates you log, not the sled.</p>
+  </div>
+
+  <footer style="padding:12px 16px 34px;display:flex;gap:10px;border-top:1px solid var(--sep)">
+    <button style="background:transparent;color:var(--tint);border:1px solid var(--field);border-radius:12px;padding:12px 20px;font-size:17px;font-weight:600">Back</button>
+    <button style="flex-grow:1;background:var(--tint);color:var(--on-tint);border:0;border-radius:18px;padding:14px 24px;font-size:17px;font-weight:600">Save exercise</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Minimized session on Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--track:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;--protein:#e74c3c;--carbs:#f39c12;--fat:#3498db;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--track:rgba(237,237,240,0.14);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--icon);background:none;border:0;padding:0}
+.tab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--text);font-weight:600}.tab.on svg{stroke:var(--tint)}
+.mh{display:flex;justify-content:space-between;margin-bottom:5px}
+.ml{font-size:14px;font-weight:600}.mv{font-size:13px;color:var(--icon)}
+.tr{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.fl{height:8px;border-radius:4px}
+.food{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--sep)}
+.food:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <div style="flex-grow:1;overflow:hidden;padding:64px 16px 16px;display:flex;flex-direction:column;gap:14px">
+    <h1 style="margin:0;font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-0.5px">Today</h1>
+    <section style="background:var(--card);border-radius:18px;padding:20px;display:flex;gap:20px;align-items:center">
+      <div style="position:relative;width:132px;height:132px;flex-shrink:0">
+        <svg width="132" height="132" viewBox="0 0 132 132" style="transform:rotate(-90deg)" role="img" aria-label="1,842 of 2,400 calories">
+          <circle cx="66" cy="66" r="58" fill="none" stroke="var(--track)" stroke-width="12"/>
+          <circle cx="66" cy="66" r="58" fill="none" stroke="var(--tint)" stroke-width="12" stroke-linecap="round" stroke-dasharray="364.4" stroke-dashoffset="84.7"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <span style="font-size:28px;font-weight:700;line-height:1.1">1,842</span>
+          <span style="font-size:12px;color:var(--icon)">cal</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="display:flex;flex-direction:column"><span style="font-size:22px;font-weight:700">558</span><span style="font-size:12px;color:var(--icon)">remaining</span></div>
+        <div style="display:flex;flex-direction:column"><span style="font-size:22px;font-weight:700">2,400</span><span style="font-size:12px;color:var(--icon)">goal</span></div>
+      </div>
+    </section>
+    <section style="background:var(--card);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px">
+      <div><div class="mh"><span class="ml">Protein</span><span class="mv">112g / 150g</span></div><div class="tr"><div class="fl" style="width:75%;background:var(--protein)"></div></div></div>
+      <div><div class="mh"><span class="ml">Carbs</span><span class="mv">184g / 220g</span></div><div class="tr"><div class="fl" style="width:84%;background:var(--carbs)"></div></div></div>
+      <div><div class="mh"><span class="ml">Fat</span><span class="mv">41g / 70g</span></div><div class="tr"><div class="fl" style="width:59%;background:var(--fat)"></div></div></div>
+    </section>
+    <section style="background:var(--card);border-radius:18px;padding:8px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 2px"><h2 style="margin:0;font-size:17px;font-weight:600">Breakfast</h2><span style="font-size:13px;font-weight:500;color:var(--icon)">428 cal</span></div>
+      <div class="food"><div style="display:flex;flex-direction:column"><span style="font-size:15px">Greek yogurt, plain, nonfat</span><span style="font-size:12px;color:var(--icon)">1 cup (245 g)</span></div><span style="font-size:13px;font-weight:700">145 cal</span></div>
+      <div class="food"><div style="display:flex;flex-direction:column"><span style="font-size:15px">Granola, honey almond</span><span style="font-size:12px;color:var(--icon)">0.5 cup (55 g)</span></div><span style="font-size:13px;font-weight:700">240 cal</span></div>
+    </section>
+  </div>
+
+  <button aria-label="Open workout" style="display:flex;align-items:center;gap:12px;margin:0;padding:10px 16px;border:0;border-top:1px solid var(--sep);background:var(--card);color:var(--text);text-align:left;width:100%">
+    <span style="width:36px;height:36px;border-radius:8px;background:var(--tint);color:var(--on-tint);display:grid;place-items:center;flex-shrink:0">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>
+    </span>
+    <span style="flex-grow:1;min-width:0;display:flex;flex-direction:column">
+      <span style="font-size:15px;font-weight:600">Workout · Fri 17 Oct</span>
+      <span style="font-size:13px;font-weight:500;color:var(--icon)">42:10 · Rest 1:24</span>
+    </span>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--icon)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+  </button>
+
+  <nav style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--sep);padding:8px 0 30px;background:var(--background)">
+    <button class="tab on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>Training</button>
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
+    <button class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>More</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

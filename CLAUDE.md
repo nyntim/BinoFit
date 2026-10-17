@@ -99,6 +99,7 @@ RLS is deployed in two steps in `supabase/schema.sql` (STEP A then STEP B).
 - `lib/device-id.ts` — Legacy device UUID (only used to claim old rows)
 - `constants/theme.ts` — Theme colors, macro colors, fonts
 - `supabase/schema.sql` — Supabase DB schema
+- `docs/phase-4-training.md` — Training module plan; `docs/design/training/` — approved Training mockups (build UI to match them; README maps screens to chunks)
 
 ## Data Model
 

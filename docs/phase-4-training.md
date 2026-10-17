@@ -2,6 +2,8 @@
 
 Plan for the Training module: Phase 1 foundations and Phase 2 workout core, with seams for later phases. Read alongside `CLAUDE.md`, `PRODUCT.md` and `DESIGN.md`.
 
+**UI must match the approved mockups in `docs/design/training/`** (see its README for the screen-to-chunk map and how to read them). Every chunk with UI reads its mockups before planning, and design review checks against them.
+
 ## Product decisions
 
 - One app. Training lives in one tab, renamed from Exercise to **Training**. Built as a self-contained module (`lib/workouts/`, `components/workouts/`, `app/workout/`) whose only future link to nutrition is a daily exercise-burn total.
@@ -131,14 +133,14 @@ Five tables mirroring SQLite plus `user_id text not null`, `timestamptz` times, 
 
 1. **C1 Tombstones and mark-synced fix** (food logs).
 2. **C2 Preferences store and units** (`lib/units.ts`). Parallel with C1.
-3. **C3 Tracking mode onboarding, tab hiding, Training tab rename.** After C2.
+3. **C3 Tracking mode onboarding, tab hiding, Training tab rename.** After C2. Mockup: `OnboardingMode`.
 4. **C4 Weight log.** After C1, C2. Parallel with C3.
 5. **C5 Workout schema, sync, restore, Supabase (no UI).** After C1. Parallel with C3, C4.
-6. **C6 Exercise library and exercise builder** (seed of 46, library screen, `/workout/new-exercise`). After C5; seed data can be written early.
-7. **C7 Editor and log-afterward.** After C2, C5, C6.
-8. **C8 Training tab content.** After C7.
-9. **C9 Live session and session bar.** After C7. Parallel with C8.
-10. **C10 Rest timer and notifications.** After C9.
+6. **C6 Exercise library and exercise builder** (seed of 46, library screen, `/workout/new-exercise`). After C5; seed data can be written early. Mockups: `Library`, `Builder`, `BuilderReview`.
+7. **C7 Editor and log-afterward.** After C2, C5, C6. Mockups: `LogPast`, `Session` (set rows).
+8. **C8 Training tab content.** After C7. Mockup: `Main`.
+9. **C9 Live session and session bar.** After C7. Parallel with C8. Mockups: `Session`, `SessionBar`.
+10. **C10 Rest timer and notifications.** After C9. Mockup: `Session` (rest banner).
 11. **C11 CLAUDE.md update**, folded into each chunk.
 
 ## Tests

@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exercise builder</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.bf{--background:#f8f5ef;--card:#eeeae2;--card2:#e4e0d6;--text:#1a1a22;--icon:#606070;--sep:#d6d2c8;--field:#d6d2c8;--track:#d6d2c8;--tint:#3d4b7a;--on-tint:#f8f5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--background);font-variant-numeric:tabular-nums}
+.bf.dark{--background:#0e0e10;--card:#1a1a1d;--card2:#242428;--text:#ededf0;--icon:#8e8e96;--sep:rgba(237,237,240,0.10);--field:rgba(237,237,240,0.28);--track:rgba(237,237,240,0.14);--tint:#8fa3d6;--on-tint:#0e0e10}
+.bf button{font:inherit;cursor:pointer}
+.textbtn{background:none;border:0;color:var(--tint);font-size:17px;padding:10px 4px;min-height:44px}
+.q{margin:0;font-size:22px;font-weight:700;line-height:1.2}
+.hint{margin:0;font-size:15px;line-height:1.5;color:var(--icon)}
+.opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:var(--card);color:var(--text);border:1.5px solid transparent;border-radius:12px;padding:14px 16px;min-height:52px}
+.opt.on{border-color:var(--tint)}
+.optl{font-size:17px;font-weight:600}
+.optd{font-size:13px;color:var(--icon)}
+.in{box-sizing:border-box;width:100%;height:48px;border:1.5px solid var(--tint);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-size:17px;padding:0 14px}
+.ta{box-sizing:border-box;width:100%;height:120px;border:1.5px solid var(--tint);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-size:17px;padding:12px 14px;resize:none}
+.chip{font-size:13px;font-weight:500;border-radius:20px;padding:8px 14px;background:var(--card2);color:var(--icon);border:0;min-height:36px}
+.chip.on{background:var(--tint);color:var(--on-tint)}
+.lab{font-size:12px;font-weight:500;color:var(--icon);letter-spacing:0.4px;text-transform:uppercase;margin:0}
+.sug{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--sep);padding:12px 0;color:var(--text);text-align:left}
+.sug:last-child{border-bottom:0}
+.primary{background:var(--tint);color:var(--on-tint);border:0;border-radius:18px;padding:14px 24px;font-size:17px;font-weight:600;flex-grow:1}
+.primary:disabled{opacity:.5;cursor:default}
+.ghostbtn{background:transparent;color:var(--tint);border:1px solid var(--field);border-radius:12px;padding:12px 20px;font-size:17px;font-weight:600}
+.rv{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;width:100%;background:none;border:0;border-bottom:1px solid var(--sep);padding:12px 0;text-align:left;color:var(--text)}
+.rv:last-child{border-bottom:0}
+.rvk{font-size:13px;font-weight:500;color:var(--icon);flex-shrink:0;width:96px}
+.rvv{font-size:15px;flex-grow:1;min-width:0}
+</style>
+</helmet>
+<div class="bf {{themeClass}}" style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+  <header style="padding:52px 12px 8px;display:grid;grid-template-columns:80px minmax(0,1fr) 80px;align-items:center">
+    <button class="textbtn" style="text-align:left" onClick="{{reset}}">Cancel</button>
+    <span style="text-align:center;font-size:17px;font-weight:600">New exercise</span>
+    <span></span>
+  </header>
+
+  <sc-if value="{{notSaved}}" hint-placeholder-val="{{true}}">
+    <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:13px;font-weight:500;color:var(--icon)">Step {{stepNumber}} of {{stepTotal}}</span>
+      <div style="height:4px;border-radius:4px;background:var(--track);overflow:hidden"><div style="height:4px;background:var(--tint);width:{{progress}}"></div></div>
+    </div>
+
+    <div style="flex-grow:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:16px">
+
+      <sc-if value="{{isEquipment}}" hint-placeholder-val="{{true}}">
+        <h1 class="q">What equipment does it use?</h1>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{equipmentOptions}}" as="o" hint-placeholder-count="7">
+            <button class="{{o.cls}}" onClick="{{o.pick}}"><span class="optl">{{o.label}}</span></button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isBrand}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">Which brand is it?</h1>
+        <p class="hint">Optional. It goes in the name so you can tell machines apart.</p>
+        <input class="in" aria-label="Brand" value="{{brand}}" onChange="{{setBrand}}" placeholder="e.g. Hammer Strength">
+        <p class="lab">Brands you've used</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{brandSuggestions}}" as="b" hint-placeholder-count="3">
+            <button class="chip" onClick="{{b.pick}}">{{b.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">How is it loaded?</h1>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="{{stackCls}}" onClick="{{pickStack}}"><span class="optl">Weight stack</span><span class="optd">Pin-select stack</span></button>
+          <button class="{{plateCls}}" onClick="{{pickPlate}}"><span class="optl">Plate-loaded</span><span class="optd">You add plates; you log the plates added</span></button>
+        </div>
+        <sc-if value="{{isPlate}}" hint-placeholder-val="{{false}}">
+          <label style="display:flex;flex-direction:column;gap:6px"><span class="lab">Starting weight (sled), optional</span>
+            <span style="display:flex;align-items:center;gap:8px"><input class="in" style="width:120px" inputmode="decimal" aria-label="Starting weight in kg" value="{{sled}}" onChange="{{setSled}}" placeholder="0"><span style="font-size:17px;color:var(--icon)">kg</span></span>
+          </label>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{isName}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">What's the exercise called?</h1>
+        <input class="in" aria-label="Exercise name" value="{{name}}" onChange="{{setName}}" placeholder="e.g. Chest press">
+        <sc-if value="{{hasSuggestions}}" hint-placeholder-val="{{false}}">
+          <p class="lab">Similar built-in exercises · tap to copy muscles and logging</p>
+          <div style="background:var(--card);border-radius:18px;padding:0 16px">
+            <sc-for list="{{nameSuggestions}}" as="s" hint-placeholder-count="3">
+              <button class="sug" onClick="{{s.pick}}"><span style="font-size:15px">{{s.label}}</span><span style="font-size:12px;color:var(--icon)">{{s.muscles}}</span></button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{copiedFrom}}" hint-placeholder-val="{{false}}">
+          <p class="hint">Muscles and logging copied from {{copiedFrom}}. You can change them next.</p>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{isMuscles}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">Which muscles does it work?</h1>
+        <p class="lab">Primary · at least one</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{primaryChips}}" as="m" hint-placeholder-count="12">
+            <button class="{{m.cls}}" onClick="{{m.pick}}">{{m.label}}</button>
+          </sc-for>
+        </div>
+        <p class="lab" style="margin-top:8px">Secondary · optional</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{secondaryChips}}" as="m" hint-placeholder-count="12">
+            <button class="{{m.cls}}" onClick="{{m.pick}}">{{m.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isLogType}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">How do you log it?</h1>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{logOptions}}" as="o" hint-placeholder-count="5">
+            <button class="{{o.cls}}" onClick="{{o.pick}}"><span class="optl">{{o.label}}</span><span class="optd">{{o.desc}}</span></button>
+          </sc-for>
+        </div>
+        <sc-if value="{{showPerSide}}" hint-placeholder-val="{{false}}">
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border-radius:12px;padding:12px 16px">
+            <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:600">Per side</span><span style="font-size:13px;color:var(--icon)">One arm or leg at a time; reps are per side</span></span>
+            <input type="checkbox" checked="{{perSide}}" onChange="{{togglePerSide}}" style="width:24px;height:24px;accent-color:var(--tint)">
+          </label>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{isNotes}}" hint-placeholder-val="{{false}}">
+        <h1 class="q">Any setup notes?</h1>
+        <p class="hint">Optional. Shown under the exercise every time you log it.</p>
+        <textarea class="ta" aria-label="Setup notes" value="{{notes}}" onChange="{{setNotes}}" placeholder="e.g. Seat 4, back pad 2"></textarea>
+      </sc-if>
+
+      <sc-if value="{{isReview}}" hint-placeholder-val="{{false}}">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <span class="lab">Your exercise</span>
+          <h1 class="q">{{displayName}}</h1>
+          <span style="font-size:13px;font-weight:500;color:var(--icon)">{{equipment}} · tap any line to change it</span>
+        </div>
+        <div style="background:var(--card);border-radius:18px;padding:0 16px">
+          <sc-for list="{{reviewRows}}" as="r" hint-placeholder-count="6">
+            <button class="rv" onClick="{{r.go}}"><span class="rvk">{{r.k}}</span><span class="rvv">{{r.v}}</span></button>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <footer style="padding:12px 16px 34px;display:flex;gap:10px;border-top:1px solid var(--sep)">
+      <sc-if value="{{canBack}}" hint-placeholder-val="{{false}}">
+        <button class="ghostbtn" onClick="{{back}}">Back</button>
+      </sc-if>
+      <button class="primary" disabled="{{nextDisabled}}" onClick="{{next}}">{{nextLabel}}</button>
+    </footer>
+  </sc-if>
+
+  <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+    <div style="flex-grow:1;padding:24px 16px;display:flex;flex-direction:column;gap:16px;justify-content:center">
+      <span class="lab">Saved to your exercises</span>
+      <div style="background:var(--card);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:22px;font-weight:700">{{displayName}}</span>
+        <span style="font-size:13px;font-weight:500;color:var(--icon)">{{summaryLine}}</span>
+        <sc-if value="{{notes}}" hint-placeholder-val="{{false}}"><span style="font-size:13px;font-weight:500;color:var(--icon)">{{notes}}</span></sc-if>
+      </div>
+      <p class="hint">Added to Workout · Fri 17 Oct.</p>
+    </div>
+    <footer style="padding:12px 16px 34px;display:flex">
+      <button class="primary" onClick="{{reset}}">Done</button>
+    </footer>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"example":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.C = this.consts();
+    this.state = Object.assign({}, props.example === false ? this.C.EMPTY : this.C.EXAMPLE);
+  }
+  consts() {
+    var C = {};
+  C.EQUIPMENT = ['Machine', 'Cable', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cardio machine', 'Other'];
+  C.MUSCLES = ['Chest', 'Front delts', 'Side delts', 'Rear delts', 'Triceps', 'Biceps', 'Forearms', 'Lats', 'Upper back', 'Lower back', 'Abs', 'Glutes', 'Quads', 'Hamstrings', 'Calves', 'Full body', 'Cardio'];
+  C.LOG_TYPES = [
+    { id: 'weight_reps', label: 'Weight × reps', desc: 'Load and reps for each set' },
+    { id: 'bodyweight_reps', label: 'Bodyweight + reps', desc: 'Reps, with optional added weight' },
+    { id: 'assisted', label: 'Assisted', desc: 'Assistance weight and reps' },
+    { id: 'duration', label: 'Time', desc: 'How long each set lasts' },
+    { id: 'distance_duration', label: 'Distance + time', desc: 'Pace is calculated for you' }
+  ];
+  C.REP_TYPES = ['weight_reps', 'bodyweight_reps', 'assisted'];
+  C.BRANDS = ['Hammer Strength', 'Life Fitness'];
+  C.SEED = [
+    { n: 'Barbell bench press', p: ['Chest'], s: ['Triceps', 'Front delts'], t: 'weight_reps' },
+    { n: 'Dumbbell bench press', p: ['Chest'], s: ['Triceps', 'Front delts'], t: 'weight_reps' },
+    { n: 'Incline dumbbell press', p: ['Chest'], s: ['Front delts', 'Triceps'], t: 'weight_reps' },
+    { n: 'Dumbbell fly', p: ['Chest'], s: ['Front delts'], t: 'weight_reps' },
+    { n: 'Overhead press', p: ['Front delts'], s: ['Triceps', 'Side delts'], t: 'weight_reps' },
+    { n: 'Dumbbell shoulder press', p: ['Front delts'], s: ['Triceps', 'Side delts'], t: 'weight_reps' },
+    { n: 'Lateral raise', p: ['Side delts'], s: [], t: 'weight_reps' },
+    { n: 'Rear delt fly', p: ['Rear delts'], s: ['Upper back'], t: 'weight_reps' },
+    { n: 'Lat pulldown', p: ['Lats'], s: ['Biceps'], t: 'weight_reps' },
+    { n: 'Seated cable row', p: ['Upper back'], s: ['Lats', 'Biceps'], t: 'weight_reps' },
+    { n: 'Triceps pushdown', p: ['Triceps'], s: [], t: 'weight_reps' },
+    { n: 'Leg press', p: ['Quads'], s: ['Glutes'], t: 'weight_reps' },
+    { n: 'Leg extension', p: ['Quads'], s: [], t: 'weight_reps' },
+    { n: 'Leg curl', p: ['Hamstrings'], s: [], t: 'weight_reps' },
+    { n: 'Hip thrust', p: ['Glutes'], s: ['Hamstrings'], t: 'weight_reps' },
+    { n: 'Standing calf raise', p: ['Calves'], s: [], t: 'weight_reps' },
+    { n: 'Cable crunch', p: ['Abs'], s: [], t: 'weight_reps' },
+    { n: 'Row', p: ['Cardio'], s: [], t: 'distance_duration' },
+    { n: 'Cycle', p: ['Cardio'], s: [], t: 'distance_duration' },
+    { n: 'Elliptical', p: ['Cardio'], s: [], t: 'duration' },
+    { n: 'Stair climber', p: ['Cardio'], s: [], t: 'duration' }
+  ];
+  C.EMPTY = { i: 0, equipment: '', brand: '', loading: 'stack', sled: '', name: '', primary: [], secondary: [], logType: 'weight_reps', perSide: false, notes: '', copiedFrom: '', saved: false };
+  C.EXAMPLE = { i: 0, equipment: 'Machine', brand: 'Hammer Strength', loading: 'plate', sled: '20', name: 'Chest press', primary: ['Chest'], secondary: ['Triceps', 'Front delts'], logType: 'weight_reps', perSide: false, notes: 'Seat 4, back pad 2', copiedFrom: '', saved: false };
+    return C;
+  }
+  steps() {
+    var e = this.state.equipment;
+    var s = ['equipment'];
+    if (e === 'Machine' || e === 'Cable' || e === 'Cardio machine') s.push('brand');
+    if (e === 'Machine') s.push('loading');
+    return s.concat(['name', 'muscles', 'logtype', 'notes', 'review']);
+  }
+  valid(id) {
+    var st = this.state;
+    if (id === 'equipment') return !!st.equipment;
+    if (id === 'name') return st.name.trim().length > 0;
+    if (id === 'muscles') return st.primary.length > 0;
+    return true;
+  }
+  renderVals() {
+    var self = this;
+    var C = this.C;
+    var st = this.state;
+    var steps = this.steps();
+    var i = Math.min(st.i, steps.length - 1);
+    var id = steps[i];
+    var set = function (patch) { self.setState(patch); };
+    var go = function (target) { return function () { set({ i: Math.max(0, steps.indexOf(target)) }); }; };
+    var displayName = (st.name.trim() || 'Untitled') + (st.brand.trim() ? ' · ' + st.brand.trim() : '');
+    var logLabel = (C.LOG_TYPES.find(function (l) { return l.id === st.logType; }) || C.LOG_TYPES[0]).label;
+    var perSideOk = C.REP_TYPES.indexOf(st.logType) >= 0;
+    var tokens = st.name.toLowerCase().split(/\s+/).filter(function (t) { return t.length >= 3; });
+    var suggestions = tokens.length === 0 ? [] : C.SEED.filter(function (x) {
+      var n = x.n.toLowerCase();
+      return n !== st.name.trim().toLowerCase() && tokens.some(function (t) { return n.indexOf(t) >= 0; });
+    }).slice(0, 3);
+    var toggle = function (key, label) {
+      return function () {
+        var list = st[key].slice();
+        var at = list.indexOf(label);
+        if (at >= 0) list.splice(at, 1); else list.push(label);
+        var patch = {}; patch[key] = list;
+        set(patch);
+      };
+    };
+    var loadingText = st.loading === 'plate' ? 'Plate-loaded' + (st.sled ? ', ' + st.sled + ' kg sled' : '') : 'Weight stack';
+    var rows = [{ k: 'Equipment', v: st.equipment, go: go('equipment') }];
+    if (steps.indexOf('brand') >= 0) rows.push({ k: 'Brand', v: st.brand.trim() || 'None', go: go('brand') });
+    if (steps.indexOf('loading') >= 0) rows.push({ k: 'Loading', v: loadingText, go: go('loading') });
+    rows.push({ k: 'Name', v: st.name.trim(), go: go('name') });
+    rows.push({ k: 'Muscles', v: st.primary.join(', ') + (st.secondary.length ? ' · also ' + st.secondary.join(', ') : ''), go: go('muscles') });
+    rows.push({ k: 'Logged as', v: logLabel + (perSideOk && st.perSide ? ', per side' : ''), go: go('logtype') });
+    rows.push({ k: 'Setup notes', v: st.notes.trim() || 'None', go: go('notes') });
+    return {
+      themeClass: this.props.dark ? 'dark' : '',
+      saved: st.saved,
+      notSaved: !st.saved,
+      stepNumber: i + 1,
+      stepTotal: steps.length,
+      progress: Math.round(((i + 1) / steps.length) * 100) + '%',
+      isEquipment: id === 'equipment', isBrand: id === 'brand', isLoading: id === 'loading', isName: id === 'name',
+      isMuscles: id === 'muscles', isLogType: id === 'logtype', isNotes: id === 'notes', isReview: id === 'review',
+      equipment: st.equipment, brand: st.brand, sled: st.sled, name: st.name, notes: st.notes, perSide: st.perSide,
+      equipmentOptions: C.EQUIPMENT.map(function (e) {
+        return { label: e, cls: st.equipment === e ? 'opt on' : 'opt', pick: function () {
+          var patch = { equipment: e };
+          if (e === 'Cardio machine') patch.logType = 'distance_duration';
+          else if (e === 'Bodyweight') patch.logType = 'bodyweight_reps';
+          else if (st.logType === 'distance_duration' || st.logType === 'bodyweight_reps') patch.logType = 'weight_reps';
+          if (e !== 'Machine' && e !== 'Cable' && e !== 'Cardio machine') patch.brand = '';
+          set(patch);
+        } };
+      }),
+      setBrand: function (ev) { set({ brand: ev.target.value }); },
+      brandSuggestions: C.BRANDS.map(function (b) { return { label: b, pick: function () { set({ brand: b }); } }; }),
+      stackCls: st.loading === 'stack' ? 'opt on' : 'opt',
+      plateCls: st.loading === 'plate' ? 'opt on' : 'opt',
+      isPlate: st.loading === 'plate',
+      pickStack: function () { set({ loading: 'stack' }); },
+      pickPlate: function () { set({ loading: 'plate' }); },
+      setSled: function (ev) { set({ sled: ev.target.value.replace(/[^0-9.]/g, '') }); },
+      setName: function (ev) { set({ name: ev.target.value, copiedFrom: '' }); },
+      hasSuggestions: suggestions.length > 0 && !st.copiedFrom,
+      nameSuggestions: suggestions.map(function (x) {
+        return { label: x.n, muscles: x.p.join(', '), pick: function () {
+          set({ primary: x.p.slice(), secondary: x.s.slice(), logType: x.t, copiedFrom: x.n });
+        } };
+      }),
+      copiedFrom: st.copiedFrom,
+      primaryChips: C.MUSCLES.map(function (m) { return { label: m, cls: st.primary.indexOf(m) >= 0 ? 'chip on' : 'chip', pick: toggle('primary', m) }; }),
+      secondaryChips: C.MUSCLES.map(function (m) { return { label: m, cls: st.secondary.indexOf(m) >= 0 ? 'chip on' : 'chip', pick: toggle('secondary', m) }; }),
+      logOptions: C.LOG_TYPES.map(function (l) { return { label: l.label, desc: l.desc, cls: st.logType === l.id ? 'opt on' : 'opt', pick: function () { set({ logType: l.id }); } }; }),
+      showPerSide: perSideOk,
+      togglePerSide: function () { set({ perSide: !st.perSide }); },
+      setNotes: function (ev) { set({ notes: ev.target.value }); },
+      displayName: displayName,
+      reviewRows: rows,
+      summaryLine: st.equipment + ' · ' + st.primary.join(', ') + ' · ' + logLabel + (perSideOk && st.perSide ? ', per side' : ''),
+      canBack: i > 0,
+      back: function () { set({ i: Math.max(0, i - 1) }); },
+      nextDisabled: !this.valid(id),
+      nextLabel: id === 'review' ? 'Save exercise' : (id === 'brand' && !st.brand.trim()) || (id === 'notes' && !st.notes.trim()) ? 'Skip' : 'Next',
+      next: function () {
+        if (!self.valid(id)) return;
+        if (id === 'review') set({ saved: true }); else set({ i: i + 1 });
+      },
+      reset: function () { self.setState(Object.assign({}, self.props.example === false ? C.EMPTY : C.EXAMPLE)); }
+    };
+  }
+}
+</script>
+</body>
+</html>
