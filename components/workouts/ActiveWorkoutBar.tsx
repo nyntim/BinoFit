@@ -4,6 +4,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useNow } from '@/hooks/useNow';
+import { useRestTimer } from '@/hooks/useRestTimer';
 import { formatDuration } from '@/lib/units';
 import { workoutDisplayName } from '@/lib/workouts/format';
 
@@ -15,7 +16,7 @@ export function elapsedSeconds(startedAt: string | null, nowMs: number): number 
 }
 
 type Props = {
-  /** Extra text after the elapsed time, e.g. "Rest 1:24" (C10). */
+  /** Extra text after the elapsed time. Defaults to the running rest ("Rest 1:24"). */
   detail?: string | null;
 };
 
@@ -25,6 +26,7 @@ type Props = {
  */
 export function ActiveWorkoutBar({ detail }: Props) {
   const { workout } = useActiveWorkout();
+  const rest = useRestTimer();
   const now = useNow(1000, !!workout);
   const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
@@ -35,12 +37,18 @@ export function ActiveWorkoutBar({ detail }: Props) {
   if (!workout) return null;
 
   const elapsed = formatDuration(elapsedSeconds(workout.started_at, now));
+  const shownDetail =
+    detail !== undefined
+      ? detail
+      : rest.timer && rest.timer.workoutId === workout.id
+        ? `Rest ${formatDuration(rest.remaining)}`
+        : null;
   return (
     <Pressable
       onPress={() => router.push('/workout/session')}
       accessibilityRole="button"
       accessibilityLabel="Open workout"
-      accessibilityHint="Opens the live session"
+      accessibilityHint={shownDetail?.startsWith('Rest') ? 'Resting. Opens the live session' : 'Opens the live session'}
       style={[styles.bar, { backgroundColor: card, borderTopColor: separator }]}
     >
       <View style={[styles.icon, { backgroundColor: tint }]}>
@@ -51,7 +59,7 @@ export function ActiveWorkoutBar({ detail }: Props) {
           {workoutDisplayName(workout)}
         </Text>
         <Text style={[styles.subtitle, { color: muted }]} numberOfLines={1}>
-          {detail ? `${elapsed} · ${detail}` : elapsed}
+          {shownDetail ? `${elapsed} · ${shownDetail}` : elapsed}
         </Text>
       </View>
       <IconSymbol name="chevron.up" size={22} color={muted} />

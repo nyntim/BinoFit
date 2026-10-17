@@ -32,6 +32,7 @@ import {
 } from '@/lib/storage';
 import { hasRestoredData, restoreFromAccount, type RestoreProgress, type RestoreResult } from '@/lib/restore';
 import { restoreMealReminders } from '@/lib/reminders';
+import { clearRestTimerAndNotifications } from '@/lib/workouts/rest-timer-store';
 import { reportAuthIssue } from '@/lib/auth-debug';
 import { authErrorMessage, normalizeEmail } from '@/lib/auth-validation';
 import type { AuthMethod, AuthState, AuthStatus } from '@/lib/types';
@@ -86,6 +87,7 @@ async function restoreTracked(
 
 /** Local half of sign-out: empties user data. Safe to run again. */
 async function finishWipe(): Promise<void> {
+  await clearRestTimerAndNotifications(); // forget the rest timer and cancel its notification
   await clearUserData();
   await clearUserStorage();
   await reloadPreferences(); // tracking mode was cleared; refresh the in-memory copy

@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { getMealDefinitions, getMealNames } from '@/lib/database';
 import { nameForDate, parseReminderTime } from '@/lib/meals';
 import { format } from 'date-fns';
+import { REST_TIMER_PREFIX } from '@/lib/workouts/rest-notifications';
 import type { MealDefinition, MealNameEntry } from '@/lib/types';
 
 /** Identifier prefix for the notifications this module owns. */
@@ -13,17 +14,23 @@ const isNative = () => Platform.OS !== 'web';
 
 let handlerSet = false;
 
-/** Shows reminders as a banner while the app is open. No sound or badge. */
+/**
+ * Shows reminders as a banner while the app is open. No sound or badge. Rest-timer notifications
+ * are not shown while the app is open: the in-app timer already shows the countdown.
+ */
 export function configureNotificationHandler(): void {
   if (!isNative() || handlerSet) return;
   handlerSet = true;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const isRest = !!notification?.request?.identifier?.startsWith(REST_TIMER_PREFIX);
+      return {
+        shouldShowBanner: !isRest,
+        shouldShowList: !isRest,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    },
   });
 }
 

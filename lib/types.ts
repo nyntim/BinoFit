@@ -92,6 +92,11 @@ export type RestTimerState = {
   /** Epoch ms. */
   endsAt: number;
   durationSeconds: number;
+  /** The exercise block that started the rest (for the banner label); optional for older stored timers. */
+  workoutExerciseId?: string;
+  /** The set whose tick started the rest; only unticking this set cancels it. */
+  setId?: string;
+  exerciseName?: string;
 };
 
 export type UserGoals = {

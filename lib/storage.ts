@@ -129,7 +129,14 @@ export function parseRestTimer(raw: string | null): RestTimerState | null {
     return typeof v.workoutId === 'string' &&
       typeof v.endsAt === 'number' &&
       typeof v.durationSeconds === 'number'
-      ? { workoutId: v.workoutId, endsAt: v.endsAt, durationSeconds: v.durationSeconds }
+      ? {
+          workoutId: v.workoutId,
+          endsAt: v.endsAt,
+          durationSeconds: v.durationSeconds,
+          ...(typeof v.workoutExerciseId === 'string' ? { workoutExerciseId: v.workoutExerciseId } : {}),
+          ...(typeof v.setId === 'string' ? { setId: v.setId } : {}),
+          ...(typeof v.exerciseName === 'string' ? { exerciseName: v.exerciseName } : {}),
+        }
       : null;
   } catch {
     return null;

@@ -3,13 +3,14 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { AddExercisesButton } from '@/components/workouts/AddExercisesButton';
 import { ExerciseBlock } from '@/components/workouts/ExerciseBlock';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
+import { RestPickerSheet } from '@/components/workouts/RestPickerSheet';
 import { SetRow } from '@/components/workouts/SetRow';
 import { SetTableHeader } from '@/components/workouts/SetTableHeader';
 import { SetTypeSheet } from '@/components/workouts/SetTypeSheet';
 import { WorkoutMetaCard } from '@/components/workouts/WorkoutMetaCard';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import type { WorkoutEditor as Editor, EditorMode } from '@/hooks/useWorkoutEditor';
+import type { ToggleResult, WorkoutEditor as Editor, EditorMode } from '@/hooks/useWorkoutEditor';
 import { formatDuration } from '@/lib/units';
 import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
 import {
@@ -22,8 +23,6 @@ import {
 import { formatShortDate, setupDetailLine } from '@/lib/workouts/format';
 import { formatPreviousSet, previousFor } from '@/lib/workouts/prefill';
 
-const REST_PRESETS = [0, 30, 60, 90, 120, 150, 180, 300];
-
 type Props = {
   editor: Editor;
   mode: EditorMode;
@@ -35,13 +34,15 @@ type Props = {
   showMeta?: boolean;
   /** Content above the cards (e.g. the rest banner). */
   header?: ReactNode;
+  /** Called after a set is ticked or unticked in the live session (starts or cancels the rest). */
+  onToggled?: (result: ToggleResult) => void;
 };
 
 /**
  * The shared body of the workout editor: meta card, one block per exercise with its set table,
  * and "+ Add exercises". Used by Log past workout, the finished-workout screen and the live session.
  */
-export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMeta = true, header }: Props) {
+export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMeta = true, header, onToggled }: Props) {
   const { weightUnit: unit, showRpe } = usePreferences();
   const tint = useThemeColor({}, 'tint');
   const [exerciseMenu, setExerciseMenu] = useState<string | null>(null);
@@ -121,7 +122,14 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
                     if (patch) editor.updateSet(s.id, patch);
                   }}
                   onPressBadge={() => setSetMenu(s.id)}
-                  onToggleDone={live ? () => editor.toggleDone(s.id) : undefined}
+                  onToggleDone={
+                    live
+                      ? () => {
+                          const result = editor.toggleDone(s.id);
+                          if (result) onToggled?.(result);
+                        }
+                      : undefined
+                  }
                 />
               );
             })}
@@ -170,16 +178,11 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
             : []),
         ]}
       />
-      <OptionsSheet
+      <RestPickerSheet
         visible={!!restExercise}
-        title="Rest time"
+        current={restExercise?.rest_seconds}
         onClose={() => setRestMenu(null)}
-        options={REST_PRESETS.map((sec) => ({
-          key: String(sec),
-          label: sec === 0 ? 'Off' : formatDuration(sec),
-          selected: restExercise?.rest_seconds === sec,
-          onPress: () => restExercise && editor.updateExercise(restExercise.id, { rest_seconds: sec }),
-        }))}
+        onSelect={(sec) => restExercise && editor.updateExercise(restExercise.id, { rest_seconds: sec })}
       />
     </ScrollView>
   );

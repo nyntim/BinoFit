@@ -3,16 +3,19 @@ import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { RestBanner } from '@/components/workouts/RestBanner';
 import { WorkoutEditorBody } from '@/components/workouts/WorkoutEditor';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useNow } from '@/hooks/useNow';
-import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
+import { useWorkoutEditor, type ToggleResult } from '@/hooks/useWorkoutEditor';
 import { elapsedSeconds } from '@/components/workouts/ActiveWorkoutBar';
 import { formatDuration } from '@/lib/units';
 import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
 import { confirmAndDiscard, confirmAndFinish, type FlowResult } from '@/lib/workouts/finish-flow';
 import { workoutDisplayName } from '@/lib/workouts/format';
+import { DEFAULT_REST_SECONDS } from '@/lib/workouts/prefill';
+import { startRestTimer, stopRestTimerForSet } from '@/lib/workouts/rest-timer-store';
 import { startEmptyWorkout } from '@/lib/workouts/session';
 
 /**
@@ -128,6 +131,22 @@ export default function SessionScreen() {
     router.push({ pathname: '/workout/exercises', params: { pick: '1', workoutId: id } });
   };
 
+  // Ticking starts the exercise's rest (warmups too; unset = 90 s, 0 = off); unticking cancels it.
+  const onToggled = (result: ToggleResult) => {
+    if (!id) return;
+    if (!result.ticked) {
+      void stopRestTimerForSet(id, result.setId);
+      return;
+    }
+    startRestTimer({
+      workoutId: id,
+      durationSeconds: result.restSeconds ?? DEFAULT_REST_SECONDS,
+      workoutExerciseId: result.workoutExerciseId,
+      setId: result.setId,
+      exerciseName: result.exerciseName,
+    });
+  };
+
   const shown = editor.workout ?? active;
   const title = shown ? workoutDisplayName(shown) : 'Workout';
   const elapsed = formatDuration(elapsedSeconds(shown?.started_at ?? null, now));
@@ -156,6 +175,7 @@ export default function SessionScreen() {
         editor={editor}
         mode="live"
         showMeta={false}
+        onToggled={onToggled}
         onAddExercises={onAddExercises}
         footer={
           <Pressable
@@ -205,6 +225,7 @@ export default function SessionScreen() {
           <Text style={[styles.finishText, { color: onTint }]}>Finish</Text>
         </Pressable>
       </View>
+      <RestBanner />
       {body}
     </SafeAreaView>
   );

@@ -16,8 +16,9 @@ import { isSyncConfigured } from '@/lib/sync-status';
 import { useSyncAutoRetry } from '@/hooks/useSyncAutoRetry';
 import { useStaleSessionPrompt } from '@/hooks/useStaleSessionPrompt';
 import { configureNotificationHandler, restoreMealReminders } from '@/lib/reminders';
-import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
+import { getActiveWorkoutState, refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
 import { purgeStaleDrafts } from '@/lib/workouts/drafts';
+import { restoreRestTimer } from '@/lib/workouts/rest-timer-store';
 
 configureNotificationHandler();
 
@@ -46,7 +47,8 @@ export default function RootLayout() {
     // Workouts: drop abandoned drafts, then read the active session (never throws).
     purgeStaleDrafts(new Date())
       .catch(() => undefined)
-      .then(() => refreshActiveWorkout());
+      .then(() => refreshActiveWorkout())
+      .then(() => restoreRestTimer(getActiveWorkoutState().workout?.id ?? null));
     // Establishes the session first; initAuth triggers the first sync once there is a user id.
     initAuth().then((result) => {
       // A signed-in session survived a reinstall and its data came back. Onboarding is already

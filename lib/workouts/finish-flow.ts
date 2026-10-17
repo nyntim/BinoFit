@@ -1,6 +1,7 @@
 // Native Alert flows around finishing and discarding the live session. The rules live in
 // session.ts; this file only asks the questions.
 import { Alert } from 'react-native';
+import { stopRestTimer } from '@/lib/workouts/rest-timer-store';
 import { discardActiveWorkout, finishWorkout } from '@/lib/workouts/session';
 import { getWorkoutWithExercises } from '@/lib/workouts/db';
 import { planFinish } from '@/lib/workouts/completion';
@@ -39,7 +40,10 @@ export async function confirmAndDiscard(id: string): Promise<FlowResult> {
 export async function confirmAndFinish(id: string, endAt?: Date): Promise<FlowResult> {
   const first = await finishWorkout(id, { endAt, discardUnticked: false }, new Date());
   if (first === 'finished') return 'finished';
-  if (first === 'gone') return 'gone';
+  if (first === 'gone') {
+    await stopRestTimer(id);
+    return 'gone';
+  }
   if (first === 'empty') {
     const discard = await ask(
       'No completed sets',
@@ -58,7 +62,10 @@ export async function confirmAndFinish(id: string, endAt?: Date): Promise<FlowRe
   );
   if (!ok) return 'cancelled';
   const second = await finishWorkout(id, { endAt, discardUnticked: true }, new Date());
-  if (second === 'gone') return 'gone';
+  if (second === 'gone') {
+    await stopRestTimer(id);
+    return 'gone';
+  }
   return second === 'finished' ? 'finished' : 'cancelled';
 }
 

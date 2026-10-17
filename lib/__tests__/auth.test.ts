@@ -359,6 +359,20 @@ describe('sign out', () => {
     expect(restoreMealReminders).toHaveBeenCalled();
   });
 
+  it('signOutAndWipe clears the rest timer and cancels rest notifications', async () => {
+    const Notifications = require('expo-notifications');
+    (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValueOnce([
+      { identifier: 'rest-timer:w1' },
+      { identifier: 'meal-reminder:b' },
+    ]);
+    (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockClear();
+    await AsyncStorage.setItem('active_rest_timer', JSON.stringify({ workoutId: 'w1', endsAt: Date.now() + 60000, durationSeconds: 60 }));
+    setSession(appleSession);
+    expect(await auth.signOutAndWipe()).toEqual({ ok: true });
+    expect(await AsyncStorage.getItem('active_rest_timer')).toBeNull();
+    expect((Notifications.cancelScheduledNotificationAsync as jest.Mock).mock.calls.map((c: any[]) => c[0])).toEqual(['rest-timer:w1']);
+  });
+
   it('signOutAndWipe does not wipe when signOut returns an error', async () => {
     await AsyncStorage.setItem('onboarding_complete', 'true');
     sb.auth.signOut.mockResolvedValue({ error: { message: 'offline' } });

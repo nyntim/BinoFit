@@ -50,8 +50,8 @@ jest.mock('expo-notifications', () => ({
   getAllScheduledNotificationsAsync: jest.fn(async () => []),
   scheduleNotificationAsync: jest.fn(async () => 'id'),
   cancelScheduledNotificationAsync: jest.fn(async () => {}),
-  AndroidImportance: { DEFAULT: 3 },
-  SchedulableTriggerInputTypes: { DAILY: 'daily' },
+  AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  SchedulableTriggerInputTypes: { DAILY: 'daily', DATE: 'date' },
 }));
 
 jest.mock('expo-crypto', () => {

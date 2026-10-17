@@ -13,6 +13,7 @@ import {
 } from '@/lib/workouts/db';
 import { applyCompletionPlan } from '@/lib/workouts/drafts';
 import { setActiveWorkout } from '@/lib/workouts/active-workout-store';
+import { stopRestTimer } from '@/lib/workouts/rest-timer-store';
 
 /** A session with no ticked set (or start) for this long is stale: the user probably forgot to finish. */
 export const STALE_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -74,12 +75,16 @@ export async function finishWorkout(
   now: Date
 ): Promise<FinishResult> {
   const w = await getWorkoutWithExercises(id);
-  if (!w || w.status !== 'active') return 'gone';
+  if (!w || w.status !== 'active') {
+    await stopRestTimer(id);
+    return 'gone';
+  }
   const plan = planFinish(w, now, options);
   if (!plan.hasData) return 'empty';
   if (plan.needsConfirm) return 'needs-confirm';
   await applyCompletionPlan(id, plan);
   setActiveWorkout(null);
+  await stopRestTimer(id);
   syncToSupabase();
   return 'finished';
 }
@@ -88,4 +93,5 @@ export async function finishWorkout(
 export async function discardActiveWorkout(id: string): Promise<void> {
   await discardWorkout(id);
   setActiveWorkout(null);
+  await stopRestTimer(id);
 }
