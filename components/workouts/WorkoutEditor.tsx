@@ -22,6 +22,13 @@ import {
 } from '@/lib/workouts/editor-state';
 import { formatShortDate, setupDetailLine } from '@/lib/workouts/format';
 import { formatPreviousSet, previousFor } from '@/lib/workouts/prefill';
+import {
+  bestNewRecords,
+  EMPTY_RECORDS,
+  formatRecordSummary,
+  newRecordsFor,
+  recordSetFromWorkoutSet,
+} from '@/lib/workouts/records';
 
 type Props = {
   editor: Editor;
@@ -45,6 +52,7 @@ type Props = {
 export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMeta = true, header, onToggled }: Props) {
   const { weightUnit: unit, showRpe } = usePreferences();
   const tint = useThemeColor({}, 'tint');
+  const muted = useThemeColor({}, 'icon');
   const [exerciseMenu, setExerciseMenu] = useState<string | null>(null);
   const [restMenu, setRestMenu] = useState<string | null>(null);
   const [setMenu, setSetMenu] = useState<string | null>(null);
@@ -97,6 +105,28 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
         const title = ex.exercise ? exerciseDisplayName(ex.exercise) : ex.exercise_name;
         const restLabel =
           live && ex.rest_seconds !== null ? (ex.rest_seconds === 0 ? 'Rest off' : `Rest ${formatDuration(ex.rest_seconds)}`) : null;
+        const rawLogType = ex.exercise?.log_type ?? null;
+        const priorForEx =
+          rawLogType === 'weight_reps' && editor.priorRecords !== null
+            ? (editor.priorRecords.get(ex.exercise_id) ?? EMPTY_RECORDS)
+            : null;
+        const workoutAt = workout.started_at ?? workout.created_at;
+        const recordSets =
+          priorForEx !== null
+            ? ex.sets.map((s) =>
+                recordSetFromWorkoutSet({
+                  set: s,
+                  exerciseId: ex.exercise_id,
+                  at: workoutAt,
+                  logType: rawLogType,
+                  perSide,
+                })
+              )
+            : null;
+        const recordSummary =
+          mode === 'edit' && recordSets !== null && priorForEx !== null
+            ? formatRecordSummary(bestNewRecords(recordSets, priorForEx), unit, perSide)
+            : null;
         return (
           <ExerciseBlock
             key={ex.id}
@@ -105,9 +135,21 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
             restLabel={restLabel}
             onOptions={() => setExerciseMenu(ex.id)}
           >
+            {recordSummary ? (
+              <Text
+                accessibilityLabel={recordSummary.replace(/^PR\b/, 'Personal record')}
+                style={[styles.recordLine, { color: muted }]}
+              >
+                {recordSummary}
+              </Text>
+            ) : null}
             <SetTableHeader columns={columns} />
             {ex.sets.map((s, i) => {
               const prev = previousFor(i, prevSets);
+              const isPr =
+                recordSets !== null && priorForEx !== null
+                  ? newRecordsFor(recordSets[i], priorForEx).length > 0
+                  : false;
               return (
                 <SetRow
                   key={s.id}
@@ -117,6 +159,7 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
                   unit={unit}
                   previousSet={prev}
                   previousText={formatPreviousSet(prev, logType, perSide, unit)}
+                  personalRecord={isPr}
                   onChangeCell={(key: CellKey, text: string) => {
                     const patch = cellPatch(key, text, unit);
                     if (patch) editor.updateSet(s.id, patch);
@@ -190,6 +233,7 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
+  recordLine: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
   addSet: { minHeight: 44, justifyContent: 'center' },
   addSetText: { fontSize: 15, fontWeight: '600' },
 });

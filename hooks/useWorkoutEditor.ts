@@ -21,6 +21,8 @@ import { editorReducer, type EditorAction } from '@/lib/workouts/editor-state';
 import { waitForCleanup } from '@/lib/workouts/drafts';
 import { commitPendingEdits } from '@/lib/workouts/pending-edits';
 import { getPreviousPerformance } from '@/lib/workouts/previous';
+import { getPriorRecordSets } from '@/lib/workouts/record-history';
+import { recordsByExercise, type RecordValues } from '@/lib/workouts/records';
 import { createWriteQueue, type WriteQueue } from '@/lib/workouts/write-queue';
 
 export type EditorMode = 'live' | 'manual' | 'edit';
@@ -43,6 +45,8 @@ export type WorkoutEditor = {
   writeError: boolean;
   /** Latest earlier performance of each exercise in the workout (exercise id to sets). */
   previous: Map<string, WorkoutSet[]>;
+  /** Prior personal records per weight_reps exercise; null while loading or if the prior query failed. */
+  priorRecords: Map<string, RecordValues> | null;
   /** Hides the write-error state after the user saw it. */
   clearWriteError: () => void;
   /** Loads from SQLite after pending writes finish. */
@@ -70,10 +74,12 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
   const [status, setStatus] = useState<EditorStatus>('loading');
   const [writeError, setWriteError] = useState(false);
   const [previous, setPrevious] = useState<Map<string, WorkoutSet[]>>(new Map());
+  const [priorRecords, setPriorRecords] = useState<Map<string, RecordValues> | null>(null);
 
   const workoutRef = useRef<WorkoutWithExercises | null>(null);
   const previousRef = useRef(previous);
   const requestRef = useRef(0);
+  const priorRequestRef = useRef(0);
   /** Bumped by every optimistic action; a load that sees it change re-reads. */
   const versionRef = useRef(0);
   const loadedOnce = useRef(false);
@@ -111,16 +117,32 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
             setStatus('missing');
             return;
           }
+          const before = w.started_at ?? w.created_at;
           const prev = await getPreviousPerformance(
             w.exercises.map((e) => e.exercise_id),
-            { excludeWorkoutId: w.id, before: w.started_at ?? w.created_at }
+            { excludeWorkoutId: w.id, before }
           );
+          const weightRepsIds = w.exercises
+            .filter((e) => e.exercise?.log_type === 'weight_reps')
+            .map((e) => e.exercise_id);
+          let priors: Map<string, RecordValues> | null = null;
+          try {
+            const priorSets = await getPriorRecordSets(weightRepsIds, {
+              excludeWorkoutId: w.id,
+              before,
+            });
+            priors = recordsByExercise(priorSets);
+          } catch {
+            priors = null;
+          }
           if (request !== requestRef.current) return;
           if (versionRef.current !== version || queue.pending() > 0) continue;
+          priorRequestRef.current += 1;
           workoutRef.current = w;
           previousRef.current = prev;
           setWorkout(w);
           setPrevious(prev);
+          setPriorRecords(priors);
           setStatus('ready');
           loadedOnce.current = true;
           return;
@@ -147,6 +169,7 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
     loadedOnce.current = false;
     workoutRef.current = null;
     setWorkout(null);
+    setPriorRecords(null);
     if (id) void load(false);
   }, [id, load]);
 
@@ -231,8 +254,26 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
   const updateMeta = useCallback(
     (patch: WorkoutPatch) => {
       if (!id) return;
+      const prevStartedAt = workoutRef.current?.started_at;
       apply({ type: 'meta', patch });
       write(() => updateWorkout(id, patch));
+      const nextWorkout = workoutRef.current;
+      if (patch.started_at !== undefined && patch.started_at !== prevStartedAt && nextWorkout) {
+        const req = ++priorRequestRef.current;
+        const weightRepsIds = nextWorkout.exercises
+          .filter((e) => e.exercise?.log_type === 'weight_reps')
+          .map((e) => e.exercise_id);
+        const before = nextWorkout.started_at ?? nextWorkout.created_at;
+        void getPriorRecordSets(weightRepsIds, { excludeWorkoutId: nextWorkout.id, before })
+          .then((sets) => {
+            if (req === priorRequestRef.current) {
+              setPriorRecords(recordsByExercise(sets));
+            }
+          })
+          .catch(() => {
+            // Keep the map already shown on failure.
+          });
+      }
     },
     [apply, write, id]
   );
@@ -272,6 +313,7 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
     status,
     writeError,
     previous,
+    priorRecords,
     reload,
     flush,
     clearWriteError,

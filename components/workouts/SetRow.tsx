@@ -22,6 +22,8 @@ type Props = {
   previousText: string | null;
   /** The previous set at this index, shown as placeholders in empty cells. */
   previousSet: WorkoutSet | null;
+  /** True when this set beat at least one personal record for its exercise. Default false. */
+  personalRecord?: boolean;
   onChangeCell: (key: CellKey, text: string) => void;
   /** Opens the set type sheet (change type, delete). */
   onPressBadge: () => void;
@@ -61,6 +63,7 @@ export function SetRow({
   unit,
   previousText,
   previousSet,
+  personalRecord = false,
   onChangeCell,
   onPressBadge,
   onToggleDone,
@@ -83,10 +86,15 @@ export function SetRow({
                 key={c.key}
                 onPress={onPressBadge}
                 accessibilityRole="button"
-                accessibilityLabel={`${badge.accessibilityLabel}. Change type or delete`}
+                accessibilityLabel={`${badge.accessibilityLabel}${personalRecord ? ', personal record' : ''}. Change type or delete`}
                 style={[styles.badge, style]}
               >
                 <Text maxFontSizeMultiplier={1.3} style={[styles.badgeText, { color: badge.special ? muted : text }]}>{badge.label}</Text>
+                {personalRecord ? (
+                  <Text maxFontSizeMultiplier={1.3} style={[styles.prTag, { color: muted }]}>
+                    PR
+                  </Text>
+                ) : null}
               </Pressable>
             );
           case 'previous':
@@ -143,6 +151,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   badge: { height: 44, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  prTag: { fontSize: 12, fontWeight: '500', lineHeight: 13 },
   previous: { fontSize: 13, fontVariant: ['tabular-nums'] },
   pace: { fontSize: 15, fontWeight: '600', textAlign: 'right', fontVariant: ['tabular-nums'] },
   doneWrap: { alignItems: 'center', justifyContent: 'center' },
