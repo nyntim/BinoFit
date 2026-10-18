@@ -21,8 +21,6 @@ export function TrainingSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: text }]}>Training</Text>
-
       <View style={[styles.row, { backgroundColor: card }]}>
         <View style={styles.info}>
           <Text style={[styles.label, { color: text }]}>Units</Text>
@@ -124,7 +122,6 @@ export function TrainingSection() {
 
 const styles = StyleSheet.create({
   section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
