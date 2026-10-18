@@ -1,17 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { getRecentWeightDays } from '@/lib/weight';
+import { getLiveWeightDays } from '@/lib/weight';
 import type { WeightEntry } from '@/lib/types';
 
 export type WeightEntriesState = {
-  /** Latest entry of each of the most recent days, newest first. */
+  /** Latest entry of each live day, newest first. */
   days: WeightEntry[];
   status: 'loading' | 'ready' | 'error';
   reload: () => Promise<void>;
 };
 
-/** Recent weight days; reloads whenever the screen gains focus. */
-export function useWeightEntries(count = 5): WeightEntriesState {
+/** Live weight days; reloads whenever the screen gains focus. */
+export function useWeightEntries(): WeightEntriesState {
   const [days, setDays] = useState<WeightEntry[]>([]);
   const [status, setStatus] = useState<WeightEntriesState['status']>('loading');
   const latestCall = useRef(0);
@@ -19,7 +19,7 @@ export function useWeightEntries(count = 5): WeightEntriesState {
   const reload = useCallback(async () => {
     const call = ++latestCall.current;
     try {
-      const rows = await getRecentWeightDays(count);
+      const rows = await getLiveWeightDays();
       if (call !== latestCall.current) return;
       setDays(rows);
       setStatus('ready');
@@ -27,7 +27,7 @@ export function useWeightEntries(count = 5): WeightEntriesState {
       if (call !== latestCall.current) return;
       setStatus('error');
     }
-  }, [count]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

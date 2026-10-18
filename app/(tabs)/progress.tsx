@@ -51,7 +51,7 @@ export default function ProgressScreen() {
               onOpenDay={openDay}
             />
             <AveragesCard avg={progress.summary.avg} goals={progress.goals} />
-            <WeightCard />
+            <WeightCard range={range} today={progress.today} />
             <ConsistencyCard
               summary={progress.summary}
               streaks={progress.streaks}

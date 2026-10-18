@@ -186,6 +186,15 @@ describe('lookup by date', () => {
     const all = await weight.getRecentWeightDays(10);
     expect(all.map((x) => x.id)).toEqual(['c', 'b', 'a2']);
   });
+
+  it('getLiveWeightDays excludes a tombstone, collapses a day, and returns newest day first', async () => {
+    insert('a1', '2026-06-01', 80, { measured: '2026-06-01T08:00:00.000Z' });
+    insert('a2', '2026-06-01', 79, { measured: '2026-06-01T20:00:00.000Z' });
+    insert('b', '2026-06-02', 78);
+    insert('dead', '2026-06-03', 70, { deleted: '2026-06-03T13:00:00.000Z' });
+    const out = await weight.getLiveWeightDays();
+    expect(out.map((x) => x.id)).toEqual(['b', 'a2']);
+  });
 });
 
 describe('reads exclude tombstones', () => {

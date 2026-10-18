@@ -156,6 +156,15 @@ export async function getRecentWeightDays(n: number): Promise<WeightEntry[]> {
   return collapseLatestPerDay(rows);
 }
 
+/** Every live day (one entry per day, latest measured_at wins), newest first. */
+export async function getLiveWeightDays(): Promise<WeightEntry[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<WeightEntry>(
+    `SELECT * FROM weight_entries WHERE deleted_at IS NULL ${LIVE_ORDER}`
+  );
+  return collapseLatestPerDay(rows);
+}
+
 /** Includes tombstones; the only read that does. */
 export async function getUnsyncedWeightEntries(): Promise<WeightEntry[]> {
   const db = await getDatabase();

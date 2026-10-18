@@ -1,23 +1,36 @@
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { format, isToday, parseISO } from 'date-fns';
+import { WeightChart } from '@/components/progress/WeightChart';
 import { WeightEntrySheet } from '@/components/progress/WeightEntrySheet';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useWeightEntries } from '@/hooks/useWeightEntries';
+import type { ProgressRange } from '@/lib/progress';
 import { formatWeightWithUnit } from '@/lib/units';
 import { formatWeightChange } from '@/lib/weight';
+import {
+  formatWeeklyRate,
+  trendWeights,
+  weeklyRate,
+  weightRangeBounds,
+} from '@/lib/weight-trend';
 import type { WeightEntry } from '@/lib/types';
 
 const RECENT_DAYS = 5;
+
+type Props = {
+  range: ProgressRange;
+  today: string;
+};
 
 function dayLabel(date: string): string {
   const d = parseISO(date);
   return isToday(d) ? 'Today' : format(d, 'EEE d MMM');
 }
 
-/** Latest weight, change since the previous day logged, and the last few days. */
-export function WeightCard() {
+/** Latest weight, change since the previous day logged, trend chart, and the last few days. */
+export function WeightCard({ range, today }: Props) {
   const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
@@ -25,7 +38,7 @@ export function WeightCard() {
   const background = useThemeColor({}, 'background');
   const border = useThemeColor({}, 'fieldBorder');
   const { weightUnit: unit } = usePreferences();
-  const { days, status, reload } = useWeightEntries(RECENT_DAYS);
+  const { days, status, reload } = useWeightEntries();
 
   const [sheet, setSheet] = useState<{
     open: boolean;
@@ -40,6 +53,14 @@ export function WeightCard() {
 
   const latest = days[0] ?? null;
   const previous = days[1] ?? null;
+
+  const trend = trendWeights(days);
+  const trendUpToToday = trend.filter((p) => p.date <= today);
+  const latestTrend = trendUpToToday[trendUpToToday.length - 1] ?? null;
+  const rateKg = weeklyRate(trend, today);
+  const earliestWeighIn = trend[0]?.date ?? null;
+  const bounds = weightRangeBounds(range, today, earliestWeighIn);
+  const recentDays = days.slice(0, RECENT_DAYS);
 
   return (
     <View style={[styles.card, { backgroundColor: card }]}>
@@ -108,10 +129,30 @@ export function WeightCard() {
               {format(parseISO(previous.date), 'd MMM')}
             </Text>
           )}
+          {trendUpToToday.length >= 2 && latestTrend && (
+            <>
+              <Text style={[styles.caption, { color: icon }]}>
+                {`Trend ${formatWeightWithUnit(latestTrend.trend_kg, unit)}`}
+              </Text>
+              {rateKg !== null && (
+                <Text style={[styles.caption, { color: icon }]}>
+                  {formatWeeklyRate(rateKg, unit)}
+                </Text>
+              )}
+            </>
+          )}
 
-          {days.length > 1 && (
+          <WeightChart
+            points={trend}
+            rangeStart={bounds.start}
+            rangeEnd={bounds.end}
+            unit={unit}
+            weeklyRateKg={rateKg}
+          />
+
+          {recentDays.length > 1 && (
             <View style={styles.list}>
-              {days.slice(1).map((entry, i) => (
+              {recentDays.slice(1).map((entry, i) => (
                 <TouchableOpacity
                   key={entry.id}
                   style={[
