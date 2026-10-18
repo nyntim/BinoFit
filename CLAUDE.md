@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `workout/log.tsx` (Log past workout modal), `workout/[id].tsx` (finished workout: view, edit, delete), `workout/history.tsx` (all finished workouts by month, 30 per page), `workout/session.tsx` (live session, fullScreenModal). All workout routes are registered on the root Stack in `app/_layout.tsx`
 - `components/` — Reusable UI components
   - `calorie-ring.tsx`, `macro-bar.tsx` — Nutrition visualizations
-  - `CalendarWidget.tsx` — Week strip + full-month modal calendar (uses `react-native-calendars`)
+  - `CalendarWidget.tsx` — Week strip + full-month modal calendar (uses `react-native-calendars`); Nutrition shows logged-food and finished-workout markers plus selected-day workouts (`DayWorkouts`). `useDashboardTraining` owns local workout date/detail refresh on focus, date, session, unit and local-day changes; CalendarWidget owns range-based food marker refresh on focus and log revision.
   - `StreakBadge.tsx` — Current logging streak display
   - `month-calendar.tsx` — Standalone month calendar (themed, `weekStartsOn`, future days disabled; used by the Progress Consistency card)
   - `ui/icon-symbol.tsx` — Platform-specific icon wrapper (`.ios.tsx` variant)

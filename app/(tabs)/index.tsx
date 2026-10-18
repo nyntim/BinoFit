@@ -38,6 +38,8 @@ import {
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
+import { DayWorkouts } from '@/components/dashboard/DayWorkouts';
+import { useDashboardTraining } from '@/hooks/useDashboardTraining';
 import { StreakBadge } from '@/components/StreakBadge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
@@ -80,7 +82,8 @@ export default function HomeScreen() {
   const { panGesture, animatedStyle } = useSwipeDayNavigation({ enabled: !isEditing });
   const { scrollRef: dashScrollRef, onScroll: onDashScroll, onContentSizeChange: onDashContentSizeChange } = useScrollRestore('dashboard');
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const training = useDashboardTraining(selectedDate);
+  const today = training.today;
   const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
@@ -299,7 +302,7 @@ export default function HomeScreen() {
           accessibilityElementsHidden={isEditing}
           importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
         >
-          <CalendarWidget />
+          <CalendarWidget trainedDates={training.trainedDates} today={today} foodRevision={logs} />
         </View>
         {isEditing && (
           <EditModeBar
@@ -422,6 +425,8 @@ export default function HomeScreen() {
                 subTextColor={colors.icon}
               />
             </View>
+
+            {!isEditing && <DayWorkouts workouts={training.dayWorkouts} />}
 
             {/* Water Card */}
             {WATER_TRACKING_ENABLED && (
