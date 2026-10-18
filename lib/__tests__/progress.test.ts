@@ -1,6 +1,7 @@
 import {
   bucket,
   bucketFor,
+  bucketSpine,
   buildDailyTotals,
   chartScale,
   enumerateDates,
@@ -270,6 +271,64 @@ describe('bucket', () => {
   it('only the last bucket is current', () => {
     const b = bucket(days('2026-10-01', '2026-10-20'), 'week');
     expect(b.map((x) => x.isCurrent)).toEqual(b.map((_, i) => i === b.length - 1));
+  });
+});
+
+describe('bucketSpine', () => {
+  const compareWithBucket = (start: string, end: string, unit: 'day' | 'week' | 'month', weekStartsOn: 0 | 1 = 1) => {
+    const dateList = enumerateDates(start, end);
+    const spine = bucketSpine(dateList, unit, weekStartsOn);
+    const nutrition = bucket(
+      dateList.map((d) => day(d, 0)),
+      unit,
+      weekStartsOn
+    );
+    expect(
+      spine.map((s) => ({
+        key: s.key,
+        start: s.start,
+        end: s.end,
+        unit: s.unit,
+        isCurrent: s.isCurrent,
+      }))
+    ).toEqual(
+      nutrition.map((b) => ({
+        key: b.key,
+        start: b.start,
+        end: b.end,
+        unit: b.unit,
+        isCurrent: b.isCurrent,
+      }))
+    );
+    return spine;
+  };
+
+  it('matches bucket keys, start, end and isCurrent for days', () => {
+    const spine = compareWithBucket('2026-10-15', '2026-10-17', 'day');
+    expect(spine.map((s) => s.dates)).toEqual([['2026-10-15'], ['2026-10-16'], ['2026-10-17']]);
+  });
+
+  it('matches bucket for Monday weeks with Sunday in the prior week', () => {
+    const spine = compareWithBucket('2026-10-10', '2026-10-13', 'week');
+    expect(spine.map((s) => [s.key, s.start, s.end])).toEqual([
+      ['2026-10-05', '2026-10-10', '2026-10-11'],
+      ['2026-10-12', '2026-10-12', '2026-10-13'],
+    ]);
+  });
+
+  it('matches bucket for a partial first week', () => {
+    const spine = compareWithBucket('2026-10-14', '2026-10-19', 'week');
+    expect(spine).toHaveLength(2);
+    expect(spine[0]).toMatchObject({ key: '2026-10-12', start: '2026-10-14', end: '2026-10-18', isCurrent: false });
+    expect(spine[1]).toMatchObject({ key: '2026-10-19', start: '2026-10-19', end: '2026-10-19', isCurrent: true });
+  });
+
+  it('matches bucket for months', () => {
+    const spine = compareWithBucket('2026-09-29', '2026-10-02', 'month');
+    expect(spine.map((s) => [s.key, s.start, s.end, s.isCurrent])).toEqual([
+      ['2026-09-01', '2026-09-29', '2026-09-30', false],
+      ['2026-10-01', '2026-10-01', '2026-10-02', true],
+    ]);
   });
 });
 

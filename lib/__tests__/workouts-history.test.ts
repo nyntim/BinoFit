@@ -117,3 +117,19 @@ describe('getRecentDoneWorkouts', () => {
     expect(await h.getRecentDoneWorkouts(2, 10)).toEqual([]);
   });
 });
+
+describe('getDoneWorkoutDates', () => {
+  it('returns distinct done dates up to today, newest first, omitting active, draft, tombstoned and future', async () => {
+    add({ id: 'w1', date: '2025-10-10' });
+    add({ id: 'w2a', date: '2025-10-14' });
+    add({ id: 'w2b', date: '2025-10-14' });
+    add({ id: 'w3', date: '2025-10-16' });
+    add({ id: 'act', date: '2025-10-15', status: 'active' });
+    add({ id: 'dr', date: '2025-10-13', status: 'draft' });
+    add({ id: 'del', date: '2025-10-12', deleted_at: '2025-10-12T12:00:00.000Z' });
+    add({ id: 'fut', date: '2025-10-20' });
+
+    const dates = await h.getDoneWorkoutDates('2025-10-16');
+    expect(dates).toEqual(['2025-10-16', '2025-10-14', '2025-10-10']);
+  });
+});

@@ -7,7 +7,9 @@ import { CalorieTrendChart } from '@/components/progress/CalorieTrendChart';
 import { ConsistencyCard } from '@/components/progress/ConsistencyCard';
 import { ExpenditureCard } from '@/components/progress/ExpenditureCard';
 import { RangeChips } from '@/components/progress/RangeChips';
+import { RecentRecordsCard } from '@/components/progress/RecentRecordsCard';
 import { WeightCard } from '@/components/progress/WeightCard';
+import { WorkoutsChart } from '@/components/progress/WorkoutsChart';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useProgress } from '@/hooks/useProgress';
@@ -35,7 +37,7 @@ export default function ProgressScreen() {
             <IconSymbol name="chart.bar.fill" size={32} color={icon} />
             <Text style={[styles.firstRunTitle, { color: text }]}>Nothing logged yet</Text>
             <Text style={[styles.firstRunBody, { color: icon }]}>
-              Calorie, macro and weight trends show here after your first log.
+              Calorie, macro, weight and workout trends show here after your first log.
             </Text>
           </View>
         ) : (
@@ -54,10 +56,23 @@ export default function ProgressScreen() {
             <AveragesCard avg={progress.summary.avg} goals={progress.goals} />
             <WeightCard range={range} today={progress.today} />
             <ExpenditureCard />
+            <WorkoutsChart
+              key={`workouts-${range}`}
+              range={progress.loadedRange ?? range}
+              unit={progress.trainingUnit}
+              buckets={progress.workoutBuckets}
+              averages={progress.workoutAverages}
+              rangeStart={progress.trainingBounds.start}
+            />
+            <RecentRecordsCard
+              records={progress.records}
+              onPressRecord={(id) => router.push({ pathname: '/workout/[id]', params: { id } })}
+            />
             <ConsistencyCard
               summary={progress.summary}
               streaks={progress.streaks}
               loggedDates={progress.loggedDates}
+              trainedDates={progress.trainedDates}
               today={progress.today}
               onDayPress={openDay}
             />

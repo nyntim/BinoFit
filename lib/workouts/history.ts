@@ -67,6 +67,16 @@ async function hydrate(workouts: Workout[]): Promise<WorkoutWithExercises[]> {
   return workouts.map((w) => ({ ...w, exercises: linksByWorkout.get(w.id) ?? [] }));
 }
 
+/** Distinct done-workout dates up to `today` (local yyyy-MM-dd), newest first. */
+export async function getDoneWorkoutDates(today: string): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ date: string }>(
+    `SELECT DISTINCT date FROM workouts WHERE status = 'done' AND deleted_at IS NULL AND date <= ? ORDER BY date DESC`,
+    [today]
+  );
+  return rows.map((r) => r.date);
+}
+
 /** Done workouts with `date` from startDate to endDate inclusive (yyyy-MM-dd), newest first. */
 export async function getDoneWorkoutsBetween(startDate: string, endDate: string): Promise<WorkoutWithExercises[]> {
   const db = await getDatabase();

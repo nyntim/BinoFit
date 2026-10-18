@@ -21,7 +21,16 @@ import {
 import { computeStreaks, type Streaks } from '@/lib/streak';
 import { getUserGoals } from '@/lib/storage';
 import { getLatestWeightEntry } from '@/lib/weight';
-import type { UserGoals } from '@/lib/types';
+import { getDoneWorkoutDates, getDoneWorkoutsBetween } from '@/lib/workouts/history';
+import {
+  recentRecords,
+  trainingAverages,
+  trainingBuckets,
+  type RecentRecord,
+  type TrainingAverages,
+  type TrainingBucket,
+} from '@/lib/workouts/progress';
+import type { UserGoals, WorkoutWithExercises } from '@/lib/types';
 
 type Loaded = {
   range: ProgressRange;
@@ -30,6 +39,8 @@ type Loaded = {
   daily: DailyTotal[];
   goals: UserGoals | null;
   loggedDates: string[];
+  trainedDates: string[];
+  workouts: WorkoutWithExercises[];
   nothingEver: boolean;
 };
 
@@ -45,6 +56,12 @@ export type ProgressData = {
   unit: BucketUnit;
   goals: UserGoals | null;
   loggedDates: string[];
+  trainedDates: string[];
+  trainingBounds: Loaded['bounds'];
+  trainingUnit: BucketUnit;
+  workoutBuckets: TrainingBucket[];
+  workoutAverages: TrainingAverages | null;
+  records: RecentRecord[];
   streaks: Streaks;
   nothingEver: boolean;
 };
@@ -70,6 +87,18 @@ export function useProgress(range: ProgressRange): ProgressData {
             getMealSlotConfirmationsInRange(bounds.start, bounds.end),
           ]);
           const weight = await getLatestWeightEntry();
+          let trainedDates: string[] = [];
+          let workouts: WorkoutWithExercises[] = [];
+          try {
+            trainedDates = await getDoneWorkoutDates(today);
+            if (trainedDates.length > 0) {
+              const firstWorkoutDate = trainedDates[trainedDates.length - 1];
+              workouts = await getDoneWorkoutsBetween(firstWorkoutDate, today);
+            }
+          } catch {
+            trainedDates = [];
+            workouts = [];
+          }
           if (request !== requestRef.current) return;
           setData({
             range,
@@ -78,7 +107,9 @@ export function useProgress(range: ProgressRange): ProgressData {
             daily: buildDailyTotals(logs, confirmations, bounds.start, bounds.end),
             goals,
             loggedDates,
-            nothingEver: loggedDates.length === 0 && !weight,
+            trainedDates,
+            workouts,
+            nothingEver: loggedDates.length === 0 && !weight && trainedDates.length === 0,
           });
         } catch {
           if (request !== requestRef.current) return;
@@ -90,10 +121,19 @@ export function useProgress(range: ProgressRange): ProgressData {
   );
 
   return useMemo(() => {
+    const activeRange = data?.range ?? range;
     const today = data?.today ?? format(new Date(), 'yyyy-MM-dd');
     const bounds = data?.bounds ?? { start: today, end: today, days: 1 };
     const daily = data?.daily ?? [];
-    const unit = bucketFor(data?.range ?? range, bounds.days);
+    const unit = bucketFor(activeRange, bounds.days);
+    const trainedDates = data?.trainedDates ?? [];
+    const allWorkouts = data?.workouts ?? [];
+    const firstWorkoutDate = trainedDates.length > 0 ? trainedDates[trainedDates.length - 1] : null;
+    const trainingBounds = rangeBounds(activeRange, today, firstWorkoutDate);
+    const trainingUnit = bucketFor(activeRange, trainingBounds.days);
+    const workoutsInRange = allWorkouts.filter(
+      (w) => w.date >= trainingBounds.start && w.date <= trainingBounds.end
+    );
     return {
       loading,
       loadedRange: data?.range ?? null,
@@ -105,6 +145,17 @@ export function useProgress(range: ProgressRange): ProgressData {
       unit,
       goals: data?.goals ?? null,
       loggedDates: data?.loggedDates ?? [],
+      trainedDates,
+      trainingBounds,
+      trainingUnit,
+      workoutBuckets: trainingBuckets(
+        trainingBounds.start,
+        trainingBounds.end,
+        trainingUnit,
+        workoutsInRange
+      ),
+      workoutAverages: trainingAverages(workoutsInRange, trainingBounds.days),
+      records: recentRecords(allWorkouts, 5),
       streaks: computeStreaks(data?.loggedDates ?? [], today),
       nothingEver: data?.nothingEver ?? false,
     };

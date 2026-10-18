@@ -17,6 +17,8 @@ type Props = {
   currentMonth: Date;
   /** yyyy-MM-dd dates that get a dot. */
   markedDates: string[];
+  /** yyyy-MM-dd dates with a completed workout (second dot). */
+  trainedDates?: string[];
   /** Local today, yyyy-MM-dd. Later days are disabled. */
   today: string;
   selectedDate?: string;
@@ -31,6 +33,7 @@ const WEEKDAYS_SUNDAY_FIRST = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 export function MonthCalendar({
   currentMonth,
   markedDates,
+  trainedDates = [],
   today,
   selectedDate,
   weekStartsOn = 0,
@@ -49,6 +52,7 @@ export function MonthCalendar({
   const leadingBlanks = (getDay(startOfMonth(currentMonth)) - weekStartsOn + 7) % 7;
   const weekdays = [...WEEKDAYS_SUNDAY_FIRST.slice(weekStartsOn), ...WEEKDAYS_SUNDAY_FIRST.slice(0, weekStartsOn)];
   const markedSet = new Set(markedDates);
+  const trainedSet = new Set(trainedDates);
   const onCurrentMonth = isSameMonth(currentMonth, parseISO(today));
 
   return (
@@ -92,11 +96,18 @@ export function MonthCalendar({
           const isToday = dateStr === today;
           const future = dateStr > today;
           const marked = markedSet.has(dateStr);
+          const trained = trainedSet.has(dateStr);
           const selected = dateStr === selectedDate;
-          const label =
-            format(day, 'MMMM d') +
-            (isToday ? ', today' : '') +
-            (future ? '' : marked ? ', logged' : ', nothing logged');
+          const statusSuffix = future
+            ? ''
+            : marked && trained
+              ? ', logged, trained'
+              : marked
+                ? ', logged'
+                : trained
+                  ? ', trained'
+                  : ', nothing logged';
+          const label = format(day, 'MMMM d') + (isToday ? ', today' : '') + statusSuffix;
 
           return (
             <TouchableOpacity
@@ -122,7 +133,10 @@ export function MonthCalendar({
                   {format(day, 'd')}
                 </Text>
               </View>
-              <View style={[styles.dot, { backgroundColor: marked && !future ? tint : 'transparent' }]} />
+              <View style={styles.dotRow}>
+                {!future && marked && <View style={[styles.dot, { backgroundColor: tint }]} />}
+                {!future && trained && <View style={[styles.dot, { backgroundColor: text }]} />}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -150,5 +164,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayText: { fontSize: 13, fontVariant: ['tabular-nums'] },
-  dot: { width: 4, height: 4, borderRadius: 2, marginTop: 1 },
+  dotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    height: 4,
+    marginTop: 1,
+  },
+  dot: { width: 4, height: 4, borderRadius: 2 },
 });

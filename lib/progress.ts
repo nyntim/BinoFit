@@ -38,6 +38,17 @@ export type Bucket = {
   isCurrent: boolean;
 };
 
+export type DateBucket = {
+  /** First date of the full bucket (the Monday, or the first of the month). */
+  key: string;
+  /** First and last date of the bucket inside the range. */
+  start: string;
+  end: string;
+  unit: BucketUnit;
+  dates: string[];
+  isCurrent: boolean;
+};
+
 const DATE_FMT = 'yyyy-MM-dd';
 const MAX_WEEKLY_HISTORY_DAYS = 182;
 
@@ -135,6 +146,29 @@ function bucketKey(date: string, unit: BucketUnit, weekStartsOn: 0 | 1): string 
   if (unit === 'month') return format(startOfMonth(d), DATE_FMT);
   const back = (d.getDay() - weekStartsOn + 7) % 7;
   return format(addDays(d, -back), DATE_FMT);
+}
+
+/** Groups an inclusive date list into day, week or month buckets without nutrition math. */
+export function bucketSpine(
+  dates: string[],
+  unit: BucketUnit,
+  weekStartsOn: 0 | 1 = 1
+): DateBucket[] {
+  const groups: { key: string; dates: string[] }[] = [];
+  for (const date of dates) {
+    const key = bucketKey(date, unit, weekStartsOn);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.dates.push(date);
+    else groups.push({ key, dates: [date] });
+  }
+  return groups.map((g, i) => ({
+    key: g.key,
+    start: g.dates[0],
+    end: g.dates[g.dates.length - 1],
+    unit,
+    dates: g.dates,
+    isCurrent: i === groups.length - 1,
+  }));
 }
 
 /** Groups days into bars. Week and month bars average the days that have eaten logs. */

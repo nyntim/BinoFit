@@ -10,6 +10,7 @@ type Props = {
   summary: ProgressSummary;
   streaks: Streaks;
   loggedDates: string[];
+  trainedDates?: string[];
   today: string;
   onDayPress: (date: string) => void;
 };
@@ -18,10 +19,18 @@ function days(n: number): string {
   return `${n} ${n === 1 ? 'day' : 'days'}`;
 }
 
-export function ConsistencyCard({ summary, streaks, loggedDates, today, onDayPress }: Props) {
+export function ConsistencyCard({
+  summary,
+  streaks,
+  loggedDates,
+  trainedDates = [],
+  today,
+  onDayPress,
+}: Props) {
   const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
+  const tint = useThemeColor({}, 'tint');
   const separator = useThemeColor({}, 'separator');
   const [month, setMonth] = useState<Date | null>(null);
 
@@ -48,11 +57,30 @@ export function ConsistencyCard({ summary, streaks, loggedDates, today, onDayPre
         <MonthCalendar
           currentMonth={month ?? parseISO(today)}
           markedDates={loggedDates}
+          trainedDates={trainedDates}
           today={today}
           weekStartsOn={1}
           onDayPress={onDayPress}
           onMonthChange={setMonth}
         />
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View
+              style={[styles.legendDot, { backgroundColor: tint }]}
+              accessible={false}
+              importantForAccessibility="no"
+            />
+            <Text style={[styles.legendText, { color: icon }]}>Logged</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View
+              style={[styles.legendDot, { backgroundColor: text }]}
+              accessible={false}
+              importantForAccessibility="no"
+            />
+            <Text style={[styles.legendText, { color: icon }]}>Trained</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -66,4 +94,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: 12 },
   calendar: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 4, height: 4, borderRadius: 2 },
+  legendText: { fontSize: 12, lineHeight: 17 },
 });
