@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -101,6 +102,8 @@ export default function TrainingScreen() {
         </Pressable>
 
         <WeekSummaryCard week={overview.week} weekLabel={overview.weekLabel} unit={weightUnit} />
+
+        {overview.muscleSets.length > 0 ? <MuscleSetsCard rows={overview.muscleSets} /> : null}
 
         <View style={[styles.section, { backgroundColor: card }]}>
           <View style={styles.sectionHeader}>

@@ -6,7 +6,7 @@
       "ios",
       "android"
     ],
-    "version": "2.0.80",
+    "version": "2.0.81",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",

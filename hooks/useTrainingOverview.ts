@@ -6,9 +6,11 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { getDoneWorkoutsBetween, getRecentDoneWorkouts } from '@/lib/workouts/history';
 import {
   formatWeekRange,
+  setsPerMuscle,
   summarizeWeek,
   summarizeWorkout,
   weekRange,
+  type MuscleSetTotal,
 } from '@/lib/workouts/summary';
 import type { WeekSummary, WorkoutSummary } from '@/lib/types';
 
@@ -18,6 +20,7 @@ export type TrainingOverview = {
   status: 'loading' | 'ready' | 'error';
   week: WeekSummary;
   weekLabel: string;
+  muscleSets: MuscleSetTotal[];
   recent: WorkoutSummary[];
   reload: () => void;
 };
@@ -32,6 +35,7 @@ export function useTrainingOverview(): TrainingOverview {
     status: 'loading',
     week: EMPTY_WEEK,
     weekLabel: formatWeekRange(weekRange(new Date())),
+    muscleSets: [],
     recent: [],
   });
   const requestRef = useRef(0);
@@ -46,6 +50,7 @@ export function useTrainingOverview(): TrainingOverview {
           status: 'ready',
           week: summarizeWeek(weekWorkouts),
           weekLabel: formatWeekRange(range),
+          muscleSets: setsPerMuscle(weekWorkouts),
           recent: recent.map((w) => summarizeWorkout(w, weightUnit)),
         });
       })

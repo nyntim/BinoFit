@@ -1,11 +1,22 @@
 // Pure summaries for the Training tab: week range, per-workout title/subtitle, week totals and
 // month grouping. No I/O; callers pass the dates and workouts in.
 import { addDays, differenceInSeconds, format, parseISO, startOfWeek } from 'date-fns';
-import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
+import {
+  exerciseDisplayName,
+  MUSCLE_REGION,
+  REGIONS,
+  type Region,
+} from '@/lib/workouts/exercise-catalog';
 import { formatShortDate, workoutDisplayName } from '@/lib/workouts/format';
 import { workoutVolumeKg } from '@/lib/workouts/volume';
 import { formatPace, kgToLb, metresToDisplay, pace } from '@/lib/units';
-import type { WeekSummary, WeightUnit, WorkoutSummary, WorkoutWithExercises } from '@/lib/types';
+import type {
+  MuscleGroup,
+  WeekSummary,
+  WeightUnit,
+  WorkoutSummary,
+  WorkoutWithExercises,
+} from '@/lib/types';
 
 export type WeekRange = { start: string; end: string };
 
@@ -142,3 +153,59 @@ export function groupByMonth<T extends { date: string }>(items: T[]): MonthGroup
   }
   return groups;
 }
+
+export type MuscleSetTotal = { region: Exclude<Region, 'All'>; sets: number };
+
+const BODY_REGIONS = REGIONS.filter((r): r is Exclude<Region, 'All'> => r !== 'All');
+
+function regionOf(muscle: string): Exclude<Region, 'All'> | null {
+  return (MUSCLE_REGION as Record<string, Exclude<Region, 'All'> | null | undefined>)[muscle] ?? null;
+}
+
+/**
+ * Working sets per body region across the given done workouts. Each ticked non-warmup set credits
+ * 1 to any region hit by a primary muscle, else 0.5 to any region hit by a secondary muscle.
+ * Regions do not stack within one set. Sorted by sets desc, then `REGIONS` order.
+ */
+export function setsPerMuscle(workouts: WorkoutWithExercises[]): MuscleSetTotal[] {
+  const totals = new Map<Exclude<Region, 'All'>, number>();
+
+  for (const w of workouts) {
+    if (w.status !== 'done' || w.deleted_at) continue;
+    for (const e of w.exercises) {
+      if (!e.exercise || e.deleted_at) continue;
+      const primaryRegions = new Set<Exclude<Region, 'All'>>();
+      for (const m of e.exercise.primary_muscles ?? ([] as MuscleGroup[])) {
+        const region = regionOf(m);
+        if (region) primaryRegions.add(region);
+      }
+      const secondaryRegions = new Set<Exclude<Region, 'All'>>();
+      for (const m of e.exercise.secondary_muscles ?? ([] as MuscleGroup[])) {
+        const region = regionOf(m);
+        if (region && !primaryRegions.has(region)) secondaryRegions.add(region);
+      }
+      if (primaryRegions.size === 0 && secondaryRegions.size === 0) continue;
+
+      for (const s of e.sets) {
+        if (!s.completed_at || s.set_type === 'warmup' || s.deleted_at) continue;
+        for (const region of primaryRegions) {
+          totals.set(region, (totals.get(region) ?? 0) + 1);
+        }
+        for (const region of secondaryRegions) {
+          totals.set(region, (totals.get(region) ?? 0) + 0.5);
+        }
+      }
+    }
+  }
+
+  return BODY_REGIONS.map((region) => ({ region, sets: totals.get(region) ?? 0 }))
+    .filter((row) => row.sets > 0)
+    .sort((a, b) => b.sets - a.sets);
+}
+
+/** Whole numbers without decimals; fractional counts to one decimal place; non-finite/negative -> "0". */
+export function formatMuscleSetCount(sets: number): string {
+  if (!Number.isFinite(sets) || sets <= 0) return '0';
+  return Number.isInteger(sets) ? String(sets) : sets.toFixed(1);
+}
+
