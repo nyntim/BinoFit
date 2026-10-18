@@ -20,7 +20,8 @@ import {
 } from '@/lib/progress';
 import { computeStreaks, type Streaks } from '@/lib/streak';
 import { getUserGoals } from '@/lib/storage';
-import { getLatestWeightEntry } from '@/lib/weight';
+import { getLiveWeightDays } from '@/lib/weight';
+import { trendWeights, weeklyRate, type TrendPoint } from '@/lib/weight-trend';
 import { getDoneWorkoutDates, getDoneWorkoutsBetween } from '@/lib/workouts/history';
 import {
   recentRecords,
@@ -30,7 +31,7 @@ import {
   type TrainingAverages,
   type TrainingBucket,
 } from '@/lib/workouts/progress';
-import type { UserGoals, WorkoutWithExercises } from '@/lib/types';
+import type { UserGoals, WeightEntry, WorkoutWithExercises } from '@/lib/types';
 
 type Loaded = {
   range: ProgressRange;
@@ -39,6 +40,7 @@ type Loaded = {
   daily: DailyTotal[];
   goals: UserGoals | null;
   loggedDates: string[];
+  weightDays: WeightEntry[];
   trainedDates: string[];
   workouts: WorkoutWithExercises[];
   nothingEver: boolean;
@@ -56,6 +58,8 @@ export type ProgressData = {
   unit: BucketUnit;
   goals: UserGoals | null;
   loggedDates: string[];
+  trend: TrendPoint[];
+  weeklyRateKg: number | null;
   trainedDates: string[];
   trainingBounds: Loaded['bounds'];
   trainingUnit: BucketUnit;
@@ -82,11 +86,11 @@ export function useProgress(range: ProgressRange): ProgressData {
           const [loggedDates, goals] = await Promise.all([getAllLoggedDates(today), getUserGoals()]);
           const first = loggedDates.length > 0 ? loggedDates[loggedDates.length - 1] : null;
           const bounds = rangeBounds(range, today, first);
-          const [logs, confirmations] = await Promise.all([
+          const [logs, confirmations, weightDays] = await Promise.all([
             getFoodLogsWithFoodInRange(bounds.start, bounds.end),
             getMealSlotConfirmationsInRange(bounds.start, bounds.end),
+            getLiveWeightDays(),
           ]);
-          const weight = await getLatestWeightEntry();
           let trainedDates: string[] = [];
           let workouts: WorkoutWithExercises[] = [];
           try {
@@ -107,9 +111,10 @@ export function useProgress(range: ProgressRange): ProgressData {
             daily: buildDailyTotals(logs, confirmations, bounds.start, bounds.end),
             goals,
             loggedDates,
+            weightDays,
             trainedDates,
             workouts,
-            nothingEver: loggedDates.length === 0 && !weight && trainedDates.length === 0,
+            nothingEver: loggedDates.length === 0 && weightDays.length === 0 && trainedDates.length === 0,
           });
         } catch {
           if (request !== requestRef.current) return;
@@ -126,6 +131,8 @@ export function useProgress(range: ProgressRange): ProgressData {
     const bounds = data?.bounds ?? { start: today, end: today, days: 1 };
     const daily = data?.daily ?? [];
     const unit = bucketFor(activeRange, bounds.days);
+    const trend = trendWeights(data?.weightDays ?? []);
+    const weeklyRateKg = weeklyRate(trend, today);
     const trainedDates = data?.trainedDates ?? [];
     const allWorkouts = data?.workouts ?? [];
     const firstWorkoutDate = trainedDates.length > 0 ? trainedDates[trainedDates.length - 1] : null;
@@ -145,6 +152,8 @@ export function useProgress(range: ProgressRange): ProgressData {
       unit,
       goals: data?.goals ?? null,
       loggedDates: data?.loggedDates ?? [],
+      trend,
+      weeklyRateKg,
       trainedDates,
       trainingBounds,
       trainingUnit,

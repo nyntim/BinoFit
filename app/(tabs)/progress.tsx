@@ -21,6 +21,7 @@ export default function ProgressScreen() {
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const [range, setRange] = useState<ProgressRange>('7d');
+  const [showWeight, setShowWeight] = useState(false);
   const progress = useProgress(range);
 
   const openDay = (date: string) => router.push({ pathname: '/day-detail', params: { date } });
@@ -52,6 +53,10 @@ export default function ProgressScreen() {
               calorieGoal={calorieGoal}
               rangeStart={progress.bounds.start}
               onOpenDay={openDay}
+              showWeight={showWeight}
+              onToggleWeight={setShowWeight}
+              trend={progress.trend}
+              weeklyRateKg={progress.weeklyRateKg}
             />
             <AveragesCard avg={progress.summary.avg} goals={progress.goals} />
             <WeightCard range={range} today={progress.today} />
