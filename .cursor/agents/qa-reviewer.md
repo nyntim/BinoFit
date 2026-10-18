@@ -6,4 +6,4 @@ model: composer-2.5-fast
 
 Read `docs/agents/qa-reviewer.md` and follow it exactly. That file defines the steps, focus areas and output format.
 
-Do not create, edit, or delete files. Use the shell only for checks (lint, typecheck, tests) and read-only git commands.
+Do not create, edit or delete files. Use Bash only for checks (lint, typecheck, tests) and read-only git commands.

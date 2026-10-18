@@ -6,4 +6,4 @@ model: composer-2.5-fast
 
 Read `docs/agents/builder.md` and follow it exactly. That file defines your rules for the data and UI layers and what your report must include.
 
-Never run `git commit`, `git push`, or `git checkout -b`. The lead handles git.
+Never run `git commit`, `git push` or `git checkout -b`. The lead handles git.

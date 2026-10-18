@@ -92,7 +92,7 @@ scripts/agents/ship.sh land <slug>     # re-bump version, lint + tsc + tests, fa
 | `package.json` dependencies | Keep both sides' entries. |
 | Migrations in `lib/database.ts` (`ALTER TABLE … ADD COLUMN`) and `supabase/schema.sql` | Keep both sides' lines. They're idempotent and order-independent. |
 | `lib/types.ts`, imports, lists of exports | Keep both sides. |
-| The same function or component changed by both | In Claude Code, combine both intents, using both approved plans as the spec. In Cursor, send both sides and both plans to `planner` and apply its resolution. If they can't both hold, stop and ask the user. |
+| The same function or component changed by both | Combine both intents, using both approved plans as the spec. If they can't both hold, stop and ask the user. |
 | Anything in sync, schema, migrations or tombstones beyond the line-level cases above | Don't resolve it yourself: send both sides and both plans to `planner` and apply its resolution (see [Keeping the lead cheap](README.md#keeping-the-lead-cheap)). |
 
 If `land` reports failing checks, send the failures to that team's **builder** (same worktree), then `git -C <path> add -A && git -C <path> commit --amend --no-edit` and run `land` again. Two failed attempts: stop landing that task and report it.
@@ -118,5 +118,6 @@ The steps above need two abilities: running a shell, and running a role as a sep
 
 - **Claude Code**: `/ship <tasks>`. Roles are subagents in `.claude/agents/`, run in the background so teams proceed in parallel. Subagents can't start their own subagents, so the lead runs each team's steps itself.
 - **Cursor**: follow [cursor.md](cursor.md) and `.cursor/skills/ship`. Roles are the Task subagents in `.cursor/agents/`. The lead runs each team's steps itself, in the background, and `scripts/agents/ship.sh` owns the worktrees.
-- **Other tools with sub-agents** (for example Codex or Gemini CLI): ask the main session to "follow `docs/agents/ship.md` as the lead for these tasks: …". Give each role its file from this folder plus the workspace sentence from step 4.
+- **Codex**: invoke `$ship <tasks>` using `.agents/skills/ship`. Follow [codex.md](codex.md): Astra planners, Sol builders and reviewers, explicit workspace paths and the same shared script.
+- **Other tools with sub-agents** (for example Gemini CLI): ask the main session to "follow `docs/agents/ship.md` as the lead for these tasks: …". Give each role its file from this folder plus the workspace sentence from step 4.
 - **Tools without sub-agents**: the lead still plans, starts the worktrees and lands. Run each team as its own session opened in `.worktrees/<slug>`, told to act as each role in turn for that one task. Tell the lead when a team is done.

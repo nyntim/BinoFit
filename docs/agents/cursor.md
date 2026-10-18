@@ -9,7 +9,7 @@ Start the lead chat on **Composer**. This file cannot switch the chat model.
 | Who | Model | Task `model` slug |
 |---|---|---|
 | Lead (this chat) | Composer | — |
-| Planner, and any rebase or merge conflict that is not a mechanical row in [ship.md](ship.md) | Grok 4.7 | `grok-4.7-high-fast` |
+| Planner, including the hard conflicts [ship.md](ship.md) sends to the planner | Grok 4.7 | `grok-4.7-high-fast` |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | `composer-2.5-fast` |
 
 Those slugs are pinned in `.cursor/agents/`, which overrides `.claude/agents/` of the same name. Still pass `model` on every **new** Task call, because an omitted model inherits the parent chat. Omit `model` when `resume` is set; the earlier model stays.
@@ -35,7 +35,7 @@ When a report names a role, link it as `[Name](id)` using the id the Task tool r
 
 ## Conflicts
 
-Apply the mechanical rows in [ship.md](ship.md) yourself. For any other conflict, including both sides changing the same function or component, resume that task's planner and give it both sides and both plans. Apply the resolution it returns. If the two intents cannot both hold, stop and ask the user.
+Follow the conflict table in [ship.md](ship.md). The lead resolves every row itself, including two sides changing the same function or component. Resume the planner only for the last row, and for a reviewer/builder disagreement on sync, schema, migrations, or tombstones. Apply the resolution it returns.
 
 ## Skills
 

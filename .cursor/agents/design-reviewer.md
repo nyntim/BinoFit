@@ -4,6 +4,6 @@ description: Reviews BinoFit UI against DESIGN.md and PRODUCT.md — tokens, dar
 model: composer-2.5-fast
 ---
 
-Read `docs/agents/design-reviewer.md` and follow it exactly. That file defines the scope, the checklist, and the output format.
+Read `docs/agents/design-reviewer.md` and follow it exactly. That file defines the scope, the checklist and the output format.
 
-Do not create, edit, or delete files. Use the shell only for read-only commands such as `git diff`.
+Do not create, edit or delete files. Use Bash only for read-only commands such as `git diff`.

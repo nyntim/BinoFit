@@ -29,23 +29,25 @@ You ──request──▶ Lead
 
 ## Models
 
-The roles are the same in both tools. The model depends on the tool.
+The roles are the same in all tools. The model depends on the tool.
 
 **Claude Code.** Start a build session with `/model sonnet` and `/effort medium`. Skills can't set the lead's effort, and their `model` may not hold after a stop.
 
 | Who | Model | Why |
 |---|---|---|
 | Lead (`/build-feature`, `/ship`) | Sonnet | Mostly coordination: spawning, relaying, running scripts |
-| Planner, and hard conflicts | Opus | A bad plan or a bad merge costs more than Opus |
+| Planner | Opus | Runs once per feature; a bad plan costs more in rebuilds than Opus costs |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Sonnet | Follow a plan or a checklist |
 
-**Cursor.** Start the lead chat on Composer. The slugs and launch rules are in [cursor.md](cursor.md).
+**Cursor.** Start the lead chat on Composer. The slugs and launch rules are in [cursor.md](cursor.md). The jobs are the same; only the model names change.
 
 | Who | Model | Why |
 |---|---|---|
-| Lead | Composer | Coordination: spawning, relaying, running scripts |
-| Planner, and any conflict that is not a mechanical row | Grok 4.7 | A bad plan or a bad merge costs more than the stronger model |
+| Lead | Composer | Mostly coordination: spawning, relaying, running scripts |
+| Planner | Grok 4.7 | Runs once per feature; a bad plan costs more in rebuilds than the stronger model costs |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | Follow a plan or a checklist |
+
+**Codex.** Use Sol (`gpt-6-sol`) for the lead and all execution/review roles, and Astra (`gpt-6-astra`) for the planner and hard conflict resolution. Follow [codex.md](codex.md); roles are in `.codex/agents/`, and all five skills are in `.agents/skills/`.
 
 ## Keeping the lead cheap
 
@@ -56,7 +58,7 @@ The lead's cost is mostly re-reading its own context on every turn, so keep that
 - Don't read source files, diffs or full command output yourself. The roles do that and report back. Pipe long commands through `tail` or into a log, and look at the log only on failure.
 - Pass findings to roles by quoting only what that role needs (only the blocking findings).
 - Continue a role for fixes instead of spawning a fresh one (`SendMessage` in Claude Code, Task `resume` in Cursor).
-- **Escalate instead of guessing.** If a rebase conflict, or a disagreement between a reviewer and the builder, touches sync, schema, migrations or tombstones (`lib/sync.ts`, `lib/database.ts`, `lib/tombstones.ts`, `supabase/schema.sql`, `lib/workouts/`), send it to `planner` with both sides and apply the resolution it proposes. In Cursor, any conflict that is not a mechanical row in [ship.md](ship.md) goes to that planner too.
+- **Escalate instead of guessing.** If a rebase conflict, or a disagreement between a reviewer and the builder, touches sync, schema, migrations or tombstones (`lib/sync.ts`, `lib/database.ts`, `lib/tombstones.ts`, `supabase/schema.sql`, `lib/workouts/`), send it to `planner` with both sides and apply the resolution it proposes. That planner is Opus in Claude Code and Grok 4.7 in Cursor.
 - A long session is fine. Short reports and few turns are what keep each turn cheap.
 
 To build **several features in parallel**, follow [ship.md](ship.md): one approval for all the plans, a git worktree and team per feature, then each lands on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh`.
@@ -70,7 +72,8 @@ Standalone audits change no code. They each return a ranked list of findings:
 
 - **Claude Code** runs this workflow automatically. The agents in `.claude/agents/` wrap these role files, and the commands are `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
 - **Cursor** uses `.cursor/agents/` (same role names, Cursor models) and the skills in `.cursor/skills/`. Follow [cursor.md](cursor.md).
-- **Other tools** (Codex, Copilot and so on) read `AGENTS.md` at the repo root, which points here. Ask for a role by name, for example: "Act as the QA reviewer in `docs/agents/qa-reviewer.md` and review my diff."
+- **Codex** uses `.codex/agents/` and `.agents/skills/`. Follow [codex.md](codex.md); invoke `$build-feature`, `$ship`, `$design-audit`, `$bug-sweep` or `$test-backfill`.
+- **Other tools** (Copilot and so on) read `AGENTS.md` at the repo root, which points here. Ask for a role by name, for example: "Act as the QA reviewer in `docs/agents/qa-reviewer.md` and review my diff."
 
 ## Rules for every role
 - Only the lead (the main session, or you) commits, pushes or creates branches.
