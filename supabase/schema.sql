@@ -225,6 +225,31 @@ create table if not exists public.workout_sets (
 );
 create index if not exists idx_workout_sets_user on public.workout_sets (user_id);
 
+create table if not exists public.routines (
+  id         text primary key,
+  user_id    text not null,
+  name       text not null,
+  position   integer not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+create index if not exists idx_routines_user on public.routines (user_id);
+
+create table if not exists public.routine_exercises (
+  id           text primary key,
+  user_id      text not null,
+  routine_id   text not null,
+  exercise_id  text not null,
+  position     integer not null,
+  set_count    integer not null,
+  rest_seconds integer,
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now(),
+  deleted_at   timestamptz
+);
+create index if not exists idx_routine_exercises_user on public.routine_exercises (user_id);
+
 -- ═════════════════════════════════════════════════════════
 -- STEP A: run now. New tables and functions; open policies are kept so older app builds
 -- keep syncing.
@@ -263,6 +288,8 @@ alter table public.exercises         enable row level security;
 alter table public.workouts          enable row level security;
 alter table public.workout_exercises enable row level security;
 alter table public.workout_sets      enable row level security;
+alter table public.routines          enable row level security;
+alter table public.routine_exercises enable row level security;
 
 -- Moves every row owned by p_from to p_to. Where both own the same key, p_to ("existing")
 -- wins and p_from's row is dropped. Internal: not callable by clients.
@@ -315,6 +342,8 @@ begin
   update public.workouts          set user_id = p_to where user_id = p_from;
   update public.workout_exercises set user_id = p_to where user_id = p_from;
   update public.workout_sets      set user_id = p_to where user_id = p_from;
+  update public.routines          set user_id = p_to where user_id = p_from;
+  update public.routine_exercises set user_id = p_to where user_id = p_from;
 end;
 $$;
 revoke all on function public._merge_user_rows(text, text) from public, anon, authenticated;
@@ -503,6 +532,18 @@ create policy "workout_sets: own rows"
   using (user_id = (select auth.uid())::text)
   with check (user_id = (select auth.uid())::text);
 
+drop policy if exists "routines: own rows" on public.routines;
+create policy "routines: own rows"
+  on public.routines for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "routine_exercises: own rows" on public.routine_exercises;
+create policy "routine_exercises: own rows"
+  on public.routine_exercises for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
 -- ═════════════════════════════════════════════════════════
 -- STEP B: applied to production 2026-10-17 (migration account_support_step_b).
 -- On a fresh project, run it after all your devices run the build with account support.
@@ -566,6 +607,18 @@ create policy "meal_definitions: own rows"
 drop policy if exists "meal_names: own rows" on public.meal_names;
 create policy "meal_names: own rows"
   on public.meal_names for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "routines: own rows" on public.routines;
+create policy "routines: own rows"
+  on public.routines for all to authenticated
+  using (user_id = (select auth.uid())::text)
+  with check (user_id = (select auth.uid())::text);
+
+drop policy if exists "routine_exercises: own rows" on public.routine_exercises;
+create policy "routine_exercises: own rows"
+  on public.routine_exercises for all to authenticated
   using (user_id = (select auth.uid())::text)
   with check (user_id = (select auth.uid())::text);
 */

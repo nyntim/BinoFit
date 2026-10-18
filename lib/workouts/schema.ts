@@ -84,6 +84,29 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
       deleted_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS routines (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT,
+      deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS routine_exercises (
+      id TEXT PRIMARY KEY,
+      routine_id TEXT NOT NULL,
+      exercise_id TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      set_count INTEGER NOT NULL,
+      rest_seconds INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT,
+      deleted_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_exercises_name ON exercises(name);
     CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(date);
     CREATE INDEX IF NOT EXISTS idx_workouts_status_started ON workouts(status, started_at);
@@ -93,6 +116,8 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
     CREATE INDEX IF NOT EXISTS idx_workout_exercises_exercise ON workout_exercises(exercise_id);
     CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(workout_exercise_id, position);
     CREATE INDEX IF NOT EXISTS idx_workout_sets_workout ON workout_sets(workout_id);
+    CREATE INDEX IF NOT EXISTS idx_routines_position ON routines(position);
+    CREATE INDEX IF NOT EXISTS idx_routine_exercises_routine ON routine_exercises(routine_id, position);
   `);
   await seedExercises(db);
 }

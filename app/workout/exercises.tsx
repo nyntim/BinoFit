@@ -7,7 +7,9 @@ import { ChipToggle } from '@/components/workouts/ChipToggle';
 import { ExerciseRow } from '@/components/workouts/ExerciseRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
+import { syncToSupabase } from '@/lib/sync';
 import { addExerciseToWorkout } from '@/lib/workouts/previous';
+import { addExerciseToRoutine } from '@/lib/workouts/routines';
 import {
   EQUIPMENT_LABELS,
   REGIONS,
@@ -20,9 +22,10 @@ import {
 import type { Exercise } from '@/lib/types';
 
 export default function ExerciseLibraryScreen() {
-  const params = useLocalSearchParams<{ pick?: string; workoutId?: string }>();
+  const params = useLocalSearchParams<{ pick?: string; workoutId?: string; routineId?: string }>();
   const workoutId = typeof params.workoutId === 'string' && params.workoutId ? params.workoutId : undefined;
-  const pick = !!params.pick && !!workoutId;
+  const routineId = typeof params.routineId === 'string' && params.routineId ? params.routineId : undefined;
+  const pick = !!params.pick && (!!workoutId || !!routineId);
 
   const { exercises, status, reload } = useExercises();
   const [query, setQuery] = useState('');
@@ -44,11 +47,25 @@ export default function ExerciseLibraryScreen() {
   const openBuilder = (name?: string) => {
     const p: Record<string, string> = {};
     if (name) p.name = name;
-    if (pick && workoutId) p.workoutId = workoutId;
+    if (pick && routineId) p.routineId = routineId;
+    else if (pick && workoutId) p.workoutId = workoutId;
     router.push({ pathname: '/workout/new-exercise', params: p });
   };
 
   const onPressExercise = async (e: Exercise) => {
+    if (pick && routineId) {
+      if (adding) return;
+      setAdding(true);
+      try {
+        await addExerciseToRoutine(routineId, e.id);
+        syncToSupabase();
+        router.back();
+      } catch {
+        setAdding(false);
+        Alert.alert('Couldn’t add the exercise', 'Try again.');
+      }
+      return;
+    }
     if (pick && workoutId) {
       if (adding) return;
       setAdding(true);

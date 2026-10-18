@@ -9,6 +9,8 @@ const TOMBSTONE_TABLES = [
   'workouts',
   'workout_exercises',
   'workout_sets',
+  'routines',
+  'routine_exercises',
 ] as const;
 export type TombstoneTable = (typeof TOMBSTONE_TABLES)[number];
 

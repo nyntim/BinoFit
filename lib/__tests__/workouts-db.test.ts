@@ -45,13 +45,21 @@ describe('workout schema', () => {
       .run();
     // Simulate a database created before the workout tables existed.
     mem.raw.exec(
-      'DROP TABLE workout_sets; DROP TABLE workout_exercises; DROP TABLE workouts; DROP TABLE exercises; DROP TABLE app_meta;'
+      'DROP TABLE routine_exercises; DROP TABLE routines; DROP TABLE workout_sets; DROP TABLE workout_exercises; DROP TABLE workouts; DROP TABLE exercises; DROP TABLE app_meta;'
     );
     load();
     await database.getDatabase();
     const tables = (mem.raw.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[]).map((r) => r.name);
     expect(tables).toEqual(
-      expect.arrayContaining(['app_meta', 'exercises', 'workouts', 'workout_exercises', 'workout_sets'])
+      expect.arrayContaining([
+        'app_meta',
+        'exercises',
+        'workouts',
+        'workout_exercises',
+        'workout_sets',
+        'routines',
+        'routine_exercises',
+      ])
     );
     expect(count('foods', "id = 'f1'")).toBe(1);
   });
@@ -65,7 +73,14 @@ describe('workout schema', () => {
   });
 
   it('every workout table has the sync columns', () => {
-    for (const t of ['exercises', 'workouts', 'workout_exercises', 'workout_sets']) {
+    for (const t of [
+      'exercises',
+      'workouts',
+      'workout_exercises',
+      'workout_sets',
+      'routines',
+      'routine_exercises',
+    ]) {
       const cols = (mem.raw.prepare(`PRAGMA table_info(${t})`).all() as any[]).map((c) => c.name);
       expect(cols).toEqual(expect.arrayContaining(['created_at', 'updated_at', 'synced_at', 'deleted_at']));
     }
@@ -348,26 +363,62 @@ describe('purgeSyncedExerciseTombstones', () => {
 });
 
 describe('wipe', () => {
-  it('clearUserData keeps seed exercises and removes custom exercises and all workouts', async () => {
+  it('clearUserData keeps seed exercises and removes custom exercises, workouts and routines', async () => {
     insertExercise('seed1', 'seed');
     insertExercise('ex1', 'custom');
     await tree('done');
     await tree('draft');
+    mem.raw
+      .prepare("INSERT INTO routines (id,name,position,created_at,updated_at) VALUES ('r1','R',0,?,?)")
+      .run(T, T);
+    mem.raw
+      .prepare(
+        "INSERT INTO routine_exercises (id,routine_id,exercise_id,position,set_count,rest_seconds,created_at,updated_at) VALUES ('re1','r1','ex1',0,2,90,?,?)"
+      )
+      .run(T, T);
     await database.clearUserData();
     expect(count('exercises', "source = 'custom'")).toBe(0);
     expect(count('exercises', "source = 'seed'")).toBe(47);
     expect(rowOf('exercises', 'seed1')).toBeDefined();
-    expect(count('workouts') + count('workout_exercises') + count('workout_sets')).toBe(0);
+    expect(
+      count('workouts') +
+        count('workout_exercises') +
+        count('workout_sets') +
+        count('routines') +
+        count('routine_exercises')
+    ).toBe(0);
   });
 
-  it('markAllUnsynced clears synced_at on all four workout tables', async () => {
+  it('markAllUnsynced clears synced_at on workout and routine tables', async () => {
     insertExercise('ex1');
     const { workout, link, set } = await tree('done');
-    for (const [t, id] of [['exercises', 'ex1'], ['workouts', workout.id], ['workout_exercises', link.id], ['workout_sets', set.id]]) {
+    mem.raw
+      .prepare("INSERT INTO routines (id,name,position,created_at,updated_at) VALUES ('r1','R',0,?,?)")
+      .run(T, T);
+    mem.raw
+      .prepare(
+        "INSERT INTO routine_exercises (id,routine_id,exercise_id,position,set_count,rest_seconds,created_at,updated_at) VALUES ('re1','r1','ex1',0,2,90,?,?)"
+      )
+      .run(T, T);
+    for (const [t, id] of [
+      ['exercises', 'ex1'],
+      ['workouts', workout.id],
+      ['workout_exercises', link.id],
+      ['workout_sets', set.id],
+      ['routines', 'r1'],
+      ['routine_exercises', 're1'],
+    ]) {
       mem.raw.prepare(`UPDATE ${t} SET synced_at = ? WHERE id = ?`).run(T, id);
     }
     await database.markAllUnsynced();
-    for (const t of ['exercises', 'workouts', 'workout_exercises', 'workout_sets']) {
+    for (const t of [
+      'exercises',
+      'workouts',
+      'workout_exercises',
+      'workout_sets',
+      'routines',
+      'routine_exercises',
+    ]) {
       expect(count(t, 'synced_at IS NOT NULL')).toBe(0);
     }
   });

@@ -1,13 +1,21 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useRoutines } from '@/hooks/useRoutines';
 import { useTrainingOverview } from '@/hooks/useTrainingOverview';
+import { syncToSupabase } from '@/lib/sync';
+import { routineDisplayName, routineSubtitle } from '@/lib/workouts/routine-plan';
+import { createRoutine, reorderRoutines } from '@/lib/workouts/routines';
+
+const ROUTINE_ROW_HEIGHT = 56;
 
 export default function TrainingScreen() {
   const background = useThemeColor({}, 'background');
@@ -20,6 +28,43 @@ export default function TrainingScreen() {
   const { weightUnit } = usePreferences();
   const { workout: active, loaded: activeLoaded } = useActiveWorkout();
   const overview = useTrainingOverview();
+  const routines = useRoutines();
+  const [reordering, setReordering] = useState(false);
+  const [scrollLocked, setScrollLocked] = useState(false);
+  const [creatingRoutine, setCreatingRoutine] = useState(false);
+
+  const isReordering = reordering && routines.routines.length >= 2;
+
+  const onNewRoutine = async () => {
+    if (creatingRoutine) return;
+    setCreatingRoutine(true);
+    try {
+      const created = await createRoutine('Routine');
+      syncToSupabase();
+      router.push({ pathname: '/workout/routine', params: { id: created.id } });
+    } catch {
+      Alert.alert('Couldn’t create the routine.', 'Try again.');
+    } finally {
+      setCreatingRoutine(false);
+    }
+  };
+
+  const onReorderRoutines = async (orderedIds: string[]) => {
+    const byId = new Map(routines.routines.map((r) => [r.id, r]));
+    const next = orderedIds
+      .map((id, index) => {
+        const found = byId.get(id);
+        return found ? { ...found, position: index } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    routines.setRoutines(next);
+    try {
+      await reorderRoutines(orderedIds);
+      syncToSupabase();
+    } catch {
+      routines.reload();
+    }
+  };
 
   const link = (label: string, path: '/workout/exercises' | '/workout/log', last?: boolean) => (
     <Pressable
@@ -39,7 +84,7 @@ export default function TrainingScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: text }]} accessibilityRole="header">
           Training
         </Text>
@@ -100,6 +145,123 @@ export default function TrainingScreen() {
           )}
         </View>
 
+        <View style={[styles.section, { backgroundColor: card }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: text }]} accessibilityRole="header">
+              Routines
+            </Text>
+            <View style={styles.headerActions}>
+              {routines.routines.length >= 2 ? (
+                <Pressable
+                  onPress={() => setReordering((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isReordering ? 'Done' : 'Reorder'}
+                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                  style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.sectionLink, { color: tint }]}>
+                    {isReordering ? 'Done' : 'Reorder'}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={() => void onNewRoutine()}
+                disabled={creatingRoutine}
+                accessibilityRole="button"
+                accessibilityLabel="New routine"
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
+              >
+                <Text style={[styles.sectionLink, { color: tint }]}>New routine</Text>
+              </Pressable>
+            </View>
+          </View>
+          {routines.routines.length > 0 ? (
+            isReordering ? (
+              <ReorderableList
+                items={routines.routines.map((r) => ({ ...r, label: routineDisplayName(r) }))}
+                itemHeight={ROUTINE_ROW_HEIGHT}
+                gap={0}
+                iconColor={muted}
+                onReorder={(ids) => void onReorderRoutines(ids)}
+                onDragActiveChange={setScrollLocked}
+                renderItem={(r, handle) => (
+                  <View
+                    style={[
+                      styles.routineRow,
+                      styles.routineReorderRow,
+                      { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separator },
+                    ]}
+                  >
+                    {handle}
+                    <View style={styles.routineMain}>
+                      <Text style={[styles.routineTitle, { color: text }]} numberOfLines={1}>
+                        {routineDisplayName(r)}
+                      </Text>
+                      <Text style={[styles.routineSubtitle, { color: muted }]} numberOfLines={1}>
+                        {routineSubtitle(r)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              />
+            ) : (
+              routines.routines.map((r, i) => {
+                const title = routineDisplayName(r);
+                const subtitle = routineSubtitle(r);
+                const last = i === routines.routines.length - 1;
+                return (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => router.push({ pathname: '/workout/routine', params: { id: r.id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${title}. ${subtitle}`}
+                    style={({ pressed }) => [
+                      styles.routineRow,
+                      pressed && styles.pressed,
+                      !last && {
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: separator,
+                      },
+                    ]}
+                  >
+                    <View style={styles.routineMain}>
+                      <Text style={[styles.routineTitle, { color: text }]} numberOfLines={1}>
+                        {title}
+                      </Text>
+                      <Text style={[styles.routineSubtitle, { color: muted }]} numberOfLines={1}>
+                        {subtitle}
+                      </Text>
+                    </View>
+                    <IconSymbol name="chevron.right" size={16} color={muted} />
+                  </Pressable>
+                );
+              })
+            )
+          ) : routines.status === 'error' ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyTitle, { color: text }]}>Couldn’t load routines.</Text>
+              <Pressable
+                onPress={routines.reload}
+                accessibilityRole="button"
+                accessibilityLabel="Retry"
+                style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
+              >
+                <Text style={[styles.sectionLink, { color: tint }]}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : routines.status === 'ready' ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyTitle, { color: text }]}>No routines yet.</Text>
+              <Text style={[styles.emptyBody, { color: muted }]}>
+                Save a workout, or create one.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.empty} />
+          )}
+        </View>
+
         <View style={[styles.links, { backgroundColor: card }]}>
           {link('Exercises', '/workout/exercises')}
           {link('Log past workout', '/workout/log', true)}
@@ -134,4 +296,20 @@ const styles = StyleSheet.create({
   links: { borderRadius: 18, paddingHorizontal: 20 },
   link: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   linkLabel: { fontSize: 15 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  headerAction: { minHeight: 44, justifyContent: 'center' },
+  routineRow: {
+    minHeight: 44,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  routineReorderRow: {
+    height: ROUTINE_ROW_HEIGHT,
+    paddingVertical: 0,
+  },
+  routineMain: { flex: 1, minWidth: 0, gap: 2 },
+  routineTitle: { fontSize: 15 },
+  routineSubtitle: { fontSize: 12 },
 });

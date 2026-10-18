@@ -105,6 +105,7 @@ export default function RootLayout() {
           <Stack.Screen name="workout/log" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="workout/[id]" options={{ presentation: 'card', headerShown: false }} />
           <Stack.Screen name="workout/history" options={{ presentation: 'card', headerShown: false }} />
+          <Stack.Screen name="workout/routine" options={{ presentation: 'card', headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

@@ -18,6 +18,7 @@ import {
 import { markRowsSynced, purgeSyncedTombstones } from '@/lib/tombstones';
 import { getUnsyncedWeightEntries } from '@/lib/weight';
 import { getUnsyncedWorkoutTree, purgeSyncedExerciseTombstones } from '@/lib/workouts/db';
+import { getUnsyncedRoutineExercises, getUnsyncedRoutines } from '@/lib/workouts/routines';
 import { reportSyncStart, reportSyncResult } from '@/lib/sync-status';
 
 let _current: Promise<void> | null = null;
@@ -79,6 +80,7 @@ async function runPass(): Promise<void> {
     syncMealNames(userId),
     syncWeightEntries(userId),
     syncWorkoutTree(userId),
+    syncRoutines(userId),
   ]);
   const ok = results.every((r) => r.status === 'fulfilled');
   reportSyncResult(ok);
@@ -349,3 +351,46 @@ async function syncWeightEntries(userId: string): Promise<void> {
   );
   await purgeSyncedTombstones('weight_entries');
 }
+
+async function syncRoutines(userId: string): Promise<void> {
+  const routines = await getUnsyncedRoutines();
+  const routineExercises = await getUnsyncedRoutineExercises();
+
+  if (routines.length > 0) {
+    await upsertChunked(
+      'routines',
+      routines.map((r) => ({
+        id: r.id,
+        user_id: userId,
+        name: r.name,
+        position: r.position,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        deleted_at: r.deleted_at ?? null,
+      }))
+    );
+    await markRowsSynced('routines', routines);
+    await purgeSyncedTombstones('routines');
+  }
+
+  if (routineExercises.length > 0) {
+    await upsertChunked(
+      'routine_exercises',
+      routineExercises.map((c) => ({
+        id: c.id,
+        user_id: userId,
+        routine_id: c.routine_id,
+        exercise_id: c.exercise_id,
+        position: c.position,
+        set_count: c.set_count,
+        rest_seconds: c.rest_seconds,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+        deleted_at: c.deleted_at ?? null,
+      }))
+    );
+    await markRowsSynced('routine_exercises', routineExercises);
+    await purgeSyncedTombstones('routine_exercises');
+  }
+}
+

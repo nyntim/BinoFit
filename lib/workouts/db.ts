@@ -72,6 +72,7 @@ export type NewWorkoutInput = {
   ended_at?: string | null;
   duration_seconds?: number | null;
   notes?: string | null;
+  routine_id?: string | null;
 };
 
 export type WorkoutPatch = Partial<
@@ -80,6 +81,35 @@ export type WorkoutPatch = Partial<
     'status' | 'source' | 'name' | 'date' | 'started_at' | 'ended_at' | 'duration_seconds' | 'notes'
   >
 >;
+
+/** Inserts a prepared workout row. Use the `txn` of a transaction to insert several rows together. */
+export async function insertWorkout(db: SQLite.SQLiteDatabase, workout: Workout): Promise<void> {
+  try {
+    await db.runAsync(
+      `INSERT INTO workouts
+         (id, status, source, name, date, started_at, ended_at, duration_seconds, notes, routine_id,
+          created_at, updated_at, synced_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+      [
+        workout.id,
+        workout.status,
+        workout.source,
+        workout.name,
+        workout.date,
+        workout.started_at,
+        workout.ended_at,
+        workout.duration_seconds,
+        workout.notes,
+        workout.routine_id,
+        workout.created_at,
+        workout.updated_at,
+      ]
+    );
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new ActiveWorkoutExistsError();
+    throw e;
+  }
+}
 
 export async function createWorkout(input: NewWorkoutInput): Promise<Workout> {
   const db = await getDatabase();
@@ -94,37 +124,14 @@ export async function createWorkout(input: NewWorkoutInput): Promise<Workout> {
     ended_at: input.ended_at ?? null,
     duration_seconds: input.duration_seconds ?? null,
     notes: input.notes ?? null,
-    routine_id: null,
+    routine_id: input.routine_id ?? null,
     created_at: now,
     updated_at: now,
     synced_at: null,
     deleted_at: null,
   };
   if (workout.status === 'active' && (await getActiveWorkout())) throw new ActiveWorkoutExistsError();
-  try {
-    await db.runAsync(
-      `INSERT INTO workouts
-         (id, status, source, name, date, started_at, ended_at, duration_seconds, notes, routine_id,
-          created_at, updated_at, synced_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, NULL)`,
-      [
-        workout.id,
-        workout.status,
-        workout.source,
-        workout.name,
-        workout.date,
-        workout.started_at,
-        workout.ended_at,
-        workout.duration_seconds,
-        workout.notes,
-        now,
-        now,
-      ]
-    );
-  } catch (e) {
-    if (isUniqueViolation(e)) throw new ActiveWorkoutExistsError();
-    throw e;
-  }
+  await insertWorkout(db, workout);
   return workout;
 }
 
@@ -593,14 +600,15 @@ export async function getUnsyncedWorkoutTree(): Promise<UnsyncedWorkoutTree> {
 }
 
 /**
- * Removes pushed exercise tombstones that no workout exercise references. Referenced ones stay so
- * past workouts keep the deleted exercise's name.
+ * Removes pushed exercise tombstones that no workout or routine exercise references. Referenced
+ * ones stay so past workouts and routines keep the deleted exercise's name.
  */
 export async function purgeSyncedExerciseTombstones(): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `DELETE FROM exercises
       WHERE deleted_at IS NOT NULL AND synced_at IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM workout_exercises we WHERE we.exercise_id = exercises.id)`
+        AND NOT EXISTS (SELECT 1 FROM workout_exercises we WHERE we.exercise_id = exercises.id)
+        AND NOT EXISTS (SELECT 1 FROM routine_exercises re WHERE re.exercise_id = exercises.id)`
   );
 }

@@ -62,14 +62,17 @@ import {
 } from '@/lib/workouts/exercises';
 import { SEED_EXERCISES } from '@/lib/workouts/exercise-seed';
 import { workoutDisplayName } from '@/lib/workouts/format';
+import { routineDisplayName } from '@/lib/workouts/routine-plan';
+import { addExerciseToRoutine, getRoutine } from '@/lib/workouts/routines';
 import type { Exercise } from '@/lib/types';
 
 type Saved = { name: string; summary: string; notes: string; addedTo: string | null };
 
 export default function NewExerciseScreen() {
-  const params = useLocalSearchParams<{ id?: string; name?: string; workoutId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; name?: string; workoutId?: string; routineId?: string }>();
   const editId = typeof params.id === 'string' && params.id ? params.id : undefined;
   const workoutId = typeof params.workoutId === 'string' && params.workoutId ? params.workoutId : undefined;
+  const routineId = typeof params.routineId === 'string' && params.routineId ? params.routineId : undefined;
   const prefillName = typeof params.name === 'string' ? params.name : '';
 
   const { weightUnit } = usePreferences();
@@ -178,7 +181,16 @@ export default function NewExerciseScreen() {
       }
       let addedTo: string | null = null;
       let addFailed = false;
-      if (workoutId && !editing) {
+      if (routineId && !editing) {
+        try {
+          const routine = await getRoutine(routineId);
+          if (!routine) throw new Error('Routine not found');
+          await addExerciseToRoutine(routineId, exercise.id);
+          addedTo = routineDisplayName(routine);
+        } catch {
+          addFailed = true;
+        }
+      } else if (workoutId && !editing) {
         try {
           const workout = await getWorkout(workoutId);
           if (!workout) throw new Error('Workout not found');
@@ -190,7 +202,12 @@ export default function NewExerciseScreen() {
       }
       syncToSupabase();
       if (addFailed) {
-        Alert.alert('Saved, but not added', 'The exercise is in your exercises, but it couldn’t be added to the workout.');
+        Alert.alert(
+          'Saved, but not added',
+          routineId
+            ? 'The exercise is in your exercises, but it couldn’t be added to the routine.'
+            : 'The exercise is in your exercises, but it couldn’t be added to the workout.'
+        );
       }
       bypass.current = true;
       setSaved({
@@ -237,7 +254,7 @@ export default function NewExerciseScreen() {
   };
 
   const onDone = () => {
-    if (workoutId && !editing) router.dismiss(2);
+    if ((workoutId || routineId) && !editing) router.dismiss(2);
     else router.back();
   };
 

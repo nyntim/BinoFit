@@ -112,7 +112,7 @@ describe('pure helpers', () => {
     expect(describeProgress({ stage: 'logs', fetched: 12 })).toBe('Restoring 12 entries…');
     expect(describeProgress({ stage: 'foods', done: 1, total: 4 })).toBe('Looking up foods 1 of 4…');
     expect(describeProgress({ stage: 'saving' })).toBe('Saving to this device…');
-    const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0, workoutsRestored: 0 };
+    const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0, workoutsRestored: 0, routinesRestored: 0 };
     expect(describeRestore(base)).toBe('No saved data found for this account.');
     expect(describeRestore({ ...base, logsRestored: 1 })).toBe('Restored 1 entry.');
     expect(describeRestore({ ...base, goalsRestored: true })).toBe('Restored your settings.');
@@ -121,7 +121,7 @@ describe('pure helpers', () => {
 });
 
 describe('hasRestoredData', () => {
-  const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0, workoutsRestored: 0 };
+  const base = { logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: false, weightEntriesRestored: 0, workoutsRestored: 0, routinesRestored: 0 };
   it.each([
     [{}, false],
     [{ mealsRestored: true }, false],
@@ -130,6 +130,7 @@ describe('hasRestoredData', () => {
     [{ goalsRestored: true, logsRestored: 3 }, true],
     [{ weightEntriesRestored: 1 }, true],
     [{ workoutsRestored: 1 }, true],
+    [{ routinesRestored: 1 }, true],
   ])('%j -> %s', (over, expected) => {
     expect(hasRestoredData({ ...base, ...over })).toBe(expected);
   });

@@ -917,6 +917,8 @@ export async function clearUserData(): Promise<void> {
     await txn.runAsync('DELETE FROM workout_sets');
     await txn.runAsync('DELETE FROM workout_exercises');
     await txn.runAsync('DELETE FROM workouts');
+    await txn.runAsync('DELETE FROM routine_exercises');
+    await txn.runAsync('DELETE FROM routines');
     await txn.runAsync("DELETE FROM exercises WHERE source = 'custom'");
   });
   await seedDefaultMeals(db);
@@ -934,5 +936,7 @@ export async function markAllUnsynced(): Promise<void> {
     await txn.runAsync('UPDATE workouts SET synced_at = NULL');
     await txn.runAsync('UPDATE workout_exercises SET synced_at = NULL');
     await txn.runAsync('UPDATE workout_sets SET synced_at = NULL');
+    await txn.runAsync('UPDATE routines SET synced_at = NULL');
+    await txn.runAsync('UPDATE routine_exercises SET synced_at = NULL');
   });
 }

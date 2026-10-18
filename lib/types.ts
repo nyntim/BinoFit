@@ -447,3 +447,60 @@ export type WeekSummary = {
   volumeKg: number;
   durationSeconds: number;
 };
+
+// ── Routines ────────────────────────────────────────────────────────────────
+
+export type Routine = {
+  id: string;
+  name: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type RoutineExercise = {
+  id: string;
+  routine_id: string;
+  exercise_id: string;
+  position: number;
+  set_count: number;
+  rest_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type RoutineExerciseWithExercise = RoutineExercise & {
+  /** "Unknown exercise" when the definition is missing. */
+  exercise_name: string;
+  exercise: Exercise | null;
+};
+
+export type RoutineWithExercises = Routine & { exercises: RoutineExerciseWithExercise[] };
+
+export type RemoteRoutine = {
+  user_id: string;
+  id: string;
+  name: string;
+  position: number;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+
+export type RemoteRoutineExercise = {
+  user_id: string;
+  id: string;
+  routine_id: string;
+  exercise_id: string;
+  position: number;
+  set_count: number;
+  rest_seconds: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deleted_at?: string | null;
+};
+

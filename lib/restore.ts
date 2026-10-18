@@ -10,13 +10,19 @@ import { lookupBarcode } from '@/lib/food-service';
 import { applyRemoteWeightEntries, syncProfileWeightFromLatest } from '@/lib/weight';
 import { restoreMealReminders } from '@/lib/reminders';
 import { applyRemoteGoals, applyRemoteProfile, setOnboardingComplete } from '@/lib/storage';
-import { applyRemoteExercises, applyRemoteWorkoutTree } from '@/lib/workouts/restore-apply';
+import {
+  applyRemoteExercises,
+  applyRemoteRoutines,
+  applyRemoteWorkoutTree,
+} from '@/lib/workouts/restore-apply';
 import type {
   Food,
   RemoteExercise,
   RemoteFoodLog,
   RemoteMealDefinition,
   RemoteMealName,
+  RemoteRoutine,
+  RemoteRoutineExercise,
   RemoteUserGoals,
   RemoteUserProfile,
   RemoteWeightEntry,
@@ -106,11 +112,19 @@ export type RestoreSummary = {
   weightEntriesRestored: number;
   /** Workouts inserted or updated from the account. */
   workoutsRestored: number;
+  /** Routines inserted or updated from the account. */
+  routinesRestored: number;
 };
 
 /** True when a restore brought back anything beyond meal layout (meals alone do not skip onboarding). */
 export function hasRestoredData(s: RestoreSummary): boolean {
-  return s.goalsRestored || s.logsRestored > 0 || s.weightEntriesRestored > 0 || s.workoutsRestored > 0;
+  return (
+    s.goalsRestored ||
+    s.logsRestored > 0 ||
+    s.weightEntriesRestored > 0 ||
+    s.workoutsRestored > 0 ||
+    s.routinesRestored > 0
+  );
 }
 
 export type RestoreResult =
@@ -127,7 +141,9 @@ type Table =
   | 'exercises'
   | 'workouts'
   | 'workout_exercises'
-  | 'workout_sets';
+  | 'workout_sets'
+  | 'routines'
+  | 'routine_exercises';
 
 /** Every row of `table` owned by the user, in 1000-row pages with a stable order. */
 async function fetchAll<T>(
@@ -244,12 +260,15 @@ export async function restoreFromAccount(
     // Fail soft: the workout tables may not exist yet on the server.
     const soft = <T>(table: Table): Promise<T[]> =>
       fetchAll<T>(table, userId, ['id']).catch(() => [] as T[]);
-    const [exercises, workouts, workoutExercises, workoutSets] = await Promise.all([
-      soft<RemoteExercise>('exercises'),
-      soft<RemoteWorkout>('workouts'),
-      soft<RemoteWorkoutExercise>('workout_exercises'),
-      soft<RemoteWorkoutSet>('workout_sets'),
-    ]);
+    const [exercises, workouts, workoutExercises, workoutSets, routines, routineExercises] =
+      await Promise.all([
+        soft<RemoteExercise>('exercises'),
+        soft<RemoteWorkout>('workouts'),
+        soft<RemoteWorkoutExercise>('workout_exercises'),
+        soft<RemoteWorkoutSet>('workout_sets'),
+        soft<RemoteRoutine>('routines'),
+        soft<RemoteRoutineExercise>('routine_exercises'),
+      ]);
 
     const missing = await getMissingFoodIds(uniqueFoodIds(allLogs.filter(isLiveRow)));
     const unresolved = missing.length > 0 ? await resolveFoods(missing, onProgress) : [];
@@ -258,15 +277,19 @@ export async function restoreFromAccount(
     // Meals first so restored logs never point at a meal that does not exist yet.
     await replaceMealsFromRemote(defs, names);
     const logsRestored = await applyRemoteFoodLogs(allLogs);
-    // Custom exercises first, then workouts with their children (restored as done).
-    await applyRemoteExercises(
-      exercises,
-      workoutExercises.map((c) => c.exercise_id)
-    );
+    // Custom exercises first, then workouts and routines with their children.
+    await applyRemoteExercises(exercises, [
+      ...workoutExercises.map((c) => c.exercise_id),
+      ...routineExercises.map((c) => c.exercise_id),
+    ]);
     const workoutsRestored = await applyRemoteWorkoutTree({
       workouts,
       workoutExercises,
       sets: workoutSets,
+    });
+    const routinesRestored = await applyRemoteRoutines({
+      routines,
+      routineExercises,
     });
 
     let goalsRestored = false;
@@ -275,7 +298,17 @@ export async function restoreFromAccount(
     // After the profile, so the latest weight entry wins over the account's stored weight.
     const weightEntriesRestored = await applyRemoteWeightEntries(weightRows);
     await syncProfileWeightFromLatest();
-    if (hasRestoredData({ logsRestored, unresolvedFoods: 0, mealsRestored: false, goalsRestored, weightEntriesRestored, workoutsRestored })) {
+    if (
+      hasRestoredData({
+        logsRestored,
+        unresolvedFoods: 0,
+        mealsRestored: false,
+        goalsRestored,
+        weightEntriesRestored,
+        workoutsRestored,
+        routinesRestored,
+      })
+    ) {
       await setOnboardingComplete();
     }
 
@@ -289,6 +322,7 @@ export async function restoreFromAccount(
       goalsRestored,
       weightEntriesRestored,
       workoutsRestored,
+      routinesRestored,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Restore failed' };

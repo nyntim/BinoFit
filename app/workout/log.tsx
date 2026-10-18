@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { WorkoutEditorBody } from '@/components/workouts/WorkoutEditor';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
@@ -10,7 +10,9 @@ import { cancelDraft, getOrCreateDraft, saveDraft } from '@/lib/workouts/drafts'
 
 /** Log a past workout: edits a draft that Save turns into a finished workout. */
 export default function LogPastWorkoutScreen() {
-  const [draftId, setDraftId] = useState<string | undefined>();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const requestedId = typeof params.id === 'string' && params.id ? params.id : undefined;
+  const [draftId, setDraftId] = useState<string | undefined>(requestedId);
   const [initFailed, setInitFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const editor = useWorkoutEditor(draftId, 'manual');
@@ -23,11 +25,14 @@ export default function LogPastWorkoutScreen() {
   const fieldBorder = useThemeColor({}, 'fieldBorder');
 
   const openDraft = useCallback(() => {
-    setInitFailed(false);
+    if (requestedId) return;
     getOrCreateDraft(new Date())
-      .then((w) => setDraftId(w.id))
+      .then((w) => {
+        setInitFailed(false);
+        setDraftId(w.id);
+      })
       .catch(() => setInitFailed(true));
-  }, []);
+  }, [requestedId]);
   useEffect(openDraft, [openDraft]);
 
   const hasExercises = (editor.workout?.exercises.length ?? 0) > 0;
@@ -91,7 +96,8 @@ export default function LogPastWorkoutScreen() {
         <Text style={[styles.messageText, { color: muted }]}>Couldn’t open this workout.</Text>
         <Pressable
           onPress={() => {
-            if (initFailed || editor.status === 'missing') {
+            if (!requestedId && (initFailed || editor.status === 'missing')) {
+              setInitFailed(false);
               setDraftId(undefined);
               openDraft();
             } else {

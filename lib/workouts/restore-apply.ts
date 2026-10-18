@@ -2,6 +2,8 @@ import { getDatabase } from '@/lib/database';
 import { decideRemoteApply } from '@/lib/tombstones';
 import type {
   RemoteExercise,
+  RemoteRoutine,
+  RemoteRoutineExercise,
   RemoteWorkout,
   RemoteWorkoutExercise,
   RemoteWorkoutSet,
@@ -269,3 +271,103 @@ export async function applyRemoteWorkoutTree(tree: RemoteWorkoutTree): Promise<n
   });
   return applied;
 }
+
+export type RemoteRoutineTree = {
+  routines: RemoteRoutine[];
+  routineExercises: RemoteRoutineExercise[];
+};
+
+/**
+ * Applies routines and their exercises in one transaction, last write wins on updated_at.
+ * A newer remote tombstone of a routine deletes its local children and the routine; a newer
+ * remote tombstone of a child deletes that child. Children whose parent routine is not a live
+ * local row are skipped. Applied rows are marked synced. Returns how many routines were
+ * inserted or updated.
+ */
+export async function applyRemoteRoutines(
+  treeOrRoutines: RemoteRoutineTree | RemoteRoutine[],
+  maybeRoutineExercises?: RemoteRoutineExercise[]
+): Promise<number> {
+  const routines = Array.isArray(treeOrRoutines) ? treeOrRoutines : treeOrRoutines.routines;
+  const routineExercises = Array.isArray(treeOrRoutines)
+    ? (maybeRoutineExercises ?? [])
+    : treeOrRoutines.routineExercises;
+  if (routines.length === 0 && routineExercises.length === 0) return 0;
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  let applied = 0;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const r of routines) {
+      const updatedAt = toIso(r.updated_at, now);
+      const existing = await txn.getFirstAsync<{ updated_at: string }>(
+        'SELECT updated_at FROM routines WHERE id = ?',
+        [r.id]
+      );
+      const decision = decideRemoteApply(
+        { updated_at: updatedAt, deleted_at: r.deleted_at },
+        existing
+      );
+      if (decision === 'skip') continue;
+      if (decision === 'delete') {
+        await txn.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [r.id]);
+        await txn.runAsync('DELETE FROM routines WHERE id = ?', [r.id]);
+        continue;
+      }
+      await txn.runAsync(
+        `INSERT INTO routines
+           (id, name, position, created_at, updated_at, synced_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name, position = excluded.position,
+           updated_at = excluded.updated_at, synced_at = excluded.synced_at, deleted_at = NULL`,
+        [r.id, r.name, r.position, toIso(r.created_at, updatedAt), updatedAt, now]
+      );
+      applied++;
+    }
+
+    for (const r of routineExercises) {
+      const parentLive = await txn.getFirstAsync<{ id: string }>(
+        'SELECT id FROM routines WHERE id = ? AND deleted_at IS NULL',
+        [r.routine_id]
+      );
+      if (!parentLive) continue;
+      const updatedAt = toIso(r.updated_at, now);
+      const existing = await txn.getFirstAsync<{ updated_at: string }>(
+        'SELECT updated_at FROM routine_exercises WHERE id = ?',
+        [r.id]
+      );
+      const decision = decideRemoteApply(
+        { updated_at: updatedAt, deleted_at: r.deleted_at },
+        existing
+      );
+      if (decision === 'skip') continue;
+      if (decision === 'delete') {
+        await txn.runAsync('DELETE FROM routine_exercises WHERE id = ?', [r.id]);
+        continue;
+      }
+      await txn.runAsync(
+        `INSERT INTO routine_exercises
+           (id, routine_id, exercise_id, position, set_count, rest_seconds, created_at, updated_at, synced_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(id) DO UPDATE SET
+           routine_id = excluded.routine_id, exercise_id = excluded.exercise_id,
+           position = excluded.position, set_count = excluded.set_count,
+           rest_seconds = excluded.rest_seconds, updated_at = excluded.updated_at,
+           synced_at = excluded.synced_at, deleted_at = NULL`,
+        [
+          r.id,
+          r.routine_id,
+          r.exercise_id,
+          r.position,
+          r.set_count,
+          r.rest_seconds,
+          toIso(r.created_at, updatedAt),
+          updatedAt,
+          now,
+        ]
+      );
+    }
+  });
+  return applied;
+}
+
