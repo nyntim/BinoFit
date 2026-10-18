@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { AveragesCard } from '@/components/progress/AveragesCard';
 import { CalorieTrendChart } from '@/components/progress/CalorieTrendChart';
 import { ConsistencyCard } from '@/components/progress/ConsistencyCard';
+import { ExpenditureCard } from '@/components/progress/ExpenditureCard';
 import { RangeChips } from '@/components/progress/RangeChips';
 import { WeightCard } from '@/components/progress/WeightCard';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -52,6 +53,7 @@ export default function ProgressScreen() {
             />
             <AveragesCard avg={progress.summary.avg} goals={progress.goals} />
             <WeightCard range={range} today={progress.today} />
+            <ExpenditureCard />
             <ConsistencyCard
               summary={progress.summary}
               streaks={progress.streaks}
