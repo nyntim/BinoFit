@@ -164,8 +164,7 @@ function regionOf(muscle: string): Exclude<Region, 'All'> | null {
 
 /**
  * Working sets per body region across the given done workouts. Each ticked non-warmup set credits
- * 1 to any region hit by a primary muscle, else 0.5 to any region hit by a secondary muscle.
- * Regions do not stack within one set. Sorted by sets desc, then `REGIONS` order.
+ * each distinct primary region once. Sorted by sets desc, then `REGIONS` order.
  */
 export function setsPerMuscle(workouts: WorkoutWithExercises[]): MuscleSetTotal[] {
   const totals = new Map<Exclude<Region, 'All'>, number>();
@@ -179,20 +178,12 @@ export function setsPerMuscle(workouts: WorkoutWithExercises[]): MuscleSetTotal[
         const region = regionOf(m);
         if (region) primaryRegions.add(region);
       }
-      const secondaryRegions = new Set<Exclude<Region, 'All'>>();
-      for (const m of e.exercise.secondary_muscles ?? ([] as MuscleGroup[])) {
-        const region = regionOf(m);
-        if (region && !primaryRegions.has(region)) secondaryRegions.add(region);
-      }
-      if (primaryRegions.size === 0 && secondaryRegions.size === 0) continue;
+      if (primaryRegions.size === 0) continue;
 
       for (const s of e.sets) {
         if (!s.completed_at || s.set_type === 'warmup' || s.deleted_at) continue;
         for (const region of primaryRegions) {
           totals.set(region, (totals.get(region) ?? 0) + 1);
-        }
-        for (const region of secondaryRegions) {
-          totals.set(region, (totals.get(region) ?? 0) + 0.5);
         }
       }
     }
@@ -203,9 +194,8 @@ export function setsPerMuscle(workouts: WorkoutWithExercises[]): MuscleSetTotal[
     .sort((a, b) => b.sets - a.sets);
 }
 
-/** Whole numbers without decimals; fractional counts to one decimal place; non-finite/negative -> "0". */
+/** Nonnegative integer counts as strings; invalid values become "0". */
 export function formatMuscleSetCount(sets: number): string {
-  if (!Number.isFinite(sets) || sets <= 0) return '0';
-  return Number.isInteger(sets) ? String(sets) : sets.toFixed(1);
+  return Number.isInteger(sets) && sets >= 0 ? String(sets) : '0';
 }
 

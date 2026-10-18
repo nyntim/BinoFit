@@ -218,6 +218,16 @@ describe('groupByMonth', () => {
 });
 
 describe('setsPerMuscle', () => {
+  it('counts only four completed bench working sets', () => {
+    const bench = ex({ primary_muscles: ['chest'], secondary_muscles: ['triceps', 'front_delts'] });
+    const sets = [
+      set({ set_type: 'warmup', completed_at: T }),
+      ...Array.from({ length: 4 }, () => set({ completed_at: T })),
+      set({ completed_at: null }),
+    ];
+    expect(setsPerMuscle([wk({}, [link(bench, sets)])])).toEqual([{ region: 'Chest', sets: 4 }]);
+  });
+
   it('computes the worked bench press and deadlift example with non-stacking regions and sort order', () => {
     const bench = ex({
       id: 'bench',
@@ -246,9 +256,6 @@ describe('setsPerMuscle', () => {
     expect(setsPerMuscle([workout])).toEqual([
       { region: 'Chest', sets: 4 },
       { region: 'Back', sets: 2 },
-      { region: 'Shoulders', sets: 2 },
-      { region: 'Arms', sets: 2 },
-      { region: 'Legs', sets: 1 },
     ]);
   });
 
@@ -265,15 +272,33 @@ describe('setsPerMuscle', () => {
     expect(setsPerMuscle([workout])).toEqual([{ region: 'Chest', sets: 2 }]);
   });
 
-  it('counts a muscle listed in both primary and secondary once, as primary', () => {
+  it('deduplicates primary muscles and ignores overlapping secondary muscles', () => {
     const both = ex({
       primary_muscles: ['chest', 'chest'],
       secondary_muscles: ['chest', 'triceps', 'triceps'],
     });
     const workout = wk({}, [link(both, [set({ completed_at: T })])]);
-    expect(setsPerMuscle([workout])).toEqual([
+    expect(setsPerMuscle([workout])).toEqual([{ region: 'Chest', sets: 1 }]);
+  });
+
+  it('credits distinct primary muscles in the same region once per set', () => {
+    const back = ex({
+      primary_muscles: ['lats', 'upper_back', 'lower_back'],
+      secondary_muscles: ['biceps'],
+    });
+    expect(setsPerMuscle([wk({}, [link(back, [set({ completed_at: T })])])])).toEqual([
+      { region: 'Back', sets: 1 },
+    ]);
+  });
+
+  it('credits each distinct primary region once and ignores secondary regions', () => {
+    const custom = ex({
+      primary_muscles: ['chest', 'upper_back', 'lower_back'],
+      secondary_muscles: ['triceps'],
+    });
+    expect(setsPerMuscle([wk({}, [link(custom, [set({ completed_at: T })])])])).toEqual([
       { region: 'Chest', sets: 1 },
-      { region: 'Arms', sets: 0.5 },
+      { region: 'Back', sets: 1 },
     ]);
   });
 
@@ -286,14 +311,21 @@ describe('setsPerMuscle', () => {
     ]);
   });
 
-  it('returns empty for null exercise definitions and ignores unknown muscle strings', () => {
+  it('returns empty for missing, empty, unknown-only, and full_body-only primary muscles', () => {
     const unknownMuscle = ex({
       primary_muscles: ['not_a_muscle'],
       secondary_muscles: ['also_unknown', 'abs'],
     });
+    const emptyPrimary = ex({ primary_muscles: [], secondary_muscles: ['abs'] });
+    const missingPrimary = ex({ primary_muscles: null, secondary_muscles: ['abs'] });
+    const fullBodyPrimary = ex({ primary_muscles: ['full_body'], secondary_muscles: ['abs'] });
     expect(setsPerMuscle([wk({}, [link(null, [set({ completed_at: T })])])])).toEqual([]);
-    expect(setsPerMuscle([wk({}, [link(unknownMuscle, [set({ completed_at: T })])])])).toEqual([
-      { region: 'Core', sets: 0.5 },
+    for (const exercise of [unknownMuscle, emptyPrimary, missingPrimary, fullBodyPrimary]) {
+      expect(setsPerMuscle([wk({}, [link(exercise, [set({ completed_at: T })])])])).toEqual([]);
+    }
+    const validPlusUnknown = ex({ primary_muscles: ['not_a_muscle', 'abs'] });
+    expect(setsPerMuscle([wk({}, [link(validPlusUnknown, [set({ completed_at: T })])])])).toEqual([
+      { region: 'Core', sets: 1 },
     ]);
   });
 
@@ -331,6 +363,15 @@ describe('setsPerMuscle', () => {
     ).toEqual([]);
   });
 
+  it('ignores tombstoned exercise links and sets', () => {
+    const chest = ex({ primary_muscles: ['chest'], secondary_muscles: [] });
+    const deletedLink = { ...link(chest, [set({ completed_at: T })]), deleted_at: T };
+    const liveLink = link(chest, [set({ completed_at: T, deleted_at: T }), set({ completed_at: T })]);
+    expect(setsPerMuscle([wk({}, [deletedLink, liveLink])])).toEqual([
+      { region: 'Chest', sets: 1 },
+    ]);
+  });
+
   it('adds credits across multiple workouts', () => {
     const row = ex({
       primary_muscles: ['upper_back'],
@@ -338,10 +379,7 @@ describe('setsPerMuscle', () => {
     });
     const w1 = wk({ id: 'w1' }, [link(row, [set({ completed_at: T }), set({ completed_at: T })])]);
     const w2 = wk({ id: 'w2' }, [link(row, [set({ completed_at: T })])]);
-    expect(setsPerMuscle([w1, w2])).toEqual([
-      { region: 'Back', sets: 3 },
-      { region: 'Arms', sets: 1.5 },
-    ]);
+    expect(setsPerMuscle([w1, w2])).toEqual([{ region: 'Back', sets: 3 }]);
   });
 
   it('respects Monday-to-Sunday week boundaries when caller filters workouts by date', () => {
@@ -381,13 +419,14 @@ describe('setsPerMuscle', () => {
 });
 
 describe('formatMuscleSetCount', () => {
-  it('formats whole numbers without decimals, fractional counts to 1 decimal, and invalid/non-positive to 0', () => {
+  it('formats nonnegative integers and returns 0 for invalid values', () => {
     expect(formatMuscleSetCount(4)).toBe('4');
-    expect(formatMuscleSetCount(0.5)).toBe('0.5');
-    expect(formatMuscleSetCount(2.5)).toBe('2.5');
+    expect(formatMuscleSetCount(1)).toBe('1');
     expect(formatMuscleSetCount(0)).toBe('0');
     expect(formatMuscleSetCount(NaN)).toBe('0');
     expect(formatMuscleSetCount(-1)).toBe('0');
+    expect(formatMuscleSetCount(Infinity)).toBe('0');
+    expect(formatMuscleSetCount(0.5)).toBe('0');
   });
 });
 
