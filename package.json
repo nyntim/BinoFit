@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.1.12",
+  "version": "2.1.13",
   "scripts": {
     "start": "expo start --tunnel",
     "android": "expo run:android",

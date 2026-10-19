@@ -29,13 +29,9 @@ Dark mode:
   <img src="docs/screenshots/progress-dark.png" width="30%" alt="Progress weight card in dark mode" />
 </p>
 
-<p align="center">
-  <a href="docs/demo/logging-flow.mp4">
-    <img src="docs/demo/logging-flow-poster.png" width="30%" alt="Play the 40 second walkthrough" />
-  </a>
-  <br />
-  <a href="docs/demo/logging-flow.mp4">▶ Watch the 40 second walkthrough</a>: a tour of the four tabs with 30 days of sample data, then logging a food from search to the updated dashboard.
-</p>
+https://github.com/user-attachments/assets/e92713e6-d205-4a41-8a65-7f805d704cb3
+
+A 40 second walkthrough: a tour of the four tabs with 30 days of sample data, then logging a food from search to the updated dashboard.
 
 ## Features
 
