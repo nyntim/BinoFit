@@ -18,13 +18,14 @@ export function elapsedSeconds(startedAt: string | null, nowMs: number): number 
 type Props = {
   /** Extra text after the elapsed time. Defaults to the running rest ("Rest 1:24"). */
   detail?: string | null;
+  nativeAccessory?: boolean;
 };
 
 /**
  * The minimized live session, shown above the tab bar on every tab: name and elapsed time.
  * Tap opens the session. Renders nothing when no workout is active.
  */
-export function ActiveWorkoutBar({ detail }: Props) {
+export function ActiveWorkoutBar({ detail, nativeAccessory = false }: Props) {
   const { workout } = useActiveWorkout();
   const rest = useRestTimer();
   const now = useNow(1000, !!workout);
@@ -49,7 +50,7 @@ export function ActiveWorkoutBar({ detail }: Props) {
       accessibilityRole="button"
       accessibilityLabel="Open workout"
       accessibilityHint={shownDetail?.startsWith('Rest') ? 'Resting. Opens the live session' : 'Opens the live session'}
-      style={[styles.bar, { backgroundColor: card, borderTopColor: separator }]}
+      style={[styles.bar, nativeAccessory ? styles.nativeAccessory : { backgroundColor: card, borderTopColor: separator }]}
     >
       <View style={[styles.icon, { backgroundColor: tint }]}>
         <IconSymbol name="dumbbell.fill" size={20} color={onTint} />
@@ -77,6 +78,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  nativeAccessory: { borderTopWidth: 0, paddingVertical: 4, minHeight: 44 },
   icon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   texts: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: '600' },

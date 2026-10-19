@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTabBarInset } from '@/context/TabBarInsetContext';
+import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import * as Crypto from 'expo-crypto';
@@ -110,6 +110,7 @@ export default function HomeScreen() {
   // iOS uses automaticallyAdjustKeyboardInsets instead.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const tabBarInset = useTabBarInset();
+  const nativeTabInsets = useTabBarInsetMode() === 'automatic';
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -354,7 +355,8 @@ export default function HomeScreen() {
                 styles.scroll,
                 { paddingBottom: 40 + tabBarInset + (isEditing ? keyboardHeight : 0) },
               ]}
-              scrollIndicatorInsets={{ bottom: tabBarInset }}
+              contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined}
+              scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}
               automaticallyAdjustKeyboardInsets={isEditing}
               showsVerticalScrollIndicator={false}
               scrollEnabled={!scrollLocked}
@@ -376,7 +378,7 @@ export default function HomeScreen() {
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
                   {!isEditing && <View style={styles.titleActions}>
-                    <TouchableOpacity onPress={startEditing} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
+                    <TouchableOpacity onPress={startEditing} hitSlop={{ top: 6, bottom: 6 }} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
                       <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
@@ -944,6 +946,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 4,
   },
   badgeRow: {
@@ -951,10 +954,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexShrink: 1,
-    flexWrap: 'wrap',
+    maxWidth: '100%',
     justifyContent: 'flex-end',
   },
-  dateLabel: { fontSize: 13, fontWeight: '500', flexShrink: 1 },
+  dateLabel: { fontSize: 13, fontWeight: '500', flex: 1, minWidth: 0 },
   pageTitle: { fontSize: 28, fontWeight: '700' },
   titleActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   gearButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
@@ -977,9 +980,9 @@ const styles = StyleSheet.create({
   },
   addMealText: { fontSize: 15, fontWeight: '600' },
   editModeBtn: {
-    minHeight: 44, justifyContent: 'center',
+    minHeight: 32, justifyContent: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   editModeBtnText: {

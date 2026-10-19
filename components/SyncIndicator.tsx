@@ -38,6 +38,8 @@ export const SyncIndicator: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    flexShrink: 1,
+    minWidth: 0,
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,

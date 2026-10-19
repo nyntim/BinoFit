@@ -1,8 +1,7 @@
 // v1.1.0 - Streak Tracking
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useStreak } from '@/hooks/useStreak';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -11,26 +10,29 @@ type Props = {
 };
 
 export const StreakBadge: React.FC<Props> = ({ trigger }) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const separator = useThemeColor({}, 'separator');
+  const icon = useThemeColor({}, 'icon');
+  const text = useThemeColor({}, 'text');
+  const streak = useThemeColor({}, 'streak');
   const { currentStreak } = useStreak(trigger);
 
   if (currentStreak === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.separator }]}>
-        <Text style={[styles.text, { color: colors.icon }]}>Start your streak!</Text>
+      <View style={[styles.container, { backgroundColor: cardBackground, borderColor: separator }]}>
+        <Text numberOfLines={1} style={[styles.text, { color: icon }]}>Start your streak!</Text>
       </View>
     );
   }
 
   return (
     <View
-      style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.separator }]}
+      style={[styles.container, { backgroundColor: cardBackground, borderColor: separator }]}
       accessible
       accessibilityLabel={`${currentStreak} day streak`}
     >
-      <IconSymbol name="flame.fill" size={12} color={colors.streak} />
-      <Text style={[styles.text, { color: colors.text }]}>
+      <IconSymbol name="flame.fill" size={12} color={streak} />
+      <Text numberOfLines={1} style={[styles.text, { color: text }]}>
         {currentStreak} day streak
       </Text>
     </View>
@@ -40,6 +42,8 @@ export const StreakBadge: React.FC<Props> = ({ trigger }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    flexShrink: 1,
+    minWidth: 0,
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
@@ -49,6 +53,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   text: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '600',
   },

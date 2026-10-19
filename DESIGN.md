@@ -228,10 +228,11 @@ The feel is **precise and functional**: tool-grade clarity, clear affordance, in
 - **Center:** Display-scale calorie number (34px, 700), Caption-scale "cal" label below in Ink Secondary.
 
 ### Navigation (Bottom Tab Bar)
-- **Shape:** Floating 64px rounded shell, 16px side margins plus safe insets, 8px interior padding and four equal icon-only 48px targets.
-- **Surface:** Theme-aware glass on supported iOS, blur on older iOS, translucent neutral on Android; opaque neutral when Reduce Transparency is enabled. A fine border and soft shadow separate this navigation overlay from content.
-- **Active state:** Subtle neutral pill and slate indigo outline icon. Inactive icons use Ink Secondary. Nutrition, Training, Progress and More keep accessible names and their existing routes.
-- **Position:** Bottom safe inset plus 8px, with screen scroll clearance for the bar and any live-session banner above it.
+- **iOS 26+:** The system owns the Liquid Glass tab bar's geometry, material, selection, animation and content insets. Four icon-only destinations retain the accessible names Nutrition, Training, Progress and More. An active workout uses the native bottom accessory. Do not add a custom shell, background, border or shadow to the native bar.
+- **Older iOS and Android fallback shape:** Floating 64px rounded shell, 16px side margins plus safe insets, 8px interior padding and four equal icon-only 48px targets.
+- **Fallback surface:** Blur on older iOS, translucent neutral on Android; opaque neutral when Reduce Transparency is enabled. A fine border and soft shadow separate this navigation overlay from content.
+- **Fallback active state:** Subtle neutral pill and slate indigo outline icon. Inactive icons use Ink Secondary.
+- **Fallback position:** Bottom safe inset plus 8px, with measured screen scroll clearance for the bar and any live-session banner above it.
 
 ### Food Log Row
 - **Name:** Body scale (400, 15px), Ink Primary. Single line with ellipsis truncation.

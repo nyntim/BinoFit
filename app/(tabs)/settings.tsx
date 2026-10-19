@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTabBarInset } from '@/context/TabBarInsetContext';
+import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
@@ -71,6 +71,7 @@ function formatLastSynced(v: ReturnType<typeof deriveLastSynced>): string {
 
 export default function SettingsScreen() {
   const tabBarInset = useTabBarInset();
+  const nativeTabInsets = useTabBarInsetMode() === 'automatic';
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -196,7 +197,7 @@ export default function SettingsScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 24 + tabBarInset }]} scrollIndicatorInsets={{ bottom: tabBarInset }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 24 + tabBarInset }]} contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined} scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }} showsVerticalScrollIndicator={false}>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
           <Text
