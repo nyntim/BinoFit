@@ -31,6 +31,7 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
     pending.current = null;
     fn?.();
   };
+  const overlay = useThemeColor({}, 'overlay');
   const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
@@ -39,7 +40,7 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} onDismiss={runPending}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
         <View style={[styles.sheet, { backgroundColor: card, paddingBottom: 12 + bottom }]}>
           {title ? (
@@ -77,7 +78,7 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(26,26,34,0.45)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 20 },
   title: { fontSize: 13, fontWeight: '500', textAlign: 'center', paddingVertical: 8 },
   option: {

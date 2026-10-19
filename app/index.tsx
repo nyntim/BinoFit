@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { loadPreferences } from '@/lib/app-preferences';
 import { getOnboardingComplete } from '@/lib/storage';
 import { homeRouteFor } from '@/lib/tracking-mode';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function RootIndex() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, tint };
 
   useEffect(() => {
     Promise.all([getOnboardingComplete(), loadPreferences()]).then(([done]) => {

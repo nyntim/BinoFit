@@ -20,8 +20,9 @@ import * as Crypto from 'expo-crypto';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
-import { Colors, MacroColors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { MacroColors } from '@/constants/theme';
+import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   getUserGoals,
   getQuickAddDrinks,
@@ -78,8 +79,16 @@ const DEFAULT_QUICK_DRINKS: QuickAddDrink[] = [
 ];
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const cardSecondary = useThemeColor({}, 'cardSecondary');
+  const danger = useThemeColor({}, 'danger');
+  const fieldBorder = useThemeColor({}, 'fieldBorder');
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint };
   const router = useRouter();
   const { editMeals } = useLocalSearchParams<{ editMeals?: string }>();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -698,11 +707,11 @@ function QuickAddButton({
 }: {
   label: string;
   onPress: () => void;
-  colors: any;
+  colors: Pick<typeof Colors.light, 'cardSecondary' | 'separator' | 'text'>;
   isEditing?: boolean;
   onRemove?: () => void;
 }) {
-  const colorScheme = useColorScheme();
+  const danger = useThemeColor({}, 'danger');
   return (
     <View style={styles.quickAddBtnWrapper}>
       <TouchableOpacity
@@ -719,7 +728,7 @@ function QuickAddButton({
       </TouchableOpacity>
       {isEditing && (
         <TouchableOpacity
-          style={[styles.removeQuickAddBtn, { backgroundColor: Colors[colorScheme ?? 'light'].danger }]}
+          style={[styles.removeQuickAddBtn, { backgroundColor: danger }]}
           onPress={onRemove}
         >
           <MaterialIcons name="close" size={12} color="#fff" />
@@ -738,9 +747,9 @@ function CustomWaterModal({
   visible: boolean;
   onClose: () => void;
   onAdd: (amount: number, name: string) => void;
-  colors: any;
+  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'cardSecondary' | 'icon' | 'text' | 'tint'>;
 }) {
-  const colorScheme = useColorScheme();
+  const overlay = useThemeColor({}, 'overlay');
   const [amount, setAmount] = useState('8');
   const [name, setName] = useState('Water');
 
@@ -758,7 +767,7 @@ function CustomWaterModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>Add Custom Drink</Text>
           
@@ -799,7 +808,7 @@ function CustomWaterModal({
               <Text
                 style={[
                   styles.modalBtnText,
-                  { color: colorScheme === 'dark' ? '#000' : '#fff', fontWeight: '700' },
+                  { color: colors.background, fontWeight: '700' },
                 ]}
               >
                 Add
@@ -821,9 +830,9 @@ function QuickAddSearchModal({
   visible: boolean;
   onClose: () => void;
   onSelect: (drink: QuickAddDrink) => void;
-  colors: any;
+  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'icon' | 'separator' | 'text' | 'tint'>;
 }) {
-  const colorScheme = useColorScheme();
+  const overlay = useThemeColor({}, 'overlay');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Food[]>([]);
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
@@ -862,7 +871,7 @@ function QuickAddSearchModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
         <View style={[styles.modalContent, { backgroundColor: colors.background, height: '80%' }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Add Quick-Add Drink</Text>
@@ -897,7 +906,7 @@ function QuickAddSearchModal({
                 style={[styles.modalBtn, { backgroundColor: colors.tint }]}
                 onPress={handleConfirm}
               >
-                <Text style={[styles.modalBtnText, { color: colorScheme === 'dark' ? '#000' : '#fff', fontWeight: '700' }]}>
+                <Text style={[styles.modalBtnText, { color: colors.background, fontWeight: '700' }]}>
                   Confirm
                 </Text>
               </TouchableOpacity>
@@ -1069,7 +1078,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

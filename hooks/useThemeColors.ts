@@ -7,6 +7,7 @@ export function useThemeColors(): typeof Colors.light {
     text: useThemeColor({}, 'text'),
     background: useThemeColor({}, 'background'),
     tint: useThemeColor({}, 'tint'),
+    overlay: useThemeColor({}, 'overlay'),
     icon: useThemeColor({}, 'icon'),
     tabIconDefault: useThemeColor({}, 'tabIconDefault'),
     tabIconSelected: useThemeColor({}, 'tabIconSelected'),

@@ -11,8 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors, MacroColors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { MacroColors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { getUserGoals } from '@/lib/storage';
 import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate } from '@/lib/database';
 import { isSlotEaten, sumEatenTotals, logsForSlot, slotCalories } from '@/lib/nutrition-totals';
@@ -33,8 +33,13 @@ const DEFAULT_GOALS: UserGoals = {
 export default function DayDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, icon, separator, text, tint };
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<FoodLogWithFood[]>([]);

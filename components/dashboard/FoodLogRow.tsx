@@ -5,7 +5,7 @@ import type { FoodLogWithFood } from '@/lib/types';
 
 type FoodLogRowProps = {
   log: FoodLogWithFood;
-  colors: (typeof Colors)['light'];
+  colors: Pick<typeof Colors.light, 'text' | 'icon' | 'separator'>;
   onEdit?: (log: FoodLogWithFood) => void;
   onDelete?: (log: FoodLogWithFood) => void;
 };

@@ -47,6 +47,7 @@ function DayLabel({ date, selected, today, disabled, food, trained, foodColor, t
 
 export function CalendarWidget({ trainedDates = [], today = format(new Date(), 'yyyy-MM-dd'), foodRevision }: Props) {
   const { selectedDate, setSelectedDate } = useDate();
+  const overlay = useThemeColor({}, 'overlay');
   const cardColor = useThemeColor({}, 'cardBackground');
   const textColor = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
@@ -124,7 +125,7 @@ export function CalendarWidget({ trainedDates = [], today = format(new Date(), '
     </View>
     {legend}
     <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} accessibilityLabel="Close calendar" />
         <View style={[styles.modalCard, { backgroundColor: cardColor }]}>
           <View style={[styles.modalHeader, { borderBottomColor: separator }]}>
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', gap: 18, justifyContent: 'center', paddingBottom: 9, paddingTop: 3 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 11 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   modalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, overflow: 'hidden' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 20, paddingRight: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   modalTitle: { fontSize: 17, fontWeight: '600' },

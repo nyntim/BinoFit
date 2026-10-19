@@ -49,6 +49,7 @@ export function ExportDataSheet({ visible, onClose }: Props) {
 }
 
 function SheetBody({ onClose }: { onClose: () => void }) {
+  const overlay = useThemeColor({}, 'overlay');
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
@@ -127,7 +128,7 @@ function SheetBody({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, { backgroundColor: overlay }]}>
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={onClose}
@@ -186,7 +187,7 @@ function SheetBody({ onClose }: { onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     width: '100%',
     borderTopLeftRadius: 18,

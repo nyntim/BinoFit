@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Colors } from '@/constants/theme';
+import type { Colors } from '@/constants/theme';
 
 const ERROR_TEXT = 'Fix errors to save';
 
 type EditModeBarProps = {
-  colors: (typeof Colors)['light'];
+  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'tint'>;
   onCancel: () => void;
   onDone: () => void;
   /** Draft has validation errors; Done is disabled and the reason is shown. */

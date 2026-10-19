@@ -47,6 +47,7 @@ export function WeightEntrySheet({ visible, entry, onClose, onChanged }: Props) 
 }
 
 function SheetBody({ entry, onClose, onChanged }: Omit<Props, 'visible'>) {
+  const overlay = useThemeColor({}, 'overlay');
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
@@ -110,7 +111,7 @@ function SheetBody({ entry, onClose, onChanged }: Omit<Props, 'visible'>) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.overlay}
+      style={[styles.overlay, { backgroundColor: overlay }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Pressable
@@ -218,7 +219,7 @@ function SheetBody({ entry, onClose, onChanged }: Omit<Props, 'visible'>) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     width: '100%',
     borderTopLeftRadius: 18,

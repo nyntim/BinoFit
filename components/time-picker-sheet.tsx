@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TimePickerSheetProps } from '@/components/time-picker-sheet.types';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 // Web fallback: the native time picker module has no web implementation
 export function TimePickerSheet({ visible, value, onChange, onClose, colors, title }: TimePickerSheetProps) {
+  const overlay = useThemeColor({}, 'overlay');
   const { bottom } = useSafeAreaInsets();
   const [hour, setHour] = useState(value.getHours() % 12 || 12);
   const [minute, setMinute] = useState(value.getMinutes());
@@ -26,7 +28,7 @@ export function TimePickerSheet({ visible, value, onChange, onClose, colors, tit
 
   return (
     <Modal visible={visible} transparent animationType="fade" onShow={reset} onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
           <Text style={[styles.title, { color: colors.text }]}>{title ?? 'Time'}</Text>
@@ -74,7 +76,7 @@ export function TimePickerSheet({ visible, value, onChange, onClose, colors, tit
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(26,26,34,0.45)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   title: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 24 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 28 },

@@ -12,8 +12,9 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Colors, MacroColors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { MacroColors } from '@/constants/theme';
+import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
@@ -43,7 +44,7 @@ function SortControl({
 }: {
   active: SortOption;
   onSelect: (opt: SortOption) => void;
-  colors: any;
+  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'separator' | 'text' | 'tint'>;
 }) {
   return (
     <View style={styles.sortContainer}>
@@ -58,7 +59,7 @@ function SortControl({
               active === opt ? null : { borderWidth: 1, borderColor: colors.separator },
             ]}
           >
-            <Text style={[styles.sortText, { color: active === opt ? '#fff' : colors.text }]}>
+            <Text style={[styles.sortText, { color: active === opt ? colors.background : colors.text }]}>
               {SORT_LABELS[opt]}
             </Text>
           </TouchableOpacity>
@@ -72,8 +73,13 @@ export default function FoodSearchScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
   const router = useRouter();
   const { labelFor, loaded: mealsLoaded } = useMealDefinitions();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, icon, separator, text, tint };
 
   const [query, setQuery] = useState('');
   const [localResults, setLocalResults] = useState<Food[]>([]);

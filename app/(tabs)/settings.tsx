@@ -12,15 +12,14 @@ import {
 } from 'react-native';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { Colors } from '@/constants/theme';
 import { AccountSection } from '@/components/settings/AccountSection';
 import { NutritionSettingsSheet, TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
 import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
 import { usePreferences } from '@/hooks/usePreferences';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { homeRouteFor } from '@/lib/tracking-mode';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import {
@@ -72,8 +71,14 @@ function formatLastSynced(v: ReturnType<typeof deriveLastSynced>): string {
 export default function SettingsScreen() {
   const tabBarInset = useTabBarInset();
   const nativeTabInsets = useTabBarInsetMode() === 'automatic';
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const cardSecondary = useThemeColor({}, 'cardSecondary');
+  const danger = useThemeColor({}, 'danger');
+  const icon = useThemeColor({}, 'icon');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, cardSecondary, danger, icon, text, tint };
 
   const [exportOpen, setExportOpen] = useState(false);
   const [nutritionOpen, setNutritionOpen] = useState(false);

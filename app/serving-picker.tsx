@@ -18,8 +18,10 @@ import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, MacroColors, TargetTints } from '@/constants/theme';
+import { MacroColors, TargetTints } from '@/constants/theme';
+import type { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import {
@@ -77,7 +79,17 @@ export default function ServingPickerScreen() {
   }>();
   const router = useRouter();
   const cs = useColorScheme();
-  const colors = Colors[cs ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const cardSecondary = useThemeColor({}, 'cardSecondary');
+  const danger = useThemeColor({}, 'danger');
+  const fieldBorder = useThemeColor({}, 'fieldBorder');
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const track = useThemeColor({}, 'track');
+  const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint, track };
   const tints = TargetTints[cs ?? 'light'];
 
   const [food, setFood] = useState<Food | null>(null);
@@ -620,7 +632,7 @@ export default function ServingPickerScreen() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionHeading({ title, colors }: { title: string; colors: typeof Colors.light }) {
+function SectionHeading({ title, colors }: { title: string; colors: Pick<typeof Colors.light, 'icon'> }) {
   return (
     <Text style={[styles.sectionHeading, { color: colors.icon }]}>{title}</Text>
   );
@@ -725,7 +737,7 @@ function MacroDetailPanel({
   carbGoal: number | null;
   fatGoal: number | null;
   onClose: () => void;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'track'>;
 }) {
   const rows = buildMacroRows(macro, pro, carb, fat, fiber, sugar, satFat, transFat, proteinGoal, carbGoal, fatGoal);
   // Rows with no data are hidden; a single note says so
@@ -765,7 +777,7 @@ function DetailRow({
 }: {
   row: MacroDetailRow;
   color: string;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'icon' | 'text' | 'track'>;
 }) {
   const hasValue = row.value != null;
   const indent = row.indent ?? 0;
@@ -810,7 +822,7 @@ function FormRow({
   accessibilityLabel: string;
   divider?: boolean;
   chevron?: boolean;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'icon' | 'separator' | 'text' | 'tint'>;
 }) {
   return (
     <TouchableOpacity
@@ -836,7 +848,7 @@ function NutritionRing({
   protein: number;
   carbs: number;
   fat: number;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'icon' | 'separator' | 'text'>;
 }) {
   const size = 80;
   const sw = 8;
@@ -897,7 +909,7 @@ function ExpandSection({
   title: string;
   expanded: boolean;
   onToggle: () => void;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text'>;
   children: ReactNode;
 }) {
   return (
@@ -933,7 +945,7 @@ function TargetRow({
   unit: string;
   color: string;
   tint: string;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'text' | 'track'>;
 }) {
   const g = Math.max(goal, 1);
   const eatenFrac = Math.min(eaten / g, 1);
@@ -968,7 +980,7 @@ function MicroExpandRow({
   label: string;
   value: number | null;
   unit: string;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'icon' | 'text'>;
 }) {
   const hasValue = value != null;
   return (
@@ -995,7 +1007,7 @@ function UnitPickerModal({
   foodServingUnits: string;
   onSelectUnit: (unit: ServingUnit) => void;
   onClose: () => void;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'tint'>;
 }) {
   const { bottom } = useSafeAreaInsets();
 
@@ -1010,9 +1022,10 @@ function UnitPickerModal({
       : []),
   ];
 
+  const overlay = useThemeColor({}, 'overlay');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close serving size" />
         <View style={[styles.pickerSheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
           <Text style={[styles.pickerTitle, { color: colors.text }]}>Serving Size</Text>
@@ -1276,7 +1289,6 @@ const styles = StyleSheet.create({
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,34,0.45)',
     justifyContent: 'flex-end',
   },
   pickerSheet: {

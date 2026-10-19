@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { saveUserGoals, saveUserProfile } from '@/lib/storage';
 import { syncToSupabase } from '@/lib/sync';
@@ -30,8 +29,12 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: stri
 ];
 
 export default function GoalsScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const icon = useThemeColor({}, 'icon');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, icon, text, tint };
 
   const [calories, setCalories] = useState('2000');
   const [protein, setProtein] = useState('150');
@@ -219,7 +222,7 @@ export default function GoalsScreen() {
             style={[styles.button, { backgroundColor: colors.tint }]}
             onPress={handleNext}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={[styles.buttonText, { color: colors.background }]}>Continue</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -262,5 +265,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  buttonText: { fontSize: 17, fontWeight: '600' },
 });

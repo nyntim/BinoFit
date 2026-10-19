@@ -5,7 +5,7 @@ export type TimePickerSheetProps = {
   value: Date;
   onChange: (d: Date) => void;
   onClose: () => void;
-  colors: typeof Colors.light;
+  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'text' | 'icon' | 'tint'>;
   /** 'time' (default) or 'date'. The web fallback only supports time. */
   mode?: 'time' | 'date';
   /** Latest selectable moment (date mode). */

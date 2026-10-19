@@ -11,7 +11,7 @@ import type { FoodLogWithFood, MealSlot, MealTargets } from '@/lib/types';
 /** Fixed height of a card in edit mode, so rows can be dragged by index. */
 export const MEAL_EDIT_CARD_HEIGHT = 112;
 
-type Colors_ = (typeof Colors)['light'];
+type Colors_ = Pick<typeof Colors.light, 'background' | 'cardBackground' | 'cardSecondary' | 'danger' | 'fieldBorder' | 'icon' | 'separator' | 'text' | 'tint'>;
 
 type BaseProps = {
   slot: MealSlot;

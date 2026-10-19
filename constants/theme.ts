@@ -8,6 +8,7 @@ export const Colors = {
     text:            '#1A1A22',   // DESIGN.md ink-primary
     background:      '#F8F5EF',   // DESIGN.md warm-paper
     tint:            tintLight,
+    overlay:         'rgba(26,26,34,0.45)',
     icon:            '#606070',   // DESIGN.md ink-secondary
     tabIconDefault:  '#606070',
     tabIconSelected: tintLight,
@@ -30,6 +31,7 @@ export const Colors = {
     text:            '#EDEDF0',   // graphite near-white
     background:      '#0E0E10',   // graphite near-black
     tint:            tintDark,
+    overlay:         'rgba(26,26,34,0.45)',
     icon:            '#8E8E96',   // cool mid-gray
     tabIconDefault:  '#8E8E96',
     tabIconSelected: tintDark,

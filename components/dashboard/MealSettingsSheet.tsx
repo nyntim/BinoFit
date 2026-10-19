@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
 import { formatReminderTime, parseReminderTime, parseTarget, toReminderTime } from '@/lib/meals';
 import { requestReminderPermission } from '@/lib/reminders';
@@ -28,7 +29,7 @@ type Props = {
   targets: MealTargets;
   /** 'HH:mm' (24h) or null when no reminder is set. */
   reminderTime: string | null;
-  colors: (typeof Colors)['light'];
+  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'cardSecondary' | 'danger' | 'fieldBorder' | 'icon' | 'separator' | 'text' | 'tint'>;
   onSave: (targets: MealTargets, reminderTime: string | null) => void;
   onClose: () => void;
 };
@@ -58,6 +59,7 @@ export function MealSettingsSheet(props: Props) {
 }
 
 function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }: Props) {
+  const overlay = useThemeColor({}, 'overlay');
   const [text, setText] = useState<Record<keyof MealTargets, string>>({
     calorie_target: toText(targets.calorie_target),
     protein_target: toText(targets.protein_target),
@@ -125,7 +127,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
   };
 
   return (
-    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.overlay, { backgroundColor: overlay }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={onOverlayPress}
@@ -272,7 +274,6 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   sheet: {

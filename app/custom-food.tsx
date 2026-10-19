@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { addCustomFood } from '@/lib/database';
 import { saveCustomFoodToSupabase } from '@/lib/food-service';
 import { getSessionUserId } from '@/lib/auth';
@@ -28,8 +28,13 @@ export default function CustomFoodScreen() {
   }>();
   const { meal_slot, date, barcode } = params;
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
+  const colors = { background, cardBackground, icon, separator, text, tint };
 
   const [name, setName] = useState(params.name ?? '');
   const [brand, setBrand] = useState(params.brand ?? '');
@@ -134,7 +139,7 @@ function Field({
   onChangeText: (v: string) => void;
   placeholder: string;
   keyboardType?: 'default' | 'decimal-pad';
-  colors: typeof Colors['light'];
+  colors: Pick<typeof Colors.light, 'separator' | 'text' | 'icon'>;
   last?: boolean;
 }) {
   return (
