@@ -17,6 +17,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/.expo/', ...worktrees],
   modulePathIgnorePatterns: worktrees,
   moduleNameMapper: {
+    '^react$': '<rootDir>/node_modules/react',
     '^@/(.*)$': '<rootDir>/$1',
     '\\.db$': '<rootDir>/__mocks__/fileMock.js',
   },

@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTabBarInset } from '@/context/TabBarInsetContext';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import * as Crypto from 'expo-crypto';
@@ -108,6 +109,7 @@ export default function HomeScreen() {
   // Android: pad the scroll content by the keyboard height so lower meal inputs can scroll into view.
   // iOS uses automaticallyAdjustKeyboardInsets instead.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const tabBarInset = useTabBarInset();
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -350,8 +352,9 @@ export default function HomeScreen() {
               ref={dashScrollRef}
               contentContainerStyle={[
                 styles.scroll,
-                isEditing && keyboardHeight > 0 && { paddingBottom: 40 + keyboardHeight },
+                { paddingBottom: 40 + tabBarInset + (isEditing ? keyboardHeight : 0) },
               ]}
+              scrollIndicatorInsets={{ bottom: tabBarInset }}
               automaticallyAdjustKeyboardInsets={isEditing}
               showsVerticalScrollIndicator={false}
               scrollEnabled={!scrollLocked}

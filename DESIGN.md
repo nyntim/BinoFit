@@ -176,6 +176,8 @@ Dark mode is a sleek near-black with a faint cool bias that sits with the ink an
 
 BinoFit is a flat system. No box shadows, no drop shadows, no blurred layers. Depth is communicated entirely through tonal steps on the warm neutral scale: pages sit at Warm Paper (#F8F5EF), cards at Card Surface (#EEEAE2), nested inputs at Card Subtle (#E4E0D6).
 
+The floating bottom navigation is the sole elevation exception: its glass or blur surface may have a fine border and soft shadow. Screen content and cards remain flat.
+
 This is deliberate. A reference book does not have floating cards. The visual language is sections and ink, not objects and depth. The result is calm at high information density: the eye does not parse overlapping layers, only the data.
 
 ### Named Rules
@@ -226,10 +228,10 @@ The feel is **precise and functional**: tool-grade clarity, clear affordance, in
 - **Center:** Display-scale calorie number (34px, 700), Caption-scale "cal" label below in Ink Secondary.
 
 ### Navigation (Bottom Tab Bar)
-- **Background:** Warm Paper (#F8F5EF)
-- **Active icon:** Slate indigo (#3D4B7A). Active label: Ink Primary, Title weight.
-- **Inactive icon:** Ink Secondary (#606070). Inactive label: Ink Secondary, Body weight.
-- **Top border:** 1px Separator (#D6D2C8). No shadow.
+- **Shape:** Floating 64px rounded shell, 16px side margins plus safe insets, 8px interior padding and four equal icon-only 48px targets.
+- **Surface:** Theme-aware glass on supported iOS, blur on older iOS, translucent neutral on Android; opaque neutral when Reduce Transparency is enabled. A fine border and soft shadow separate this navigation overlay from content.
+- **Active state:** Subtle neutral pill and slate indigo outline icon. Inactive icons use Ink Secondary. Nutrition, Training, Progress and More keep accessible names and their existing routes.
+- **Position:** Bottom safe inset plus 8px, with screen scroll clearance for the bar and any live-session banner above it.
 
 ### Food Log Row
 - **Name:** Body scale (400, 15px), Ink Primary. Single line with ellipsis truncation.

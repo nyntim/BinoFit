@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTabBarInset } from '@/context/TabBarInsetContext';
 import { useRouter } from 'expo-router';
 import { AveragesCard } from '@/components/progress/AveragesCard';
 import { CalorieTrendChart } from '@/components/progress/CalorieTrendChart';
@@ -16,6 +17,7 @@ import { useProgress } from '@/hooks/useProgress';
 import type { ProgressRange } from '@/lib/progress';
 
 export default function ProgressScreen() {
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
@@ -28,8 +30,8 @@ export default function ProgressScreen() {
   const calorieGoal = progress.goals?.calorie_goal ?? null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 32 + tabBarInset }]} scrollIndicatorInsets={{ bottom: tabBarInset }} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: text }]} accessibilityRole="header">
           Progress
         </Text>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTabBarInset } from '@/context/TabBarInsetContext';
 import { router } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -20,6 +21,7 @@ import { createRoutine, reorderRoutines } from '@/lib/workouts/routines';
 const ROUTINE_ROW_HEIGHT = 56;
 
 export default function TrainingScreen() {
+  const tabBarInset = useTabBarInset();
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
@@ -87,7 +89,7 @@ export default function TrainingScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
-      <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={styles.content}>
+      <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={[styles.content, { paddingBottom: 24 + tabBarInset }]} scrollIndicatorInsets={{ bottom: tabBarInset }}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: text }]} accessibilityRole="header">Training</Text>
           <Pressable onPress={() => setSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>

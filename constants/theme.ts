@@ -11,6 +11,12 @@ export const Colors = {
     icon:            '#606070',   // DESIGN.md ink-secondary
     tabIconDefault:  '#606070',
     tabIconSelected: tintLight,
+    navSurface:     'rgba(248,245,239,0.94)',
+    navOpaque:      '#F8F5EF',
+    navBorder:      'rgba(61,75,122,0.24)',
+    navActive:      '#D6DBE8',
+    navActivePressed: '#C5CCE0',
+    navShadow:      '#1A1A22',
     cardBackground:  '#EEEAE2',   // DESIGN.md card-surface
     cardSecondary:   '#E4E0D6',   // DESIGN.md card-subtle
     separator:       '#D6D2C8',   // DESIGN.md separator
@@ -27,6 +33,12 @@ export const Colors = {
     icon:            '#8E8E96',   // cool mid-gray
     tabIconDefault:  '#8E8E96',
     tabIconSelected: tintDark,
+    navSurface:     'rgba(26,26,29,0.94)',
+    navOpaque:      '#1A1A1D',
+    navBorder:      'rgba(237,237,240,0.26)',
+    navActive:      '#333D58',
+    navActivePressed: '#424E6B',
+    navShadow:      '#000000',
     cardBackground:  '#1A1A1D',   // graphite card
     cardSecondary:   '#242428',   // graphite secondary
     separator:       'rgba(237,237,240,0.10)',  // cool white hairline

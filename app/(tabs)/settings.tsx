@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTabBarInset } from '@/context/TabBarInsetContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
@@ -69,6 +70,7 @@ function formatLastSynced(v: ReturnType<typeof deriveLastSynced>): string {
 }
 
 export default function SettingsScreen() {
+  const tabBarInset = useTabBarInset();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -189,12 +191,12 @@ export default function SettingsScreen() {
   const showAppleHealth = Platform.OS === 'ios' && available;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 24 + tabBarInset }]} scrollIndicatorInsets={{ bottom: tabBarInset }} showsVerticalScrollIndicator={false}>
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
           <Text
@@ -338,17 +340,16 @@ export default function SettingsScreen() {
               <Text style={[styles.resetText, { color: colors.danger }]}>Reset Setup</Text>
             </TouchableOpacity>
           </View>
+          <View style={[styles.footer, { backgroundColor: colors.background, paddingHorizontal: 0 }]}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.tint }]}
+              onPress={handleSave}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.buttonText, { color: colors.background }]}>Save personal stats</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
-
-        <View style={[styles.footer, { backgroundColor: colors.background }]}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.tint }]}
-            onPress={handleSave}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.buttonText, { color: colors.background }]}>Save personal stats</Text>
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
       <ExportDataSheet visible={exportOpen} onClose={() => setExportOpen(false)} />
       <NutritionSettingsSheet visible={nutritionOpen} onClose={() => setNutritionOpen(false)} onManageReminders={() => router.push({ pathname: homeRouteFor(), params: { editMeals: '1' } })} />
