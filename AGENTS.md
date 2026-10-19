@@ -22,7 +22,7 @@ When you're asked to take on a role, read its file and follow it. [`docs/agents/
 
 In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role. The skills are in `.cursor/skills/`. Claude Code keeps `.claude/agents/` and `.claude/skills/`.
 
-In Codex, follow [`docs/agents/codex.md`](docs/agents/codex.md): Astra for planning and conflict resolution, Sol for the lead and all other roles. Roles are in `.codex/agents/`; the five workflow skills are in `.agents/skills/`.
+In Codex, follow [`docs/agents/codex.md`](docs/agents/codex.md): Sol (`gpt-6.1-sol`) for the lead and every role, including planning and conflict resolution. Roles are in `.codex/agents/`; the five workflow skills are in `.agents/skills/`.
 
 To build several features at once, act as the lead in [`docs/agents/ship.md`](docs/agents/ship.md): each feature gets its own git worktree and team, and the results land on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh` (`npm run ship -- <command>`).
 

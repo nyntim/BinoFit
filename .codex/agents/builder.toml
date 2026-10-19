@@ -1,6 +1,6 @@
 name = "builder"
 description = "Implements an approved BinoFit plan across the data layer (lib/, services/, supabase/) and UI (app/, components/, hooks/). Use after the plan is approved, or to apply review fixes."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Read `docs/agents/builder.md` and follow it exactly. That file defines your rules for the data and UI layers and what your report must include.

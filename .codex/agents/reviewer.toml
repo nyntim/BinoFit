@@ -1,6 +1,6 @@
 name = "reviewer"
 description = "Reviews a BinoFit change in one pass \u2014 bugs (QA) and, when app/ or components/ changed, design \u2014 and returns one short report. Use in /build-feature and /ship. Read-only."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Read `docs/agents/reviewer.md` and follow it exactly. That file defines the steps, which other role files to apply, and the output format.

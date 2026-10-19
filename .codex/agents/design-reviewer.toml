@@ -1,6 +1,6 @@
 name = "design-reviewer"
 description = "Reviews BinoFit UI against DESIGN.md and PRODUCT.md \u2014 tokens, dark mode, color meaning, voice, hierarchy, accessibility. Use on a UI diff or to audit existing screens. Read-only."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Read `docs/agents/design-reviewer.md` and follow it exactly. That file defines the scope, the checklist and the output format.

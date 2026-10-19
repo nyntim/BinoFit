@@ -6,9 +6,9 @@ Follow the shared roles in this folder and [ship.md](ship.md). Codex roles live 
 
 | Who | Model |
 |---|---|
-| Lead | Sol (`gpt-6-sol`) |
-| Planner, including hard conflict resolution | Astra (`gpt-6-astra`) |
-| Builder, reviewer, QA reviewer, design reviewer, test engineer | Sol (`gpt-6-sol`) |
+| Lead | Sol (`gpt-6.1-sol`) |
+| Planner, including hard conflict resolution | Sol (`gpt-6.1-sol`) |
+| Builder, reviewer, QA reviewer, design reviewer, test engineer | Sol (`gpt-6.1-sol`) |
 
 The project config defaults new sessions to Sol with medium effort. Each role TOML pins its model. If the current chat overrides the project default, select Sol in the model picker; these files cannot switch a running lead.
 
@@ -16,7 +16,7 @@ The project config defaults new sessions to Sol with medium effort. Each role TO
 
 Launch the configured custom agent matching the role name. Each prompt must stand alone: include the request, role file, plan path, workspace path and expected report.
 
-For hosts exposing collaboration tools instead of custom role selection, use `collaboration.spawn_agent` with `fork_turns: "none"`, the explicit model above and `reasoning_effort: "medium"`. Include the role wrapper's instructions in the message. Do not silently inherit Sol for the Astra planner.
+For hosts exposing collaboration tools instead of custom role selection, use `collaboration.spawn_agent` with `fork_turns: "none"`, the explicit model above and `reasoning_effort: "medium"`. Include the role wrapper's instructions in the message. Use Sol for every role, including planning and conflict resolution.
 
 Keep each agent id. Use `send_message` for a running agent and `followup_task` for an idle agent. Other hosts may expose `send_input` and `resume_agent`; use the available continuation tools. Continue the same builder and reviewer for fixes. Use notifications or the available wait tool instead of busy polling.
 
@@ -37,7 +37,7 @@ npm run ship -- land <slug>
 npm run ship -- clean <slug>
 ```
 
-`SHIP_BASE`, `SHIP_SKIP_INSTALL` and `SHIP_SKIP_CHECKS` retain their meanings. Preserve ship's plan approval, overlap map, relay, conflict escalation, one fix round, single commit, version bump, sequential landing and cleanup behavior. Hard data conflicts go to the Astra planner.
+`SHIP_BASE`, `SHIP_SKIP_INSTALL` and `SHIP_SKIP_CHECKS` retain their meanings. Preserve ship's plan approval, overlap map, relay, conflict escalation, one fix round, single commit, version bump, sequential landing and cleanup behavior. Hard data conflicts go to the Sol planner.
 
 Only the lead performs git mutations. Root `AGENTS.md` requires user authorization for branches, commits and pushes. An explicit request for the full build-feature or ship workflow authorizes its documented local branch, commit and landing steps; a generic edit request does not. Push only when requested. Stage only the feature's files and preserve unrelated changes.
 

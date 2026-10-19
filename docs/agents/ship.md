@@ -118,6 +118,6 @@ The steps above need two abilities: running a shell, and running a role as a sep
 
 - **Claude Code**: `/ship <tasks>`. Roles are subagents in `.claude/agents/`, run in the background so teams proceed in parallel. Subagents can't start their own subagents, so the lead runs each team's steps itself.
 - **Cursor**: follow [cursor.md](cursor.md) and `.cursor/skills/ship`. Roles are the Task subagents in `.cursor/agents/`. The lead runs each team's steps itself, in the background, and `scripts/agents/ship.sh` owns the worktrees.
-- **Codex**: invoke `$ship <tasks>` using `.agents/skills/ship`. Follow [codex.md](codex.md): Astra planners, Sol builders and reviewers, explicit workspace paths and the same shared script.
+- **Codex**: invoke `$ship <tasks>` using `.agents/skills/ship`. Follow [codex.md](codex.md): Sol (`gpt-6.1-sol`) for planners, builders and reviewers, explicit workspace paths and the same shared script.
 - **Other tools with sub-agents** (for example Gemini CLI): ask the main session to "follow `docs/agents/ship.md` as the lead for these tasks: …". Give each role its file from this folder plus the workspace sentence from step 4.
 - **Tools without sub-agents**: the lead still plans, starts the worktrees and lands. Run each team as its own session opened in `.worktrees/<slug>`, told to act as each role in turn for that one task. Tell the lead when a team is done.
