@@ -16,6 +16,7 @@ export function useMealDefinitions() {
       const [d, n] = await Promise.all([getMealDefinitions(), getMealNames()]);
       setDefs(d);
       setNames(n);
+      return { defs: d, names: n };
     } finally {
       // Stop waiting even on failure; logs then show under "Other" instead of an endless spinner
       setLoaded(true);

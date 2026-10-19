@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import * as Crypto from 'expo-crypto';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -43,6 +43,8 @@ import { useDashboardTraining } from '@/hooks/useDashboardTraining';
 import { StreakBadge } from '@/components/StreakBadge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
+import { NutritionSettingsSheet } from '@/components/settings/TabSettingsSheet';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
@@ -57,6 +59,7 @@ import { restoreMealReminders } from '@/lib/reminders';
 import { logsForSlot } from '@/lib/nutrition-totals';
 import { syncToSupabase } from '@/lib/sync';
 import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
+import { openMealEditAfterReload } from '@/lib/meal-settings-entry';
 import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const DEFAULT_GOALS: UserGoals = {
@@ -77,8 +80,11 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
+  const { editMeals } = useLocalSearchParams<{ editMeals?: string }>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { selectedDate } = useDate();
   const [isEditing, setIsEditing] = useState(false);
+  const editingRef = useRef(false);
   const { panGesture, animatedStyle } = useSwipeDayNavigation({ enabled: !isEditing });
   const { scrollRef: dashScrollRef, onScroll: onDashScroll, onContentSizeChange: onDashContentSizeChange } = useScrollRestore('dashboard');
 
@@ -213,14 +219,35 @@ export default function HomeScreen() {
     [draftMeals]
   );
 
-  const startEditing = () => {
-    mealDraft.start(defs, names, today);
+  const { start: startMealDraft } = mealDraft;
+  const startEditing = useCallback(() => {
+    startMealDraft(defs, names, today);
+    editingRef.current = true;
     setIsEditing(true);
-  };
+  }, [startMealDraft, defs, names, today]);
+
+  useFocusEffect(useCallback(() => {
+    if (editMeals !== '1' || !mealsLoaded) return;
+    let cancelled = false;
+    openMealEditAfterReload(reloadMeals, () => cancelled || editingRef.current, ({ defs: freshDefs, names: freshNames }) => {
+      editingRef.current = true;
+      startMealDraft(freshDefs, freshNames, today);
+      setIsEditing(true);
+    }).then(() => {
+      if (!cancelled) router.setParams({ editMeals: undefined });
+    }).catch(() => {
+      if (!cancelled) {
+        router.setParams({ editMeals: undefined });
+        Alert.alert('Couldn’t load meals.', 'Try again from Nutrition settings.');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [editMeals, mealsLoaded, reloadMeals, startMealDraft, today, router]));
 
   const { cancel: cancelDraft } = mealDraft;
   const cancelEditing = useCallback(() => {
     cancelDraft();
+    editingRef.current = false;
     setIsEditing(false);
     setScrollLocked(false);
   }, [cancelDraft]);
@@ -233,6 +260,7 @@ export default function HomeScreen() {
     try {
       const ok = await mealDraft.save(today);
       if (!ok) return;
+      editingRef.current = false;
       setIsEditing(false);
       setScrollLocked(false);
       syncToSupabase();
@@ -344,17 +372,14 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-                  {!isEditing && (
-                    <TouchableOpacity
-                      onPress={startEditing}
-                      style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Edit meals"
-                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                    >
+                  {!isEditing && <View style={styles.titleActions}>
+                    <TouchableOpacity onPress={startEditing} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
                       <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
-                  )}
+                    <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
+                      <IconSymbol name="gear" size={21} color={colors.icon} />
+                    </TouchableOpacity>
+                  </View>}
                 </View>
               </View>
 
@@ -635,6 +660,7 @@ export default function HomeScreen() {
           />
         </>
       )}
+      <NutritionSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} onGoalsChanged={setGoals} onManageReminders={() => { if (!isEditing) startEditing(); }} />
     </SafeAreaView>
   );
 }
@@ -927,6 +953,8 @@ const styles = StyleSheet.create({
   },
   dateLabel: { fontSize: 13, fontWeight: '500', flexShrink: 1 },
   pageTitle: { fontSize: 28, fontWeight: '700' },
+  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  gearButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -946,6 +974,7 @@ const styles = StyleSheet.create({
   },
   addMealText: { fontSize: 15, fontWeight: '600' },
   editModeBtn: {
+    minHeight: 44, justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,

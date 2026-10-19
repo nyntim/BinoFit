@@ -16,19 +16,16 @@ import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { Colors } from '@/constants/theme';
 import { AccountSection } from '@/components/settings/AccountSection';
-import { TrainingSection } from '@/components/settings/TrainingSection';
+import { NutritionSettingsSheet, TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
 import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { homeRouteFor } from '@/lib/tracking-mode';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import {
-  getUserGoals,
-  saveUserGoals,
   getUserProfile,
   saveUserProfile,
   resetOnboarding,
-  getDefaultLogStatus,
-  setDefaultLogStatus,
   getLastSyncAt,
 } from '@/lib/storage';
 import { formatWeight, lbToKg, parseDecimal } from '@/lib/units';
@@ -41,7 +38,7 @@ import {
 import { syncToSupabase } from '@/lib/sync';
 import { deriveLastSynced, isSyncConfigured } from '@/lib/sync-status';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
-import type { LogStatus, UserProfile } from '@/lib/types';
+import type { UserProfile } from '@/lib/types';
 
 type ActivityLevel = NonNullable<UserProfile['activity_level']>;
 
@@ -76,10 +73,8 @@ export default function SettingsScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const [exportOpen, setExportOpen] = useState(false);
-  const [calories, setCalories] = useState('');
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
+  const [nutritionOpen, setNutritionOpen] = useState(false);
+  const [trainingOpen, setTrainingOpen] = useState(false);
   const [weight, setWeight] = useState('');
   const { weightUnit } = usePreferences();
   const weightTouched = useRef(false);
@@ -91,8 +86,6 @@ export default function SettingsScreen() {
   });
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
-  const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
-  const [saved, setSaved] = useState(false);
   const [persistedSyncAt, setPersistedSyncAt] = useState<number | null>(null);
   const { state: syncState, now: syncNow } = useSyncStatus();
 
@@ -108,22 +101,11 @@ export default function SettingsScreen() {
   })();
 
   const loadData = useCallback(async () => {
-    const [goals, profile, status] = await Promise.all([
-      getUserGoals(),
-      getUserProfile(),
-      getDefaultLogStatus(),
-    ]);
-    if (goals) {
-      setCalories(String(goals.calorie_goal));
-      setProtein(String(goals.protein_goal));
-      setCarbs(String(goals.carb_goal));
-      setFat(String(goals.fat_goal));
-    }
+    const profile = await getUserProfile();
     if (profile) {
       setHeight(profile.height ? String(profile.height) : '');
       if (profile.activity_level) setActivityLevel(profile.activity_level);
     }
-    setDefaultStatus(status);
     const lastSync = await getLastSyncAt();
     setPersistedSyncAt(lastSync ? Date.parse(lastSync) : null);
   }, []);
@@ -165,23 +147,7 @@ export default function SettingsScreen() {
     });
   }, [weightUnit]);
 
-  async function handleSelectDefaultStatus(next: LogStatus) {
-    if (next === defaultStatus) return;
-    setDefaultStatus(next);
-    await setDefaultLogStatus(next);
-  }
-
   async function handleSave() {
-    const cal = parseInt(calories, 10);
-    const prot = parseInt(protein, 10);
-    const carb = parseInt(carbs, 10);
-    const f = parseInt(fat, 10);
-
-    if (!cal || !prot || !carb || !f) {
-      Alert.alert('Invalid input', 'Please enter valid numbers for all nutrition goals.');
-      return;
-    }
-
     const base = weightBase.current;
     const typedWeight = parseDecimal(weight);
     // Untouched field: keep whatever the profile holds now, not the base loaded earlier.
@@ -208,17 +174,13 @@ export default function SettingsScreen() {
       weightTouched.current = false;
     }
 
-    await Promise.all([
-      saveUserGoals({ calorie_goal: cal, protein_goal: prot, carb_goal: carb, fat_goal: f }),
-      saveUserProfile({
-        weight: weightKg,
-        height: height ? parseFloat(height) : null,
-        activity_level: activityLevel,
-      }),
-    ]);
+    await saveUserProfile({
+      weight: weightKg,
+      height: height ? parseFloat(height) : null,
+      activity_level: activityLevel,
+    });
+    syncToSupabase();
 
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   const bg = { backgroundColor: colors.cardBackground };
@@ -330,117 +292,30 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <Text
-            style={[styles.sectionTitle, { color: colors.text }]}
-            accessibilityRole="header"
-          >
-            Nutrition
-          </Text>
-
           <View style={styles.section}>
-            <Text style={labelStyle}>Calories</Text>
-            <TextInput
-              style={inputStyle}
-              value={calories}
-              onChangeText={setCalories}
-              keyboardType="numeric"
-              placeholder="cal"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Protein (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={protein}
-              onChangeText={setProtein}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Carbohydrates (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={carbs}
-              onChangeText={setCarbs}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Fat (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={fat}
-              onChangeText={setFat}
-              keyboardType="numeric"
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <View style={[styles.preferenceRow, bg]}>
-              <View style={styles.preferenceInfo}>
-                <Text style={[styles.preferenceLabel, { color: colors.text }]}>
-                  Default for new food
-                </Text>
-                <Text style={[styles.preferenceSubtitle, { color: colors.icon }]}>
-                  Planned meals don&apos;t count toward your daily totals until you mark them eaten.
-                </Text>
-              </View>
-              <View
-                style={[styles.statusSwitch, { backgroundColor: colors.cardSecondary }]}
-                accessibilityRole="radiogroup"
-                accessibilityLabel="Default for new food"
-              >
-                {(['planned', 'eaten'] as const).map((status) => {
-                  const selected = defaultStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.statusSegment, selected && { backgroundColor: colors.tint }]}
-                      onPress={() => handleSelectDefaultStatus(status)}
-                      activeOpacity={0.7}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                    >
-                      <Text
-                        style={[
-                          styles.statusSegmentText,
-                          { color: selected ? colors.background : colors.icon },
-                        ]}
-                      >
-                        {status === 'eaten' ? 'Eaten' : 'Planned'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nutrition</Text>
+            <TouchableOpacity style={[styles.settingsEntry, bg]} onPress={() => setNutritionOpen(true)} accessibilityRole="button" accessibilityLabel="Nutrition settings">
+              <Text style={[styles.preferenceLabel, { color: colors.text }]}>Nutrition settings</Text>
+              <Text style={{ color: colors.icon }}>›</Text>
+            </TouchableOpacity>
           </View>
 
           {showAppleHealth ? (
             <View style={styles.section}>
-              <TouchableOpacity
-                style={[styles.healthSyncBtn, { backgroundColor: colors.tint + '12' }]}
-                onPress={runSync}
-                disabled={syncing}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Sync with Apple Health"
-              >
+              <TouchableOpacity style={[styles.healthSyncBtn, { backgroundColor: colors.tint + '12' }]} onPress={runSync} disabled={syncing} accessibilityRole="button" accessibilityLabel="Sync with Apple Health">
                 <Text style={[styles.connectBtnText, { color: colors.tint }]}>Sync with Apple Health</Text>
               </TouchableOpacity>
               <Text style={[styles.healthSyncSubtitle, { color: colors.icon }]}>{healthSubtitle}</Text>
             </View>
           ) : null}
 
-          <Text
-            style={[styles.sectionTitle, { color: colors.text }]}
-            accessibilityRole="header"
-          >
-            Training
-          </Text>
-
-          <TrainingSection />
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Training</Text>
+            <TouchableOpacity style={[styles.settingsEntry, bg]} onPress={() => setTrainingOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings">
+              <Text style={[styles.preferenceLabel, { color: colors.text }]}>Training settings</Text>
+              <Text style={{ color: colors.icon }}>›</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={[styles.section, { marginBottom: 16 }]}>
             <TouchableOpacity
@@ -467,14 +342,17 @@ export default function SettingsScreen() {
 
         <View style={[styles.footer, { backgroundColor: colors.background }]}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: saved ? colors.success : colors.tint }]}
+            style={[styles.button, { backgroundColor: colors.tint }]}
             onPress={handleSave}
+            accessibilityRole="button"
           >
-            <Text style={[styles.buttonText, { color: colors.background }]}>{saved ? 'Saved!' : 'Save Changes'}</Text>
+            <Text style={[styles.buttonText, { color: colors.background }]}>Save personal stats</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
       <ExportDataSheet visible={exportOpen} onClose={() => setExportOpen(false)} />
+      <NutritionSettingsSheet visible={nutritionOpen} onClose={() => setNutritionOpen(false)} onManageReminders={() => router.push({ pathname: homeRouteFor(), params: { editMeals: '1' } })} />
+      <TrainingSettingsSheet visible={trainingOpen} onClose={() => setTrainingOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -506,14 +384,7 @@ const styles = StyleSheet.create({
   preferenceInfo: { flex: 1, marginRight: 16 },
   preferenceLabel: { fontSize: 16, fontWeight: '500' },
   preferenceSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  statusSwitch: { flexDirection: 'row', borderRadius: 20, padding: 3 },
-  statusSegment: {
-    minHeight: 38,
-    paddingHorizontal: 14,
-    borderRadius: 17,
-    justifyContent: 'center',
-  },
-  statusSegmentText: { fontSize: 13, fontWeight: '600' },
+  settingsEntry: { minHeight: 52, borderRadius: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   exportBtn: { minHeight: 44, justifyContent: 'center' },
   healthSyncBtn: {
     minHeight: 44,

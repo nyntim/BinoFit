@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
 import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
@@ -33,6 +34,7 @@ export default function TrainingScreen() {
   const [reordering, setReordering] = useState(false);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [creatingRoutine, setCreatingRoutine] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isReordering = reordering && routines.routines.length >= 2;
 
@@ -86,9 +88,12 @@ export default function TrainingScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
       <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          Training
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: text }]} accessibilityRole="header">Training</Text>
+          <Pressable onPress={() => setSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
+            <IconSymbol name="gear" size={21} color={muted} />
+          </Pressable>
+        </View>
 
         <Pressable
           onPress={() => router.push('/workout/session')}
@@ -270,6 +275,7 @@ export default function TrainingScreen() {
           {link('Log past workout', '/workout/log', true)}
         </View>
       </ScrollView>
+      <TrainingSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -278,6 +284,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   pressed: { opacity: 0.85 },
   content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  gearButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
   title: { fontSize: 34, fontWeight: '700', lineHeight: 37, letterSpacing: -0.5 },
   primary: { minHeight: 50, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' },
   primaryLabel: { fontSize: 17, fontWeight: '600' },
