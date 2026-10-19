@@ -17,7 +17,7 @@ Deliver the core user loop. A user can open the app, log a meal, and see their d
 - Select a food → set serving amount → confirm
 
 ### Meal Logging
-- Four meal slots: Breakfast, Lunch, Dinner, Snacks
+- Four initial meal slots: Meal 1, Meal 2, Meal 3, Meal 4. Users can edit the names; existing saved names remain unchanged. Internal ids (`breakfast`, `lunch`, `dinner`, `snack`) stay stable when labels change.
 - Add food to a slot (via search)
 - Adjust serving size before saving
 - Edit or delete a logged item

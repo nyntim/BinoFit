@@ -3,10 +3,10 @@ import type { MealDefinition, MealId, MealNameEntry, MealTargets } from '@/lib/t
 
 /** Seeded once on first launch. Their ids match the legacy fixed meal_slot values. */
 export const DEFAULT_MEALS: { id: MealId; name: string }[] = [
-  { id: 'breakfast', name: 'Breakfast' },
-  { id: 'lunch', name: 'Lunch' },
-  { id: 'dinner', name: 'Dinner' },
-  { id: 'snack', name: 'Snacks' },
+  { id: 'breakfast', name: 'Meal 1' },
+  { id: 'lunch', name: 'Meal 2' },
+  { id: 'dinner', name: 'Meal 3' },
+  { id: 'snack', name: 'Meal 4' },
 ];
 
 export const MEAL_LIMITS = { min: 1, max: 8, nameMax: 24 } as const;

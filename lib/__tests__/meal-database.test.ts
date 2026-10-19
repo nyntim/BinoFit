@@ -1,5 +1,5 @@
 import { createMemoryDb } from '@/test-utils/sqlite-memory';
-import { buildDraft, type MealDraft } from '@/lib/meals';
+import { ALWAYS_EFFECTIVE, buildDraft, nameForDate, type MealDraft } from '@/lib/meals';
 
 let mem: ReturnType<typeof createMemoryDb>;
 let database: typeof import('@/lib/database');
@@ -61,8 +61,12 @@ describe('default meal seed', () => {
     ]);
     const names = await database.getMealNames();
     expect(names).toHaveLength(4);
-    expect(names.every((n) => n.effective_from === '0000-01-01')).toBe(true);
-    expect(names.find((n) => n.meal_id === 'snack')?.name).toBe('Snacks');
+    expect(names.map((n) => [n.meal_id, n.name, n.effective_from])).toEqual([
+      ['breakfast', 'Meal 1', ALWAYS_EFFECTIVE],
+      ['dinner', 'Meal 3', ALWAYS_EFFECTIVE],
+      ['lunch', 'Meal 2', ALWAYS_EFFECTIVE],
+      ['snack', 'Meal 4', ALWAYS_EFFECTIVE],
+    ]);
   });
 
   it('never reseeds after defaults are deleted', async () => {
@@ -90,7 +94,7 @@ describe('seed extras', () => {
     (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue(mem);
     const again = require('@/lib/database') as typeof import('@/lib/database');
     const names = (await again.getMealNames()).filter((n) => n.meal_id === 'breakfast');
-    expect(names.map((n) => n.name)).toEqual(['Breakfast', 'Morning']);
+    expect(names.map((n) => n.name)).toEqual(['Meal 1', 'Morning']);
     expect(await again.getMealDefinitions()).toHaveLength(4);
   });
 
@@ -105,7 +109,39 @@ describe('seed extras', () => {
       '2026-05-01'
     );
     expect(r.some((m) => m.orphan)).toBe(false);
-    expect(r[0].name).toBe('Breakfast');
+    expect(r[0].name).toBe('Meal 1');
+  });
+
+  it('preserves legacy names, dated renames, and row metadata when reopened', async () => {
+    await database.getMealDefinitions();
+    const legacy = [
+      ['breakfast', 'Breakfast'],
+      ['lunch', 'Lunch'],
+      ['dinner', 'Dinner'],
+      ['snack', 'Snacks'],
+    ];
+    for (const [id, label] of legacy) {
+      mem.raw.prepare('UPDATE meal_names SET name = ?, updated_at = ?, synced_at = ? WHERE meal_id = ?')
+        .run(label, '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z', id);
+    }
+    mem.raw.prepare('UPDATE meal_definitions SET synced_at = ?')
+      .run('2025-01-02T00:00:00Z');
+    mem.raw.prepare(`INSERT INTO meal_names (meal_id, name, effective_from, updated_at, synced_at)
+      VALUES (?, ?, ?, ?, ?)`).run('breakfast', 'Morning', '2026-05-01',
+        '2026-05-01T00:00:00Z', '2026-05-02T00:00:00Z');
+    const beforeDefs = mem.raw.prepare('SELECT * FROM meal_definitions ORDER BY position').all();
+    const beforeNames = mem.raw.prepare('SELECT * FROM meal_names ORDER BY meal_id, effective_from').all();
+
+    jest.resetModules();
+    const SQLite = require('expo-sqlite');
+    (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue(mem);
+    const again = require('@/lib/database') as typeof import('@/lib/database');
+    expect(await again.getMealDefinitions()).toEqual(beforeDefs);
+    const afterNames = await again.getMealNames();
+    expect(afterNames).toEqual(beforeNames);
+    expect(nameForDate(afterNames, 'breakfast', '2026-04-30')).toBe('Breakfast');
+    expect(nameForDate(afterNames, 'breakfast', '2026-05-01')).toBe('Morning');
+    expect(nameForDate(afterNames, 'snack', '2026-06-01')).toBe('Snacks');
   });
 });
 
@@ -225,7 +261,7 @@ describe('saveMealDraft', () => {
     await database.saveMealDraft(d, TODAY);
     const rows = (await database.getMealNames()).filter((n) => n.meal_id === 'snack');
     expect(rows.map((r) => [r.name, r.effective_from])).toEqual([
-      ['Snacks', '0000-01-01'],
+      ['Meal 4', '0000-01-01'],
       ['Extras', TODAY],
     ]);
   });

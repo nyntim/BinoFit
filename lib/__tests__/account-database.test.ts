@@ -1,4 +1,5 @@
 import { createMemoryDb } from '@/test-utils/sqlite-memory';
+import { nameForDate } from '@/lib/meals';
 
 let mem: ReturnType<typeof createMemoryDb>;
 let database: typeof import('@/lib/database');
@@ -136,6 +137,42 @@ describe('replaceMealsFromRemote', () => {
   it('is a no-op when the account has no meals', async () => {
     await database.replaceMealsFromRemote([], []);
     expect((await database.getMealDefinitions()).map((d) => d.id)).toEqual(['breakfast', 'lunch', 'dinner', 'snack']);
+  });
+
+  it('restores legacy and custom names over numbered defaults and keeps them after reopening', async () => {
+    const seeded = await database.getMealNames();
+    expect(seeded.find((n) => n.meal_id === 'breakfast')?.name).toBe('Meal 1');
+    const legacy = [
+      ['breakfast', 'Breakfast'], ['lunch', 'Lunch'],
+      ['dinner', 'Dinner'], ['snack', 'Snacks'],
+    ];
+    const remoteNames = [
+      ...legacy.map(([meal_id, name]) => ({ meal_id, name, effective_from: '0000-01-01',
+        updated_at: '2025-01-01T00:00:00Z' })),
+      { meal_id: 'breakfast', name: 'Morning', effective_from: '2026-05-01',
+        updated_at: '2026-05-01T00:00:00Z' },
+    ];
+    await database.replaceMealsFromRemote(
+      legacy.map(([id], position) => remoteDef(id, position) as never),
+      remoteNames as never
+    );
+    const names = await database.getMealNames();
+    expect(names.map((n) => [n.meal_id, n.name, n.effective_from])).toEqual([
+      ['breakfast', 'Breakfast', '0000-01-01'],
+      ['breakfast', 'Morning', '2026-05-01'],
+      ['dinner', 'Dinner', '0000-01-01'],
+      ['lunch', 'Lunch', '0000-01-01'],
+      ['snack', 'Snacks', '0000-01-01'],
+    ]);
+    expect(nameForDate(names, 'breakfast', '2026-04-30')).toBe('Breakfast');
+    expect(nameForDate(names, 'breakfast', '2026-05-01')).toBe('Morning');
+
+    jest.resetModules();
+    const SQLite = require('expo-sqlite');
+    (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue(mem);
+    const again = require('@/lib/database') as typeof import('@/lib/database');
+    expect(await again.getMealNames()).toEqual(names);
+    expect((await again.getMealDefinitions()).map((d) => d.id)).toEqual(legacy.map(([id]) => id));
   });
 
   it('the account replaces seeded default meals that it lacks', async () => {

@@ -39,6 +39,21 @@ const scheduled = () =>
   (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.map((c) => c[0]);
 
 describe('syncMealReminders', () => {
+  it('uses numbered and renamed labels while retaining the legacy reminder identifier', async () => {
+    const breakfast = def('breakfast', '07:00');
+    await reminders.syncMealReminders([breakfast], [name('breakfast', 'Meal 1')], TODAY);
+    expect(scheduled()[0]).toMatchObject({
+      identifier: 'meal-reminder:breakfast',
+      content: { title: 'Meal 1', body: 'Time to log Meal 1.' },
+    });
+    await reminders.syncMealReminders(
+      [breakfast], [name('breakfast', 'Meal 1'), name('breakfast', 'Morning', '2026-05-01')], TODAY
+    );
+    expect(scheduled()[1]).toMatchObject({
+      identifier: 'meal-reminder:breakfast',
+      content: { title: 'Morning', body: 'Time to log Morning.' },
+    });
+  });
   it('schedules one daily notification per meal with a reminder, using the current name', async () => {
     await reminders.syncMealReminders(
       [def('a', '12:30'), def('b', null, 1), def('c', '07:05', 2)],

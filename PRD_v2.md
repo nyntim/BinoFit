@@ -65,7 +65,7 @@ First launch → welcome screen → sign up (email or OAuth) → set goals (calo
 
 ### 3.2 Meal logging
 
-Tap meal slot (breakfast / lunch / dinner / snacks) → search food → select result → set serving size → confirm → return to dashboard with updated totals
+Tap meal slot (initially Meal 1 / Meal 2 / Meal 3 / Meal 4) → search food → select result → set serving size → confirm → return to dashboard with updated totals
 
 ### 3.3 Daily dashboard
 
@@ -116,7 +116,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 
 ### 4.3 Meal logging
 
-- User-defined meals (1 to 8), defaulting to breakfast, lunch, dinner, snacks. Rename, add, delete and reorder them from the dashboard Edit mode; set optional per-meal calorie and macro targets. Renames apply from today, so past days keep their old name. Deleting a meal deletes its logged food.
+- User-defined meals (1 to 8), initially named Meal 1, Meal 2, Meal 3 and Meal 4. Existing saved names, including earlier defaults, remain unchanged. Rename, add, delete and reorder meals from the dashboard Edit mode; set optional per-meal calorie and macro targets. Renames apply from today, so past days keep their old name. Deleting a meal deletes its logged food.
 - Add food to a slot via search or barcode scan
 - Adjust serving size before and after saving
 - Edit or delete any logged item
@@ -174,7 +174,7 @@ Settings → update calorie and macro targets → update personal stats → mana
 ### 4.10 Notifications and reminders
 
 - Daily logging reminder (configurable time, off by default)
-- Meal reminder (configurable per meal, off by default): one optional daily local notification per meal at a chosen time, set from the meal's settings sheet in dashboard Edit mode. Neutral copy ("Time to log Lunch."). Permission is requested only when a reminder is turned on; if denied, the toggle stays off with a link to system settings. Reminders are rescheduled on save and on app launch
+- Meal reminder (configurable per meal, off by default): one optional daily local notification per meal at a chosen time, set from the meal's settings sheet in dashboard Edit mode. Neutral copy uses the meal's current saved name (for example, "Time to log Meal 1."). Permission is requested only when a reminder is turned on; if denied, the toggle stays off with a link to system settings. Reminders are rescheduled on save and on app launch
 - Streak protection reminder (fires if no log by evening)
 - All notifications opt-in; no defaults
 
@@ -279,7 +279,7 @@ CREATE TABLE food_logs (
   user_id UUID REFERENCES auth.users(id) NOT NULL,
   food_id UUID REFERENCES foods(id) NOT NULL,
   date DATE NOT NULL,
-  meal_slot TEXT NOT NULL, -- 'breakfast', 'lunch', 'dinner', 'snacks'
+  meal_slot TEXT NOT NULL, -- stable internal ids: 'breakfast', 'lunch', 'dinner', 'snack'
   serving_amount REAL NOT NULL,
   serving_unit TEXT NOT NULL,
   calories REAL NOT NULL,

@@ -60,8 +60,13 @@ describe('validateMealName edge cases', () => {
   it('exposes limits of 1 to 8 meals and 24 character names', () => {
     expect(MEAL_LIMITS).toEqual({ min: 1, max: 8, nameMax: 24 });
   });
-  it('defaults map to the legacy slot ids', () => {
-    expect(DEFAULT_MEALS.map((m) => m.id)).toEqual(['breakfast', 'lunch', 'dinner', 'snack']);
+  it('seeds numbered names with the stable legacy slot ids', () => {
+    expect(DEFAULT_MEALS).toEqual([
+      { id: 'breakfast', name: 'Meal 1' },
+      { id: 'lunch', name: 'Meal 2' },
+      { id: 'dinner', name: 'Meal 3' },
+      { id: 'snack', name: 'Meal 4' },
+    ]);
   });
 });
 
