@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   AccessibilityInfo,
@@ -423,14 +424,14 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.titleRow}>
                   <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-                  {!isEditing && <View style={styles.titleActions}>
+                  {!isEditing && <ControlSurface style={styles.titleActions}>
                     <TouchableOpacity onPress={startEditing} hitSlop={{ top: 6, bottom: 6 }} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
                       <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
                       <IconSymbol name="gear" size={21} color={colors.icon} />
                     </TouchableOpacity>
-                  </View>}
+                  </ControlSurface>}
                 </View>
               </View>
 
@@ -840,7 +841,7 @@ function CustomWaterModal({
             />
           </View>
 
-          <View style={styles.modalButtons}>
+          <ControlSurface style={styles.modalButtons}>
             <TouchableOpacity
               style={[styles.modalBtn, { backgroundColor: colors.cardSecondary }]}
               onPress={onClose}
@@ -860,7 +861,7 @@ function CustomWaterModal({
                 Add
               </Text>
             </TouchableOpacity>
-          </View>
+          </ControlSurface>
         </View>
       </View>
     </Modal>
@@ -919,12 +920,12 @@ function QuickAddSearchModal({
     <Modal visible={visible} animationType="slide" transparent>
       <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
         <View style={[styles.modalContent, { backgroundColor: colors.background, height: '80%' }]}>
-          <View style={styles.modalHeader}>
+          <ControlSurface style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Add Quick-Add Drink</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close quick-add drinks" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
               <MaterialIcons name="close" size={24} color={colors.icon} />
             </TouchableOpacity>
-          </View>
+          </ControlSurface>
 
           {selectedFood ? (
             <View style={{ gap: 20 }}>

@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
@@ -49,15 +50,19 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
     <Modal visible animationType="slide" onRequestClose={onClose} onDismiss={onDismiss}>
       <View accessibilityViewIsModal onAccessibilityEscape={onClose}
         style={[styles.root, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <ControlSurface style={styles.header}>
+          <Text accessibilityRole="header" style={[styles.heading, { color: text, flex: 1 }]}>Nutrition</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close nutrition summary" onPress={onClose} style={styles.close}>
+            <Text style={[styles.body, { color: tint }]}>Close</Text>
+          </TouchableOpacity>
+        </ControlSurface>
         <View style={styles.header}>
           <View style={styles.title}>
             {caption(format(parseISO(date), 'EEEE, MMM d, yyyy'))}
             {heading(meal.name)}
             {caption(!eaten && logs.length > 0 ? 'Planned · Not included in consumed totals' : eaten ? 'Eaten' : 'Planned')}
           </View>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close nutrition summary" onPress={onClose} style={styles.close}>
-            <Text style={[styles.body, { color: tint }]}>Close</Text>
-          </TouchableOpacity>
+
         </View>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={[styles.section, { backgroundColor: surface }]}>

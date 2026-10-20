@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -338,7 +339,7 @@ export default function BarcodeScannerScreen() {
       ]}
     >
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+        <ControlSurface style={styles.header}>
           <TouchableOpacity
             onPress={goToSearch}
             style={styles.headerSide}
@@ -361,7 +362,7 @@ export default function BarcodeScannerScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </View>
+        </ControlSurface>
         {body}
       </KeyboardAvoidingView>
     </View>

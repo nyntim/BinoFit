@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react-native';
-import { AccessibilityInfo, Text } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text } from 'react-native';
 import { TabBarSurface } from '@/components/navigation/TabBarSurface.ios';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 
@@ -43,4 +43,13 @@ test('starts opaque and responds to Reduce Transparency changes', async () => {
   await waitFor(() => expect(screen.getByTestId('glass')).toBeTruthy());
   await act(() => changed?.(true));
   expect(screen.queryByTestId('glass')).toBeNull();
+});
+
+
+test('shared material retains the fallback tab shell shape', async () => {
+  const result = await render(<TabBarSurface><Text>Tabs</Text></TabBarSurface>);
+  await waitFor(() => expect(screen.getByTestId('glass')).toBeTruthy());
+  const shell = screen.getByText('Tabs').parent;
+  expect(StyleSheet.flatten(shell?.props.style)).toMatchObject({ borderRadius: 32, borderWidth: 1, backgroundColor: 'transparent', opacity: 1 });
+  await result.unmount();
 });

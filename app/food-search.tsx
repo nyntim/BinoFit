@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
@@ -308,46 +309,49 @@ export default function FoodSearchScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
+      <ControlSurface style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
           <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>{mealsLoaded ? `Add to ${slotLabel}` : ''}</Text>
         <View style={styles.cancelBtn} />
-      </View>
+      </ControlSurface>
 
-      <View style={[styles.searchBar, { backgroundColor: colors.cardBackground }]}>
-        <MaterialIcons name="search" size={20} color={colors.icon} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search foods…"
-          placeholderTextColor={colors.icon}
-          value={query}
-          onChangeText={setQuery}
-          autoFocus
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-        {(localLoading || brandedLoading || selecting) && (
-          <ActivityIndicator size="small" color={colors.tint} />
-        )}
+      <View style={styles.searchToolbar}>
+        <View style={[styles.searchBar, { backgroundColor: colors.cardBackground }]}>
+          <MaterialIcons name="search" size={20} color={colors.icon} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search foods…"
+            placeholderTextColor={colors.icon}
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {(localLoading || brandedLoading || selecting) && (
+            <ActivityIndicator size="small" color={colors.tint} />
+          )}
+        </View>
         {Platform.OS !== 'web' && (
-          <TouchableOpacity
-            onPress={() =>
-              router.replace({
-                pathname: '/barcode-scanner' as any,
-                params: { meal_slot, date },
-              })
-            }
-            style={styles.scanBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Scan barcode"
-          >
-            <MaterialIcons name="qr-code-scanner" size={22} color={colors.tint} />
-          </TouchableOpacity>
+          <ControlSurface style={styles.scanSurface}>
+            <TouchableOpacity
+              onPress={() =>
+                router.replace({
+                  pathname: '/barcode-scanner' as any,
+                  params: { meal_slot, date },
+                })
+              }
+              style={styles.scanBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Scan barcode"
+            >
+              <MaterialIcons name="qr-code-scanner" size={22} color={colors.tint} />
+            </TouchableOpacity>
+          </ControlSurface>
         )}
       </View>
-
       {parsedQuantity && (
         <View style={styles.quantityHint}>
           <MaterialIcons name="info-outline" size={14} color={colors.tint} />
@@ -417,15 +421,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  cancelBtn: { width: 64 },
+  cancelBtn: { width: 64, minHeight: 44, justifyContent: 'center' },
   cancelText: { fontSize: 16 },
   title: { fontSize: 17, fontWeight: '600' },
-  scanBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginVertical: -10, marginRight: -12 },
+  searchToolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 8 },
+  scanSurface: { borderRadius: 12 },
+  scanBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   searchBar: {
+    flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 8,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,

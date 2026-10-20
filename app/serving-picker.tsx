@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View,
@@ -308,7 +309,7 @@ export default function ServingPickerScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.separator }]}>
+      <ControlSurface style={[styles.header, { borderBottomColor: colors.separator }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.headerSide}
@@ -342,7 +343,7 @@ export default function ServingPickerScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </ControlSurface>
 
       {saveError ? (
         <View
@@ -614,11 +615,11 @@ export default function ServingPickerScreen() {
       {/* The decimal pad has no return key, so it gets a Done bar */}
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
-          <View style={[styles.accessoryBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
-            <TouchableOpacity onPress={Keyboard.dismiss} hitSlop={8} accessibilityRole="button">
+          <ControlSurface style={[styles.accessoryBar, { borderTopColor: colors.separator }]}>
+            <TouchableOpacity onPress={Keyboard.dismiss} style={styles.accessoryAction} hitSlop={8} accessibilityRole="button">
               <Text style={[styles.accessoryDone, { color: colors.tint }]}>Done</Text>
             </TouchableOpacity>
-          </View>
+          </ControlSurface>
         </InputAccessoryView>
       ) : null}
 
@@ -1072,7 +1073,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerSide: { width: 72 },
+  headerSide: { width: 72, minHeight: 44, justifyContent: 'center' },
   headerSideRight: { alignItems: 'flex-end' },
   headerBtnText: { fontSize: 16 },
   title: { fontSize: 17, fontWeight: '600' },
@@ -1206,6 +1207,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
+  accessoryAction: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   accessoryBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

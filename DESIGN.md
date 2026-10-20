@@ -174,9 +174,13 @@ Dark mode is a sleek near-black with a faint cool bias that sits with the ink an
 
 ## 4. Elevation
 
-BinoFit is a flat system. No box shadows, no drop shadows, no blurred layers. Depth is communicated entirely through tonal steps on the warm neutral scale: pages sit at Warm Paper (#F8F5EF), cards at Card Surface (#EEEAE2), nested inputs at Card Subtle (#E4E0D6).
+BinoFit is a flat system. No box shadows or drop shadows on content; material is reserved for the navigation/control layer. Depth is communicated entirely through tonal steps on the warm neutral scale: pages sit at Warm Paper (#F8F5EF), cards at Card Surface (#EEEAE2), nested inputs at Card Subtle (#E4E0D6).
 
-The floating bottom navigation is the sole elevation exception: its glass or blur surface may have a fine border and soft shadow. Screen content and cards remain flat.
+The navigation/control layer is the material exception: system tabs and their native accessory, headers/toolbars, compact navigation action groups and rest controls may use glass. Group adjacent actions on one surface; never nest material or add a glass bubble to every button. Keep headers in normal layout flow and floating controls at their existing measured clearance. Only the fallback bottom navigation retains its fine border and soft shadow; new controls have no shadows. Content cards, charts, input surfaces, nutrient rows, workout tables and inline data controls remain solid.
+
+Shared `ControlSurface` uses regular native glass only when both runtime availability checks pass. Start opaque until Reduce Transparency is known, use opaque theme neutrals when enabled or when the query fails, blur on older iOS when allowed, and solid theme neutrals on Android/default. Foreground text and icons must meet AA contrast in light/dark and forced themes; material cannot carry semantic color. Decorative layers cannot intercept touches or appear to screen readers. Glass and its ancestors stay at full opacity; pressed/disabled treatment belongs to child controls. No interactive deformation, new motion or material transitions.
+
+All actions retain at least 44pt targets. Nutrition Edit is intentionally a smaller rectangle (32pt visual minimum, 14pt text, existing radius/padding) with an expanded 44pt hit region beside the gear. Sync remains immediately left of streak in its own row. Issue #96 overrides older mockups only for these eligible control surfaces; preserve content hierarchy, spacing and copy.
 
 This is deliberate. A reference book does not have floating cards. The visual language is sections and ink, not objects and depth. The result is calm at high information density: the eye does not parse overlapping layers, only the data.
 

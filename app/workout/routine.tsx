@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -362,7 +363,7 @@ export default function RoutineScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
+      <ControlSurface style={[styles.header, { borderBottomColor: separator }]}>
         <Pressable
           onPress={() => {
             void commitName().then(() => router.back());
@@ -385,7 +386,7 @@ export default function RoutineScreen() {
         >
           <IconSymbol name="ellipsis" size={22} color={tint} />
         </Pressable>
-      </View>
+      </ControlSurface>
 
       {body}
 

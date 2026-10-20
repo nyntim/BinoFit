@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -36,16 +37,18 @@ export function TimePickerSheet({ visible, value, onChange, onClose, colors, mod
               if (d) setDraft(d);
             }}
           />
-          <TouchableOpacity
-            style={[styles.doneBtn, { backgroundColor: colors.tint }]}
-            onPress={() => {
-              onChange(draft);
-              onClose();
-            }}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.doneText, { color: colors.background }]}>Done</Text>
-          </TouchableOpacity>
+          <ControlSurface style={styles.doneToolbar}>
+            <TouchableOpacity
+              style={styles.doneBtn}
+              onPress={() => {
+                onChange(draft);
+                onClose();
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.doneText, { color: colors.tint }]}>Done</Text>
+            </TouchableOpacity>
+          </ControlSurface>
         </View>
       </View>
     </Modal>
@@ -56,6 +59,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   title: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 4 },
-  doneBtn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 8 },
+  doneToolbar: { borderRadius: 12, marginTop: 8 },
+  doneBtn: { borderRadius: 12, minHeight: 44, paddingVertical: 15, alignItems: 'center' },
   doneText: { fontSize: 16, fontWeight: '600' },
 });

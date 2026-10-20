@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -287,7 +288,7 @@ export default function NewExerciseScreen() {
   if (loadState !== 'ready') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-        <View style={styles.header}>
+        <ControlSurface style={styles.header}>
           <Pressable
             onPress={() => router.back()}
             accessibilityRole="button"
@@ -296,7 +297,7 @@ export default function NewExerciseScreen() {
           >
             <Text style={[styles.headerButton, { color: tint }]}>Cancel</Text>
           </Pressable>
-        </View>
+        </ControlSurface>
         {loadState === 'missing' ? (
           <Text style={[styles.hint, styles.padded, { color: muted }]}>Couldn’t find this exercise.</Text>
         ) : null}
@@ -587,7 +588,7 @@ export default function NewExerciseScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.header}>
+      <ControlSurface style={styles.header}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
@@ -600,7 +601,7 @@ export default function NewExerciseScreen() {
           {editing ? 'Edit exercise' : 'New exercise'}
         </Text>
         <View style={styles.headerSide} />
-      </View>
+      </ControlSurface>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StepProgress step={index + 1} total={steps.length} />
@@ -618,7 +619,7 @@ export default function NewExerciseScreen() {
           {body}
         </ScrollView>
 
-        <View style={[styles.footer, styles.footerRule, { borderTopColor: separator }]}>
+        <ControlSurface style={[styles.footer, styles.footerRule, { borderTopColor: separator }]}>
           {index > 0 && (
             <Pressable
               onPress={() => setStepId(steps[index - 1])}
@@ -637,7 +638,7 @@ export default function NewExerciseScreen() {
           >
             <Text style={[styles.primaryText, { color: background }]}>{label}</Text>
           </Pressable>
-        </View>
+        </ControlSurface>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

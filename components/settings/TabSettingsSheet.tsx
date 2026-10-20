@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,12 +29,12 @@ function TabSettingsSheet({ visible, title, onClose, onBeforeClose, children }: 
       <Pressable accessibilityLabel="Dismiss settings" style={[StyleSheet.absoluteFill, { backgroundColor: backdrop, opacity: 0.45 }]} onPress={() => { if (Keyboard.isVisible()) Keyboard.dismiss(); else void requestClose(); }} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoider}>
         <View style={[styles.sheet, { backgroundColor: background, paddingBottom: Math.max(insets.bottom, 16) }]} accessibilityViewIsModal>
-          <View style={styles.header}>
+          <ControlSurface style={styles.header}>
             <Text accessibilityRole="header" style={[styles.title, { color: text }]}>{title}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Done" onPress={() => { void requestClose(); }} style={styles.close}>
               <Text style={[styles.done, { color: tint }]}>{closing ? 'Saving…' : 'Done'}</Text>
             </Pressable>
-          </View>
+          </ControlSurface>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>{children}</ScrollView>
         </View>
       </KeyboardAvoidingView>

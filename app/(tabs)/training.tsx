@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -93,9 +94,9 @@ export default function TrainingScreen() {
       <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={[styles.content, { paddingBottom: 24 + tabBarInset }]} contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined} scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: text }]} accessibilityRole="header">Training</Text>
-          <Pressable onPress={() => setSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
+          <ControlSurface><Pressable onPress={() => setSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
             <IconSymbol name="gear" size={21} color={muted} />
-          </Pressable>
+          </Pressable></ControlSurface>
         </View>
 
         <Pressable

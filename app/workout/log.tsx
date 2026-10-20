@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -117,7 +118,7 @@ export default function LogPastWorkoutScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
+      <ControlSurface style={[styles.header, { borderBottomColor: separator }]}>
         <Pressable
           onPress={onCancel}
           accessibilityRole="button"
@@ -138,7 +139,7 @@ export default function LogPastWorkoutScreen() {
         >
           <Text style={[styles.headerButton, styles.save, { color: tint }]}>Save</Text>
         </Pressable>
-      </View>
+      </ControlSurface>
       {body}
     </SafeAreaView>
   );

@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRestTimer } from '@/hooks/useRestTimer';
 import { formatDuration } from '@/lib/units';
@@ -9,7 +10,6 @@ import { formatDuration } from '@/lib/units';
  */
 export function RestBanner() {
   const { timer, remaining, add, subtract, skip } = useRestTimer();
-  const surface = useThemeColor({}, 'cardSecondary');
   const muted = useThemeColor({}, 'icon');
   const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
@@ -24,7 +24,7 @@ export function RestBanner() {
   ];
 
   return (
-    <View style={[styles.banner, { backgroundColor: surface }]}>
+    <ControlSurface style={styles.banner}>
       <View
         style={styles.texts}
         accessible
@@ -47,13 +47,14 @@ export function RestBanner() {
           <Text style={[styles.buttonText, { color: tint }]}>{b.label}</Text>
         </Pressable>
       ))}
-    </View>
+    </ControlSurface>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 10,
     marginHorizontal: 16,
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 12,
   },
-  texts: { flex: 1, minWidth: 0 },
+  texts: { flexGrow: 1, flexBasis: 100, minWidth: 0 },
   label: { fontSize: 12, fontWeight: '500' },
   time: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
   button: {

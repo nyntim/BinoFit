@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,7 +46,7 @@ export default function WorkoutHistoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.header}>
+      <ControlSurface style={styles.header}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
@@ -57,7 +58,7 @@ export default function WorkoutHistoryScreen() {
         <Text style={[styles.title, { color: text }]} accessibilityRole="header">
           All workouts
         </Text>
-      </View>
+      </ControlSurface>
       <SectionList
         sections={sections}
         keyExtractor={(w) => w.id}

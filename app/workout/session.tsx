@@ -1,3 +1,4 @@
+import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -209,7 +210,7 @@ export default function SessionScreen() {
         },
       ]}
     >
-      <View style={[styles.header, { borderBottomColor: separator }]}>
+      <ControlSurface style={[styles.header, { borderBottomColor: separator }]}>
         <Pressable
           onPress={() => void minimize()}
           accessibilityRole="button"
@@ -238,7 +239,7 @@ export default function SessionScreen() {
         >
           <Text style={[styles.finishText, { color: onTint }]}>Finish</Text>
         </Pressable>
-      </View>
+      </ControlSurface>
       <RestBanner />
       {body}
     </View>
