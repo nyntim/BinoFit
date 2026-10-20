@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { addCustomFood } from '@/lib/database';
 import { saveCustomFoodToSupabase } from '@/lib/food-service';
 import { getSessionUserId } from '@/lib/auth';
+import { validateNutrient } from '@/lib/food-validation';
 
 export default function CustomFoodScreen() {
   const params = useLocalSearchParams<{
@@ -34,7 +35,8 @@ export default function CustomFoodScreen() {
   const separator = useThemeColor({}, 'separator');
   const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const colors = { background, cardBackground, icon, separator, text, tint };
+  const danger = useThemeColor({}, 'danger');
+  const colors = { danger, background, cardBackground, icon, separator, text, tint };
 
   const [name, setName] = useState(params.name ?? '');
   const [brand, setBrand] = useState(params.brand ?? '');
@@ -45,23 +47,38 @@ export default function CustomFoodScreen() {
   const [fat, setFat] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const canSave =
-    name.trim().length > 0 &&
-    servingUnits.trim().length > 0 &&
-    parseFloat(calories) >= 0;
+  const savingRef = useRef(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const blur = (field: string) => () => setTouched((previous) => ({ ...previous, [field]: true }));
+  const nutrition = {
+    calories: validateNutrient(calories, 'Calories', 'required'),
+    protein: validateNutrient(protein, 'Protein', 'zero'),
+    carbs: validateNutrient(carbs, 'Carbs', 'zero'),
+    fat: validateNutrient(fat, 'Fat', 'zero'),
+  };
+  const canSave = name.trim().length > 0 && servingUnits.trim().length > 0 && Object.values(nutrition).every((value) => value.valid);
+  const nutrientError = (field: keyof typeof nutrition, raw: string) =>
+    (raw.trim() || touched[field]) ? nutrition[field].error ?? undefined : undefined;
 
   const handleSave = async () => {
-    if (!canSave) return;
+    const checked = {
+      calories: validateNutrient(calories, 'Calories', 'required'),
+      protein: validateNutrient(protein, 'Protein', 'zero'),
+      carbs: validateNutrient(carbs, 'Carbs', 'zero'),
+      fat: validateNutrient(fat, 'Fat', 'zero'),
+    };
+    if (!name.trim() || !servingUnits.trim() || Object.values(checked).some((value) => !value.valid) || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const food = await addCustomFood({
         name: name.trim(),
         brand: brand.trim() || null,
         serving_units: servingUnits.trim(),
-        calories: parseFloat(calories) || 0,
-        protein: parseFloat(protein) || 0,
-        carbs: parseFloat(carbs) || 0,
-        fat: parseFloat(fat) || 0,
+        calories: checked.calories.value!,
+        protein: checked.protein.value!,
+        carbs: checked.carbs.value!,
+        fat: checked.fat.value!,
         source: 'custom',
         barcode: barcode || null,
       });
@@ -78,6 +95,7 @@ export default function CustomFoodScreen() {
       });
     } catch {
       Alert.alert('Error', 'Failed to save food. Please try again.');
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -91,7 +109,7 @@ export default function CustomFoodScreen() {
             <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>New Food</Text>
-          <TouchableOpacity onPress={handleSave} disabled={!canSave || saving} style={styles.cancelBtn}>
+          <TouchableOpacity onPress={handleSave} disabled={!canSave || saving} accessibilityRole="button" accessibilityLabel="Save food" accessibilityState={{ disabled: !canSave || saving, busy: saving }} style={styles.cancelBtn}>
             <Text style={[styles.saveText, { color: canSave ? colors.tint : colors.icon }]}>
               {saving ? 'Saving…' : 'Save'}
             </Text>
@@ -106,18 +124,18 @@ export default function CustomFoodScreen() {
           {/* Basic info */}
           <Text style={[styles.sectionTitle, { color: colors.icon }]}>FOOD INFO</Text>
           <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-            <Field label="Name *" value={name} onChangeText={setName} placeholder="e.g. Greek Yogurt" colors={colors} />
+            <Field label="Name *" onBlur={blur('name')} error={touched.name && !name.trim() ? 'Enter a name.' : undefined} value={name} onChangeText={setName} placeholder="e.g. Greek Yogurt" colors={colors} />
             <Field label="Brand" value={brand} onChangeText={setBrand} placeholder="Optional" colors={colors} />
-            <Field label="Serving size *" value={servingUnits} onChangeText={setServingUnits} placeholder="e.g. 1 cup (240g)" colors={colors} last />
+            <Field label="Serving size *" onBlur={blur('servingUnits')} error={touched.servingUnits && !servingUnits.trim() ? 'Enter a serving size.' : undefined} value={servingUnits} onChangeText={setServingUnits} placeholder="e.g. 1 cup (240g)" colors={colors} last />
           </View>
 
           {/* Nutrition */}
           <Text style={[styles.sectionTitle, { color: colors.icon }]}>NUTRITION PER SERVING</Text>
           <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-            <Field label="Calories *" value={calories} onChangeText={setCalories} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Protein (g)" value={protein} onChangeText={setProtein} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Carbs (g)" value={carbs} onChangeText={setCarbs} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Fat (g)" value={fat} onChangeText={setFat} placeholder="0" keyboardType="decimal-pad" colors={colors} last />
+            <Field label="Calories *" onBlur={blur('calories')} error={nutrientError('calories', calories)} value={calories} onChangeText={setCalories} placeholder="0" keyboardType="decimal-pad" colors={colors} />
+            <Field label="Protein (g)" onBlur={blur('protein')} error={nutrientError('protein', protein)} value={protein} onChangeText={setProtein} placeholder="0" keyboardType="decimal-pad" colors={colors} />
+            <Field label="Carbs (g)" onBlur={blur('carbs')} error={nutrientError('carbs', carbs)} value={carbs} onChangeText={setCarbs} placeholder="0" keyboardType="decimal-pad" colors={colors} />
+            <Field label="Fat (g)" onBlur={blur('fat')} error={nutrientError('fat', fat)} value={fat} onChangeText={setFat} placeholder="0" keyboardType="decimal-pad" colors={colors} last />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -133,27 +151,37 @@ function Field({
   keyboardType = 'default',
   colors,
   last = false,
+  error,
+  onBlur,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   placeholder: string;
   keyboardType?: 'default' | 'decimal-pad';
-  colors: Pick<typeof Colors.light, 'separator' | 'text' | 'icon'>;
+  colors: Pick<typeof Colors.light, 'separator' | 'text' | 'icon' | 'danger'>;
   last?: boolean;
+  error?: string;
+  onBlur?: () => void;
 }) {
   return (
     <View style={[styles.fieldRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
-      <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text>
-      <TextInput
-        style={[styles.fieldInput, { color: colors.text }]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.icon}
-        keyboardType={keyboardType}
-        returnKeyType="next"
-      />
+      <View style={styles.fieldContent}>
+        <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text>
+        <TextInput
+          style={[styles.fieldInput, { color: colors.text }, error ? { borderWidth: 1.5, borderColor: colors.danger, borderRadius: 8 } : undefined]}
+          accessibilityLabel={label.replace(' *', ' (required)')}
+          accessibilityHint={error}
+          onBlur={onBlur}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.icon}
+          keyboardType={keyboardType}
+          returnKeyType="next"
+        />
+      </View>
+      {error ? <Text style={[styles.fieldError, { color: colors.text }]} accessibilityRole="alert" accessibilityLiveRegion="polite">{error}</Text> : null}
     </View>
   );
 }
@@ -167,7 +195,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  cancelBtn: { width: 64 },
+  cancelBtn: { width: 64, minHeight: 44, justifyContent: 'center' },
   cancelText: { fontSize: 16 },
   saveText: { fontSize: 16, fontWeight: '600', textAlign: 'right' },
   title: { fontSize: 17, fontWeight: '600' },
@@ -181,7 +209,9 @@ const styles = StyleSheet.create({
   },
   barcodeCaption: { fontSize: 12, marginBottom: 12 },
   card: { borderRadius: 14, overflow: 'hidden', marginBottom: 24 },
-  fieldRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  fieldLabel: { width: 130, fontSize: 15 },
-  fieldInput: { flex: 1, fontSize: 15, textAlign: 'right' },
+  fieldRow: { paddingHorizontal: 16, paddingVertical: 12 },
+  fieldContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fieldError: { fontSize: 13, lineHeight: 18, marginTop: 8 },
+  fieldLabel: { flex: 1, fontSize: 15 },
+  fieldInput: { flex: 1, minHeight: 44, paddingHorizontal: 8, fontSize: 15, textAlign: 'right' },
 });

@@ -37,6 +37,7 @@ import {
 import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
 import { parseBaseGrams } from '@/lib/serving-units';
+import { validateServing, parseFoodDecimal, servingMultiplier, formatServingAmount, validBaseGrams, type ServingUnit } from '@/lib/food-validation';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { getUserGoals, getDefaultLogStatus } from '@/lib/storage';
 import type { Food, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/types';
@@ -46,7 +47,7 @@ const refetchedFoodIds = new Set<string>();
 
 const AMOUNT_ACCESSORY_ID = 'serving-amount-accessory';
 
-type ServingUnit = 'default' | 'grams' | 'oz';
+
 
 function formatTime(d: Date): string {
   let h = d.getHours();
@@ -59,15 +60,6 @@ function formatTime(d: Date): string {
 const round1 = (v: number) => Math.round(v * 10) / 10;
 const formatNum = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const percent = (fraction: number) => `${fraction * 100}%` as DimensionValue;
-
-// Keep digits and a single decimal point; accept a comma as the decimal separator
-function sanitizeAmount(text: string): string {
-  let v = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-  const dot = v.indexOf('.');
-  if (dot !== -1) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '');
-  if (v.startsWith('.')) v = `0${v}`;
-  return v;
-}
 
 export default function ServingPickerScreen() {
   const { food_id, meal_slot, date, log_id, initial_amount } = useLocalSearchParams<{
@@ -116,6 +108,9 @@ export default function ServingPickerScreen() {
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
   const [expandNutrients, setExpandNutrients] = useState(false);
   const amountRef = useRef<TextInput>(null);
+  const savingRef = useRef(false);
+  const [editLoading, setEditLoading] = useState(Boolean(log_id));
+  const [editLoadFailed, setEditLoadFailed] = useState(false);
 
   const isEdit = Boolean(log_id);
   const { labelFor, loaded: mealsLoaded } = useMealDefinitions();
@@ -155,8 +150,11 @@ export default function ServingPickerScreen() {
     if (log_id && date) {
       getFoodLogsWithFoodByDate(date).then((logs) => {
         const entry = logs.find((l) => l.id === log_id);
-        if (entry) setServingAmount(String(entry.serving_amount));
-      });
+        if (cancelled) return;
+        if (entry) setServingAmount(formatServingAmount(entry.serving_amount));
+        setEditLoading(!entry);
+        setEditLoadFailed(!entry);
+      }).catch(() => { if (!cancelled) setEditLoadFailed(true); });
     }
     return () => {
       cancelled = true;
@@ -185,15 +183,15 @@ export default function ServingPickerScreen() {
         setCarbGoal(goals.carb_goal);
         setFatGoal(goals.fat_goal);
       }
+    }).catch(() => {
+      // Totals are supplementary; the food/edit loaders expose their own retry states.
     });
   }, [date, log_id]);
 
-  const baseGrams = food ? parseBaseGrams(food.serving_units) : null;
-  const parsedAmount = parseFloat(servingAmount) || 0;
-
-  let multiplier = parsedAmount;
-  if (servingUnit === 'grams' && baseGrams) multiplier = parsedAmount / baseGrams;
-  else if (servingUnit === 'oz' && baseGrams) multiplier = (parsedAmount * 28.35) / baseGrams;
+  const parsedBaseGrams = food ? parseBaseGrams(food.serving_units) : null;
+  const baseGrams = validBaseGrams(parsedBaseGrams) ? parsedBaseGrams : null;
+  const validation = validateServing(servingAmount, servingUnit, baseGrams);
+  const multiplier = validation.valid ? validation.multiplier! : 0;
 
   const cal = food ? Math.round(food.calories * multiplier) : 0;
   const pro = food ? round1(food.protein * multiplier) : 0;
@@ -221,23 +219,24 @@ export default function ServingPickerScreen() {
         })()
       : null;
 
-  const canLog = Boolean(food) && multiplier > 0 && !saving;
+  const canLog = Boolean(food && meal_slot && date && mealsLoaded) && validation.valid && !editLoading && !saving;
 
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
-    let amt = parsedAmount;
-    if (servingUnit === 'default' && unit === 'grams') amt = parsedAmount * baseGrams;
-    else if (servingUnit === 'default' && unit === 'oz') amt = (parsedAmount * baseGrams) / 28.35;
-    else if (servingUnit === 'grams' && unit === 'default') amt = parsedAmount / baseGrams;
-    else if (servingUnit === 'grams' && unit === 'oz') amt = parsedAmount / 28.35;
-    else if (servingUnit === 'oz' && unit === 'default') amt = (parsedAmount * 28.35) / baseGrams;
-    else if (servingUnit === 'oz' && unit === 'grams') amt = parsedAmount * 28.35;
+    const parsed = parseFoodDecimal(servingAmount, 'required');
+    if (validation.valid && parsed.valid && parsed.value !== null) {
+      const canonical = servingMultiplier(parsed.value, servingUnit, baseGrams);
+      const amount = unit === 'default' ? canonical : unit === 'grams' ? canonical * baseGrams : canonical * baseGrams / 28.35;
+      if (Number.isFinite(amount)) setServingAmount(formatServingAmount(amount));
+    }
     setServingUnit(unit);
-    setServingAmount(String(Math.round(amt * 100) / 100));
   };
 
   const handleSave = async () => {
-    if (!food || multiplier <= 0 || !meal_slot || !date) return;
+    const checked = validateServing(servingAmount, servingUnit, baseGrams);
+    if (!food || !checked.valid || checked.multiplier === null || !meal_slot || !date || !mealsLoaded || editLoading || savingRef.current) return;
+    const multiplier = checked.multiplier;
+    savingRef.current = true;
     Keyboard.dismiss();
     setSaving(true);
     setSaveError(null);
@@ -272,12 +271,14 @@ export default function ServingPickerScreen() {
     } catch {
       setSaveError("Couldn't save this entry.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
   const retryLoad = () => {
     setLoadFailed(false);
+    setEditLoadFailed(false);
     setLoadAttempt((n) => n + 1);
   };
 
@@ -288,7 +289,7 @@ export default function ServingPickerScreen() {
       ? 'Grams'
       : 'Ounces';
   const unitSpoken = servingUnit === 'default' ? 'servings' : servingUnit === 'grams' ? 'grams' : 'ounces';
-  const amountEmpty = parsedAmount <= 0;
+
 
   const macros = [
     { key: 'protein' as const, label: 'Protein', value: pro, color: MacroColors.protein },
@@ -347,7 +348,16 @@ export default function ServingPickerScreen() {
             <Line x1={12} y1={16} x2={12.01} y2={16} stroke={colors.danger} strokeWidth={2} strokeLinecap="round" />
           </Svg>
           <Text style={[styles.errorText, { color: colors.text }]}>{saveError}</Text>
-          <TouchableOpacity onPress={handleSave} hitSlop={8} accessibilityRole="button">
+          <TouchableOpacity onPress={handleSave} disabled={!canLog} hitSlop={8} accessibilityRole="button" accessibilityState={{ disabled: !canLog, busy: saving }}>
+            <Text style={[styles.errorRetry, { color: colors.tint }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {editLoadFailed ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Text style={[styles.errorText, { color: colors.text }]}>{"Couldn't load this entry."}</Text>
+          <TouchableOpacity onPress={retryLoad} accessibilityRole="button" accessibilityLabel="Retry loading entry" style={styles.editRetry}>
             <Text style={[styles.errorRetry, { color: colors.tint }]}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -417,15 +427,12 @@ export default function ServingPickerScreen() {
             >
               <View style={styles.amountLabelCol}>
                 <Text style={[styles.formRowLabel, { color: colors.text }]}>Amount</Text>
-                {amountEmpty ? (
-                  <Text style={[styles.amountHint, { color: colors.icon }]}>Enter an amount to log</Text>
-                ) : null}
               </View>
               <TextInput
                 ref={amountRef}
                 value={servingAmount}
                 onChangeText={(t) => {
-                  setServingAmount(sanitizeAmount(t));
+                  setServingAmount(t);
                   setSaveError(null);
                 }}
                 onFocus={() => setAmountFocused(true)}
@@ -433,19 +440,20 @@ export default function ServingPickerScreen() {
                 keyboardType="decimal-pad"
                 inputAccessoryViewID={AMOUNT_ACCESSORY_ID}
                 selectTextOnFocus
-                maxLength={7}
                 placeholder="0"
                 placeholderTextColor={colors.icon}
                 accessibilityLabel={`Amount, in ${unitSpoken}`}
+                accessibilityHint={validation.error ?? undefined}
                 style={[
                   styles.amountInput,
                   {
-                    borderColor: amountFocused || amountEmpty ? colors.tint : colors.fieldBorder,
-                    color: amountEmpty ? colors.icon : colors.tint,
+                    borderColor: validation.error ? colors.danger : amountFocused ? colors.tint : colors.fieldBorder,
+                    color: colors.tint,
                   },
                 ]}
               />
             </Pressable>
+            {validation.error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.amountHint, { color: colors.text, paddingVertical: 8 }]}>{validation.error}</Text> : null}
             <FormRow
               label="Serving Size"
               value={unitLabel}
@@ -1108,6 +1116,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: 13, lineHeight: 18 },
   errorRetry: { fontSize: 13, fontWeight: '600' },
+  editRetry: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
 
   failWrap: {
     flex: 1,
