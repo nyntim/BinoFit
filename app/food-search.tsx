@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  FlatList,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -28,6 +29,16 @@ import {
   type SortOption,
 } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
+
+type DisplayRow =
+  | { key: string; type: 'food'; food: Food }
+  | { key: string; type: 'heading'; title: string }
+  | { key: string; type: 'status'; status: 'suggestions-empty' | 'local-empty' | 'branded-empty' | 'branded-loading' }
+  | { key: string; type: 'divider' };
+
+const foodRows = (group: string, foods: Food[]): DisplayRow[] =>
+  foods.map((food) => ({ key: `${group}:${food.id}`, type: 'food', food }));
+const rowKey = (row: DisplayRow) => row.key;
 
 const SORT_LABELS: Record<SortOption, string> = {
   best: 'Best Match',
@@ -94,18 +105,22 @@ export default function FoodSearchScreen() {
   const [parsedQuantity, setParsedQuantity] = useState<{ amount: number; unit: string } | null>(null);
 
   const searchIdRef = useRef(0);
+  const showSuggestions = !query.trim();
 
-  const {
-    scrollRef: suggestionsScrollRef,
-    onScroll: onSuggestionsScroll,
-    onContentSizeChange: onSuggestionsContentSizeChange,
-  } = useScrollRestore('food-search-suggestions');
-
-  const {
-    scrollRef: resultsScrollRef,
-    onScroll: onResultsScroll,
-    onContentSizeChange: onResultsContentSizeChange,
-  } = useScrollRestore('food-search-results');
+  const suggestionsScrollRef = useRef<FlatList<DisplayRow>>(null);
+  const resultsScrollRef = useRef<FlatList<DisplayRow>>(null);
+  const restoreSuggestions = useCallback((offset: number) => {
+    if (!suggestionsScrollRef.current) return false;
+    suggestionsScrollRef.current.scrollToOffset({ offset, animated: false });
+    return true;
+  }, []);
+  const restoreResults = useCallback((offset: number) => {
+    if (!resultsScrollRef.current) return false;
+    resultsScrollRef.current.scrollToOffset({ offset, animated: false });
+    return true;
+  }, []);
+  const suggestionsRestore = useScrollRestore('food-search-suggestions', restoreSuggestions, showSuggestions);
+  const resultsRestore = useScrollRestore('food-search-results', restoreResults, !showSuggestions);
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -235,12 +250,61 @@ export default function FoodSearchScreen() {
     </TouchableOpacity>
   );
 
-  const showSuggestions = !query.trim();
   const showBrandedButton =
     !showSuggestions &&
     !brandedRequested &&
     localResults.length >= 8 &&
     query.trim().length >= 3;
+
+  const suggestionRows = useMemo<DisplayRow[]>(() => {
+    const rows: DisplayRow[] = [];
+    if (recentFoods.length) rows.push({ key: 'recent:heading', type: 'heading', title: 'RECENT' }, ...foodRows('recent', recentFoods));
+    if (frequentFoods.length) rows.push({ key: 'frequent:heading', type: 'heading', title: 'FREQUENT' }, ...foodRows('frequent', frequentFoods));
+    if (!rows.length) rows.push({ key: 'suggestions:empty', type: 'status', status: 'suggestions-empty' });
+    return rows;
+  }, [recentFoods, frequentFoods]);
+  const resultRows = useMemo<DisplayRow[]>(() => {
+    const rows = foodRows('local', localResults);
+    if (!localResults.length && !localLoading) rows.push({ key: 'local:empty', type: 'status', status: 'local-empty' });
+    if (brandedRequested) {
+      rows.push({ key: 'branded:divider', type: 'divider' }, { key: 'branded:heading', type: 'heading', title: 'BRANDED' });
+      if (brandedLoading) rows.push({ key: 'branded:loading', type: 'status', status: 'branded-loading' });
+      else if (!brandedResults.length) rows.push({ key: 'branded:empty', type: 'status', status: 'branded-empty' });
+      rows.push(...foodRows('branded', brandedResults));
+    }
+    return rows;
+  }, [localResults, localLoading, brandedRequested, brandedLoading, brandedResults]);
+  const renderRow = ({ item }: { item: DisplayRow }) => {
+    if (item.type === 'food') return renderFood(item.food);
+    if (item.type === 'heading') return <Text style={[styles.sectionTitle, { color: colors.icon }]}>{item.title}</Text>;
+    if (item.type === 'divider') return <View style={[styles.divider, { backgroundColor: colors.separator }]} />;
+    if (item.status === 'branded-loading') return <ActivityIndicator size="small" color={colors.tint} style={styles.brandedSpinner} />;
+    if (item.status === 'local-empty') return (
+      <View style={styles.emptyState}>
+        <Text style={[styles.emptyText, { color: colors.icon }]}>No results for &quot;{query}&quot;</Text>
+        <Text style={[styles.emptyHint, { color: colors.icon }]}>Try different words or check the spelling</Text>
+      </View>
+    );
+    return <Text style={[item.status === 'suggestions-empty' ? styles.emptyText : styles.emptyHint, { color: colors.icon }]}>
+      {item.status === 'suggestions-empty' ? 'Search for a food to get started' : 'No branded results found'}
+    </Text>;
+  };
+  const footer = (
+    <>
+      {showBrandedButton && (
+        <TouchableOpacity style={[styles.loadBrandedBtn, { borderColor: colors.tint + '50' }]} onPress={handleLoadBranded} activeOpacity={0.7} disabled={brandedLoading}>
+          <Text style={[styles.loadBrandedText, { color: colors.tint }]}>{brandedLoading ? 'Loading branded foods...' : 'Load branded foods'}</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
+        onPress={() => router.replace({ pathname: '/custom-food' as any, params: { meal_slot, date } })}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -302,118 +366,42 @@ export default function FoodSearchScreen() {
       )}
 
       {showSuggestions ? (
-        <ScrollView
+        <FlatList
+          key="suggestions"
           ref={suggestionsScrollRef}
+          style={styles.list}
+          data={suggestionRows}
+          renderItem={renderRow}
+          keyExtractor={rowKey}
+          ListFooterComponent={footer}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
-          onScroll={onSuggestionsScroll}
-          onContentSizeChange={onSuggestionsContentSizeChange}
-        >
-          {recentFoods.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.icon }]}>RECENT</Text>
-              {recentFoods.map(renderFood)}
-            </>
-          )}
-          {frequentFoods.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.icon }]}>FREQUENT</Text>
-              {frequentFoods.map(renderFood)}
-            </>
-          )}
-          {recentFoods.length === 0 && frequentFoods.length === 0 && (
-            <Text style={[styles.emptyText, { color: colors.icon }]}>
-              Search for a food to get started
-            </Text>
-          )}
-          <TouchableOpacity
-            style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
-            onPress={() =>
-              router.replace({
-                pathname: '/custom-food' as any,
-                params: { meal_slot, date },
-              })
-            }
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          onLayout={suggestionsRestore.onLayout}
+          onScroll={suggestionsRestore.onScroll}
+          onContentSizeChange={suggestionsRestore.onContentSizeChange}
+        />
       ) : (
-        <ScrollView
+        <FlatList
+          key="results"
           ref={resultsScrollRef}
+          style={styles.list}
+          data={resultRows}
+          renderItem={renderRow}
+          keyExtractor={rowKey}
+          ListFooterComponent={footer}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.resultsScroll}
           scrollEventThrottle={16}
-          onScroll={onResultsScroll}
-          onContentSizeChange={onResultsContentSizeChange}
-        >
-          {/* Local results */}
-          {localResults.map(renderFood)}
-
-          {localResults.length === 0 && !localLoading && (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: colors.icon }]}>
-                No results for &quot;{query}&quot;
-              </Text>
-              <Text style={[styles.emptyHint, { color: colors.icon }]}>
-                Try different words or check the spelling
-              </Text>
-            </View>
-          )}
-
-          {/* Branded section */}
-          {brandedRequested && (
-            <>
-              <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-              <Text style={[styles.sectionTitle, { color: colors.icon }]}>BRANDED</Text>
-
-              {brandedLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.tint}
-                  style={styles.brandedSpinner}
-                />
-              )}
-
-              {!brandedLoading && brandedResults.length === 0 && (
-                <Text style={[styles.emptyHint, { color: colors.icon }]}>
-                  No branded results found
-                </Text>
-              )}
-
-              {brandedResults.map(renderFood)}
-            </>
-          )}
-
-          {/* Load branded button */}
-          {showBrandedButton && (
-            <TouchableOpacity
-              style={[styles.loadBrandedBtn, { borderColor: colors.tint + '50' }]}
-              onPress={handleLoadBranded}
-              activeOpacity={0.7}
-              disabled={brandedLoading}
-            >
-              <Text style={[styles.loadBrandedText, { color: colors.tint }]}>
-                {brandedLoading ? 'Loading branded foods...' : 'Load branded foods'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Create custom */}
-          <TouchableOpacity
-            style={[styles.createFoodBtn, { borderColor: colors.tint + '50' }]}
-            onPress={() =>
-              router.replace({
-                pathname: '/custom-food' as any,
-                params: { meal_slot, date },
-              })
-            }
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.createFoodText, { color: colors.tint }]}>+ Create custom food</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          onLayout={resultsRestore.onLayout}
+          onScroll={resultsRestore.onScroll}
+          onContentSizeChange={resultsRestore.onContentSizeChange}
+        />
       )}
     </SafeAreaView>
   );
@@ -421,6 +409,7 @@ export default function FoodSearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  list: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
