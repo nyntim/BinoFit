@@ -22,6 +22,7 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 jest.mock('@/lib/database', () => ({
+  applyRemoteCustomFoods: jest.fn(async () => 0),
   applyRemoteFoodLogs: jest.fn(async (rows: unknown[]) => {
     mockOrder.push('logs');
     return rows.length;

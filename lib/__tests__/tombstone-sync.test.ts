@@ -1,7 +1,7 @@
 import { createMemoryDb } from '@/test-utils/sqlite-memory';
 
 const mockUpsert = jest.fn();
-jest.mock('@/lib/supabase', () => ({ supabase: { from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }) } }));
+jest.mock('@/lib/supabase', () => ({ supabase: { from: (table: string) => ({ upsert: (...a: unknown[]) => table === 'food_logs' ? mockUpsert(...a) : Promise.resolve({ error: null }) }) } }));
 jest.mock('@/lib/auth', () => ({
   getSessionUserId: jest.fn(async () => 'uid'),
   initAuth: jest.fn(async () => ({ status: 'none', restored: false })),
@@ -35,6 +35,8 @@ beforeEach(async () => {
        VALUES ('f1','Egg','','1',70,6,0,5,'custom','x')`
     )
     .run();
+  // These tests isolate log upload races; the definition has already synced.
+  mem.raw.prepare("UPDATE foods SET synced_at = 'synced' WHERE id = 'f1'").run();
 });
 
 const insert = (id: string) =>

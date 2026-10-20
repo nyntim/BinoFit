@@ -12,6 +12,8 @@ jest.mock('@/lib/device-id', () => ({ getDeviceId: jest.fn(async () => 'legacy-d
 jest.mock('@/lib/database', () => ({
   clearUserData: jest.fn(async () => {}),
   markAllUnsynced: jest.fn(async () => {}),
+  getUnsyncedCustomFoods: jest.fn(async () => []),
+  markCustomFoodsSynced: jest.fn(async () => {}),
   getUnsyncedFoodLogs: jest.fn(async () => []),
   getUnsyncedMealDefinitions: jest.fn(async () => []),
   getUnsyncedMealNames: jest.fn(async () => []),

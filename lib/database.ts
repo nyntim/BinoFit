@@ -1,3 +1,4 @@
+import { NUTRIENT_IDS, normalizeNutrients } from '@/lib/nutrients';
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import { format } from 'date-fns';
@@ -54,16 +55,8 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       fat REAL NOT NULL,
       source TEXT,
       updated_at TEXT NOT NULL,
-      fiber REAL,
-      sugar REAL,
-      sodium REAL,
-      cholesterol REAL,
-      saturated_fat REAL,
-      trans_fat REAL,
-      vitamin_d REAL,
-      calcium REAL,
-      iron REAL,
-      potassium REAL
+      ${NUTRIENT_IDS.map((id) => `${id} REAL`).join(',\n      ')},
+      synced_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS food_logs (
@@ -128,18 +121,11 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN logged_time TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE food_logs ADD COLUMN deleted_at TEXT;`).catch(() => {});
   await db.execAsync(`ALTER TABLE meal_definitions ADD COLUMN reminder_time TEXT;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN fiber REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN sugar REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN sodium REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN cholesterol REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN saturated_fat REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN trans_fat REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN vitamin_d REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN calcium REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN iron REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN potassium REAL;`).catch(() => {});
-  await db.execAsync(`ALTER TABLE foods ADD COLUMN barcode TEXT;`).catch(() => {});
-  await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_foods_barcode ON foods(barcode);`).catch(() => {});
+  const foodColumns = new Set((await db.getAllAsync<{ name: string }>('PRAGMA table_info(foods)')).map((c) => c.name));
+  for (const column of [...NUTRIENT_IDS, 'synced_at', 'barcode']) {
+    if (!foodColumns.has(column)) await db.execAsync(`ALTER TABLE foods ADD COLUMN ${column} ${NUTRIENT_IDS.includes(column as typeof NUTRIENT_IDS[number]) ? 'REAL' : 'TEXT'}`);
+  }
+  await db.execAsync('CREATE INDEX IF NOT EXISTS idx_foods_barcode ON foods(barcode)');
   await initWeightSchema(db);
 
   await seedDefaultMeals(db);
@@ -282,10 +268,7 @@ export async function getUnsyncedFoodLogs(): Promise<FoodLog[]> {
   return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE synced_at IS NULL');
 }
 
-const MICRO_COLUMNS = [
-  'fiber', 'sugar', 'sodium', 'cholesterol', 'saturated_fat',
-  'trans_fat', 'vitamin_d', 'calcium', 'iron', 'potassium',
-] as const;
+const MICRO_COLUMNS = NUTRIENT_IDS;
 
 export function hasAnyMicros(food: Food): boolean {
   return MICRO_COLUMNS.some((col) => food[col] != null);
@@ -300,7 +283,7 @@ export async function cacheRemoteFood(
   options: { partial?: boolean } = {}
 ): Promise<void> {
   const db = await getDatabase();
-  const microUpdates = MICRO_COLUMNS.map((c) => `${c} = COALESCE(excluded.${c}, foods.${c})`).join(', ');
+  const microUpdates = MICRO_COLUMNS.map((c) => `${c} = CASE WHEN excluded.serving_units = foods.serving_units THEN COALESCE(excluded.${c}, foods.${c}) ELSE excluded.${c} END`).join(', ');
   // Partial rows (search results) never touch an existing row
   const insertVerb = options.partial ? 'INSERT OR IGNORE' : 'INSERT';
   const onConflict = options.partial
@@ -336,7 +319,7 @@ export async function cacheRemoteFood(
       food.source ?? null,
       food.updated_at,
       food.barcode ?? null,
-      ...MICRO_COLUMNS.map((c) => food[c] ?? null),
+      ...MICRO_COLUMNS.map((c) => normalizeNutrients(food)[c]),
     ]
   );
 }
@@ -375,18 +358,27 @@ const FOOD_LOG_WITH_FOOD_SELECT = `SELECT fl.*,
        f.name as food_name, f.brand as food_brand,
        f.calories as food_calories, f.protein as food_protein,
        f.carbs as food_carbs, f.fat as food_fat,
-       f.serving_units as food_serving_units
+       f.serving_units as food_serving_units,
+       ${NUTRIENT_IDS.map((id) => `f.${id} as food_nutrient_${id}`).join(', ')}
      FROM food_logs fl
      JOIN foods f ON fl.food_id = f.id`;
 
+function hydrateFoodNutrients(row: FoodLogWithFood): FoodLogWithFood {
+  const raw = row as FoodLogWithFood & Record<string, unknown>;
+  const nutrients = normalizeNutrients(Object.fromEntries(NUTRIENT_IDS.map((id) => [id, raw[`food_nutrient_${id}`]])));
+  for (const id of NUTRIENT_IDS) delete raw[`food_nutrient_${id}`];
+  return { ...row, food_nutrients: nutrients };
+}
+
 export async function getFoodLogsWithFoodByDate(date: string): Promise<FoodLogWithFood[]> {
   const db = await getDatabase();
-  return db.getAllAsync<FoodLogWithFood>(
+  const rows = await db.getAllAsync<FoodLogWithFood>(
     `${FOOD_LOG_WITH_FOOD_SELECT}
      WHERE fl.date = ? AND fl.deleted_at IS NULL
      ORDER BY fl.created_at`,
     [date]
   );
+  return rows.map(hydrateFoodNutrients);
 }
 
 export async function getRecentFoods(limit = 10): Promise<Food[]> {
@@ -451,18 +443,69 @@ export async function getAllLoggedDates(
   }
 }
 
-export async function addCustomFood(
-  food: Omit<Food, 'id' | 'updated_at'>
-): Promise<Food> {
+type CustomFoodInput = Omit<Food, 'id' | 'updated_at'>;
+const FOOD_CORE_COLUMNS = ['name', 'brand', 'serving_units', 'calories', 'protein', 'carbs', 'fat'] as const;
+function customValues(food: CustomFoodInput) {
+  const nutrients = normalizeNutrients(food);
+  return [...FOOD_CORE_COLUMNS.map((key) => food[key] ?? null), ...NUTRIENT_IDS.map((id) => nutrients[id])];
+}
+
+export async function addCustomFood(food: CustomFoodInput): Promise<Food> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const id = Crypto.randomUUID();
+  const columns = [...FOOD_CORE_COLUMNS, ...NUTRIENT_IDS];
   await db.runAsync(
-    `INSERT INTO foods (id, name, brand, serving_units, calories, protein, carbs, fat, source, updated_at, barcode)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, food.name, food.brand ?? null, food.serving_units, food.calories, food.protein, food.carbs, food.fat, 'custom', now, food.barcode ?? null]
+    `INSERT INTO foods (id, ${columns.join(', ')}, source, updated_at, barcode, synced_at)
+     VALUES (?, ${columns.map(() => '?').join(', ')}, 'custom', ?, ?, NULL)`,
+    [id, ...customValues(food), now, food.barcode ?? null]
   );
-  return { ...food, id, updated_at: now };
+  return { ...food, ...normalizeNutrients(food), id, source: 'custom', updated_at: now, synced_at: null };
+}
+
+export async function updateCustomFood(id: string, food: CustomFoodInput): Promise<Food> {
+  const db = await getDatabase();
+  const existing = await getFoodById(id);
+  if (!existing || existing.source !== 'custom') throw new Error('Custom food unavailable');
+  // Ensure a write during upload has a distinct snapshot timestamp, even in the same millisecond.
+  const now = new Date(Math.max(Date.now(), Date.parse(existing.updated_at) + 1 || 0)).toISOString();
+  const columns = [...FOOD_CORE_COLUMNS, ...NUTRIENT_IDS];
+  await db.runAsync(
+    `UPDATE foods SET ${columns.map((c) => `${c} = ?`).join(', ')}, updated_at = ?, synced_at = NULL WHERE id = ? AND source = 'custom'`,
+    [...customValues(food), now, id]
+  );
+  return { ...food, ...normalizeNutrients(food), id, source: 'custom', updated_at: now, synced_at: null };
+}
+
+export async function getUnsyncedCustomFoods(): Promise<Food[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<Food>("SELECT * FROM foods WHERE source = 'custom' AND synced_at IS NULL");
+}
+export async function markCustomFoodsSynced(rows: readonly Pick<Food, 'id' | 'updated_at'>[]): Promise<void> {
+  const db = await getDatabase();
+  for (const row of rows) await db.runAsync("UPDATE foods SET synced_at = ? WHERE id = ? AND updated_at = ? AND source = 'custom'", [new Date().toISOString(), row.id, row.updated_at]);
+}
+
+/** Authoritative definitions; remote nulls clear values, local pending edits stay pending. */
+export async function applyRemoteCustomFoods(rows: readonly Food[]): Promise<number> {
+  const db = await getDatabase();
+  let applied = 0;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const food of rows) {
+      if (food.source !== 'custom') continue;
+      const local = await txn.getFirstAsync<Food>('SELECT * FROM foods WHERE id = ?', [food.id]);
+      const updated = toIso(food.updated_at, new Date().toISOString());
+      if (local && (local.source !== 'custom' || local.synced_at == null || !isRemoteNewer(updated, local.updated_at))) continue;
+      const columns = [...FOOD_CORE_COLUMNS, ...NUTRIENT_IDS];
+      await txn.runAsync(
+        `INSERT INTO foods (id, ${columns.join(', ')}, source, updated_at, synced_at) VALUES (?, ${columns.map(() => '?').join(', ')}, 'custom', ?, ?)
+         ON CONFLICT(id) DO UPDATE SET ${columns.map((c) => `${c} = excluded.${c}`).join(', ')}, updated_at = excluded.updated_at, synced_at = excluded.synced_at`,
+        [food.id, ...customValues(food), updated, new Date().toISOString()]
+      );
+      applied++;
+    }
+  });
+  return applied;
 }
 
 export async function getMealSlotConfirmationsByDate(date: string): Promise<MealSlotConfirmation[]> {
@@ -693,13 +736,14 @@ export async function getFoodLogsWithFoodInRange(
   end: string | null
 ): Promise<FoodLogWithFood[]> {
   const db = await getDatabase();
-  return db.getAllAsync<FoodLogWithFood>(
+  const rows = await db.getAllAsync<FoodLogWithFood>(
     `${FOOD_LOG_WITH_FOOD_SELECT}
      WHERE (? IS NULL OR fl.date >= ?) AND (? IS NULL OR fl.date <= ?)
        AND fl.deleted_at IS NULL
      ORDER BY fl.date, fl.created_at`,
     [start, start, end, end]
   );
+  return rows.map(hydrateFoodNutrients);
 }
 
 /** Meal status rows between two yyyy-MM-dd dates, inclusive. A null bound is open. */
@@ -928,6 +972,7 @@ export async function clearUserData(): Promise<void> {
 export async function markAllUnsynced(): Promise<void> {
   const db = await getDatabase();
   await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync("UPDATE foods SET synced_at = NULL WHERE source = 'custom'");
     await txn.runAsync('UPDATE food_logs SET synced_at = NULL');
     await txn.runAsync('UPDATE weight_entries SET synced_at = NULL');
     await txn.runAsync('UPDATE meal_definitions SET synced_at = NULL');

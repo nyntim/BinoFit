@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MacroColors, TargetTints } from '@/constants/theme';
 import type { Colors } from '@/constants/theme';
@@ -34,6 +34,7 @@ import {
   getMealSlotConfirmationsByDate,
   ensureMealSlotStatus,
 } from '@/lib/database';
+import { NUTRIENTS, scaleNutrients, type NutrientValues } from '@/lib/nutrients';
 import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
 import { parseBaseGrams } from '@/lib/serving-units';
@@ -58,6 +59,7 @@ function formatTime(d: Date): string {
 }
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
+const formatNutrientValue = (value: number) => value.toLocaleString('en-US', { maximumSignificantDigits: 8 });
 const formatNum = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const percent = (fraction: number) => `${fraction * 100}%` as DimensionValue;
 
@@ -111,6 +113,23 @@ export default function ServingPickerScreen() {
   const savingRef = useRef(false);
   const [editLoading, setEditLoading] = useState(Boolean(log_id));
   const [editLoadFailed, setEditLoadFailed] = useState(false);
+  const [definitionRefreshing, setDefinitionRefreshing] = useState(false);
+  const [definitionRefreshFailed, setDefinitionRefreshFailed] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    if (!food_id || food?.source !== 'custom') return;
+    let cancelled = false;
+    setDefinitionRefreshing(true);
+    getFoodById(food_id).then((current) => {
+      if (cancelled) return;
+      if (!current || current.source !== 'custom') throw new Error('Custom food unavailable');
+      setFood(current);
+      setDefinitionRefreshFailed(false);
+    }).catch(() => { if (!cancelled) setDefinitionRefreshFailed(true); })
+      .finally(() => { if (!cancelled) setDefinitionRefreshing(false); });
+    return () => { cancelled = true; };
+  }, [food_id, food?.source]));
+
 
   const isEdit = Boolean(log_id);
   const { labelFor, loaded: mealsLoaded } = useMealDefinitions();
@@ -123,7 +142,7 @@ export default function ServingPickerScreen() {
       try {
         const found = await getFoodById(food_id);
         if (cancelled) return;
-        if (found) setFood(found);
+        if (found) { setFood(found); setDefinitionRefreshFailed(false); }
 
         const needsMicros = !found || (!hasAnyMicros(found) && found.source !== 'custom' && found.source !== 'open_food_facts');
         if (!needsMicros) return;
@@ -197,18 +216,7 @@ export default function ServingPickerScreen() {
   const pro = food ? round1(food.protein * multiplier) : 0;
   const carb = food ? round1(food.carbs * multiplier) : 0;
   const fat = food ? round1(food.fat * multiplier) : 0;
-  const scaleMicro = (v: number | null | undefined, decimals = 1) =>
-    v == null ? null : Math.round(v * multiplier * 10 ** decimals) / 10 ** decimals;
-  const fiber = scaleMicro(food?.fiber);
-  const sugar = scaleMicro(food?.sugar);
-  const sodium = scaleMicro(food?.sodium, 0);
-  const satFat = scaleMicro(food?.saturated_fat);
-  const transFat = scaleMicro(food?.trans_fat);
-  const cholesterol = scaleMicro(food?.cholesterol, 0);
-  const vitaminD = scaleMicro(food?.vitamin_d);
-  const calcium = scaleMicro(food?.calcium, 0);
-  const iron = scaleMicro(food?.iron);
-  const potassium = scaleMicro(food?.potassium, 0);
+  const nutrients = scaleNutrients(food, validation.valid ? multiplier : NaN);
 
   // Reference only: never changes what gets logged
   const per100 =
@@ -219,7 +227,7 @@ export default function ServingPickerScreen() {
         })()
       : null;
 
-  const canLog = Boolean(food && meal_slot && date && mealsLoaded) && validation.valid && !editLoading && !saving;
+  const canLog = Boolean(food && meal_slot && date && mealsLoaded) && validation.valid && !editLoading && !definitionRefreshFailed && !definitionRefreshing && !saving;
 
   const handleUnitChange = (unit: ServingUnit) => {
     if (unit === servingUnit || !baseGrams) return;
@@ -234,7 +242,7 @@ export default function ServingPickerScreen() {
 
   const handleSave = async () => {
     const checked = validateServing(servingAmount, servingUnit, baseGrams);
-    if (!food || !checked.valid || checked.multiplier === null || !meal_slot || !date || !mealsLoaded || editLoading || savingRef.current) return;
+    if (!food || !checked.valid || checked.multiplier === null || !meal_slot || !date || !mealsLoaded || editLoading || definitionRefreshFailed || definitionRefreshing || savingRef.current) return;
     const multiplier = checked.multiplier;
     savingRef.current = true;
     Keyboard.dismiss();
@@ -354,6 +362,12 @@ export default function ServingPickerScreen() {
         </View>
       ) : null}
 
+      {definitionRefreshFailed ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]} accessibilityRole="alert">
+          <Text style={[styles.errorText, { color: colors.text }]}>Couldn’t refresh this food.</Text>
+          <TouchableOpacity onPress={retryLoad} accessibilityRole="button" style={styles.editRetry}><Text style={{ color: colors.tint }}>Try again</Text></TouchableOpacity>
+        </View>
+      ) : null}
       {editLoadFailed ? (
         <View style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
           <Text style={[styles.errorText, { color: colors.text }]}>{"Couldn't load this entry."}</Text>
@@ -415,6 +429,11 @@ export default function ServingPickerScreen() {
                 {food.source === 'usda' || food.source?.startsWith('usda') ? 'USDA · Generic' : food.source ?? 'Generic'}
               </Text>
             )}
+            {food.source === 'custom' ? (
+              <TouchableOpacity style={styles.editFood} accessibilityRole="button" accessibilityLabel="Edit food" onPress={() => router.push({ pathname: '/custom-food', params: { food_id: food.id, meal_slot, date } })}>
+                <Text style={{ fontSize: 15, color: colors.tint }}>Edit food</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* Form group card */}
@@ -513,10 +532,7 @@ export default function ServingPickerScreen() {
               pro={pro}
               carb={carb}
               fat={fat}
-              fiber={fiber}
-              sugar={sugar}
-              satFat={satFat}
-              transFat={transFat}
+              nutrients={nutrients}
               proteinGoal={proteinGoal}
               carbGoal={carbGoal}
               fatGoal={fatGoal}
@@ -587,16 +603,10 @@ export default function ServingPickerScreen() {
             onToggle={() => setExpandNutrients((v) => !v)}
             colors={colors}
           >
-            <MicroExpandRow label="Fiber" value={fiber} unit="g" colors={colors} />
-            <MicroExpandRow label="Sugar" value={sugar} unit="g" colors={colors} />
-            <MicroExpandRow label="Saturated Fat" value={satFat} unit="g" colors={colors} />
-            <MicroExpandRow label="Trans Fat" value={transFat} unit="g" colors={colors} />
-            <MicroExpandRow label="Cholesterol" value={cholesterol} unit="mg" colors={colors} />
-            <MicroExpandRow label="Sodium" value={sodium} unit="mg" colors={colors} />
-            <MicroExpandRow label="Potassium" value={potassium} unit="mg" colors={colors} />
-            <MicroExpandRow label="Calcium" value={calcium} unit="mg" colors={colors} />
-            <MicroExpandRow label="Iron" value={iron} unit="mg" colors={colors} />
-            <MicroExpandRow label="Vitamin D" value={vitaminD} unit="µg" colors={colors} />
+            {NUTRIENTS.filter(({ id }) => nutrients[id] !== null).map(({ id, label, unit }) => (
+              <MicroExpandRow key={id} label={label} value={nutrients[id]} unit={unit === 'ug' ? 'µg' : unit} colors={colors} />
+            ))}
+            {NUTRIENTS.every(({ id }) => nutrients[id] === null) ? <Text style={{ fontSize: 13, color: colors.icon }}>No nutrient details for this food.</Text> : null}
           </ExpandSection>
         </ScrollView>
       )}
@@ -676,10 +686,7 @@ function buildMacroRows(
   pro: number,
   carb: number,
   fat: number,
-  fiber: number | null,
-  sugar: number | null,
-  satFat: number | null,
-  transFat: number | null,
+  nutrients: NutrientValues,
   proteinGoal: number | null,
   carbGoal: number | null,
   fatGoal: number | null,
@@ -700,54 +707,30 @@ function buildMacroRows(
       { key: 'valine', label: 'Valine', value: null, goal: null, indent: 1 },
     ];
   }
-  if (macro === 'carbs') {
-    const net = fiber != null ? Math.round((carb - fiber) * 10) / 10 : null;
-    return [
-      { key: 'total', label: 'Carbs (Total)', value: carb, goal: carbGoal, indent: 0 },
-      { key: 'fiber', label: 'Fiber', value: fiber, goal: null, indent: 1 },
-      { key: 'fiber_ins', label: 'Fiber (Insoluble)', value: null, goal: null, indent: 2 },
-      { key: 'fiber_sol', label: 'Fiber (Soluble)', value: null, goal: null, indent: 2 },
-      { key: 'net', label: 'Carbs (Net)', value: net, goal: null, indent: 0 },
-      { key: 'starch', label: 'Starch', value: null, goal: null, indent: 0 },
-      { key: 'sugar', label: 'Sugars', value: sugar, goal: null, indent: 0 },
-      { key: 'added_sugars', label: 'Added Sugars', value: null, goal: null, indent: 0 },
-    ];
-  }
-  return [
-    { key: 'total', label: 'Fats (Total)', value: fat, goal: fatGoal, indent: 0 },
-    { key: 'mono', label: 'Fat (Monounsaturated)', value: null, goal: null, indent: 1 },
-    { key: 'poly', label: 'Fat (Polyunsaturated)', value: null, goal: null, indent: 1 },
-    { key: 'o3', label: 'Omega-3', value: null, goal: null, indent: 1 },
-    { key: 'o3_ala', label: 'Omega-3 (ALA)', value: null, goal: null, indent: 2 },
-    { key: 'o3_dha', label: 'Omega-3 (DHA)', value: null, goal: null, indent: 2 },
-    { key: 'o3_epa', label: 'Omega-3 (EPA)', value: null, goal: null, indent: 2 },
-    { key: 'o6', label: 'Omega-6', value: null, goal: null, indent: 1 },
-    { key: 'o6_aa', label: 'Omega-6 (AA)', value: null, goal: null, indent: 2 },
-    { key: 'o6_la', label: 'Omega-6 (LA)', value: null, goal: null, indent: 2 },
-    { key: 'sat', label: 'Fat (Saturated)', value: satFat, goal: null, indent: 1 },
-    { key: 'trans', label: 'Fat (Trans)', value: transFat, goal: null, indent: 1 },
+  const rows: MacroDetailRow[] = [
+    { key: 'total', label: macro === 'carbs' ? 'Carbs (Total)' : 'Fats (Total)', value: macro === 'carbs' ? carb : fat, goal: macro === 'carbs' ? carbGoal : fatGoal, unit: 'g' },
+    ...NUTRIENTS.filter((nutrient) => 'macroParent' in nutrient && nutrient.macroParent === macro).map(({ id, label, unit }) => ({ key: id, label, value: nutrients[id], goal: null, unit: unit === 'ug' ? 'µg' : unit, indent: 1 })),
   ];
+  if (macro === 'carbs' && nutrients.fiber !== null) rows.push({ key: 'net', label: 'Carbs (Net)', value: round1(carb - nutrients.fiber), goal: null, unit: 'g' });
+  return rows;
 }
 
 function MacroDetailPanel({
-  macro, pro, carb, fat, fiber, sugar, satFat, transFat,
+  macro, pro, carb, fat, nutrients,
   proteinGoal, carbGoal, fatGoal, onClose, colors,
 }: {
   macro: 'protein' | 'carbs' | 'fat';
   pro: number;
   carb: number;
   fat: number;
-  fiber: number | null;
-  sugar: number | null;
-  satFat: number | null;
-  transFat: number | null;
+  nutrients: NutrientValues;
   proteinGoal: number | null;
   carbGoal: number | null;
   fatGoal: number | null;
   onClose: () => void;
   colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'track'>;
 }) {
-  const rows = buildMacroRows(macro, pro, carb, fat, fiber, sugar, satFat, transFat, proteinGoal, carbGoal, fatGoal);
+  const rows = buildMacroRows(macro, pro, carb, fat, nutrients, proteinGoal, carbGoal, fatGoal);
   // Rows with no data are hidden; a single note says so
   const visibleRows = rows.filter((r) => r.value != null);
   const hiddenCount = rows.length - visibleRows.length;
@@ -795,8 +778,8 @@ function DetailRow({
   const valueText = !hasValue
     ? 'No Data'
     : row.goal
-    ? `${row.value} / ${row.goal} g`
-    : `${row.value} g`;
+    ? `${formatNutrientValue(row.value!)} / ${row.goal} ${row.unit ?? 'g'}`
+    : `${formatNutrientValue(row.value!)} ${row.unit ?? 'g'}`;
   const pctText = hasValue && row.goal ? `${Math.round(pct * 100)}%` : '0%';
 
   return (
@@ -999,7 +982,7 @@ function MicroExpandRow({
     >
       <Text style={{ fontSize: 14, color: colors.icon, flexShrink: 1 }}>{label}</Text>
       <Text style={{ fontSize: 14, fontWeight: hasValue ? '600' : '400', color: hasValue ? colors.text : colors.icon, fontVariant: ['tabular-nums'] }}>
-        {hasValue ? `${value} ${unit}` : 'No Data'}
+        {hasValue ? `${formatNutrientValue(value!)} ${unit}` : 'No Data'}
       </Text>
     </View>
   );
@@ -1193,6 +1176,7 @@ const styles = StyleSheet.create({
   detailRowValueInline: { fontSize: 12, fontVariant: ['tabular-nums'] },
   detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 36, textAlign: 'right' },
 
+  editFood: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   foodCard: { borderRadius: 18, padding: 16 },
   foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
   foodBrand: { fontSize: 14, marginBottom: 4 },
@@ -1290,6 +1274,8 @@ const styles = StyleSheet.create({
 
   // Micro expand rows
   microExpandRow: {
+    gap: 12,
+    flexWrap: 'wrap',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

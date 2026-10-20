@@ -31,12 +31,24 @@ describe('mapUSDARow (via getUSDAFoodById)', () => {
     const f = await load().getUSDAFoodById('u1');
     expect(f).toMatchObject({ calories: 302, protein: 15.5, carbs: 30.1, fat: 6.7, serving_units: '150g' });
   });
-  it('scales micronutrients with 3 decimals', async () => {
+  it('scales micronutrients without rounding away source precision', async () => {
     mockFoodsDb({ ...baseRow, serving_size: 28, vitamin_d: 0.123456, iron: 1.2345, fiber: 3 });
     const f = await load().getUSDAFoodById('u1');
-    expect(f!.vitamin_d).toBe(0.035);
-    expect(f!.iron).toBe(0.346);
-    expect(f!.fiber).toBe(0.84);
+    expect(f!.vitamin_d).toBeCloseTo(0.123456 * 0.28, 12);
+    expect(f!.iron).toBeCloseTo(1.2345 * 0.28, 12);
+    expect(f!.fiber).toBeCloseTo(0.84, 12);
+  });
+  it('maps every bundled nutrient in its existing canonical unit and leaves absent columns unknown', async () => {
+    const values = { monounsat_fat: 2, polyunsat_fat: 3, vitamin_a: 125, vitamin_c: 5,
+      vitamin_e: 0.2, vitamin_k: 0.005, thiamin: 0, riboflavin: 0.4, niacin: 1,
+      b6: 0.3, folate: 15, b12: 0.0001, choline: 20, magnesium: 40, zinc: 2,
+      phosphorus: 15, copper: 0.1, manganese: 0.2, selenium: 5 };
+    mockFoodsDb({ ...baseRow, ...values, serving_size: 25 });
+    const f = await load().getUSDAFoodById('u1');
+    for (const [id, value] of Object.entries(values)) {
+      expect((f as unknown as Record<string, unknown>)[id]).toBe(value * 0.25);
+    }
+    expect(f).toMatchObject({ added_sugar: null, cholesterol: null });
   });
   it('keeps null micronutrients as null (not 0)', async () => {
     mockFoodsDb({ ...baseRow });

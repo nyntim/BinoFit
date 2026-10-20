@@ -1,4 +1,6 @@
-export type Food = {
+import type { NutrientValues } from '@/lib/nutrients';
+
+export type Food = Partial<NutrientValues> & {
   id: string;
   name: string;
   brand: string | null;
@@ -12,17 +14,7 @@ export type Food = {
   matchTier?: number;
   /** GTIN (EAN-13 normalized) when the food came from a barcode scan. Device-only, not synced. */
   barcode?: string | null;
-  // micronutrients (all in standard label units; null = not available)
-  fiber?: number | null;
-  sugar?: number | null;
-  sodium?: number | null;
-  cholesterol?: number | null;
-  saturated_fat?: number | null;
-  trans_fat?: number | null;
-  vitamin_d?: number | null;
-  calcium?: number | null;
-  iron?: number | null;
-  potassium?: number | null;
+  synced_at?: string | null;
 };
 
 /** Id of a user-defined meal. The four seeded defaults use 'breakfast' | 'lunch' | 'dinner' | 'snack'. */
@@ -113,6 +105,7 @@ export type UserProfile = {
 };
 
 export type FoodLogWithFood = FoodLog & {
+  food_nutrients?: NutrientValues;
   food_name: string;
   food_brand: string | null;
   food_calories: number;

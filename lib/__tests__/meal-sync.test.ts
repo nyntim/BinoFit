@@ -20,6 +20,8 @@ jest.mock('@/lib/tombstones', () => ({
   purgeSyncedTombstones: jest.fn(async () => {}),
 }));
 jest.mock('@/lib/database', () => ({
+  getUnsyncedCustomFoods: jest.fn(async () => []),
+  markCustomFoodsSynced: jest.fn(async () => {}),
   getUnsyncedFoodLogs: jest.fn(async () => []),
   getUnsyncedMealDefinitions: jest.fn(),
   markMealDefinitionsSynced: jest.fn(),

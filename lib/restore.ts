@@ -1,10 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import {
   applyRemoteFoodLogs,
+  applyRemoteCustomFoods,
   cacheRemoteFood,
   getMissingFoodIds,
   replaceMealsFromRemote,
 } from '@/lib/database';
+import { normalizeNutrients } from '@/lib/nutrients';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import { lookupBarcode } from '@/lib/food-service';
 import { applyRemoteWeightEntries, syncProfileWeightFromLatest } from '@/lib/weight';
@@ -70,7 +72,6 @@ type RemoteFoodRow = Record<string, unknown> & { id: string; name: string };
 export function remoteFoodToFood(row: RemoteFoodRow): Food | null {
   if (!row.id || !row.name) return null;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-  const micro = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   return {
     id: row.id,
     name: row.name,
@@ -82,16 +83,7 @@ export function remoteFoodToFood(row: RemoteFoodRow): Food | null {
     fat: num(row.fat),
     source: typeof row.source === 'string' ? row.source : 'branded',
     updated_at: typeof row.updated_at === 'string' ? row.updated_at : new Date().toISOString(),
-    fiber: micro(row.fiber),
-    sugar: micro(row.sugar),
-    sodium: micro(row.sodium),
-    cholesterol: micro(row.cholesterol),
-    saturated_fat: micro(row.saturated_fat),
-    trans_fat: micro(row.trans_fat),
-    vitamin_d: micro(row.vitamin_d),
-    calcium: micro(row.calcium),
-    iron: micro(row.iron),
-    potassium: micro(row.potassium),
+    ...normalizeNutrients(row),
   };
 }
 
@@ -132,6 +124,7 @@ export type RestoreResult =
   | { ok: false; error: string };
 
 type Table =
+  | 'foods'
   | 'food_logs'
   | 'weight_entries'
   | 'meal_definitions'
@@ -269,6 +262,15 @@ export async function restoreFromAccount(
         soft<RemoteRoutine>('routines'),
         soft<RemoteRoutineExercise>('routine_exercises'),
       ]);
+
+    // Restore owned custom definitions even when they have never been logged.
+    // Authoritative application preserves timestamp guards and explicit null clears.
+    const ownedFoods = await fetchAll<RemoteFoodRow>('foods', userId, ['id']);
+    const customFoods = ownedFoods
+      .filter((row) => row.source === 'custom')
+      .map(remoteFoodToFood)
+      .filter((food): food is Food => food !== null);
+    await applyRemoteCustomFoods(customFoods);
 
     const missing = await getMissingFoodIds(uniqueFoodIds(allLogs.filter(isLiveRow)));
     const unresolved = missing.length > 0 ? await resolveFoods(missing, onProgress) : [];

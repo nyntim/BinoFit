@@ -107,3 +107,38 @@ describe('sortFoodResults', () => {
     expect((await sortFoodResults(foods, 'recent')).map((f) => f.id)).toEqual(['3', '1', '2']);
   });
 });
+
+describe('branded nutrient profiles', () => {
+  const { supabase } = require('@/lib/supabase');
+  const { getFullBrandedFood, searchBranded } = require('@/lib/food-service');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (db.cacheRemoteFood as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('normalizes the full catalog before returning and caching a complete profile', async () => {
+    supabase.single.mockResolvedValueOnce({ data: {
+      ...food('full', 'Food'), source: 'branded', added_sugar: 0, b12: 0.00001,
+      monounsat_fat: '1.25', selenium: -1, choline: Infinity, folate: '2mg',
+    }, error: null });
+    const result = await getFullBrandedFood('full');
+    expect(result).toMatchObject({ added_sugar: 0, b12: 0.00001, monounsat_fat: 1.25,
+      selenium: null, choline: null, folate: null, vitamin_e: null });
+    expect(db.cacheRemoteFood).toHaveBeenCalledWith(result);
+    expect(supabase.select).toHaveBeenCalledWith('*');
+  });
+
+  it('keeps search profiles partial and marks their cache writes accordingly', async () => {
+    const rows = [food('partial', 'Partial')];
+    const previousThen = supabase.then;
+    supabase.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows, error: null });
+    try {
+      expect(await searchBranded('Partial')).toEqual(rows);
+      expect(supabase.select).toHaveBeenCalledWith('id, name, brand, calories, protein, carbs, fat, serving_units');
+      expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial' }), { partial: true });
+    } finally {
+      supabase.then = previousThen;
+    }
+  });
+});

@@ -23,6 +23,8 @@ jest.mock('@/lib/tombstones', () => ({
 }));
 jest.mock('@/lib/weight', () => ({ getUnsyncedWeightEntries: jest.fn(async () => []) }));
 jest.mock('@/lib/database', () => ({
+  getUnsyncedCustomFoods: jest.fn(async () => []),
+  markCustomFoodsSynced: jest.fn(async () => {}),
   getUnsyncedFoodLogs: jest.fn(),
   getUnsyncedMealDefinitions: jest.fn(),
   markMealDefinitionsSynced: jest.fn(async () => {}),

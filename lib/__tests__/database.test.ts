@@ -187,3 +187,65 @@ describe('ensureMealSlotStatus', () => {
     expect(await database.ensureMealSlotStatus('2024-05-02', 'lunch', true)).toBe(true);
   });
 });
+
+describe('complete nutrient persistence and custom definitions', () => {
+  it('round trips all catalog fields and explicit clears, guards custom IDs and upload snapshots', async () => {
+    const { NUTRIENT_IDS } = require('@/lib/nutrients');
+    const nutrients = Object.fromEntries(NUTRIENT_IDS.map((id: string, index: number) => [id, index === 0 ? 0 : index / 100000]));
+    const food = await database.addCustomFood({ ...mk(), ...nutrients });
+    expect(await database.getFoodById(food.id)).toMatchObject({ ...nutrients, source: 'custom', synced_at: null });
+    const edited = await database.updateCustomFood(food.id, { ...food, fiber: null });
+    await database.markCustomFoodsSynced([food]);
+    expect((await database.getUnsyncedCustomFoods()).map((f) => f.id)).toContain(food.id);
+    await database.markCustomFoodsSynced([edited]);
+    expect(await database.getUnsyncedCustomFoods()).toHaveLength(0);
+    expect(await database.getFoodById(food.id)).toMatchObject({ fiber: null, b12: nutrients.b12 });
+    await database.cacheRemoteFood(mk());
+    await expect(database.updateCustomFood('f1', mk())).rejects.toThrow('Custom food unavailable');
+    await expect(database.updateCustomFood('missing', mk())).rejects.toThrow('Custom food unavailable');
+  });
+  it('does not merge nutrients across a changed serving basis', async () => {
+    await database.cacheRemoteFood(mk({ fiber: 5, b12: .00001 }));
+    await database.cacheRemoteFood(mk({ serving_units: '1 serving (30g)', fiber: null }));
+    expect(await row()).toMatchObject({ fiber: null, b12: null });
+  });
+  it('hydrates both joined reads, preserves precision and excludes tombstones', async () => {
+    await database.cacheRemoteFood(mk({ fiber: 0, b12: .000001 }));
+    const log = await database.addFoodLog({ date: '2026-01-01', meal_slot: 'lunch', food_id: 'f1', serving_amount: .5, serving_unit: '100g' });
+    expect((await database.getFoodLogsWithFoodByDate('2026-01-01'))[0].food_nutrients).toMatchObject({ fiber: 0, b12: .000001, added_sugar: null });
+    expect((await database.getFoodLogsWithFoodInRange(null, null))[0].food_nutrients).toMatchObject({ fiber: 0, b12: .000001 });
+    await database.deleteFoodLog(log.id);
+    expect(await database.getFoodLogsWithFoodInRange(null, null)).toHaveLength(0);
+  });
+  it('upgrades an existing ten-column populated table without changing relationships or values', async () => {
+    const { NUTRIENT_IDS } = require('@/lib/nutrients');
+    const existing = ['fiber','sugar','sodium','cholesterol','saturated_fat','trans_fat','vitamin_d','calcium','iron','potassium'];
+    mem.raw.exec(`CREATE TABLE foods (id TEXT PRIMARY KEY, name TEXT, brand TEXT, serving_units TEXT, calories REAL, protein REAL, carbs REAL, fat REAL, source TEXT, updated_at TEXT, barcode TEXT, ${existing.map((id) => `${id} REAL`).join(',')});
+      INSERT INTO foods (id,name,serving_units,calories,protein,carbs,fat,source,updated_at,barcode,fiber) VALUES ('legacy','Mine','100g',1,2,3,4,'custom','2024-01-01','0123',0);`);
+    await database.getDatabase();
+    expect(await database.getFoodById('legacy')).toMatchObject({ fiber: 0, barcode: '0123', updated_at: '2024-01-01', choline: null, synced_at: null });
+    expect(mem.raw.prepare('PRAGMA table_info(foods)').all().map((c: any) => c.name)).toEqual(expect.arrayContaining([...NUTRIENT_IDS, 'synced_at']));
+    expect(await database.getUnsyncedCustomFoods()).toHaveLength(1);
+  });
+});
+
+describe('checked additive migration', () => {
+  it('can initialize an upgraded populated database again without changing values', async () => {
+    const food = await database.addCustomFood(mk({ fiber: 0, b12: .000001 }));
+    await database.addFoodLog({ date: '2026-01-01', meal_slot: 'lunch', food_id: food.id, serving_amount: .5, serving_unit: '100g' });
+    jest.resetModules();
+    require('expo-sqlite').openDatabaseAsync.mockResolvedValue(mem);
+    const reloaded = require('@/lib/database');
+    expect(await reloaded.getFoodById(food.id)).toMatchObject({ fiber: 0, b12: .000001, updated_at: food.updated_at, synced_at: null });
+    expect(await reloaded.getFoodLogsWithFoodByDate('2026-01-01')).toHaveLength(1);
+  });
+  it('surfaces genuine nutrient ALTER failures instead of silently succeeding', async () => {
+    mem.raw.exec(`CREATE TABLE foods (id TEXT PRIMARY KEY, name TEXT, brand TEXT, serving_units TEXT, calories REAL, protein REAL, carbs REAL, fat REAL, source TEXT, updated_at TEXT);`);
+    const exec = mem.execAsync;
+    mem.execAsync = async (sql: string) => {
+      if (sql.includes('ALTER TABLE foods ADD COLUMN')) throw new Error('disk failure');
+      return exec(sql);
+    };
+    await expect(database.getDatabase()).rejects.toThrow('disk failure');
+  });
+});

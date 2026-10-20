@@ -7,6 +7,8 @@ jest.mock('@/lib/tombstones', () => ({
 }));
 jest.mock('@/lib/database', () => ({
   clearUserData: jest.fn(),
+  getUnsyncedCustomFoods: jest.fn(async () => []),
+  markCustomFoodsSynced: jest.fn(async () => {}),
   getUnsyncedFoodLogs: jest.fn(async () => [{ id: 'l' }]),
   getUnsyncedMealDefinitions: jest.fn(async () => []),
   markMealDefinitionsSynced: jest.fn(),

@@ -1,3 +1,4 @@
+import { NUTRIENT_IDS, scaleNutrients, type NutrientId } from '@/lib/nutrients';
 import type { FoodLogWithFood, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 export type NutritionTotals = {
@@ -9,7 +10,7 @@ export type NutritionTotals = {
 
 /** A slot with no status row counts as eaten. */
 export function isSlotEaten(
-  confirmations: Pick<MealSlotConfirmation, 'meal_slot' | 'confirmed'>[],
+  confirmations: readonly Pick<MealSlotConfirmation, 'meal_slot' | 'confirmed'>[],
   slot: MealSlot
 ): boolean {
   const conf = confirmations.find((c) => c.meal_slot === slot);
@@ -65,4 +66,31 @@ export function slotCalories(
   slot: MealSlot
 ): number {
   return logsForSlot(logs, slot).reduce((sum, l) => sum + l.food_calories * l.serving_amount, 0);
+}
+
+export type NutrientTotal = { total: number | null; knownCount: number; missingCount: number };
+export type NutrientTotals = Record<NutrientId, NutrientTotal>;
+type NutrientLog = Pick<FoodLogWithFood, 'serving_amount' | 'food_nutrients' | 'deleted_at'>;
+
+/** Values use the stored base-serving multiplier exactly once; coverage counts log items. */
+export function sumNutrientTotals(logs: readonly NutrientLog[]): NutrientTotals {
+  const totals = Object.fromEntries(NUTRIENT_IDS.map((id) => [id, { total: null, knownCount: 0, missingCount: 0 }])) as NutrientTotals;
+  for (const log of logs) {
+    if (log.deleted_at != null) continue;
+    const scaled = scaleNutrients(log.food_nutrients, log.serving_amount);
+    for (const id of NUTRIENT_IDS) {
+      const value = scaled[id];
+      const item = totals[id];
+      const next = (item.total ?? 0) + (value ?? 0);
+      if (value == null || !Number.isFinite(next)) item.missingCount++;
+      else { item.total = next; item.knownCount++; }
+    }
+  }
+  return totals;
+}
+export function slotNutrientTotals(logs: readonly (NutrientLog & Pick<FoodLogWithFood, 'meal_slot'>)[], slot: MealSlot): NutrientTotals {
+  return sumNutrientTotals(logs.filter((log) => log.meal_slot === slot));
+}
+export function sumEatenNutrientTotals(logs: readonly (NutrientLog & Pick<FoodLogWithFood, 'meal_slot'>)[], confirmations: readonly Pick<MealSlotConfirmation, 'meal_slot' | 'confirmed'>[]): NutrientTotals {
+  return sumNutrientTotals(logs.filter((log) => isSlotEaten(confirmations, log.meal_slot)));
 }

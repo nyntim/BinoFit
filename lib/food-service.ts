@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { fetchOffProduct, normalizeBarcode } from '@/lib/open-food-facts';
 import type { Food } from '@/lib/types';
+import { normalizeNutrients } from '@/lib/nutrients';
 
 const MIN_BRANDED_QUERY_LENGTH = 3;
 const BRANDED_LIMIT = 8;
@@ -266,6 +267,7 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
 
     const fullFood: Food = {
       ...(data as Food),
+      ...normalizeNutrients(data),
       source: data.source || 'branded',
       updated_at: data.updated_at || new Date().toISOString(),
     };
@@ -277,30 +279,6 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
   } catch {
     return null; // Silent failure
   }
-}
-
-/**
- * Save a newly created custom food to Supabase so it survives reinstall.
- * Fire-and-forget — callers must NOT await this.
- */
-export async function saveCustomFoodToSupabase(food: Food, userId: string): Promise<void> {
-  // TODO: Verify if this should also change if 'foods' table is renamed
-  await supabase.from('foods').upsert(
-    {
-      id: food.id,
-      name: food.name,
-      brand: food.brand,
-      serving_units: food.serving_units,
-      calories: food.calories,
-      protein: food.protein,
-      carbs: food.carbs,
-      fat: food.fat,
-      source: 'custom',
-      user_id: userId,
-      updated_at: food.updated_at,
-    },
-    { onConflict: 'id' }
-  );
 }
 
 export type BarcodeLookupResult =

@@ -1,24 +1,27 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import CustomFoodScreen from '@/app/custom-food';
 import ServingPickerScreen from '@/app/serving-picker';
-import { addCustomFood, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate } from '@/lib/database';
+import { addCustomFood, updateCustomFood, getFoodById, addFoodLog, updateFoodLog, getFoodLogsWithFoodByDate } from '@/lib/database';
 
 let mockParams: Record<string, string>;
-const mockRouter = { back: jest.fn(), replace: jest.fn() };
-jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => mockRouter }));
+let mockFocusCallback: () => (() => void) | undefined;
+const mockFood = { id: 'food', name: 'Food', serving_units: '100g', calories: 100, protein: 10, carbs: 20, fat: 5, source: 'custom' };
+const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() };
+jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => mockRouter, useFocusEffect: (callback: typeof mockFocusCallback) => { mockFocusCallback = callback; require('react').useEffect(callback, [callback]); } }));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#333333' }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Lunch' }) }));
 jest.mock('@/components/time-picker-sheet', () => ({ TimePickerSheet: () => null }));
 jest.mock('@/lib/database', () => ({
-  addCustomFood: jest.fn(), addFoodLog: jest.fn(), updateFoodLog: jest.fn(),
+  addCustomFood: jest.fn(), updateCustomFood: jest.fn(), addFoodLog: jest.fn(), updateFoodLog: jest.fn(),
   getFoodById: jest.fn(async () => ({ id: 'food', name: 'Food', serving_units: '100g', calories: 100, protein: 10, carbs: 20, fat: 5, source: 'custom' })),
   getFoodLogsWithFoodByDate: jest.fn(), hasAnyMicros: () => false,
   getMealSlotConfirmationsByDate: jest.fn(async () => []), ensureMealSlotStatus: jest.fn(async () => true),
 }));
 jest.mock('@/lib/storage', () => ({ getUserGoals: async () => null, getDefaultLogStatus: async () => 'eaten' }));
+jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
 jest.mock('@/lib/auth', () => ({ getSessionUserId: async () => null }));
 jest.mock('@/lib/food-service', () => ({ saveCustomFoodToSupabase: jest.fn() }));
 jest.mock('@/lib/foods-db', () => ({ getUSDAFoodById: jest.fn() }));
@@ -30,6 +33,8 @@ beforeEach(() => {
   (getFoodLogsWithFoodByDate as jest.Mock).mockResolvedValue([]);
   (addCustomFood as jest.Mock).mockResolvedValue({ id: 'new' });
   (addFoodLog as jest.Mock).mockResolvedValue(undefined);
+  (getFoodById as jest.Mock).mockResolvedValue(mockFood);
+  (updateCustomFood as jest.Mock).mockResolvedValue(mockFood);
 });
 
 async function fillCustom() {
@@ -39,6 +44,7 @@ async function fillCustom() {
 }
 
 test('custom food keeps pristine fields quiet, explains malformed macros, and saves zero blanks', async () => {
+  delete mockParams.food_id;
   await render(<CustomFoodScreen />);
   expect(screen.queryByText('Enter calories.')).toBeNull();
   await fireEvent(screen.getByLabelText('Calories (required)'), 'blur');
@@ -55,6 +61,7 @@ test('custom food keeps pristine fields quiet, explains malformed macros, and sa
 });
 
 test('custom food blocks repeat writes while saving', async () => {
+  delete mockParams.food_id;
   await render(<CustomFoodScreen />);
   await fillCustom();
   await fireEvent.press(screen.getByLabelText('Save food'));
@@ -142,4 +149,74 @@ test('failed edit load offers retry after the food loads and saves only the reco
   expect(screen.getByLabelText('Save changes').props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(screen.getByLabelText('Save changes'));
   expect(updateFoodLog).toHaveBeenCalledWith('old', 2.5, '100g', expect.any(String));
+});
+
+
+test('optional nutrients preserve zero, tiny values and drafts, with invalid collapsed input still visible', async () => {
+  delete mockParams.food_id;
+  await render(<CustomFoodScreen />);
+  await fillCustom();
+  expect(screen.queryByLabelText('Fiber (g)')).toBeNull();
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.changeText(screen.getByLabelText('Fiber (g)'), '0');
+  await fireEvent.changeText(screen.getByLabelText('Vitamin B12 (µg)'), '0.00000001');
+  await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '-1');
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  expect(screen.getByText('Iron: enter a finite number of 0 or more.')).toBeTruthy();
+  expect(screen.getByLabelText('Save food').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  expect(screen.getByLabelText('Fiber (g)').props.value).toBe('0');
+  expect(screen.getByLabelText('Vitamin B12 (µg)').props.value).toBe('0.00000001');
+  await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '');
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.press(screen.getByLabelText('Save food'));
+  expect(addCustomFood).toHaveBeenCalledWith(expect.objectContaining({ fiber: 0, b12: 0.00000001, iron: null, sodium: null }));
+});
+
+test('custom edits prefill zero and tiny nutrients, preserve collapsed values and allow explicit clear', async () => {
+  (getFoodById as jest.Mock).mockResolvedValue({ ...mockFood, fiber: 0, b12: 1e-8, iron: 2 });
+  await render(<CustomFoodScreen />);
+  await screen.findByLabelText('Name (required)');
+  await fireEvent.changeText(screen.getByLabelText('Name (required)'), 'Updated');
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  expect(screen.getByLabelText('Fiber (g)').props.value).toBe('0');
+  expect(screen.getByLabelText('Vitamin B12 (µg)').props.value).toBe('0.00000001');
+  expect(screen.getByLabelText('Sodium (mg)').props.value).toBe('');
+  await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '');
+  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.press(screen.getByLabelText('Save food'));
+  expect(updateCustomFood).toHaveBeenCalledWith('food', expect.objectContaining({ name: 'Updated', fiber: 0, b12: 1e-8, iron: null, sodium: null }));
+  expect(mockRouter.back).toHaveBeenCalled();
+  expect(addCustomFood).not.toHaveBeenCalled();
+});
+
+test('custom edit rejects remote definitions and offers retry', async () => {
+  (getFoodById as jest.Mock).mockResolvedValue({ ...mockFood, source: 'usda' });
+  await render(<CustomFoodScreen />);
+  await screen.findByText('Couldn’t load this custom food.');
+  expect(screen.getByLabelText('Save food').props.accessibilityState.disabled).toBe(true);
+  (getFoodById as jest.Mock).mockResolvedValue(mockFood);
+  await fireEvent.press(screen.getByLabelText('Retry loading food'));
+  await screen.findByLabelText('Name (required)');
+  expect(screen.getByLabelText('Name (required)').props.value).toBe('Food');
+});
+
+test('returning from a custom edit refreshes nutrients while keeping amount and log context', async () => {
+  mockParams.log_id = 'old';
+  (getFoodLogsWithFoodByDate as jest.Mock).mockResolvedValue([{ id: 'old', serving_amount: 2 }]);
+  await render(<ServingPickerScreen />);
+  await waitFor(() => expect(screen.getByLabelText('Amount, in servings').props.value).toBe('2'));
+  await fireEvent.changeText(screen.getByLabelText('Amount, in servings'), '2.5');
+  await fireEvent.press(screen.getByLabelText('Edit food'));
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/custom-food', params: { food_id: 'food', meal_slot: 'lunch', date: '2026-10-20' } });
+  (getFoodById as jest.Mock).mockResolvedValue({ ...mockFood, name: 'Edited food', b12: 0.00000001, added_sugar: 0, monounsat_fat: 2 });
+  let cleanupFocus: (() => void) | undefined;
+  await act(async () => { cleanupFocus = mockFocusCallback(); });
+  expect(screen.getByText('Edited food')).toBeTruthy();
+  expect(screen.getByLabelText('Amount, in servings').props.value).toBe('2.5');
+  await fireEvent.press(screen.getByLabelText('Complete Nutrient Summary'));
+  expect(screen.getByText('0.000000025 µg')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Save changes'));
+  expect(updateFoodLog).toHaveBeenCalledWith('old', 2.5, '100g', expect.any(String));
+  cleanupFocus?.();
 });

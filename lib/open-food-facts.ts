@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type { Food } from '@/lib/types';
+import { NUTRIENTS, normalizeNutrients, type NutrientId } from '@/lib/nutrients';
 
 const OFF_BASE_URL = 'https://world.openfoodfacts.org/api/v2/product';
 const OFF_FIELDS =
@@ -74,7 +75,7 @@ type OffProduct = {
 
 /** Numbers and numeric strings only; NaN, negative and anything else count as missing. */
 function toNum(v: unknown): number | null {
-  const n = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : typeof v === 'number' ? v : NaN;
+  const n = typeof v === 'string' ? (v.trim() ? Number(v.replace(',', '.')) : NaN) : typeof v === 'number' ? v : NaN;
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
@@ -84,7 +85,6 @@ function toText(v: unknown): string | null {
 
 const round0 = (v: number) => Math.round(v);
 const round1 = (v: number) => Math.round(v * 10) / 10;
-const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 const MEASURE_RE = /\d+(?:[.,]\d+)?\s*(?:grams?|g|milliliters?|ml|cl|l|fl\.?\s*oz|oz)\b/gi;
 
@@ -151,12 +151,33 @@ export function mapOffProduct(
   if (!name || energy == null) return { status: 'incomplete', name, brand };
 
   const macro = (base: string) => round1(scaled([[base, 1]]) ?? 0);
-  const micro = (base: string, factor = 1): number | null => {
-    const v = scaled([[base, 1]]);
-    return v == null ? null : round3(v * factor);
+  // OFF normalized _100g/_serving mass fields are always grams, regardless of _unit.
+  // https://openfoodfacts.github.io/documentation/docs/Product-Opener/schemas/schemas/product_nutrition/
+  // Taxonomy IDs: https://github.com/openfoodfacts/openfoodfacts-server/blob/main/taxonomies/nutrients.txt
+  const aliases: Partial<Record<NutrientId, string>> = {
+    fiber: 'fiber', sugar: 'sugars', added_sugar: 'added-sugars',
+    saturated_fat: 'saturated-fat', trans_fat: 'trans-fat',
+    monounsat_fat: 'monounsaturated-fat', polyunsat_fat: 'polyunsaturated-fat',
+    cholesterol: 'cholesterol', sodium: 'sodium', potassium: 'potassium',
+    calcium: 'calcium', iron: 'iron', magnesium: 'magnesium', zinc: 'zinc',
+    phosphorus: 'phosphorus', copper: 'copper', manganese: 'manganese', selenium: 'selenium',
+    vitamin_c: 'vitamin-c', vitamin_d: 'vitamin-d', vitamin_k: 'vitamin-k',
+    thiamin: 'vitamin-b1', riboflavin: 'vitamin-b2', niacin: 'vitamin-pp',
+    b6: 'vitamin-b6', folate: 'folates', b12: 'vitamin-b12', choline: 'choline',
   };
-
-  const sodium = micro('sodium', 1000) ?? micro('salt', 400);
+  // Generic vitamin-a does not establish RAE; generic vitamin-e does not establish
+  // alpha-tocopherol. Keep both unknown. vitamin-b9 is folic acid, not total folate;
+  // only the explicit total-folates taxonomy ID maps to our folate definition.
+  const nutrients = normalizeNutrients(Object.fromEntries(NUTRIENTS.map(({ id, unit }) => {
+    const alias = aliases[id];
+    const value = alias ? scaled([[alias, 1]]) : null;
+    const factor = unit === 'mg' ? 1000 : unit === 'ug' ? 1e6 : 1;
+    return [id, value == null ? null : value * factor];
+  })));
+  if (nutrients.sodium == null) {
+    const salt = scaled([['salt', 1]]);
+    nutrients.sodium = normalizeNutrients({ sodium: salt == null ? null : salt * 400 }).sodium;
+  }
 
   const food: Food = {
     id: `off:${code}`,
@@ -170,16 +191,7 @@ export function mapOffProduct(
     source: 'open_food_facts',
     updated_at: now,
     barcode: code,
-    fiber: micro('fiber'),
-    sugar: micro('sugars'),
-    sodium,
-    cholesterol: micro('cholesterol', 1000),
-    saturated_fat: micro('saturated-fat'),
-    trans_fat: micro('trans-fat'),
-    vitamin_d: micro('vitamin-d', 1e6),
-    calcium: micro('calcium', 1000),
-    iron: micro('iron', 1000),
-    potassium: micro('potassium', 1000),
+    ...nutrients,
   };
   return { status: 'found', food };
 }

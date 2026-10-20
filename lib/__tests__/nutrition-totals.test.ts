@@ -100,3 +100,27 @@ describe('logTotals', () => {
     expect(sumEatenTotals([l], [])).toEqual(logTotals(l));
   });
 });
+
+describe('nutrient coverage totals', () => {
+  const { normalizeNutrients } = require('@/lib/nutrients');
+  const { sumNutrientTotals, slotNutrientTotals, sumEatenNutrientTotals } = require('@/lib/nutrition-totals');
+  const nutrientLog = (over: Record<string, unknown> = {}) => ({
+    meal_slot: 'lunch', serving_amount: .5, food_nutrients: normalizeNutrients({ fiber: 2, sugar: 0, b12: .000001 }), ...over,
+  });
+  it('scales the saved 50g / 100g multiplier once and counts duplicate items', () => {
+    const logs = [nutrientLog(), nutrientLog(), nutrientLog({ food_nutrients: undefined })];
+    expect(sumNutrientTotals(logs).fiber).toEqual({ total: 2, knownCount: 2, missingCount: 1 });
+    expect(sumNutrientTotals(logs).sugar).toEqual({ total: 0, knownCount: 2, missingCount: 1 });
+    expect(sumNutrientTotals(logs).b12.total).toBe(.000001);
+    expect(sumNutrientTotals(logs).iron).toEqual({ total: null, knownCount: 0, missingCount: 3 });
+    expect(sumNutrientTotals([nutrientLog({ serving_amount: 28.3495 / 100 })]).fiber.total).toBe(2 * 28.3495 / 100);
+  });
+  it('planned slots affect meal coverage only; tombstones never count', () => {
+    const logs = [nutrientLog(), nutrientLog({ meal_slot: 'dinner' }), nutrientLog({ deleted_at: 'now' })];
+    expect(slotNutrientTotals(logs, 'lunch').fiber.knownCount).toBe(1);
+    expect(sumEatenNutrientTotals(logs, [{ meal_slot: 'lunch', confirmed: false }]).fiber.total).toBe(1);
+    expect(sumEatenNutrientTotals(logs, []).fiber.total).toBe(2);
+    expect(sumNutrientTotals([]).fiber).toEqual({ total: null, knownCount: 0, missingCount: 0 });
+    expect(sumNutrientTotals([nutrientLog({ serving_amount: NaN })]).fiber).toEqual({ total: null, knownCount: 0, missingCount: 1 });
+  });
+});

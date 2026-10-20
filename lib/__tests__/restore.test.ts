@@ -29,6 +29,7 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 jest.mock('@/lib/database', () => ({
+  applyRemoteCustomFoods: jest.fn(async (rows: unknown[]) => rows.length),
   applyRemoteFoodLogs: jest.fn(async (rows: unknown[]) => rows.length),
   cacheRemoteFood: jest.fn(async () => {}),
   getMissingFoodIds: jest.fn(async () => []),
@@ -142,6 +143,33 @@ describe('hasRestoredData', () => {
 });
 
 describe('restoreFromAccount', () => {
+  it('paginates and applies unlogged custom definitions before resolving log food IDs', async () => {
+    mockTables.foods = Array.from({ length: 1001 }, (_, i) => ({
+      id: `custom-${i}`, name: 'Custom', source: 'custom', vitamin_k: 0.0001,
+      added_sugar: 0, folate: null, updated_at: '2026-01-01T00:00:00Z',
+    }));
+    mockTables.foods.push({ id: 'branded', name: 'Other', source: 'branded' });
+    const result = await restoreFromAccount('u1');
+    expect(result).toMatchObject({ ok: true, logsRestored: 0 });
+    expect(db.applyRemoteCustomFoods).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ id: 'custom-1000', vitamin_k: 0.0001, added_sugar: 0, folate: null, b12: null }),
+    ]));
+    expect((db.applyRemoteCustomFoods as jest.Mock).mock.calls[0][0]).toHaveLength(1001);
+    expect(mockRange.mock.calls.filter((c) => c[0] === 'foods').map((c) => c.slice(1)))
+      .toEqual([[0, 999], [1000, 1999]]);
+    expect((db.applyRemoteCustomFoods as jest.Mock).mock.invocationCallOrder[0])
+      .toBeLessThan((db.getMissingFoodIds as jest.Mock).mock.invocationCallOrder[0]);
+    expect(db.cacheRemoteFood).not.toHaveBeenCalled();
+    expect(storage.setOnboardingComplete).not.toHaveBeenCalled();
+  });
+
+  it('normalizes all remote nutrients, retaining zeros and excluding malformed values', () => {
+    expect(remoteFoodToFood({ id: 'f', name: 'Food', added_sugar: 0, b12: 0.00001,
+      vitamin_a: '1.2', selenium: -1, choline: Infinity, folate: '2mg' }))
+      .toMatchObject({ added_sugar: 0, b12: 0.00001, vitamin_a: 1.2,
+        selenium: null, choline: null, folate: null, vitamin_e: null });
+  });
+
   it('pages through 1000-row boundaries until a short page', async () => {
     mockTables.food_logs = logs(2300);
     const progress: unknown[] = [];

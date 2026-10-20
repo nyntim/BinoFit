@@ -1,8 +1,11 @@
+import { normalizeNutrients } from '@/lib/nutrients';
 import { supabase } from '@/lib/supabase';
 import { getSessionUserId, initAuth, reconcileSyncedUid, retryPendingMergeTicket } from '@/lib/auth';
 import { isAuthTransitioning } from '@/lib/auth-transition';
 import {
   getUnsyncedFoodLogs,
+  getUnsyncedCustomFoods,
+  markCustomFoodsSynced,
   getUnsyncedMealDefinitions,
   markMealDefinitionsSynced,
   getUnsyncedMealNames,
@@ -94,6 +97,16 @@ async function runPass(): Promise<void> {
 }
 
 async function syncFoodLogs(userId: string): Promise<void> {
+  const foods = await getUnsyncedCustomFoods();
+  if (foods.length) {
+    await upsertChunked('foods', foods.map((food) => ({
+      id: food.id, user_id: userId, name: food.name, brand: food.brand,
+      serving_units: food.serving_units, calories: food.calories, protein: food.protein,
+      carbs: food.carbs, fat: food.fat, source: 'custom', updated_at: food.updated_at,
+      ...normalizeNutrients(food),
+    })));
+    await markCustomFoodsSynced(foods);
+  }
   const unsynced = await getUnsyncedFoodLogs();
   if (unsynced.length === 0) return;
 

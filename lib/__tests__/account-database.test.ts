@@ -249,3 +249,33 @@ describe('clearUserData', () => {
     expect((await database.getMealNames()).length).toBeGreaterThanOrEqual(4);
   });
 });
+
+describe('custom food restore and owner lifecycle', () => {
+  const custom = (over: Record<string, unknown> = {}) => ({ id: 'custom1', name: 'Mine', brand: null, serving_units: '100g', calories: 100, protein: 1, carbs: 2, fat: 3, source: 'custom', updated_at: '2026-01-01T01:00:00+01:00', fiber: 0, b12: .000001, ...over });
+  it('restores unlogged definitions clean and applies strictly newer authoritative null clears', async () => {
+    expect(await database.applyRemoteCustomFoods([custom()])).toBe(1);
+    expect(await database.getFoodById('custom1')).toMatchObject({ fiber: 0, b12: .000001, updated_at: '2026-01-01T00:00:00.000Z', synced_at: expect.any(String) });
+    expect(await database.applyRemoteCustomFoods([custom({ fiber: 9, updated_at: '2025-01-01' })])).toBe(0);
+    expect(await database.applyRemoteCustomFoods([custom({ fiber: 9 })])).toBe(0);
+    expect(await database.applyRemoteCustomFoods([custom({ b12: null, updated_at: '2026-02-01' })])).toBe(1);
+    expect(await database.getFoodById('custom1')).toMatchObject({ b12: null });
+    expect(await database.getUnsyncedCustomFoods()).toHaveLength(0);
+  });
+  it('preserves pending local edits and protects other food sources', async () => {
+    await database.applyRemoteCustomFoods([custom()]);
+    await database.updateCustomFood('custom1', custom({ fiber: 7 }));
+    expect(await database.applyRemoteCustomFoods([custom({ fiber: 9, updated_at: '2999-01-01' })])).toBe(0);
+    expect(await database.getFoodById('custom1')).toMatchObject({ fiber: 7, synced_at: null });
+    await database.cacheRemoteFood(custom({ id: 'remote', source: 'branded' }));
+    expect(await database.applyRemoteCustomFoods([custom({ id: 'remote', updated_at: '2999-01-01' })])).toBe(0);
+  });
+  it('owner reset resends custom definitions; wipe removes them and retains remote cache', async () => {
+    await database.applyRemoteCustomFoods([custom()]);
+    await database.cacheRemoteFood(custom({ id: 'remote', source: 'branded' }));
+    await database.markAllUnsynced();
+    expect((await database.getUnsyncedCustomFoods()).map((f) => f.id)).toEqual(['custom1']);
+    await database.clearUserData();
+    expect(await database.getFoodById('custom1')).toBeNull();
+    expect(await database.getFoodById('remote')).not.toBeNull();
+  });
+});

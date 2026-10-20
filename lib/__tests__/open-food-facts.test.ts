@@ -193,8 +193,36 @@ describe('mapOffProduct micronutrients', () => {
     }));
     expect(f).toMatchObject({
       sodium: 500, cholesterol: 20, calcium: 120, iron: 1.8, potassium: 300, vitamin_d: 5,
-      fiber: 3.123, sugar: 2, saturated_fat: 1.5, trans_fat: 0.1,
+      fiber: 3.1234, sugar: 2, saturated_fat: 1.5, trans_fat: 0.1,
     });
+  });
+  it('maps extended taxonomy aliases using standardized grams, independent of input units', () => {
+    const f = foodOf({ ...nut({
+      'added-sugars_100g': 0, 'monounsaturated-fat_100g': 2, 'polyunsaturated-fat_100g': 3,
+      magnesium_100g: 0.04, zinc_100g: 0.002, phosphorus_100g: 0.15,
+      copper_100g: 0.0001, manganese_100g: 0.0002, selenium_100g: 0.000005,
+      'vitamin-c_100g': 0.02, 'vitamin-c_unit': 'mg', 'vitamin-d_100g': 0.00000001,
+      'vitamin-d_unit': 'IU', 'vitamin-k_100g': 0.000002,
+      'vitamin-b1_100g': 0.0003, 'vitamin-b2_serving': 0.0004,
+      'vitamin-pp_100g': 0.0005, 'vitamin-b6_100g': 0.0006,
+      folates_100g: 0.000007, 'vitamin-b12_100g': 0.000000001, choline_100g: 0.008,
+    }), serving_quantity: 50 });
+    const expected = { added_sugar: 0, monounsat_fat: 1, polyunsat_fat: 1.5,
+      magnesium: 20, zinc: 1, phosphorus: 75, copper: 0.05, manganese: 0.1, selenium: 2.5,
+      vitamin_c: 10, vitamin_d: 0.005, vitamin_k: 1, thiamin: 0.15, riboflavin: 0.4,
+      niacin: 0.25, b6: 0.3, folate: 3.5, b12: 0.0005, choline: 4 };
+    for (const [id, value] of Object.entries(expected)) {
+      expect((f as unknown as Record<string, number>)[id]).toBeCloseTo(value, 12);
+    }
+  });
+  it('does not reinterpret ambiguous vitamin definitions or infer added sugar', () => {
+    const f = foodOf(nut({ 'vitamin-a_100g': 0.001, 'vitamin-e_100g': 0.002,
+      'vitamin-b9_100g': 0.003, sugars_100g: 5 }));
+    expect(f).toMatchObject({ vitamin_a: null, vitamin_e: null, folate: null, added_sugar: null });
+  });
+  it('rejects partially numeric strings rather than ingesting fabricated amounts', () => {
+    expect(foodOf(nut({ fiber_100g: '3mg', sodium_100g: '1x', sugar_100g: '' })))
+      .toMatchObject({ fiber: null, sodium: null, sugar: null });
   });
   it('scales micros by serving size', () => {
     const f = foodOf({ ...nut({ sodium_100g: 1 }), serving_quantity: 30 });

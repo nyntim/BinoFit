@@ -33,8 +33,73 @@ create table if not exists public.foods (
   source         text not null,   -- 'usda' | 'branded' | 'custom'
   user_id        text,            -- null = public food; auth.uid()::text = custom food
   created_at     timestamptz default now(),
-  updated_at     timestamptz default now()
+  updated_at     timestamptz default now(),
+  fiber real,
+  sugar real,
+  added_sugar real,
+  saturated_fat real,
+  trans_fat real,
+  monounsat_fat real,
+  polyunsat_fat real,
+  cholesterol real,
+  sodium real,
+  potassium real,
+  calcium real,
+  iron real,
+  magnesium real,
+  zinc real,
+  phosphorus real,
+  copper real,
+  manganese real,
+  selenium real,
+  vitamin_a real,
+  vitamin_c real,
+  vitamin_d real,
+  vitamin_e real,
+  vitamin_k real,
+  thiamin real,
+  riboflavin real,
+  niacin real,
+  b6 real,
+  folate real,
+  b12 real,
+  choline real
 );
+
+-- BEGIN micronutrient_food_columns
+alter table public.foods
+  add column if not exists fiber real,
+  add column if not exists sugar real,
+  add column if not exists added_sugar real,
+  add column if not exists saturated_fat real,
+  add column if not exists trans_fat real,
+  add column if not exists monounsat_fat real,
+  add column if not exists polyunsat_fat real,
+  add column if not exists cholesterol real,
+  add column if not exists sodium real,
+  add column if not exists potassium real,
+  add column if not exists calcium real,
+  add column if not exists iron real,
+  add column if not exists magnesium real,
+  add column if not exists zinc real,
+  add column if not exists phosphorus real,
+  add column if not exists copper real,
+  add column if not exists manganese real,
+  add column if not exists selenium real,
+  add column if not exists vitamin_a real,
+  add column if not exists vitamin_c real,
+  add column if not exists vitamin_d real,
+  add column if not exists vitamin_e real,
+  add column if not exists vitamin_k real,
+  add column if not exists thiamin real,
+  add column if not exists riboflavin real,
+  add column if not exists niacin real,
+  add column if not exists b6 real,
+  add column if not exists folate real,
+  add column if not exists b12 real,
+  add column if not exists choline real;
+-- END micronutrient_food_columns
+
 
 create index if not exists idx_foods_name on public.foods (name);
 create index if not exists idx_foods_user_id on public.foods (user_id);
