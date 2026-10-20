@@ -86,6 +86,22 @@ describe('MealSlotCard', () => {
     colors,
   });
 
+  it('nutrition has its own action for empty and orphan meals and leaves other controls independent', async () => {
+    const props = baseProps();
+    const onShowNutrition = jest.fn();
+    const { rerender } = await render(<MealSlotCard {...props} onShowNutrition={onShowNutrition} />);
+    await fireEvent.press(screen.getByLabelText('Nutrition summary for Breakfast'));
+    expect(onShowNutrition).toHaveBeenCalledWith('breakfast', null);
+    expect(props.onAdd).not.toHaveBeenCalled();
+    expect(props.onToggle).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText('Add food to Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Breakfast, Eaten'));
+    expect(props.onAdd).toHaveBeenCalledWith('breakfast');
+    expect(props.onToggle).toHaveBeenCalledWith('breakfast');
+    await rerender(<MealSlotCard {...props} label="Other" allowAdd={false} onShowNutrition={onShowNutrition} />);
+    expect(screen.getByLabelText('Nutrition summary for Other')).toBeTruthy();
+  });
+
   it('empty state shows "Tap to add food" and calls onAdd with the slot', async () => {
     const props = baseProps();
     await render(<MealSlotCard {...props} />);
@@ -195,6 +211,7 @@ describe('MealSlotCard edit mode', () => {
     await render(<MealSlotCard {...editProps()} />);
     expect(screen.getByText('2 items · 150 cal')).toBeTruthy();
     expect(screen.queryByText('Eaten')).toBeNull();
+    expect(screen.queryByText('Nutrition')).toBeNull();
     expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
     expect(screen.queryByText('Oatmeal')).toBeNull();
   });

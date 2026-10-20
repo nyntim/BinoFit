@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
+  AccessibilityInfo,
   StyleSheet,
   View,
   Text,
@@ -58,7 +59,8 @@ import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { useMealDraft } from '@/hooks/useMealDraft';
 import { restoreMealReminders } from '@/lib/reminders';
-import { logsForSlot } from '@/lib/nutrition-totals';
+import { MealNutritionSummary } from '@/components/dashboard/MealNutritionSummary';
+import { isSlotEaten, logsForSlot } from '@/lib/nutrition-totals';
 import { syncToSupabase } from '@/lib/sync';
 import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
 import { openMealEditAfterReload } from '@/lib/meal-settings-entry';
@@ -91,6 +93,16 @@ export default function HomeScreen() {
   const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint };
   const router = useRouter();
   const { editMeals } = useLocalSearchParams<{ editMeals?: string }>();
+  const [summarySelection, setSummarySelection] = useState<{ id: MealSlot; date: string } | null>(null);
+  const summaryFocusTarget = useRef<number | null>(null);
+  const restoreSummaryFocus = useCallback(() => {
+    const target = summaryFocusTarget.current;
+    if (target != null) requestAnimationFrame(() => AccessibilityInfo.setAccessibilityFocus(target));
+  }, []);
+  const [loadedDataDate, setLoadedDataDate] = useState<string | null>(null);
+  const requestGeneration = useRef(0);
+  const focused = useRef(false);
+  const loadedDateRef = useRef<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { selectedDate } = useDate();
   const [isEditing, setIsEditing] = useState(false);
@@ -148,6 +160,8 @@ export default function HomeScreen() {
   }, [selectedDate, today, readGranted, fetchTodayActivity]);
 
   const loadData = useCallback((silent = false) => {
+    const generation = ++requestGeneration.current;
+    if (!focused.current) return;
     if (!silent) setLoading(true);
     loadActivity();
     Promise.all([
@@ -158,26 +172,42 @@ export default function HomeScreen() {
       getQuickAddDrinks(),
     ])
       .then(([userGoals, foodLogs, slotConfirmations, wLogs, storedQuickDrinks]) => {
+        if (generation !== requestGeneration.current || !focused.current) return;
+        setLoadedDataDate(selectedDate);
+        loadedDateRef.current = selectedDate;
         if (userGoals) setGoals(userGoals);
         setLogs(foodLogs);
         setConfirmations(slotConfirmations);
         setWaterLogs(wLogs);
         if (storedQuickDrinks) setQuickAddDrinks(storedQuickDrinks);
       })
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        if (generation !== requestGeneration.current || !focused.current) return;
+        setLoadedDataDate(null);
+        if (loadedDateRef.current !== selectedDate) {
+          setLogs([]);
+          setConfirmations([]);
+          setWaterLogs([]);
+        }
+        loadedDateRef.current = null;
+        console.error('Failed to load dashboard:', error);
+      })
+      .finally(() => {
+        if (generation === requestGeneration.current && focused.current) setLoading(false);
+      });
   }, [selectedDate, loadActivity, setLogs, setConfirmations]);
 
   useFocusEffect(
     useCallback(() => {
-      // Use silent reload if we already have some data, to avoid scroll-to-top
-      const hasData = logs.length > 0 || waterLogs.length > 0;
-      loadData(hasData);
-    }, [loadData, logs.length, waterLogs.length])
+      focused.current = true;
+      loadData(loadedDateRef.current === selectedDate);
+      return () => {
+        focused.current = false;
+        requestGeneration.current++;
+        setSummarySelection(null);
+      };
+    }, [loadData, selectedDate])
   );
-
-  useEffect(() => {
-    loadData();
-  }, [selectedDate, loadData]); // Re-trigger only when date changes
 
   const waterConsumed = useMemo(() => {
     return waterLogs.reduce((sum, log) => sum + (log.amount || 0), 0) || 0;
@@ -224,6 +254,13 @@ export default function HomeScreen() {
     () => mealsForDay(defs, names, logs, selectedDate),
     [defs, names, logs, selectedDate]
   );
+
+  const summaryMeal = summarySelection ? meals.find(m => m.id === summarySelection.id) : undefined;
+  const summaryVisible = !!summarySelection && !!summaryMeal && summarySelection.date === selectedDate
+    && loadedDataDate === selectedDate && !isEditing && !settingsOpen && !waterModalVisible && !isAddingQuickAdd;
+  // Reset an invalid selection before committing the render, so returning to a date
+  // or closing settings cannot reopen a summary that was already dismissed.
+  if (summarySelection && !summaryVisible) setSummarySelection(null);
 
   const draftMeals = mealDraft.draft?.meals;
   const editItems = useMemo(
@@ -641,6 +678,10 @@ export default function HomeScreen() {
                     eaten={displayConfirmed}
                     showToggle={showToggle}
                     allowAdd={!orphan}
+                    onShowNutrition={loadedDataDate === selectedDate ? (slot, focusTarget) => {
+                      summaryFocusTarget.current = focusTarget ?? null;
+                      setSummarySelection({ id: slot, date: selectedDate });
+                    } : undefined}
                     onToggle={handleToggleSlot}
                     onAdd={handleAddToSlot}
                     onEditLog={handleEditLog}
@@ -657,6 +698,11 @@ export default function HomeScreen() {
         </View>
       </GestureDetector>
 
+      {summaryVisible && summaryMeal && (
+        <MealNutritionSummary meal={summaryMeal} logs={logsForSlot(logs, summaryMeal.id)}
+          date={selectedDate} today={today} eaten={isSlotEaten(confirmations, summaryMeal.id)}
+          onClose={() => { setSummarySelection(null); restoreSummaryFocus(); }} onDismiss={restoreSummaryFocus} />
+      )}
       {WATER_TRACKING_ENABLED && (
         <>
           <CustomWaterModal

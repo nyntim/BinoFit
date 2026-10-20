@@ -5,6 +5,8 @@ type Props = {
   consumed: number;
   /** Omit to show grams only, with no target. */
   goal?: number;
+  /** Display precision; existing consumers keep whole grams. */
+  decimalPlaces?: number;
   color: string;
   textColor: string;
   subTextColor: string;
@@ -12,16 +14,16 @@ type Props = {
   trackColor?: string;
 };
 
-export function MacroBar({ label, consumed, goal, color, textColor, subTextColor, trackColor }: Props) {
+export function MacroBar({ label, consumed, goal, color, textColor, subTextColor, trackColor, decimalPlaces = 0 }: Props) {
   const hasGoal = goal != null && goal > 0;
-  const progress = hasGoal ? Math.min(consumed / Math.max(goal, 1), 1) : 0;
+  const progress = hasGoal ? Math.min(consumed / goal, 1) : 0;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.label, { color: textColor }]}>{label}</Text>
         <Text style={[styles.values, { color: textColor }]}>
-          {Math.round(consumed)}g
+          {Number(consumed.toFixed(decimalPlaces))}g
           {hasGoal && <Text style={{ color: subTextColor }}> / {goal}g</Text>}
         </Text>
       </View>

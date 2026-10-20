@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Platform, StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { Colors } from '@/constants/theme';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
@@ -30,6 +30,7 @@ type ViewProps = BaseProps & {
   showToggle: boolean;
   /** False hides the add button and empty prompt (e.g. for the "Other" group). */
   allowAdd?: boolean;
+  onShowNutrition?: (slot: MealSlot, focusTarget?: number | null) => void;
   onToggle: (slot: MealSlot) => void;
   onAdd: (slot: MealSlot) => void;
   onEditLog: (log: FoodLogWithFood) => void;
@@ -64,11 +65,13 @@ function ViewCard({
   showToggle,
   allowAdd = true,
   onToggle,
+  onShowNutrition,
   onAdd,
   onEditLog,
   onDeleteLog,
   colors,
 }: ViewProps) {
+  const nutritionRef = useRef<View>(null);
   const slotCals = Math.round(slotCalories(logs, slot));
   const hasLogs = logs.length > 0;
   const targetText = formatMealTargets(
@@ -154,6 +157,14 @@ function ViewCard({
           )}
         </View>
       </View>
+
+      {onShowNutrition && (
+        <TouchableOpacity ref={nutritionRef} style={styles.nutritionAction}
+          accessibilityRole="button" accessibilityLabel={`Nutrition summary for ${label}`}
+          onPress={() => onShowNutrition(slot, findNodeHandle(nutritionRef.current))}>
+          <Text style={[styles.targetsLink, { color: colors.tint }]}>Nutrition</Text>
+        </TouchableOpacity>
+      )}
 
       {hasLogs && (
         <View style={styles.logList}>
@@ -304,6 +315,7 @@ function EditCard({
 }
 
 const styles = StyleSheet.create({
+  nutritionAction: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
   slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   editCard: { marginBottom: 0, paddingVertical: 12, paddingHorizontal: 8, justifyContent: 'space-between' },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
