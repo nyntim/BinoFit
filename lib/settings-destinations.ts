@@ -6,7 +6,7 @@ export function validateDestination(value: unknown, allowEmail = false): string 
     const url = new URL(value);
     if (url.protocol === 'https:' && url.hostname && !url.username && !url.password) return url.href;
     if (allowEmail && url.protocol === 'mailto:' && /^[^@?]+@[^@?]+\.[^@?]+$/.test(url.pathname) && !url.search && !url.hash) return value;
-  } catch { /* Unconfigured destinations remain unavailable. */ }
+  } catch { /* Invalid configured destinations use internal pages. */ }
   return null;
 }
 const configured = {
@@ -17,4 +17,14 @@ const configured = {
 };
 export function settingsDestination(kind: SettingsDestination): string | null {
   return validateDestination(configured[kind], kind === 'support' || kind === 'feedback');
+}
+
+const internalRoutes = {
+  privacy: '/settings/privacy-policy',
+  terms: '/settings/terms',
+  support: '/settings/report-problem',
+  feedback: '/settings/feedback',
+} as const;
+export function internalSettingsDestination(kind: SettingsDestination): typeof internalRoutes[SettingsDestination] {
+  return internalRoutes[kind];
 }

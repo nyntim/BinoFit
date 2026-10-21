@@ -23,9 +23,9 @@ jest.mock('@/lib/notification-permissions', () => ({ getReminderPermission: jest
 jest.mock('@/lib/database', () => ({ getMealDefinitions: jest.fn() }));
 jest.mock('@/lib/reminders', () => ({ requestReminderPermission: jest.fn(), restoreMealReminders: jest.fn() }));
 jest.mock('@/lib/storage', () => ({ resetOnboarding: jest.fn(async () => {}) }));
-jest.mock('@/lib/settings-destinations', () => ({ settingsDestination: jest.fn(() => null) }));
+jest.mock('@/lib/settings-destinations', () => ({ ...jest.requireActual('@/lib/settings-destinations'), settingsDestination: jest.fn(() => null) }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { nativeAppVersion: '2.0', nativeBuildVersion: '42' } }));
-beforeEach(() => { jest.clearAllMocks(); jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() }); (getReminderPermission as jest.Mock).mockResolvedValue('denied'); (getMealDefinitions as jest.Mock).mockResolvedValue([{ reminder_time: '08:00' }, { reminder_time: null }]); });
+beforeEach(() => { jest.clearAllMocks(); (settingsDestination as jest.Mock).mockReturnValue(null); jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() }); (getReminderPermission as jest.Mock).mockResolvedValue('denied'); (getMealDefinitions as jest.Mock).mockResolvedValue([{ reminder_time: '08:00' }, { reminder_time: null }]); });
 it('shows configured reminder count when blocked, opens system settings and refreshes on foreground', async () => {
   let foreground!: (state: AppStateStatus) => void;
   const subscription = jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => { foreground = listener; return { remove: jest.fn() }; });
@@ -53,10 +53,13 @@ it('restarts only onboarding after confirmation and names preservation explicitl
   expect(router.push).toHaveBeenCalledWith({ pathname: '/onboarding', params: { restart: '1' } });
   alert.mockRestore();
 });
-it('shows runtime version/build and honest unavailable legal destinations', async () => {
+it('shows runtime version/build and routes both legal destinations internally', async () => {
   await render(<AboutSettings />);
   expect(screen.getByText('2.0')).toBeTruthy(); expect(screen.getByText('42')).toBeTruthy();
-  expect(screen.getAllByText('Unavailable')).toHaveLength(2);
+  await fireEvent.press(screen.getByText('Privacy Policy'));
+  expect(router.push).toHaveBeenLastCalledWith('/settings/privacy-policy');
+  await fireEvent.press(screen.getByText('Terms of Service'));
+  expect(router.push).toHaveBeenLastCalledWith('/settings/terms');
 });
 it('opens configured support destination, reports open failure and attaches no diagnostics', async () => {
   (settingsDestination as jest.Mock).mockImplementation((kind) => kind === 'support' ? 'https://example.com/help' : null);
@@ -65,6 +68,7 @@ it('opens configured support destination, reports open failure and attaches no d
   await fireEvent.press(screen.getByText('Report a problem'));
   await waitFor(() => expect(open).toHaveBeenCalledWith('https://example.com/help'));
   await screen.findByText('Could not open report a problem. Try again.');
+  expect(router.push).not.toHaveBeenCalled();
   open.mockRestore();
 });
 
@@ -111,4 +115,28 @@ it('shows native platform build metadata when the legacy top-level build is abse
     Constants.nativeBuildVersion = priorBuild;
     Constants.platform = priorPlatform;
   }
+});
+
+it('routes unconfigured report and feedback internally', async () => {
+  await render(<SupportSettings />);
+  await fireEvent.press(screen.getByText('Report a problem'));
+  expect(router.push).toHaveBeenLastCalledWith('/settings/report-problem');
+  await fireEvent.press(screen.getByText('Send feedback'));
+  expect(router.push).toHaveBeenLastCalledWith('/settings/feedback');
+});
+it('Data and Privacy uses the same internal privacy destination as About', async () => {
+  await render(<DataPrivacySettings />);
+  await fireEvent.press(screen.getByText('Privacy Policy'));
+  expect(router.push).toHaveBeenLastCalledWith('/settings/privacy-policy');
+});
+
+it('opens an approved configured external link instead of the internal page', async () => {
+  (settingsDestination as jest.Mock).mockImplementation(kind => kind === 'privacy' ? 'https://example.com/privacy' : null);
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  try {
+    await render(<AboutSettings />);
+    await fireEvent.press(screen.getByText('Privacy Policy'));
+    expect(open).toHaveBeenCalledWith('https://example.com/privacy');
+    expect(router.push).not.toHaveBeenCalled();
+  } finally { open.mockRestore(); }
 });
