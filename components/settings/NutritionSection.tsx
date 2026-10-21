@@ -1,163 +1,41 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { getDefaultLogStatus, getUserGoals, saveUserGoals, setDefaultLogStatus } from '@/lib/storage';
 import { syncToSupabase } from '@/lib/sync';
-import { GOAL_FIELDS, mergeValidGoalFields, parseGoalInput, type GoalField, type GoalValues } from '@/lib/nutrition-settings';
+import { GOAL_FIELDS, parseGoalInput, type GoalField, type GoalValues } from '@/lib/nutrition-settings';
 import type { LogStatus, UserGoals } from '@/lib/types';
-
 export type NutritionSectionHandle = { flush: () => Promise<boolean> };
-type Props = { onGoalsChanged?: (goals: UserGoals) => void; onManageReminders: () => void };
-const labels: Record<GoalField, string> = {
-  calorie_goal: 'Calories', protein_goal: 'Protein (g)', carb_goal: 'Carbohydrates (g)', fat_goal: 'Fat (g)',
-};
-const toDraft = (goals: GoalValues): Record<GoalField, string> => ({
-  calorie_goal: String(goals.calorie_goal), protein_goal: String(goals.protein_goal),
-  carb_goal: String(goals.carb_goal), fat_goal: String(goals.fat_goal),
-});
-
-export const NutritionSection = forwardRef<NutritionSectionHandle, Props>(function NutritionSection({ onGoalsChanged, onManageReminders }, ref) {
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
-  const card = useThemeColor({}, 'cardBackground');
-  const subtle = useThemeColor({}, 'cardSecondary');
-  const background = useThemeColor({}, 'background');
-  const danger = useThemeColor({}, 'danger');
+type Props = { onGoalsChanged?: (goals: UserGoals) => void; onManageReminders: () => void; onDirtyChange?: (dirty: boolean) => void; onCancel?: () => void };
+const labels: Record<GoalField, string> = { calorie_goal: 'Calories', protein_goal: 'Protein (g)', carb_goal: 'Carbohydrates (g)', fat_goal: 'Fat (g)' };
+const toDraft = (goals: GoalValues) => Object.fromEntries(GOAL_FIELDS.map(field => [field, String(goals[field])])) as Record<GoalField, string>;
+export const NutritionSection = forwardRef<NutritionSectionHandle, Props>(function NutritionSection({ onGoalsChanged, onManageReminders, onDirtyChange, onCancel }, ref) {
+  const text = useThemeColor({}, 'text'); const muted = useThemeColor({}, 'icon'); const tint = useThemeColor({}, 'tint'); const card = useThemeColor({}, 'cardBackground'); const danger = useThemeColor({}, 'danger');
   const [draft, setDraft] = useState<Record<GoalField, string> | null>(null);
-  const draftRef = useRef<Record<GoalField, string> | null>(null);
-  const savedRef = useRef<GoalValues | null>(null);
+  const [base, setBase] = useState<Record<GoalField, string> | null>(null);
   const [status, setStatus] = useState<LogStatus>('eaten');
-  const statusRef = useRef<LogStatus>('eaten');
-  const failedStatusRef = useRef<LogStatus | null>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tail = useRef<Promise<boolean>>(Promise.resolve(true));
-  const onGoalsChangedRef = useRef(onGoalsChanged);
-  onGoalsChangedRef.current = onGoalsChanged;
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([getUserGoals(), getDefaultLogStatus()]).then(([goals, nextStatus]) => {
-      if (!active) return;
-      if (!goals) throw new Error('Goals unavailable');
-      savedRef.current = goals;
-      draftRef.current = toDraft(goals);
-      setDraft(draftRef.current);
-      statusRef.current = nextStatus;
-      setStatus(nextStatus);
-      setLoading(false);
-    }).catch(() => {
-      if (active) { setError('Couldn’t load settings.'); setLoading(false); }
-    });
-    return () => { active = false; if (timer.current) clearTimeout(timer.current); };
-  }, []);
-
-  const enqueue = (task: () => Promise<void>): Promise<boolean> => {
-    const next = tail.current.catch(() => false).then(async () => {
-      try { await task(); setError(''); return true; }
-      catch { setError('Couldn’t save settings. Try again.'); return false; }
-    });
-    tail.current = next;
-    return next;
+  const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const saving = useRef(false); const statusTail = useRef(Promise.resolve());
+  const dirty = JSON.stringify(base) !== JSON.stringify(draft);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  const load = () => { setLoading(true); setError(''); Promise.all([getUserGoals(), getDefaultLogStatus()]).then(([goals, nextStatus]) => { if (!goals) throw new Error('Goals unavailable'); const next = toDraft(goals); setBase(next); setDraft(next); setStatus(nextStatus); }).catch(() => setError('Couldn’t load settings. Try again.')).finally(() => setLoading(false)); };
+  useEffect(load, []);
+  const save = async (): Promise<boolean> => {
+    if (!draft || saving.current) return false;
+    const entries = GOAL_FIELDS.map(field => [field, parseGoalInput(draft[field])] as const);
+    if (entries.some(([, value]) => value == null)) { setError('Enter a positive whole number for every goal.'); return false; }
+    saving.current = true; setBusy(true); setError('');
+    try { if (dirty) { const values = Object.fromEntries(entries) as GoalValues; await saveUserGoals(values); setBase({ ...draft }); onGoalsChanged?.({ ...values, updated_at: new Date().toISOString() }); syncToSupabase(); } return true; }
+    catch { setError('Couldn’t save goals. Your changes are still here. Try again.'); return false; }
+    finally { saving.current = false; setBusy(false); }
   };
-
-  const persistGoals = (): Promise<boolean> => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-    const current = draftRef.current;
-    if (!current || !savedRef.current) return tail.current;
-    const next = mergeValidGoalFields(savedRef.current, current);
-    const fieldChanged = GOAL_FIELDS.some((field) => next[field] !== savedRef.current?.[field]);
-    if (!fieldChanged) return tail.current.then(() => true);
-    return enqueue(async () => {
-      const base = savedRef.current;
-      if (!base) return;
-      const latest = mergeValidGoalFields(base, draftRef.current ?? current);
-      if (GOAL_FIELDS.every((field) => latest[field] === base[field])) return;
-      await saveUserGoals(latest);
-      savedRef.current = latest;
-      onGoalsChangedRef.current?.({ ...latest, updated_at: new Date().toISOString() });
-      syncToSupabase();
-    });
-  };
-
-  useImperativeHandle(ref, () => ({ flush: async () => {
-    if (!savedRef.current) return true;
-    await tail.current;
-    const ok = await persistGoals();
-    if (!ok && !failedStatusRef.current) return false;
-    if (failedStatusRef.current) {
-      const next = failedStatusRef.current;
-      return enqueue(async () => {
-        await setDefaultLogStatus(next);
-        failedStatusRef.current = null;
-        statusRef.current = next;
-        setStatus(next);
-      });
-    }
-    return ok;
-  } }));
-
-  const edit = (field: GoalField, value: string) => {
-    const next = { ...(draftRef.current as Record<GoalField, string>), [field]: value };
-    draftRef.current = next;
-    setDraft(next);
-    setError('');
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void persistGoals(); }, 300);
-  };
+  useImperativeHandle(ref, () => ({ flush: save }));
+  const manage = () => { if (!dirty) onManageReminders(); else Alert.alert('Unsaved goals', 'Save your goals or discard changes before opening Meals.', [{ text: 'Keep editing', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: () => { setDraft(base); onDirtyChange?.(false); onManageReminders(); } }, { text: 'Save', onPress: () => { void save().then(ok => { if (ok) onManageReminders(); }); } }]); };
   const selectStatus = (next: LogStatus) => {
-    if (next === statusRef.current) return;
-    statusRef.current = next;
-    setStatus(next);
-    void enqueue(async () => {
-      try { await setDefaultLogStatus(next); failedStatusRef.current = null; }
-      catch (e) {
-        failedStatusRef.current = next;
-        if (statusRef.current === next) {
-          try { statusRef.current = await getDefaultLogStatus(); } catch { statusRef.current = next === 'eaten' ? 'planned' : 'eaten'; }
-          setStatus(statusRef.current);
-        }
-        throw e;
-      }
-    });
+    statusTail.current = statusTail.current.catch(() => undefined).then(async () => { try { await setDefaultLogStatus(next); setStatus(next); setError(''); } catch { setError('Couldn’t save the food default. Try again.'); } });
   };
-
   if (loading) return <ActivityIndicator accessibilityLabel="Loading nutrition settings" color={tint} />;
-  if (!draft) return <Pressable accessibilityRole="button" onPress={() => { setLoading(true); setError(''); Promise.all([getUserGoals(), getDefaultLogStatus()]).then(([goals, nextStatus]) => { if (!goals) throw new Error('Goals unavailable'); savedRef.current = goals; draftRef.current = toDraft(goals); setDraft(draftRef.current); statusRef.current = nextStatus; setStatus(nextStatus); setLoading(false); }).catch(() => { setError('Couldn’t load settings.'); setLoading(false); }); }}><Text style={{ color: danger }}>{error} Retry</Text></Pressable>;
-
-  return <View style={styles.body}>
-    <Text style={[styles.heading, { color: text }]}>Daily goals</Text>
-    {GOAL_FIELDS.map((field) => {
-      const invalid = parseGoalInput(draft[field]) === null;
-      return <View key={field} style={styles.field}>
-        <Text style={[styles.label, { color: text }]}>{labels[field]}</Text>
-        <TextInput style={[styles.input, { color: text, backgroundColor: card, borderColor: invalid ? danger : subtle }]}
-          value={draft[field]} onChangeText={(v) => edit(field, v)} onBlur={() => { void persistGoals(); }}
-          keyboardType="number-pad" returnKeyType="done" onSubmitEditing={() => { void persistGoals(); }}
-          accessibilityLabel={labels[field]} accessibilityHint={invalid ? 'Enter a positive whole number' : undefined} />
-        {invalid ? <Text style={[styles.feedback, { color: danger }]}>Enter a positive whole number.</Text> : null}
-      </View>;
-    })}
-    <Text style={[styles.heading, { color: text }]}>Default for new food</Text>
-    <Text style={[styles.description, { color: muted }]}>Planned meals don’t count toward your daily totals until you mark them eaten.</Text>
-    <View accessibilityRole="radiogroup" accessibilityLabel="Default for new food" style={[styles.statusRow, { backgroundColor: subtle }]}>
-      {(['eaten', 'planned'] as const).map((option) => <Pressable key={option} accessibilityRole="radio" accessibilityState={{ selected: status === option }} onPress={() => selectStatus(option)} style={[styles.statusButton, status === option && { backgroundColor: tint }]}>
-        <Text style={{ color: status === option ? background : text }}>{option === 'eaten' ? 'Eaten' : 'Planned'}</Text>
-      </Pressable>)}
-    </View>
-    <Text style={[styles.heading, { color: text }]}>Meal reminders</Text>
-    <Text style={[styles.description, { color: muted }]}>Set reminders in each meal’s settings.</Text>
-    <Pressable accessibilityRole="button" onPress={onManageReminders} style={[styles.reminders, { backgroundColor: card }]}><Text style={{ color: tint }}>Manage meal reminders</Text></Pressable>
-    {error ? <Text accessibilityRole="alert" style={[styles.feedback, { color: danger }]}>{error}</Text> : null}
-  </View>;
+  if (!draft) return <Pressable accessibilityRole="button" onPress={load} style={{ minHeight: 44 }}><Text style={{ color: danger }}>{error} Retry</Text></Pressable>;
+  return <View style={styles.body}><Text accessibilityRole="header" style={[styles.heading, { color: text }]}>Daily goals</Text>{GOAL_FIELDS.map(field => <View key={field} style={{ gap: 6 }}><Text style={{ color: text }}>{labels[field]}</Text><TextInput accessibilityLabel={labels[field]} value={draft[field]} editable={!busy} keyboardType="number-pad" onChangeText={value => setDraft({ ...draft, [field]: value })} style={[styles.input, { color: text, backgroundColor: card }]} /></View>)}<Pressable accessibilityRole="button" disabled={busy} onPress={() => { void save(); }} style={styles.button}><Text style={{ color: tint }}>{busy ? 'Saving…' : 'Save'}</Text></Pressable>{onCancel ? <Pressable accessibilityRole="button" disabled={busy} onPress={onCancel} style={styles.button}><Text style={{ color: tint }}>Cancel</Text></Pressable> : null}<Text accessibilityRole="header" style={[styles.heading, { color: text }]}>Default for new food</Text><Text style={{ color: muted, lineHeight: 20 }}>Planned meals don’t count toward your daily totals until you mark them eaten.</Text><View accessibilityRole="radiogroup" accessibilityLabel="Default for new food" style={{ flexDirection: 'row', gap: 16 }}>{(['eaten', 'planned'] as const).map(option => <Pressable key={option} accessibilityRole="radio" accessibilityState={{ selected: status === option }} onPress={() => selectStatus(option)} style={styles.button}><Text style={{ color: status === option ? tint : text }}>{option === 'eaten' ? 'Eaten' : 'Planned'}{status === option ? ' · Selected' : ''}</Text></Pressable>)}</View><Text accessibilityRole="header" style={[styles.heading, { color: text }]}>Meals</Text><Text style={{ color: muted }}>Manage meals, targets and meal reminders.</Text><Pressable disabled={busy} accessibilityRole="button" onPress={manage} style={styles.button}><Text style={{ color: tint }}>Manage meals and reminders</Text></Pressable>{error ? <Text accessibilityRole="alert" style={{ color: danger }}>{error}</Text> : null}</View>;
 });
-
-const styles = StyleSheet.create({
-  body: { gap: 8 }, heading: { fontSize: 18, fontWeight: '600', marginTop: 14 }, field: { gap: 4 },
-  label: { fontSize: 14, fontWeight: '500' }, input: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, fontSize: 16, fontVariant: ['tabular-nums'] },
-  feedback: { fontSize: 12 }, description: { fontSize: 12, lineHeight: 17 }, statusRow: { flexDirection: 'row', alignSelf: 'flex-start', borderRadius: 20, padding: 3 },
-  statusButton: { minHeight: 44, minWidth: 76, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
-  reminders: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 10, marginTop: 3 },
-});
+const styles = StyleSheet.create({ body: { gap: 12 }, heading: { fontSize: 17, fontWeight: '600', marginTop: 8 }, input: { minHeight: 44, borderRadius: 8, padding: 12, fontSize: 15, fontVariant: ['tabular-nums'] }, button: { minHeight: 44, justifyContent: 'center' } });

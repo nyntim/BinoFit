@@ -28,7 +28,7 @@ test('default status is stored immediately and failures are visible', async () =
   mockDefault.mockRejectedValueOnce(new Error('disk'));
   await render(<NutritionSection onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
-  fireEvent.press(screen.getByText('Planned'));
-  await waitFor(() => expect(screen.getByText('Couldn’t save settings. Try again.')).toBeTruthy());
+  await fireEvent.press(screen.getByText('Planned'));
+  await waitFor(() => expect(screen.getByText('Couldn’t save the food default. Try again.')).toBeTruthy());
   expect(mockDefault).toHaveBeenCalledWith('planned');
 });

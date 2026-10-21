@@ -1,4 +1,6 @@
 // Apple Health reconcile: import weight; export weight, nutrition, and finished workouts.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isAuthTransitioning } from '@/lib/auth-transition';
 import { Platform } from 'react-native';
 import { format } from 'date-fns';
 import AppleHealthKit from 'react-native-health';
@@ -32,6 +34,20 @@ const WEIGHT_START = '2000-01-01T00:00:00.000Z';
 
 export type HealthSyncPassResult = 'ok' | 'init_required' | 'failed';
 
+const HEALTH_LAST_SUCCESS_KEY = 'healthKitLastSuccessAt';
+const healthListeners = new Set<() => void>();
+let healthPass: Promise<HealthSyncPassResult> | null = null;
+export function subscribeHealthSync(listener: () => void): () => void {
+  healthListeners.add(listener);
+  return () => { healthListeners.delete(listener); };
+}
+function notifyHealthSync(): void { healthListeners.forEach((listener) => listener()); }
+export function isHealthSyncing(): boolean { return healthPass !== null; }
+export async function waitForHealthSyncIdle(): Promise<void> { await healthPass; }
+export async function loadLastHealthSync(): Promise<void> {
+  const saved = await AsyncStorage.getItem(HEALTH_LAST_SUCCESS_KEY);
+  if (saved && Number.isFinite(Date.parse(saved)) && !lastPassAt) { lastPassAt = new Date(saved); notifyHealthSync(); }
+}
 let lastPassAt: Date | null = null;
 let lastPassFailed = false;
 
@@ -84,6 +100,7 @@ async function readWeightSamples(): Promise<WeightSample[] | null> {
       syncIdentifier: syncIdFromMetadata(r.metadata),
     }));
   } catch {
+    lastPassFailed = true;
     return null;
   }
 }
@@ -95,7 +112,7 @@ async function saveWeightSample(opts: {
   syncId: string;
   version: number;
 }): Promise<string | null> {
-  if (!HK.saveWeight) return null;
+  if (!HK.saveWeight) { lastPassFailed = true; return null; }
   try {
     const result = await hkCallback<{ id?: string; value?: number } | number>((cb) =>
       HK.saveWeight(
@@ -109,8 +126,10 @@ async function saveWeightSample(opts: {
       )
     );
     if (typeof result === 'object' && result?.id) return result.id;
+    lastPassFailed = true;
     return null;
   } catch {
+    lastPassFailed = true;
     return null;
   }
 }
@@ -137,6 +156,7 @@ async function retractHealthSample(
   }
   const ok = await deleteHealthSample(type, uuid);
   if (ok) await clearLink();
+  else lastPassFailed = true;
 }
 
 async function saveDietarySample(opts: {
@@ -148,7 +168,7 @@ async function saveDietarySample(opts: {
   syncId: string;
   version: number;
 }): Promise<string | null> {
-  if (!HK.saveDietarySample) return null;
+  if (!HK.saveDietarySample) { lastPassFailed = true; return null; }
   try {
     return await hkCallback<string>((cb) =>
       HK.saveDietarySample(
@@ -164,6 +184,7 @@ async function saveDietarySample(opts: {
       )
     );
   } catch {
+    lastPassFailed = true;
     return null;
   }
 }
@@ -175,7 +196,7 @@ async function saveWorkoutSample(opts: {
   syncId: string;
   version: number;
 }): Promise<string | null> {
-  if (!HK.saveWorkout) return null;
+  if (!HK.saveWorkout) { lastPassFailed = true; return null; }
   try {
     return await hkCallback<string>((cb) =>
       HK.saveWorkout(
@@ -189,6 +210,7 @@ async function saveWorkoutSample(opts: {
       )
     );
   } catch {
+    lastPassFailed = true;
     return null;
   }
 }
@@ -245,7 +267,16 @@ function attachInboundHkIds(rows: WeightHealthRow[], links: Awaited<ReturnType<t
   }));
 }
 
-export async function runAppleHealthSyncPass(): Promise<HealthSyncPassResult> {
+export function runAppleHealthSyncPass(): Promise<HealthSyncPassResult> {
+  if (healthPass) return healthPass;
+  if (isAuthTransitioning()) return Promise.resolve('init_required');
+  healthPass = runHealthPass().finally(() => { healthPass = null; notifyHealthSync(); });
+  notifyHealthSync();
+  return healthPass;
+}
+
+async function runHealthPass(): Promise<HealthSyncPassResult> {
+  if (await AsyncStorage.getItem('accountDeletionPending')) return 'init_required';
   if (!hkAvailable()) return 'init_required';
   lastPassFailed = false;
   try {
@@ -402,7 +433,10 @@ export async function runAppleHealthSyncPass(): Promise<HealthSyncPassResult> {
     const { fetchTodayActivityFromHealthKit } = await import('@/lib/health-kit-activity');
     await fetchTodayActivityFromHealthKit(true, true);
 
-    lastPassAt = new Date();
+    if (lastPassFailed) return 'failed';
+    const completed = new Date();
+    await AsyncStorage.setItem(HEALTH_LAST_SUCCESS_KEY, completed.toISOString());
+    lastPassAt = completed;
     return 'ok';
   } catch {
     lastPassFailed = true;

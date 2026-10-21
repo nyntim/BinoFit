@@ -36,9 +36,9 @@ export function NativeTabNavigator() {
           <NativeTabs.Trigger.Icon sf="chart.bar" />
           <NativeTabs.Trigger.Label hidden>Progress</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="settings" accessibilityLabel="More" disableScrollToTop disablePopToTop>
-          <NativeTabs.Trigger.Icon sf="ellipsis" />
-          <NativeTabs.Trigger.Label hidden>More</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger name="settings" accessibilityLabel="Settings" disableScrollToTop disablePopToTop>
+          <NativeTabs.Trigger.Icon sf="gearshape" />
+          <NativeTabs.Trigger.Label hidden>Settings</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         {workout && (
           <NativeTabs.BottomAccessory>

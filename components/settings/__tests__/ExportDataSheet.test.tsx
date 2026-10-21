@@ -1,0 +1,61 @@
+import React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
+import { loadExport, type ExportDocument } from '@/lib/export-data';
+import { shareCsv } from '@/lib/export-file';
+jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
+jest.mock('@/lib/export-data', () => ({ loadExport: jest.fn() }));
+jest.mock('@/lib/export-file', () => ({ shareCsv: jest.fn(async () => {}) }));
+const document = (count: number): ExportDocument => ({ csv: 'CSV', count, first: count ? '2024-02-29' : null, last: count ? '2024-02-29' : null, fileName: 'local.csv' });
+beforeEach(() => { jest.clearAllMocks(); (loadExport as jest.Mock).mockResolvedValue(document(1)); });
+it('rejects stale dataset results and shares only the current saved dataset', async () => {
+  let resolve!: (value: ExportDocument) => void;
+  (loadExport as jest.Mock).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+  await render(<ExportDataSheet visible onClose={jest.fn()} />);
+  await fireEvent.press(screen.getByText('Weight'));
+  await screen.findByText('1 entry · Feb 29');
+  await act(async () => { resolve(document(999)); });
+  expect(screen.queryByText('999 entries · Feb 29')).toBeNull();
+  await fireEvent.press(screen.getByLabelText('Export'));
+  await waitFor(() => expect(shareCsv).toHaveBeenCalledWith('local.csv', 'CSV'));
+  expect((loadExport as jest.Mock).mock.calls.at(-1)[0]).toBe('weight');
+});
+it('supports exact inclusive custom dates and disables invalid, reversed and empty exports', async () => {
+  await render(<ExportDataSheet visible onClose={jest.fn()} />);
+  await screen.findByText('1 entry · Feb 29');
+  await fireEvent.press(screen.getByText('Choose dates'));
+  await fireEvent.changeText(screen.getByLabelText('Export start date'), '2024-02-29');
+  await fireEvent.changeText(screen.getByLabelText('Export end date'), '2024-02-28');
+  expect(screen.getByLabelText('Export').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.changeText(screen.getByLabelText('Export end date'), '2024-02-29');
+  await waitFor(() => expect(loadExport).toHaveBeenLastCalledWith('food', '2024-02-29', '2024-02-29', expect.any(String)));
+  (loadExport as jest.Mock).mockResolvedValue(document(0));
+  await fireEvent.press(screen.getByText('All time'));
+  await screen.findByText('No saved entries in this range.');
+  expect(screen.getByLabelText('Export').props.accessibilityState.disabled).toBe(true);
+});
+it('offers a retry after local read failure without opening the share sheet', async () => {
+  (loadExport as jest.Mock).mockRejectedValueOnce(new Error('read failed'));
+  await render(<ExportDataSheet visible onClose={jest.fn()} />);
+  await fireEvent.press(await screen.findByText('Retry'));
+  await screen.findByText('1 entry · Feb 29');
+  expect(shareCsv).not.toHaveBeenCalled();
+});
+
+it('keeps Export enabled when the selected dataset or date mode is tapped repeatedly', async () => {
+  await render(<ExportDataSheet visible onClose={jest.fn()} />);
+  await screen.findByText('1 entry · Feb 29');
+  await fireEvent.press(screen.getByText('Food'));
+  await fireEvent.press(screen.getByText('Last 7 days'));
+  expect(screen.getByLabelText('Export').props.accessibilityState.disabled).toBe(false);
+  expect(loadExport).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByText('Choose dates'));
+  await screen.findByText('1 entry · Feb 29');
+  const reads = (loadExport as jest.Mock).mock.calls.length;
+  await fireEvent.press(screen.getByText('Choose dates'));
+  await fireEvent.press(screen.getByText('Food'));
+  expect(screen.getByLabelText('Export').props.accessibilityState.disabled).toBe(false);
+  expect(loadExport).toHaveBeenCalledTimes(reads);
+  await fireEvent.press(screen.getByLabelText('Export'));
+  await waitFor(() => expect(shareCsv).toHaveBeenCalledTimes(1));
+});

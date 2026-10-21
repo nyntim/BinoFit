@@ -1,115 +1,58 @@
-// Pub/sub store for device-only app preferences. Loaded once on launch;
-// setters update memory first, then write through to AsyncStorage.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  getDefaultSetCount,
-  getShowRpe,
-  getWeightUnit,
-  setDefaultSetCount as persistDefaultSetCount,
-  setShowRpe as persistShowRpe,
-  setWeightUnit as persistWeightUnit,
-} from '@/lib/storage';
-import type { WeightUnit } from '@/lib/types';
+import * as storage from '@/lib/storage';
+import type { LogStatus, WeightUnit } from '@/lib/types';
 import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
-
-export type AppPreferences = {
-  weightUnit: WeightUnit;
-  showRpe: boolean;
-  defaultSetCount: number;
-  loaded: boolean;
-};
-
-const INITIAL: AppPreferences = {
-  weightUnit: 'lb',
-  showRpe: false,
-  defaultSetCount: 2,
-  loaded: false,
-};
-
-let state: AppPreferences = INITIAL;
+export type AppearancePreference = storage.AppearancePreference;
+export type AppPreferences = { weightUnit: WeightUnit; showRpe: boolean; defaultSetCount: number; appearance: AppearancePreference; defaultLogStatus: LogStatus; loaded: boolean; error: string | null };
+const INITIAL: AppPreferences = { weightUnit: 'lb', showRpe: false, defaultSetCount: 2, appearance: 'system', defaultLogStatus: 'eaten', loaded: false, error: null };
+let state = INITIAL;
+let persisted = { ...INITIAL };
 let loading: Promise<void> | null = null;
+let tail: Promise<void> = Promise.resolve();
+let revision = 0;
+const fieldRevision: Partial<Record<keyof AppPreferences, number>> = {};
 const listeners = new Set<() => void>();
-
-function set(patch: Partial<AppPreferences>): void {
-  state = { ...state, ...patch };
-  listeners.forEach((l) => {
-    try {
-      l();
-    } catch {
-      // A throwing listener must not break others.
-    }
-  });
-}
-
-export function getPreferences(): AppPreferences {
-  return state;
-}
-
-export function subscribePreferences(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-/** Reads stored values once; later calls return the same promise. Never throws. */
+function set(patch: Partial<AppPreferences>) { state = { ...state, ...patch }; listeners.forEach(l => { try { l(); } catch { /* Keep other listeners active. */ } }); }
+export function getPreferences() { return state; }
+export function subscribePreferences(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 export function loadPreferences(): Promise<void> {
   if (!loading) {
-    loading = Promise.all([getWeightUnit(), getShowRpe(), getDefaultSetCount()])
-      .then(async ([weightUnit, showRpe, defaultSetCount]) => {
-        try {
-          await AsyncStorage.removeItem('tracking_mode');
-        } catch {
-          // Best-effort cleanup of the retired key.
-        }
-        set({ weightUnit, showRpe, defaultSetCount, loaded: true });
-      })
-      .catch(() => {
-        set({ loaded: true });
-      });
+    const started = revision;
+    loading = Promise.all([storage.getWeightUnit(), storage.getShowRpe(), storage.getDefaultSetCount(), storage.getAppearance(), storage.getDefaultLogStatus()]).then(async ([weightUnit, showRpe, defaultSetCount, appearance, defaultLogStatus]) => {
+      try { await AsyncStorage.removeItem('tracking_mode'); } catch { /* Retired key cleanup. */ }
+      const loaded = { weightUnit, showRpe, defaultSetCount, appearance, defaultLogStatus };
+      const patch = Object.fromEntries(Object.entries(loaded).filter(([key]) => (fieldRevision[key as keyof AppPreferences] ?? 0) <= started));
+      persisted = { ...persisted, ...patch };
+      set({ ...patch, loaded: true, error: null });
+    }).catch(() => { set({ loaded: true, error: 'Couldn’t load preferences. Try again.' }); loading = null; });
   }
   return loading;
 }
-
-/** Re-reads storage, e.g. after sign-out cleared user-owned keys. */
-export function reloadPreferences(): Promise<void> {
-  loading = null;
-  return loadPreferences();
+export function reloadPreferences() { loading = null; return loadPreferences(); }
+function write<K extends 'weightUnit' | 'showRpe' | 'defaultSetCount' | 'appearance' | 'defaultLogStatus'>(key: K, value: AppPreferences[K], persist: () => Promise<void>): Promise<void> {
+  revision++;
+  const selectedRevision = revision;
+  fieldRevision[key] = selectedRevision;
+  set({ [key]: value, error: null });
+  const next = tail.catch(() => undefined).then(async () => {
+    try {
+      await persist();
+      persisted = { ...persisted, [key]: value };
+    } catch (error) {
+      if (fieldRevision[key] === selectedRevision) set({ [key]: persisted[key], error: 'Couldn’t save preferences. Try again.' });
+      else set({ error: 'Couldn’t save preferences. Try again.' });
+      throw error;
+    }
+  });
+  tail = next;
+  return next;
 }
-
-export async function setWeightUnit(unit: WeightUnit): Promise<void> {
-  set({ weightUnit: unit });
-  try {
-    await persistWeightUnit(unit);
-  } catch {
-    // Memory keeps the new value; the next launch re-reads storage.
-  }
+export function setWeightUnit(unit: WeightUnit) { return write('weightUnit', unit, () => storage.setWeightUnit(unit)); }
+export function setAppearance(value: AppearancePreference) { return write('appearance', value, () => storage.setAppearance(value)); }
+export function setDefaultLogStatus(value: LogStatus) { return write('defaultLogStatus', value, () => storage.setDefaultLogStatus(value)); }
+export function setShowRpe(value: boolean) { return write('showRpe', value, () => storage.setShowRpe(value)); }
+export function setDefaultSetCount(value: number): Promise<void> {
+  if (!Number.isInteger(value) || value < MIN_DEFAULT_SET_COUNT || value > MAX_DEFAULT_SET_COUNT) return Promise.resolve();
+  return write('defaultSetCount', value, () => storage.setDefaultSetCount(value));
 }
-
-export async function setShowRpe(show: boolean): Promise<void> {
-  set({ showRpe: show });
-  try {
-    await persistShowRpe(show);
-  } catch {
-    // Memory keeps the new value; the next launch re-reads storage.
-  }
-}
-
-export async function setDefaultSetCount(count: number): Promise<void> {
-  if (!Number.isInteger(count) || count < MIN_DEFAULT_SET_COUNT || count > MAX_DEFAULT_SET_COUNT) {
-    return;
-  }
-  set({ defaultSetCount: count });
-  try {
-    await persistDefaultSetCount(count);
-  } catch {
-    // Memory keeps the new value; the next launch re-reads storage.
-  }
-}
-
-/** Test helper. */
-export function resetPreferences(): void {
-  loading = null;
-  state = INITIAL;
-  listeners.forEach((l) => l());
-}
+export function resetPreferences() { revision++; Object.keys(fieldRevision).forEach(key => delete fieldRevision[key as keyof AppPreferences]); loading = null; tail = Promise.resolve(); state = INITIAL; persisted = { ...INITIAL }; listeners.forEach(l => l()); }

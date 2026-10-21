@@ -1,28 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
+  ScrollView,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import {
-  getFoodLogsWithFoodInRange,
-  getMealDefinitions,
-  getMealNames,
-  getMealSlotConfirmationsInRange,
-} from '@/lib/database';
-import {
-  buildExportRows,
-  exportFileName,
-  rangeDates,
-  toCsv,
-  type ExportRange,
-} from '@/lib/export';
+import { rangeDates, validExportDates, type ExportRange } from '@/lib/export';
+import { loadExport, type ExportKind } from '@/lib/export-data';
 import { shareCsv } from '@/lib/export-file';
 
 type Props = { visible: boolean; onClose: () => void };
@@ -38,7 +29,7 @@ const shortDate = (d: string) => format(parseISO(d), 'MMM d');
 
 type Summary = { count: number; first: string | null; last: string | null };
 
-/** Sheet for exporting the food log as a CSV file. */
+/** Local CSV exports for food, finished workouts and weight history. */
 export function ExportDataSheet({ visible, onClose }: Props) {
   // Remount the body each time it opens so it starts from the default range.
   return (
@@ -56,7 +47,15 @@ function SheetBody({ onClose }: { onClose: () => void }) {
   const tint = useThemeColor({}, 'tint');
   const cardSecondary = useThemeColor({}, 'cardSecondary');
 
+  const busy = useRef(false);
+  const [revision, setRevision] = useState(0);
+  const [kind, setKind] = useState<ExportKind>('food');
+  const [custom, setCustom] = useState(false);
+  const [startDate, setStartDate] = useState(todayString());
+  const [endDate, setEndDate] = useState(todayString());
+  const invalid = custom && !validExportDates(startDate, endDate);
   const [range, setRange] = useState<ExportRange>('7d');
+  const bounds = custom ? { start: startDate, end: endDate } : rangeDates(range, todayString());
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -64,15 +63,13 @@ function SheetBody({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     let cancelled = false;
-    const { start, end } = rangeDates(range, todayString());
-    getFoodLogsWithFoodInRange(start, end)
-      .then((logs) => {
+    if (invalid) return;
+    loadExport(kind, bounds.start, bounds.end, todayString())
+      .then((document) => {
         if (cancelled) return;
-        // Logs are ordered by date, so the ends give the span.
+        // Every dataset is ordered by local date.
         setSummary({
-          count: logs.length,
-          first: logs[0]?.date ?? null,
-          last: logs[logs.length - 1]?.date ?? null,
+          count: document.count, first: document.first, last: document.last,
         });
       })
       .catch(() => {
@@ -81,10 +78,12 @@ function SheetBody({ onClose }: { onClose: () => void }) {
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, [kind, bounds.start, bounds.end, invalid, revision]);
 
   const selectRange = (next: ExportRange) => {
-    if (next === range) return;
+    if (!custom && next === range) return;
+    setCustom(false);
+    setRevision((value) => value + 1);
     setSummary(null);
     setLoadFailed(false);
     setFailed(false);
@@ -92,11 +91,11 @@ function SheetBody({ onClose }: { onClose: () => void }) {
   };
 
   const empty = summary?.count === 0;
-  const disabled = exporting || summary == null || empty;
+  const disabled = exporting || loadFailed || invalid || summary == null || empty;
 
   const caption = (() => {
     if (loadFailed || summary == null) return ' ';
-    if (summary.count === 0 || !summary.first || !summary.last) return 'No food logged in this range.';
+    if (summary.count === 0 || !summary.first || !summary.last) return 'No saved entries in this range.';
     const noun = summary.count === 1 ? 'entry' : 'entries';
     const span =
       summary.first === summary.last
@@ -106,23 +105,19 @@ function SheetBody({ onClose }: { onClose: () => void }) {
   })();
 
   const runExport = async () => {
-    if (disabled) return;
+    if (disabled || busy.current) return;
+    busy.current = true;
     setExporting(true);
     setFailed(false);
     try {
       const today = todayString();
-      const { start, end } = rangeDates(range, today);
-      const [logs, defs, names, confirmations] = await Promise.all([
-        getFoodLogsWithFoodInRange(start, end),
-        getMealDefinitions(),
-        getMealNames(),
-        getMealSlotConfirmationsInRange(start, end),
-      ]);
-      const csv = toCsv(buildExportRows(logs, defs, names, confirmations));
-      await shareCsv(exportFileName(start, end, today), csv);
+      const document = await loadExport(kind, bounds.start, bounds.end, today);
+      if (!document.count) { setSummary({ count: 0, first: null, last: null }); return; }
+      await shareCsv(document.fileName, document.csv);
     } catch {
       setFailed(true);
     } finally {
+      busy.current = false;
       setExporting(false);
     }
   };
@@ -135,16 +130,21 @@ function SheetBody({ onClose }: { onClose: () => void }) {
         accessibilityLabel="Close export"
         accessibilityRole="button"
       />
-      <View style={[styles.sheet, { backgroundColor: background }]}>
+      <ScrollView style={[styles.sheet, { backgroundColor: background }]} contentContainerStyle={{ gap: 12 }}>
         <Text style={[styles.title, { color: text }]}>Export data</Text>
 
+        <Text style={[styles.caption, { color: icon }]}>Saved on this device. Food includes planned entries. Workouts include finished sessions, exercises and sets, with kg, metres and seconds. Weight uses kg.</Text>
+        <View style={styles.chips}>
+          {(['food', 'workouts', 'weight'] as const).map((value) => <TouchableOpacity key={value} disabled={exporting} accessibilityRole="radio" accessibilityState={{ selected: kind === value }} onPress={() => { if (kind === value) return; setSummary(null); setLoadFailed(false); setKind(value); setFailed(false); }} style={[styles.chip, { backgroundColor: kind === value ? tint : cardSecondary }]}><Text style={[styles.chipText, { color: kind === value ? background : text }]}>{value === 'food' ? 'Food' : value === 'workouts' ? 'Workouts' : 'Weight'}</Text></TouchableOpacity>)}
+        </View>
         <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Date range">
           {RANGES.map((r) => {
-            const selected = range === r.value;
+            const selected = !custom && range === r.value;
             return (
               <TouchableOpacity
                 key={r.value}
                 style={[styles.chip, { backgroundColor: selected ? tint : cardSecondary }]}
+                disabled={exporting}
                 onPress={() => selectRange(r.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
@@ -157,16 +157,24 @@ function SheetBody({ onClose }: { onClose: () => void }) {
           })}
         </View>
 
+        <TouchableOpacity disabled={exporting} onPress={() => { if (custom) return; setSummary(null); setLoadFailed(false); setCustom(true); setRevision((value) => value + 1); }} style={styles.chip} accessibilityRole="button"><Text style={{ color: tint }}>Choose dates</Text></TouchableOpacity>
+        {custom && <View style={{ gap: 8 }}>
+          <Text style={[styles.caption, { color: icon }]}>Inclusive dates, YYYY-MM-DD</Text>
+          <TextInput accessibilityLabel="Export start date" editable={!exporting} value={startDate} onChangeText={(value) => { if (startDate === value) return; setSummary(null); setLoadFailed(false); setStartDate(value); }} style={[styles.dateInput, { color: text, backgroundColor: cardSecondary }]} />
+          <TextInput accessibilityLabel="Export end date" editable={!exporting} value={endDate} onChangeText={(value) => { if (endDate === value) return; setSummary(null); setLoadFailed(false); setEndDate(value); }} style={[styles.dateInput, { color: text, backgroundColor: cardSecondary }]} />
+          {invalid && <Text style={{ color: text }}>Enter valid dates with the start on or before the end.</Text>}
+        </View>}
         <Text style={[styles.caption, { color: icon }]} accessibilityLiveRegion="polite">
           {caption}
         </Text>
 
         {(failed || loadFailed) && (
           <Text style={[styles.caption, { color: text }]} accessibilityLiveRegion="polite">
-            Couldn&apos;t create the export.
+            Couldn&apos;t read or share this export. Try again.
           </Text>
         )}
 
+        {loadFailed && <TouchableOpacity accessibilityRole="button" style={styles.chip} onPress={() => { setSummary(null); setLoadFailed(false); setRevision((v) => v + 1); }}><Text style={{ color: tint }}>Retry</Text></TouchableOpacity>}
         <TouchableOpacity
           style={[styles.button, { backgroundColor: tint, opacity: disabled ? 0.5 : 1 }]}
           onPress={runExport}
@@ -181,14 +189,16 @@ function SheetBody({ onClose }: { onClose: () => void }) {
             <Text style={[styles.buttonText, { color: background }]}>Export</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
+  dateInput: { minHeight: 44, borderRadius: 8, paddingHorizontal: 16, fontSize: 15 },
   sheet: {
+    maxHeight: '90%',
     width: '100%',
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,

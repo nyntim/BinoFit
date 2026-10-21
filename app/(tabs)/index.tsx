@@ -46,7 +46,6 @@ import { useDashboardTraining } from '@/hooks/useDashboardTraining';
 import { StreakBadge } from '@/components/StreakBadge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
-import { NutritionSettingsSheet } from '@/components/settings/TabSettingsSheet';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
@@ -92,7 +91,7 @@ export default function HomeScreen() {
   const tint = useThemeColor({}, 'tint');
   const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint };
   const router = useRouter();
-  const { editMeals } = useLocalSearchParams<{ editMeals?: string }>();
+  const { editMeals, manageMeals } = useLocalSearchParams<{ editMeals?: string; manageMeals?: string }>();
   const [summarySelection, setSummarySelection] = useState<{ id: MealSlot; date: string } | null>(null);
   const summaryFocusTarget = useRef<number | null>(null);
   const restoreSummaryFocus = useCallback(() => {
@@ -103,7 +102,6 @@ export default function HomeScreen() {
   const requestGeneration = useRef(0);
   const focused = useRef(false);
   const loadedDateRef = useRef<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const { selectedDate } = useDate();
   const [isEditing, setIsEditing] = useState(false);
   const editingRef = useRef(false);
@@ -257,7 +255,7 @@ export default function HomeScreen() {
 
   const summaryMeal = summarySelection ? meals.find(m => m.id === summarySelection.id) : undefined;
   const summaryVisible = !!summarySelection && !!summaryMeal && summarySelection.date === selectedDate
-    && loadedDataDate === selectedDate && !isEditing && !settingsOpen && !waterModalVisible && !isAddingQuickAdd;
+    && loadedDataDate === selectedDate && !isEditing && !waterModalVisible && !isAddingQuickAdd;
   // Reset an invalid selection before committing the render, so returning to a date
   // or closing settings cannot reopen a summary that was already dismissed.
   if (summarySelection && !summaryVisible) setSummarySelection(null);
@@ -276,22 +274,22 @@ export default function HomeScreen() {
   }, [startMealDraft, defs, names, today]);
 
   useFocusEffect(useCallback(() => {
-    if (editMeals !== '1' || !mealsLoaded) return;
+    if ((editMeals !== '1' && manageMeals !== '1') || !mealsLoaded) return;
     let cancelled = false;
     openMealEditAfterReload(reloadMeals, () => cancelled || editingRef.current, ({ defs: freshDefs, names: freshNames }) => {
       editingRef.current = true;
       startMealDraft(freshDefs, freshNames, today);
       setIsEditing(true);
     }).then(() => {
-      if (!cancelled) router.setParams({ editMeals: undefined });
+      if (!cancelled) router.setParams({ editMeals: undefined, manageMeals: undefined });
     }).catch(() => {
       if (!cancelled) {
-        router.setParams({ editMeals: undefined });
+        router.setParams({ editMeals: undefined, manageMeals: undefined });
         Alert.alert('Couldn’t load meals.', 'Try again from Nutrition settings.');
       }
     });
     return () => { cancelled = true; };
-  }, [editMeals, mealsLoaded, reloadMeals, startMealDraft, today, router]));
+  }, [editMeals, manageMeals, mealsLoaded, reloadMeals, startMealDraft, today, router]));
 
   const { cancel: cancelDraft } = mealDraft;
   const cancelEditing = useCallback(() => {
@@ -427,7 +425,7 @@ export default function HomeScreen() {
                     <TouchableOpacity onPress={startEditing} hitSlop={{ top: 6, bottom: 6 }} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
                       <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
+                    <TouchableOpacity onPress={() => { setSummarySelection(null); router.push('/settings/nutrition'); }} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
                       <IconSymbol name="gear" size={21} color={colors.icon} />
                     </TouchableOpacity>
                   </View>}
@@ -720,7 +718,6 @@ export default function HomeScreen() {
           />
         </>
       )}
-      <NutritionSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} onGoalsChanged={setGoals} onManageReminders={() => { if (!isEditing) startEditing(); }} />
     </SafeAreaView>
   );
 }

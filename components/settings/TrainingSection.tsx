@@ -1,7 +1,7 @@
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import { setDefaultSetCount, setShowRpe } from '@/lib/app-preferences';
+import { getPreferences, setDefaultSetCount, setShowRpe } from '@/lib/app-preferences';
 import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 
 export function TrainingSection() {
@@ -25,7 +25,7 @@ export function TrainingSection() {
         <Switch
           value={showRpe}
           onValueChange={(v) => {
-            setShowRpe(v);
+            void setShowRpe(v).catch(() => undefined);
           }}
           trackColor={{ false: muted, true: tint }}
           thumbColor={background}
@@ -45,7 +45,8 @@ export function TrainingSection() {
           <TouchableOpacity
             style={styles.stepperButton}
             onPress={() => {
-              if (defaultSetCount > MIN_DEFAULT_SET_COUNT) setDefaultSetCount(defaultSetCount - 1);
+              const current = getPreferences().defaultSetCount;
+              if (current > MIN_DEFAULT_SET_COUNT) void setDefaultSetCount(current - 1).catch(() => undefined);
             }}
             disabled={defaultSetCount <= MIN_DEFAULT_SET_COUNT}
             activeOpacity={0.7}
@@ -64,7 +65,8 @@ export function TrainingSection() {
           <TouchableOpacity
             style={styles.stepperButton}
             onPress={() => {
-              if (defaultSetCount < MAX_DEFAULT_SET_COUNT) setDefaultSetCount(defaultSetCount + 1);
+              const current = getPreferences().defaultSetCount;
+              if (current < MAX_DEFAULT_SET_COUNT) void setDefaultSetCount(current + 1).catch(() => undefined);
             }}
             disabled={defaultSetCount >= MAX_DEFAULT_SET_COUNT}
             activeOpacity={0.7}

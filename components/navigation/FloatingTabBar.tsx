@@ -14,7 +14,7 @@ const tabs = {
   index: { label: 'Nutrition', icon: 'restaurant-outline' },
   training: { label: 'Training', icon: 'barbell-outline' },
   progress: { label: 'Progress', icon: 'stats-chart-outline' },
-  settings: { label: 'More', icon: 'ellipsis-horizontal-outline' },
+  settings: { label: 'Settings', icon: 'settings-outline' },
 } as const;
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {

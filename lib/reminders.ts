@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { getMealDefinitions, getMealNames } from '@/lib/database';
 import { nameForDate, parseReminderTime } from '@/lib/meals';
 import { format } from 'date-fns';
+import { canDeliverReminders, deriveReminderPermission } from '@/lib/notification-permissions';
 import { REST_TIMER_PREFIX } from '@/lib/workouts/rest-notifications';
 import type { MealDefinition, MealNameEntry } from '@/lib/types';
 
@@ -42,20 +43,28 @@ async function ensureChannel(): Promise<void> {
   });
 }
 
-/** Asks for notification permission. Resolves true when granted. Never throws. */
-export async function requestReminderPermission(): Promise<boolean> {
+async function runPermissionRequest(): Promise<boolean> {
   if (!isNative()) return false;
   try {
     await ensureChannel();
     const current = await Notifications.getPermissionsAsync();
-    if (current.granted) return true;
+    if (canDeliverReminders(deriveReminderPermission(current))) return true;
     if (!current.canAskAgain) return false;
     const next = await Notifications.requestPermissionsAsync();
-    return next.granted;
+    return canDeliverReminders(deriveReminderPermission(next));
   } catch (error) {
     console.error('Failed to request notification permission:', error);
     return false;
   }
+}
+
+let permissionRequest: Promise<boolean> | null = null;
+
+/** Concurrent callers share one OS request. Resolves false on denial or failure; never throws. */
+export function requestReminderPermission(): Promise<boolean> {
+  if (permissionRequest) return permissionRequest;
+  permissionRequest = runPermissionRequest().finally(() => { permissionRequest = null; });
+  return permissionRequest;
 }
 
 /**
@@ -69,7 +78,7 @@ async function run(defs: MealDefinition[], names: MealNameEntry[], today: string
   let wanted = defs.filter((d) => parseReminderTime(d.reminder_time));
   if (wanted.length > 0) {
     const perms = await Notifications.getPermissionsAsync();
-    if (!perms.granted) wanted = [];
+    if (!canDeliverReminders(deriveReminderPermission(perms))) wanted = [];
   }
   const keep = new Set(wanted.map((d) => `${REMINDER_PREFIX}${d.id}`));
 

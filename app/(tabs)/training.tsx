@@ -5,7 +5,6 @@ import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext
 import { router } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
 import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
@@ -37,7 +36,6 @@ export default function TrainingScreen() {
   const [reordering, setReordering] = useState(false);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [creatingRoutine, setCreatingRoutine] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isReordering = reordering && routines.routines.length >= 2;
 
@@ -93,7 +91,7 @@ export default function TrainingScreen() {
       <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={[styles.content, { paddingBottom: 24 + tabBarInset }]} contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined} scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: text }]} accessibilityRole="header">Training</Text>
-          <Pressable onPress={() => setSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
+          <Pressable onPress={() => router.push('/settings/training')} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
             <IconSymbol name="gear" size={21} color={muted} />
           </Pressable>
         </View>
@@ -278,7 +276,6 @@ export default function TrainingScreen() {
           {link('Log past workout', '/workout/log', true)}
         </View>
       </ScrollView>
-      <TrainingSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </SafeAreaView>
   );
 }

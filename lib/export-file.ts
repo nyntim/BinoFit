@@ -14,6 +14,6 @@ export async function shareCsv(fileName: string, csv: string): Promise<void> {
   await Sharing.shareAsync(file.uri, {
     mimeType: 'text/csv',
     UTI: 'public.comma-separated-values-text',
-    dialogTitle: 'Export food log',
+    dialogTitle: 'Export data',
   });
 }

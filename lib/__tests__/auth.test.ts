@@ -2,6 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as Apple from 'expo-apple-authentication';
 
+jest.mock('@/lib/weight', () => ({ getUnsyncedWeightEntries: jest.fn(async () => []) }));
+jest.mock('@/lib/workouts/db', () => ({ getUnsyncedWorkoutTree: jest.fn(async () => ({ exercises: [], workouts: [], workoutExercises: [], sets: [] })) }));
+jest.mock('@/lib/workouts/routines', () => ({ getUnsyncedRoutines: jest.fn(async () => []), getUnsyncedRoutineExercises: jest.fn(async () => []) }));
+jest.mock('@/services/healthKitService', () => ({ waitForHealthSyncIdle: jest.fn(async () => {}) }));
+
 jest.mock('@/lib/restore', () => ({ hasRestoredData: (s: any) => s.goalsRestored || s.logsRestored > 0, restoreFromAccount: jest.fn(async () => ({ ok: true, logsRestored: 0, unresolvedFoods: 0, mealsRestored: false, goalsRestored: true })) }));
 jest.mock('@/lib/sync', () => ({
   syncToSupabase: jest.fn(async () => {}),
@@ -570,3 +575,85 @@ describe('crash recovery after sign-in', () => {
   });
 });
 
+
+describe('account deletion', () => {
+  beforeEach(() => { setSession(appleSession); });
+  it('gates undeployed capability and never clears device data', async () => {
+    expect(await auth.canDeleteAccount()).toBe(false);
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(false);
+    expect(db.clearUserData).not.toHaveBeenCalled();
+  });
+  it('keeps local data and quarantines sync after an ambiguous remote failure', async () => {
+    sb.rpc.mockImplementation(async (name: string) => ({ data: name === 'account_deletion_capability' ? 1 : null, error: null }));
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(false);
+    expect(db.clearUserData).not.toHaveBeenCalled();
+    expect(await auth.getSessionUserId()).toBeNull();
+    expect(await AsyncStorage.getItem('accountDeletionPending')).toBe('requested');
+  });
+  it('deletes remotely before local cleanup and suppresses duplicate requests', async () => {
+    let finish!: () => void;
+    sb.rpc.mockImplementation(async (name: string) => {
+      if (name === 'account_deletion_capability') return { data: 1, error: null };
+      if (name === 'delete_own_account') {
+        await new Promise<void>((resolve) => { finish = resolve; });
+        events.push('deleted');
+        return { data: true, error: null };
+      }
+      return { data: null, error: null };
+    });
+    (db.clearUserData as jest.Mock).mockImplementationOnce(async () => { events.push('wipe'); });
+    const first = auth.deleteAccountAndWipe();
+    while (!finish) await flush();
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(false);
+    expect(db.clearUserData).not.toHaveBeenCalled();
+    finish();
+    expect((await first).ok).toBe(true);
+    expect(events.indexOf('deleted')).toBeLessThan(events.indexOf('wipe'));
+    expect(await AsyncStorage.getItem('accountDeletionPending')).toBeNull();
+  });
+  it('recovers a lost response using the server receipt without deleting again', async () => {
+    await AsyncStorage.setItem('accountDeletionPending', 'requested');
+    sb.rpc.mockImplementation(async (name: string) => ({ data: name === 'account_deletion_status', error: null }));
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(true);
+    expect(sb.rpc).not.toHaveBeenCalledWith('delete_own_account');
+    expect(db.clearUserData).toHaveBeenCalled();
+  });
+});
+
+describe('pending deletion recovery', () => {
+  it('retains unknown device data with an expired token and both RPCs unavailable', async () => {
+    await AsyncStorage.setItem('accountDeletionPending', 'requested');
+    setSession(null);
+    sb.rpc.mockResolvedValue({ data: null, error: { message: 'JWT expired', code: 'PGRST303' } });
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(false);
+    expect(await auth.getPendingAccountDeletion()).toBe('requested');
+    expect(db.clearUserData).not.toHaveBeenCalled();
+    expect(sb.auth.signOut).not.toHaveBeenCalled();
+  });
+  it('resumes confirmed local cleanup without a token or backend capability', async () => {
+    await AsyncStorage.setItem('accountDeletionPending', 'confirmed');
+    setSession(null);
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(true);
+    expect(db.clearUserData).toHaveBeenCalledTimes(1);
+    expect(await auth.getPendingAccountDeletion()).toBeNull();
+    expect(sb.rpc).not.toHaveBeenCalledWith('account_deletion_capability');
+    expect(sb.rpc).not.toHaveBeenCalledWith('delete_own_account');
+  });
+  it('keeps the confirmed marker on local cleanup failure and allows in-session retry', async () => {
+    await AsyncStorage.setItem('accountDeletionPending', 'confirmed');
+    (db.clearUserData as jest.Mock).mockRejectedValueOnce(new Error('disk busy'));
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(false);
+    expect(await auth.getPendingAccountDeletion()).toBe('confirmed');
+    expect((await auth.deleteAccountAndWipe()).ok).toBe(true);
+    expect(await auth.getPendingAccountDeletion()).toBeNull();
+  });
+  it('allows explicitly confirmed device-only removal without claiming cloud deletion', async () => {
+    await AsyncStorage.setItem('accountDeletionPending', 'requested');
+    setSession(null);
+    expect((await auth.removePendingDeletionDeviceData()).ok).toBe(true);
+    expect(db.clearUserData).toHaveBeenCalledTimes(1);
+    expect(sb.rpc).not.toHaveBeenCalledWith('delete_own_account');
+    expect(sb.rpc).not.toHaveBeenCalledWith('account_deletion_status');
+    expect(await auth.getPendingAccountDeletion()).toBeNull();
+  });
+});

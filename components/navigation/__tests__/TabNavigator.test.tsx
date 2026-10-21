@@ -44,7 +44,7 @@ test('iOS 26 renders four accessible native routes and only shows the accessory 
   Object.defineProperty(Platform, 'Version', { configurable: true, value: '26.0' });
   const result = await render(<TabNavigator />);
   expect(screen.getByTestId('provider-automatic')).toBeTruthy();
-  for (const [route, label] of [['index', 'Nutrition'], ['training', 'Training'], ['progress', 'Progress'], ['settings', 'More']]) {
+  for (const [route, label] of [['index', 'Nutrition'], ['training', 'Training'], ['progress', 'Progress'], ['settings', 'Settings']]) {
     expect(screen.getByTestId(`route-${route}`).props.accessibilityLabel).toBe(label);
   }
   expect(screen.queryByTestId('accessory')).toBeNull();

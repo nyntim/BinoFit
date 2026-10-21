@@ -1,12 +1,15 @@
 // Apple Health: dashboard activity reads and Settings sync.
-import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
 import AppleHealthKit from 'react-native-health';
 import type { HealthKitPermissions } from 'react-native-health';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchTodayActivityFromHealthKit } from '@/lib/health-kit-activity';
 import { HEALTH_KIT_SYNC_V1_KEY } from '@/lib/health-schedule';
 import {
+  subscribeHealthSync,
+  loadLastHealthSync,
+  isHealthSyncing,
   getLastHealthSyncAt,
   getLastHealthSyncFailed,
   runAppleHealthSyncPass,
@@ -34,10 +37,6 @@ const FULL_PERMISSIONS: HealthKitPermissions = {
       HK.Constants?.Permissions?.StepCount,
       HK.Constants?.Permissions?.ActiveEnergyBurned,
       HK.Constants?.Permissions?.BodyMass,
-      HK.Constants?.Permissions?.EnergyConsumed,
-      HK.Constants?.Permissions?.Protein,
-      HK.Constants?.Permissions?.Carbohydrates,
-      HK.Constants?.Permissions?.FatTotal,
     ],
     write: [
       HK.Constants?.Permissions?.EnergyConsumed,
@@ -51,6 +50,7 @@ const FULL_PERMISSIONS: HealthKitPermissions = {
 };
 
 export function useHealthKit() {
+  const syncLock = useRef(false);
   const [available, setAvailable] = useState(false);
   const [syncV1, setSyncV1] = useState(false);
   const [legacyInit, setLegacyInit] = useState(false);
@@ -105,13 +105,21 @@ export function useHealthKit() {
       } else if (legacy[1] === 'true') {
         void initLegacyHealthKit();
       }
-    });
+    }).catch(() => setInitFailed(true));
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') checkAvailability(); });
+    return () => subscription.remove();
   }, [checkAvailability, initLegacyHealthKit, initWithPermissions]);
 
   useEffect(() => {
-    setLastSyncedAt(getLastHealthSyncAt());
-    setSyncFailed(getLastHealthSyncFailed());
-  }, [syncing]);
+    const refresh = () => {
+      setLastSyncedAt(getLastHealthSyncAt());
+      setSyncFailed(getLastHealthSyncFailed());
+      setSyncing(isHealthSyncing());
+    };
+    void loadLastHealthSync().catch(() => {});
+    refresh();
+    return subscribeHealthSync(refresh);
+  }, []);
 
   const fetchTodayActivity = useCallback(
     async (force = false) => fetchTodayActivityFromHealthKit(available, force),
@@ -119,31 +127,35 @@ export function useHealthKit() {
   );
 
   const runSync = useCallback(async () => {
-    if (Platform.OS !== 'ios' || syncing) return;
+    if (Platform.OS !== 'ios' || !available || syncLock.current || isHealthSyncing()) return;
+    syncLock.current = true;
     setSyncing(true);
-    setSyncFailed(false);
-    const ok = await initWithPermissions(FULL_PERMISSIONS);
-    if (!ok) {
-      setInitFailed(true);
-      setSyncing(false);
-      setSyncFailed(true);
-      return;
-    }
-    setInitFailed(false);
-    await AsyncStorage.setItem(HEALTH_KIT_SYNC_V1_KEY, 'true');
-    setSyncV1(true);
-    const result = await runAppleHealthSyncPass();
-    setLastSyncedAt(getLastHealthSyncAt());
-    setSyncFailed(result === 'failed' || getLastHealthSyncFailed());
-    setSyncing(false);
-  }, [initWithPermissions, syncing]);
+    try {
+      setSyncFailed(false);
+      const ok = await initWithPermissions(FULL_PERMISSIONS);
+      if (!ok) {
+        setInitFailed(true);
+        setSyncing(false);
+        setSyncFailed(true);
+        return;
+      }
+      setInitFailed(false);
+      await AsyncStorage.setItem(HEALTH_KIT_SYNC_V1_KEY, 'true');
+      setSyncV1(true);
+      const result = await runAppleHealthSyncPass();
+      setLastSyncedAt(getLastHealthSyncAt());
+      setSyncFailed(result === 'failed' || getLastHealthSyncFailed());
+    } catch { setSyncFailed(true); }
+    finally { syncLock.current = false; setSyncing(false); }
+  }, [available, initWithPermissions]);
 
   return {
     available,
     syncV1,
     legacyInit,
-    /** Steps and active calories after legacy or full Health init. */
+    /** Compatibility flag for attempting reads. HealthKit never reveals read denial. */
     readGranted: legacyInit || syncV1,
+    readAccessRequested: legacyInit || syncV1,
     initFailed,
     syncing,
     lastSyncedAt,

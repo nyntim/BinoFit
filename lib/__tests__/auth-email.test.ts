@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+jest.mock('@/lib/weight', () => ({ getUnsyncedWeightEntries: jest.fn(async () => []) }));
+jest.mock('@/lib/workouts/db', () => ({ getUnsyncedWorkoutTree: jest.fn(async () => ({ exercises: [], workouts: [], workoutExercises: [], sets: [] })) }));
+jest.mock('@/lib/workouts/routines', () => ({ getUnsyncedRoutines: jest.fn(async () => []), getUnsyncedRoutineExercises: jest.fn(async () => []) }));
+jest.mock('@/services/healthKitService', () => ({ waitForHealthSyncIdle: jest.fn(async () => {}) }));
+
 jest.mock('@/lib/restore', () => ({ hasRestoredData: (s: any) => s.goalsRestored || s.logsRestored > 0, restoreFromAccount: jest.fn() }));
 jest.mock('@/lib/sync', () => ({
   syncToSupabase: jest.fn(async () => {}),

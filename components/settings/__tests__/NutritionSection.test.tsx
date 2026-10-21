@@ -31,16 +31,19 @@ test('hydration reads settings without writing and reopening reads again', async
   expect(mockSave).not.toHaveBeenCalled();
 });
 
-test('flush persists valid fields while invalid drafts keep prior values', async () => {
+test('an invalid field prevents every goal write and keeps the draft', async () => {
   const ref = createRef<NutritionSectionHandle>();
   const changed = jest.fn();
   await render(<NutritionSection ref={ref} onGoalsChanged={changed} onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
-  fireEvent.changeText(screen.getByLabelText('Calories'), '');
-  fireEvent.changeText(screen.getByLabelText('Protein (g)'), '160');
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '');
+  await fireEvent.changeText(screen.getByLabelText('Protein (g)'), '160');
+  await act(async () => { expect(await ref.current?.flush()).toBe(false); });
+  expect(mockSave).not.toHaveBeenCalled();
+  expect(changed).not.toHaveBeenCalled();
+  expect(screen.getByDisplayValue('160')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
   await act(async () => { expect(await ref.current?.flush()).toBe(true); });
-  expect(mockSave).toHaveBeenCalledWith({ calorie_goal: 2000, protein_goal: 160, carb_goal: 200, fat_goal: 65 });
-  expect(changed).toHaveBeenCalledWith(expect.objectContaining({ protein_goal: 160 }));
+  expect(mockSave).toHaveBeenCalledWith({ calorie_goal: 2200, protein_goal: 160, carb_goal: 200, fat_goal: 65 });
   expect(syncToSupabase).toHaveBeenCalledTimes(1);
 });
-

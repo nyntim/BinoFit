@@ -73,3 +73,13 @@ export function formatPace(paceSeconds: number | null, unit: WeightUnit): string
   if (paceSeconds === null) return '--';
   return `${formatDuration(paceSeconds)} /${distanceUnitFor(unit)}`;
 }
+
+/** Height is stored in cm, independently of the display preference. */
+export function centimetresToFeetInches(cm: number): { feet: number; inches: number } {
+  const total = Math.round(cm / 2.54 * 100) / 100;
+  return { feet: Math.floor(total / 12), inches: Math.round(total % 12 * 100) / 100 };
+}
+export function feetInchesToCentimetres(feet: number, inches: number): number | null {
+  if (!Number.isInteger(feet) || feet < 0 || !Number.isFinite(inches) || inches < 0 || inches >= 12) return null;
+  return (feet * 12 + inches) * 2.54;
+}

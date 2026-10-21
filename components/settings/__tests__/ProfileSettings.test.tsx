@@ -1,0 +1,57 @@
+import React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import ProfileSettings from '@/app/settings/profile';
+import { getUserProfile, saveUserProfile } from '@/lib/storage';
+import { getLatestWeightEntry, saveWeightEntry } from '@/lib/weight';
+import { router } from 'expo-router';
+jest.mock('expo-router', () => ({ router: { back: jest.fn() }, useNavigation: () => ({ dispatch: jest.fn() }) }));
+const mockGuard = jest.fn();
+jest.mock('expo-router/react-navigation', () => ({ usePreventRemove: (...args: unknown[]) => mockGuard(...args) }));
+jest.mock('@/components/settings/SettingsPage', () => ({ SettingsPage: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
+jest.mock('@/hooks/usePreferences', () => ({ usePreferences: () => ({ weightUnit: 'lb' }) }));
+jest.mock('@/lib/storage', () => ({ getUserProfile: jest.fn(), saveUserProfile: jest.fn() }));
+jest.mock('@/lib/weight', () => ({ getLatestWeightEntry: jest.fn(), saveWeightEntry: jest.fn() }));
+jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
+const profile = { weight: 73.123456, height: 179.123456, activity_level: 'moderate', updated_at: 'x' };
+beforeEach(() => { jest.clearAllMocks(); (getUserProfile as jest.Mock).mockResolvedValue(profile); (getLatestWeightEntry as jest.Mock).mockResolvedValue({ weight_kg: profile.weight }); (saveUserProfile as jest.Mock).mockResolvedValue(undefined); (saveWeightEntry as jest.Mock).mockResolvedValue(undefined); });
+test('untouched rounded display preserves canonical height and current newer weight', async () => {
+  await render(<ProfileSettings />);
+  await screen.findByDisplayValue('161.21');
+  (getLatestWeightEntry as jest.Mock).mockResolvedValue({ weight_kg: 75.5 });
+  await fireEvent.press(screen.getByText('Active'));
+  await fireEvent.press(screen.getByText('Save'));
+  await waitFor(() => expect(saveUserProfile).toHaveBeenCalledWith({ weight: 75.5, height: profile.height, activity_level: 'active' }));
+  expect(saveWeightEntry).not.toHaveBeenCalled();
+  expect(router.back).toHaveBeenCalledTimes(1);
+});
+test('invalid height prevents every write and retains unsaved guard', async () => {
+  await render(<ProfileSettings />);
+  await screen.findByDisplayValue('161.21');
+  await fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '170');
+  await fireEvent.changeText(screen.getByLabelText('Height (inches)'), '12');
+  await fireEvent.press(screen.getByText('Save'));
+  await screen.findByText('Use whole feet and inches from 0 to less than 12.');
+  expect(saveWeightEntry).not.toHaveBeenCalled(); expect(saveUserProfile).not.toHaveBeenCalled();
+  expect(mockGuard.mock.calls.at(-1)?.[0]).toBe(true);
+});
+test('a failed profile write retains draft and never repeats a completed weigh-in', async () => {
+  (saveUserProfile as jest.Mock).mockRejectedValueOnce(new Error('disk')).mockResolvedValue(undefined);
+  await render(<ProfileSettings />);
+  await screen.findByDisplayValue('161.21');
+  await fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '170');
+  await fireEvent.press(screen.getByText('Save'));
+  await screen.findByText('Couldn’t save profile. Your changes are still here. Try again.');
+  await fireEvent.press(screen.getByText('Save'));
+  await waitFor(() => expect(saveUserProfile).toHaveBeenCalledTimes(2));
+  expect(saveWeightEntry).toHaveBeenCalledTimes(1);
+});
+test('repeated save taps create one weigh-in', async () => {
+  let release!: () => void;
+  (saveWeightEntry as jest.Mock).mockReturnValue(new Promise<void>(resolve => { release = resolve; }));
+  await render(<ProfileSettings />); await screen.findByDisplayValue('161.21');
+  await fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '170');
+  await fireEvent.press(screen.getByText('Save')); await fireEvent.press(screen.getByText('Saving…'));
+  await act(async () => { release(); });
+  expect(saveWeightEntry).toHaveBeenCalledTimes(1);
+});

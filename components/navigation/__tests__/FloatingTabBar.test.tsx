@@ -26,13 +26,13 @@ beforeEach(() => { mockWorkout = null; emit.mockReset().mockReturnValue({ defaul
 test('exposes four selected tab names and preserves tab events and params', async () => {
   await mount();
   expect(screen.getByRole('tab', { name: 'Nutrition' }).props.accessibilityState.selected).toBe(true);
-  for (const label of ['Training', 'Progress', 'More']) expect(screen.getByRole('tab', { name: label })).toBeTruthy();
+  for (const label of ['Training', 'Progress', 'Settings']) expect(screen.getByRole('tab', { name: label })).toBeTruthy();
   await fireEvent.press(screen.getByRole('tab', { name: 'Nutrition' }));
   expect(emit).toHaveBeenCalledWith({ type: 'tabPress', target: 'index', canPreventDefault: true });
   expect(navigate).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('tab', { name: 'Training' }));
   expect(navigate).toHaveBeenCalledWith('training', { from: 'test' });
-  await fireEvent(screen.getByRole('tab', { name: 'More' }), 'longPress');
+  await fireEvent(screen.getByRole('tab', { name: 'Settings' }), 'longPress');
   expect(emit).toHaveBeenCalledWith({ type: 'tabLongPress', target: 'settings' });
 });
 

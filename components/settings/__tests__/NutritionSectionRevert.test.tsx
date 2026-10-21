@@ -16,9 +16,9 @@ test('reverting a failed goal edit to its persisted value permits dismissal', as
   const ref = createRef<NutritionSectionHandle>();
   await render(<NutritionSection ref={ref} onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
-  fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
   await act(async () => { expect(await ref.current?.flush()).toBe(false); });
-  fireEvent.changeText(screen.getByLabelText('Calories'), '2000');
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2000');
   await act(async () => { expect(await ref.current?.flush()).toBe(true); });
   expect(saveUserGoals).toHaveBeenCalledTimes(1);
 });

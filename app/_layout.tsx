@@ -3,9 +3,11 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useRef } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { Appearance, AppState, type AppStateStatus } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { usePreferences } from '@/hooks/usePreferences';
 import { DateProvider } from '@/context/DateContext';
 import { syncToSupabase } from '@/lib/sync';
 import { loadPreferences } from '@/lib/app-preferences';
@@ -28,6 +30,15 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { appearance } = usePreferences();
+  const background = useThemeColor({}, 'background');
+  const card = useThemeColor({}, 'cardBackground');
+  const text = useThemeColor({}, 'text');
+  const primary = useThemeColor({}, 'tint');
+  const border = useThemeColor({}, 'separator');
+  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = { ...baseTheme, colors: { ...baseTheme.colors, background, card, text, primary, border } };
+  useEffect(() => { Appearance.setColorScheme(appearance === 'system' ? 'unspecified' : appearance); }, [appearance]);
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useSyncAutoRetry();
@@ -78,10 +89,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <DateProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={navigationTheme}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="food-search" options={{ presentation: 'modal', headerShown: false }} />
@@ -107,7 +119,7 @@ export default function RootLayout() {
           <Stack.Screen name="workout/history" options={{ presentation: 'card', headerShown: false }} />
           <Stack.Screen name="workout/routine" options={{ presentation: 'card', headerShown: false }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
     </DateProvider>
     </GestureHandlerRootView>

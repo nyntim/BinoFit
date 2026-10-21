@@ -159,6 +159,36 @@ describe('requestReminderPermission', () => {
     expect(Notifications.requestPermissionsAsync).toHaveBeenCalled();
   });
 
+  it('coalesces concurrent permission callers into the same OS request and result', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false, canAskAgain: true });
+    let started!: () => void;
+    const requestStarted = new Promise<void>((resolve) => { started = resolve; });
+    let finish!: (result: { granted: boolean }) => void;
+    (Notifications.requestPermissionsAsync as jest.Mock).mockImplementationOnce(() => {
+      started();
+      return new Promise((resolve) => { finish = resolve; });
+    });
+    const first = reminders.requestReminderPermission();
+    const second = reminders.requestReminderPermission();
+    expect(second).toBe(first);
+    await requestStarted;
+    expect(Notifications.getPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(Notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+    finish({ granted: true });
+    expect(await Promise.all([first, second])).toEqual([true, true]);
+  });
+
+  it.each(['denied', 'failed'])('permits retry after a shared permission request is %s', async (outcome) => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false, canAskAgain: true });
+    const request = Notifications.requestPermissionsAsync as jest.Mock;
+    if (outcome === 'failed') request.mockRejectedValueOnce(new Error('native failed'));
+    else request.mockResolvedValueOnce({ granted: false });
+    expect(await Promise.all([reminders.requestReminderPermission(), reminders.requestReminderPermission()])).toEqual([false, false]);
+    request.mockResolvedValueOnce({ granted: true });
+    expect(await reminders.requestReminderPermission()).toBe(true);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it('does not prompt again once denied', async () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
       granted: false,

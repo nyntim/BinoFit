@@ -23,6 +23,7 @@ const KEYS = {
   RESTORE_PENDING: 'restore_pending',
   SYNCED_UID: 'last_synced_uid',
   WEIGHT_UNIT: 'weight_unit',
+  APPEARANCE: 'appearance',
   SHOW_RPE: 'show_rpe',
   DEFAULT_SET_COUNT: 'default_set_count',
   ACTIVE_REST_TIMER: 'active_rest_timer',
@@ -297,4 +298,13 @@ export async function clearUserStorage(): Promise<void> {
     KEYS.SYNCED_UID,
     KEYS.ACTIVE_REST_TIMER,
   ]);
+}
+
+export type AppearancePreference = 'system' | 'light' | 'dark';
+export async function getAppearance(): Promise<AppearancePreference> {
+  const value = await AsyncStorage.getItem(KEYS.APPEARANCE);
+  return value === 'light' || value === 'dark' ? value : 'system';
+}
+export async function setAppearance(value: AppearancePreference): Promise<void> {
+  await AsyncStorage.setItem(KEYS.APPEARANCE, value);
 }

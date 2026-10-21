@@ -133,3 +133,11 @@ export function exportFileName(
     ? `binofit-food-log-${start}-to-${end}.csv`
     : `binofit-food-log-all-${today}.csv`;
 }
+
+/** Strict local calendar dates. No UTC conversion, including leap days. */
+export function validExportDates(start: string, end: string): boolean {
+  const valid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && !Number.isNaN(parseISO(value).getTime())
+    && format(parseISO(value), DATE_FORMAT) === value;
+  return valid(start) && valid(end) && start <= end;
+}

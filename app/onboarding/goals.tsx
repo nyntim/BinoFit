@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,13 +10,16 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import { saveUserGoals, saveUserProfile } from '@/lib/storage';
+import { getUserGoals, getUserProfile, saveUserGoals, saveUserProfile } from '@/lib/storage';
 import { syncToSupabase } from '@/lib/sync';
-import { saveWeightEntry, weightInputToKg, weightRangeMessage } from '@/lib/weight';
+import { getLatestWeightEntry, saveWeightEntry, weightInputToKg, weightRangeMessage } from '@/lib/weight';
+
+import { formatWeight } from '@/lib/units';
+import type { UserProfile } from '@/lib/types';
 
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 
@@ -29,6 +32,7 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: stri
 ];
 
 export default function GoalsScreen() {
+  const { restart } = useLocalSearchParams<{ restart?: string }>();
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({}, 'cardBackground');
   const icon = useThemeColor({}, 'icon');
@@ -43,22 +47,42 @@ export default function GoalsScreen() {
   const { weightUnit } = usePreferences();
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>('moderate');
+
+  const [ready, setReady] = useState(false);
+  const busy = useRef(false);
+  const original = useRef<{ profile: UserProfile | null; weight: string; weightKg: number | null } | null>(null);
+  useEffect(() => {
+    let active = true;
+    Promise.all([getUserGoals(), getUserProfile(), getLatestWeightEntry()]).then(([goals, profile, latest]) => {
+      if (!active) return;
+      if (goals) { setCalories(String(goals.calorie_goal)); setProtein(String(goals.protein_goal)); setCarbs(String(goals.carb_goal)); setFat(String(goals.fat_goal)); }
+      const kg = latest?.weight_kg ?? profile?.weight ?? null;
+      const displayed = kg === null ? '' : formatWeight(kg, weightUnit);
+      setWeight(displayed); setHeight(profile?.height == null ? '' : String(profile.height));
+      setActivityLevel(profile?.activity_level ?? (restart === '1' ? null : 'moderate'));
+      original.current = { profile, weight: displayed, weightKg: kg };
+      setReady(true);
+    }).catch(() => Alert.alert('Could not load setup', 'Return to Settings and try again.'));
+    return () => { active = false; };
+  }, [restart, weightUnit]);
 
   async function handleNext() {
-    const cal = parseInt(calories, 10);
-    const prot = parseInt(protein, 10);
-    const carb = parseInt(carbs, 10);
-    const f = parseInt(fat, 10);
+    if (!ready || busy.current) return;
+    const cal = Number(calories);
+    const prot = Number(protein);
+    const carb = Number(carbs);
+    const f = Number(fat);
 
-    if (!cal || !prot || !carb || !f) {
+    if (![cal, prot, carb, f].every((v) => Number.isFinite(v) && v > 0)) {
       Alert.alert('Missing fields', 'Please fill in all calorie and macro goals.');
       return;
     }
 
-    // Weight is optional; when given it must be a valid weight and becomes today's entry.
-    let weightKg: number | null = null;
-    if (weight.trim()) {
+    // Preserve the saved kg value before validating rounded display text at either limit.
+    const unchangedWeight = original.current !== null && weight === original.current.weight;
+    let weightKg: number | null = unchangedWeight ? original.current!.weightKg : null;
+    if (!unchangedWeight && weight.trim()) {
       weightKg = weightInputToKg(weight, weightUnit);
       if (weightKg === null) {
         Alert.alert('Invalid weight', weightRangeMessage(weightUnit));
@@ -66,6 +90,10 @@ export default function GoalsScreen() {
       }
     }
 
+    const heightCm = height.trim() ? Number(height) : null;
+    if (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 0)) { Alert.alert('Invalid height', 'Enter a positive height in cm.'); return; }
+    busy.current = true;
+    try {
     await saveUserGoals({
       calorie_goal: cal,
       protein_goal: prot,
@@ -73,19 +101,23 @@ export default function GoalsScreen() {
       fat_goal: f,
     });
 
-    await saveUserProfile({
-      weight: weightKg,
-      height: height ? parseFloat(height) : null,
+    const unchangedProfile = restart === '1' && unchangedWeight
+      && height === (original.current?.profile?.height == null ? '' : String(original.current.profile.height))
+      && activityLevel === (original.current?.profile?.activity_level ?? null);
+    if (!unchangedProfile) await saveUserProfile({
+      weight: weightKg ?? original.current?.weightKg ?? null,
+      height: heightCm,
       activity_level: activityLevel,
     });
 
-    if (weightKg !== null) {
+    if (weightKg !== null && !unchangedWeight) {
       await saveWeightEntry({ weight_kg: weightKg });
-      syncToSupabase();
     }
+    syncToSupabase();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    router.push('/onboarding/complete' as any);
+    router.push({ pathname: '/onboarding/complete', params: { restart } });
+    } catch { Alert.alert('Could not save setup', 'Your entries are still here. Try again.'); }
+    finally { busy.current = false; }
   }
 
   const inputStyle = [
@@ -221,6 +253,7 @@ export default function GoalsScreen() {
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.tint }]}
             onPress={handleNext}
+            disabled={!ready}
           >
             <Text style={[styles.buttonText, { color: colors.background }]}>Continue</Text>
           </TouchableOpacity>

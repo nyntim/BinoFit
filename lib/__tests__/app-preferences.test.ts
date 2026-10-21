@@ -7,6 +7,7 @@ import {
   setDefaultSetCount,
   setShowRpe,
   setWeightUnit,
+  setAppearance,
   subscribePreferences,
 } from '@/lib/app-preferences';
 import { clearUserStorage } from '@/lib/storage';
@@ -20,6 +21,7 @@ beforeEach(async () => {
 describe('app-preferences', () => {
   it('starts with defaults and loaded false', () => {
     expect(getPreferences()).toEqual({
+      appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: 'lb',
       showRpe: false,
       defaultSetCount: 2,
@@ -52,6 +54,7 @@ describe('app-preferences', () => {
     const spy = jest.spyOn(AsyncStorage, 'getItem');
     await loadPreferences();
     expect(getPreferences()).toEqual({
+      appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: 'lb',
       showRpe: true,
       defaultSetCount: 4,
@@ -122,10 +125,32 @@ describe('app-preferences', () => {
     await clearUserStorage();
     await reloadPreferences();
     expect(getPreferences()).toEqual({
+      appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: unit,
       showRpe: true,
       defaultSetCount: 4,
       loaded: true,
     });
   });
+});
+
+
+test('rapid appearance writes persist in selection order and survive reload', async () => {
+  await Promise.all([setAppearance('dark'), setAppearance('light'), setAppearance('system')]);
+  expect(await AsyncStorage.getItem('appearance')).toBe('system');
+  await reloadPreferences();
+  expect(getPreferences().appearance).toBe('system');
+});
+test('failed preference save reports failure and retains the persisted selection', async () => {
+  await setAppearance('dark');
+  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'));
+  await expect(setAppearance('light')).rejects.toThrow('disk');
+  expect(getPreferences().appearance).toBe('dark');
+  expect(getPreferences().error).toMatch(/save preferences/);
+});
+test('appearance remains saved across user storage clearing', async () => {
+  await setAppearance('dark');
+  await clearUserStorage();
+  await reloadPreferences();
+  expect(getPreferences().appearance).toBe('dark');
 });

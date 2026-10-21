@@ -1,3 +1,4 @@
+// Legacy compatibility exports. Production entry points use the shared /settings routes.
 import { useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

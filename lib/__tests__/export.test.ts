@@ -5,6 +5,7 @@ import {
   EXPORT_HEADERS,
   exportFileName,
   rangeDates,
+  validExportDates,
   toCsv,
   type ExportRow,
 } from '@/lib/export';
@@ -298,5 +299,15 @@ describe('exportFileName', () => {
   });
   it('uses today for all-time exports', () => {
     expect(exportFileName(null, null, '2026-06-10')).toBe('binofit-food-log-all-2026-06-10.csv');
+  });
+});
+
+describe('validExportDates', () => {
+  it('accepts inclusive leap-day and year-boundary local dates', () => {
+    expect(validExportDates('2024-02-29', '2024-02-29')).toBe(true);
+    expect(validExportDates('2025-12-31', '2026-01-01')).toBe(true);
+  });
+  it.each([['2023-02-29', '2023-03-01'], ['2024-02-30', '2024-03-01'], ['2024-03-01', '2024-02-29'], ['2024-2-01', '2024-03-01'], ['', '2024-03-01']])('rejects invalid or reversed dates %s to %s', (start, end) => {
+    expect(validExportDates(start, end)).toBe(false);
   });
 });

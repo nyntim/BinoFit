@@ -29,9 +29,9 @@ test('failed save remains available to retry before close', async () => {
   mockSave.mockRejectedValueOnce(new Error('disk')).mockResolvedValueOnce(undefined);
   await render(<NutritionSection ref={ref} onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
-  fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
   await act(async () => { expect(await ref.current?.flush()).toBe(false); });
-  await screen.findByText('Couldn’t save settings. Try again.');
+  await screen.findByText('Couldn’t save goals. Your changes are still here. Try again.');
   await act(async () => { expect(await ref.current?.flush()).toBe(true); });
   expect(mockSave).toHaveBeenCalledTimes(2);
 });

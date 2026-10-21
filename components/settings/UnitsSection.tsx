@@ -5,8 +5,8 @@ import { setWeightUnit } from '@/lib/app-preferences';
 import type { WeightUnit } from '@/lib/types';
 
 const UNITS: { value: WeightUnit; label: string }[] = [
-  { value: 'kg', label: 'kg' },
-  { value: 'lb', label: 'lb' },
+  { value: 'kg', label: 'Metric' },
+  { value: 'lb', label: 'Imperial' },
 ];
 
 export function UnitsSection() {
@@ -24,7 +24,7 @@ export function UnitsSection() {
         <View style={styles.info}>
           <Text style={[styles.label, { color: text }]}>Units</Text>
           <Text style={[styles.subtitle, { color: muted }]}>
-            Weight in kg with distance in km, or weight in lb with distance in mi.
+            Metric: kg, km, cm. Imperial: lb, mi, ft and in.
           </Text>
         </View>
         <View
@@ -39,7 +39,7 @@ export function UnitsSection() {
                 key={opt.value}
                 style={[styles.segment, selected && { backgroundColor: tint }]}
                 onPress={() => {
-                  if (!selected) setWeightUnit(opt.value);
+                  void setWeightUnit(opt.value).catch(() => undefined);
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="radio"
@@ -60,12 +60,14 @@ export function UnitsSection() {
 
 const styles = StyleSheet.create({
   section: { marginBottom: 28 },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginTop: 8 },
+  row: { gap: 12, alignItems: 'flex-start', padding: 16, borderRadius: 12, marginTop: 8 },
   info: { flex: 1, marginRight: 16 },
   label: { fontSize: 16, fontWeight: '500' },
   subtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  switch: { flexDirection: 'row', borderRadius: 20, padding: 3 },
+  switch: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', borderRadius: 20, padding: 3 },
   segment: {
+    maxWidth: '100%',
+    flexShrink: 1,
     minHeight: 44,
     minWidth: 44,
     paddingHorizontal: 14,

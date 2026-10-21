@@ -1,96 +1,120 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SettingsScreen from '@/app/(tabs)/settings';
-import { loadPreferences, resetPreferences } from '@/lib/app-preferences';
-import { getUserProfile, saveUserProfile } from '@/lib/storage';
-import { saveWeightEntry } from '@/lib/weight';
-import { lbToKg } from '@/lib/units';
+import PreferencesScreen from '@/app/settings/preferences';
+import { TrainingSection } from '@/components/settings/TrainingSection';
+import { getPreferences, loadPreferences, resetPreferences, setWeightUnit } from '@/lib/app-preferences';
+import { getLastSyncAt, saveUserProfile } from '@/lib/storage';
 import { router } from 'expo-router';
-
-const mockRunSync = jest.fn();
-jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#333333' }));
+import { getMealDefinitions } from '@/lib/database';
+import { getReminderPermission } from '@/lib/notification-permissions';
+import * as Notifications from 'expo-notifications';
+const originalSetItem = (AsyncStorage.setItem as jest.Mock).getMockImplementation()!;
+jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/context/TabBarInsetContext', () => ({ useTabBarInset: () => 0, useTabBarInsetMode: () => 'manual' }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
-jest.mock('expo-router', () => ({
-  router: { replace: jest.fn() },
-  useFocusEffect: (callback: () => void) => {
-    const React = jest.requireActual<typeof import('react')>('react');
-    React.useEffect(callback, [callback]);
-  },
-}));
-jest.mock('@/components/settings/AccountSection', () => ({ AccountSection: () => {
-  const { Text } = jest.requireActual('react-native');
-  return <Text>Account</Text>;
-} }));
-jest.mock('@/components/settings/ExportDataSheet', () => ({ ExportDataSheet: ({ visible }: { visible: boolean }) => {
-  const { Text } = jest.requireActual('react-native');
-  return visible ? <Text>Export sheet</Text> : null;
-} }));
-jest.mock('@/hooks/use-health-kit', () => ({ useHealthKit: () => ({ available: true, syncing: false, runSync: mockRunSync }) }));
-jest.mock('@/hooks/useSyncStatus', () => ({ useSyncStatus: () => ({ state: {}, now: 0 }) }));
-jest.mock('@/lib/sync-status', () => ({ deriveLastSynced: () => ({ kind: 'never' }), isSyncConfigured: () => true }));
-jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
-jest.mock('@/lib/weight', () => ({
-  ...jest.requireActual('@/lib/weight'),
-  getLatestWeightEntry: jest.fn(async () => null),
-  saveWeightEntry: jest.fn(async () => undefined),
-}));
-
-beforeEach(async () => {
-  jest.clearAllMocks();
-  await AsyncStorage.clear();
-  resetPreferences();
-  await loadPreferences();
-  await saveUserProfile({ weight: 70, height: 175, activity_level: 'moderate' });
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useFocusEffect: (callback: () => void) => { jest.requireActual<typeof import('react')>('react').useEffect(callback, [callback]); } }));
+jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ status: 'anonymous', email: null }) }));
+const mockSyncState = { status: 'idle', isOffline: false, lastSuccessAt: null };
+jest.mock('@/hooks/useSyncStatus', () => ({ useSyncStatus: () => ({ state: mockSyncState }) }));
+jest.mock('@/lib/database', () => ({ getMealDefinitions: jest.fn() }));
+jest.mock('@/lib/notification-permissions', () => ({ getReminderPermission: jest.fn() }));
+jest.mock('@/lib/sync-status', () => ({ isSyncConfigured: () => true }));
+jest.mock('@/lib/weight', () => ({ getLatestWeightEntry: jest.fn(async () => null) }));
+beforeEach(async () => { jest.clearAllMocks(); mockSyncState.status = 'idle'; mockSyncState.isOffline = false; (getMealDefinitions as jest.Mock).mockResolvedValue([{ reminder_time: '08:00' }, { reminder_time: null }, { reminder_time: 'bad' }]); (getReminderPermission as jest.Mock).mockResolvedValue('denied'); await AsyncStorage.clear(); resetPreferences(); await loadPreferences(); await saveUserProfile({ weight: 70, height: 175, activity_level: 'moderate' }); });
+test('Settings directory has all ten focused destinations and truthful summaries', async () => {
+  await render(<SettingsScreen />); await screen.findByText('154.32 lb');
+  for (const heading of ['You', 'App', 'Account and data', 'Help']) expect(screen.getByRole('header', { name: heading })).toBeTruthy();
+  const destinations = ['Profile', 'Nutrition', 'Training', 'Preferences', 'Notifications', 'Account', 'Integrations', 'Data and Privacy', 'About', 'Support'];
+  for (const label of destinations) { await fireEvent.press(screen.getByText(label)); expect(router.push).toHaveBeenLastCalledWith(`/settings/${label === 'Data and Privacy' ? 'data-privacy' : label.toLowerCase()}`); }
+  expect(screen.queryAllByRole('textbox')).toHaveLength(0);
+  expect(screen.getByText('Guest account')).toBeTruthy();
 });
-
-test('More has one general unit control, persists selections, and retains general actions', async () => {
-  await render(<SettingsScreen />);
-  await screen.findByDisplayValue('154.32');
-  expect(screen.getByText('General')).toBeTruthy();
-  expect(screen.getAllByText('Units')).toHaveLength(1);
-  expect(screen.getByRole('radio', { name: 'lb', selected: true })).toBeTruthy();
-  expect(screen.queryByText('Nutrition')).toBeNull();
-  expect(screen.queryByText('Training')).toBeNull();
-  expect(screen.queryByLabelText('Nutrition settings')).toBeNull();
-  expect(screen.queryByLabelText('Training settings')).toBeNull();
-  expect(screen.getByText('Account')).toBeTruthy();
-  expect(screen.getByText('Personal Stats')).toBeTruthy();
-  expect(screen.getByText('App Info')).toBeTruthy();
-
-  await fireEvent.press(screen.getByRole('radio', { name: 'kg' }));
-  await screen.findByDisplayValue('70');
+test('Preferences persists units without changing stored measurements and forces appearance', async () => {
+  const before = await AsyncStorage.getItem('user_profile');
+  await render(<PreferencesScreen />);
+  await fireEvent.press(screen.getByRole('radio', { name: 'Metric' }));
   await waitFor(async () => expect(await AsyncStorage.getItem('weight_unit')).toBe('kg'));
-  expect(screen.getByText('Weight (kg)')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('radio', { name: 'lb' }));
-  await screen.findByDisplayValue('154.32');
+  await fireEvent.press(screen.getByText('Dark'));
+  await waitFor(async () => expect(await AsyncStorage.getItem('appearance')).toBe('dark'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Imperial' }));
   await waitFor(async () => expect(await AsyncStorage.getItem('weight_unit')).toBe('lb'));
-
-  await fireEvent.press(screen.getByLabelText('Export data'));
-  expect(screen.getByText('Export sheet')).toBeTruthy();
-  await fireEvent.press(screen.getByLabelText('Sync with Apple Health'));
-  expect(mockRunSync).toHaveBeenCalledTimes(1);
-  const alert = jest.spyOn(Alert, 'alert');
-  await fireEvent.press(screen.getByText('Reset Setup'));
-  const reset = alert.mock.calls[0][2]?.find((button) => button.text === 'Reset');
-  await act(async () => { await reset?.onPress?.(); });
-  expect(router.replace).toHaveBeenCalledWith('/onboarding');
-  expect(await AsyncStorage.getItem('weight_unit')).toBe('lb');
-  alert.mockRestore();
+  expect(await AsyncStorage.getItem('user_profile')).toBe(before);
 });
 
-test('changing units converts typed personal weight and saves kilograms', async () => {
+test('the last explicit unit selection wins while the first disk write is pending', async () => {
+  await setWeightUnit('kg');
+  const original = originalSetItem;
+  let release!: () => void;
+  let first = true;
+  const spy = jest.spyOn(AsyncStorage, 'setItem').mockImplementation((key, value) => {
+    if (key === 'weight_unit' && first) {
+      first = false;
+      return new Promise<void>(resolve => { release = () => { void original(key, value).then(resolve); }; });
+    }
+    return original(key, value);
+  });
+  try {
+    await render(<PreferencesScreen />);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Imperial' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Metric' }));
+    expect(getPreferences().weightUnit).toBe('kg');
+    await act(async () => { release(); });
+    await waitFor(async () => expect(await AsyncStorage.getItem('weight_unit')).toBe('kg'));
+  } finally { spy.mockRestore(); (AsyncStorage.setItem as jest.Mock).mockImplementation(originalSetItem); }
+});
+
+test('rapid default-set increments accumulate while persistence is pending', async () => {
+  const original = originalSetItem;
+  let release!: () => void;
+  let first = true;
+  const spy = jest.spyOn(AsyncStorage, 'setItem').mockImplementation((key, value) => {
+    if (key === 'default_set_count' && first) {
+      first = false;
+      return new Promise<void>(resolve => { release = () => { void original(key, value).then(resolve); }; });
+    }
+    return original(key, value);
+  });
+  try {
+    await render(<TrainingSection />);
+    await fireEvent.press(screen.getByLabelText('More default sets'));
+    await fireEvent.press(screen.getByLabelText('More default sets'));
+    expect(getPreferences().defaultSetCount).toBe(4);
+    await act(async () => { release(); });
+    await waitFor(async () => expect(await AsyncStorage.getItem('default_set_count')).toBe('4'));
+  } finally { spy.mockRestore(); (AsyncStorage.setItem as jest.Mock).mockImplementation(originalSetItem); }
+});
+
+test('directory reports blocked configured reminders and never-synced cloud without prompting', async () => {
   await render(<SettingsScreen />);
-  const input = await screen.findByDisplayValue('154.32');
-  await fireEvent.changeText(input, '176.37');
-  await fireEvent.press(screen.getByRole('radio', { name: 'kg' }));
-  await screen.findByDisplayValue('80');
-  expect(screen.getByText('Weight (kg)')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('radio', { name: 'lb' }));
-  await screen.findByDisplayValue('176.37');
-  await fireEvent.press(screen.getByText('Save personal stats'));
-  await waitFor(() => expect(saveWeightEntry).toHaveBeenCalledWith({ weight_kg: lbToKg(176.37) }));
-  await waitFor(async () => expect((await getUserProfile())?.weight).toBeCloseTo(80.001, 2));
+  await screen.findByText('Blocked · 1 configured');
+  await screen.findByText('Cloud never synced');
+  expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+});
+test('directory retains the actual historical cloud success and distinguishes missing reminder data', async () => {
+  await AsyncStorage.setItem('last_sync_at', '2026-10-21T12:00:00Z');
+  (getMealDefinitions as jest.Mock).mockRejectedValueOnce(new Error('read'));
+  (getReminderPermission as jest.Mock).mockResolvedValueOnce('provisional');
+  await render(<SettingsScreen />);
+  await screen.findByText('Quiet delivery · Reminder count unknown');
+  expect(await screen.findByText(/^Cloud synced /)).toBeTruthy();
+  expect(await getLastSyncAt()).toBe('2026-10-21T12:00:00Z');
+});
+test.each([['syncing', false, 'Cloud syncing…'], ['failed', false, 'Cloud sync failed'], ['idle', true, 'Cloud offline']])('directory exposes current cloud %s state', async (status, offline, label) => {
+  mockSyncState.status = status as string; mockSyncState.isOffline = offline as boolean;
+  await render(<SettingsScreen />);
+  expect(screen.getByText(label as string)).toBeTruthy();
+});
+
+test('appearance radios have one native touch responder and directly persist selections', async () => {
+  await render(<PreferencesScreen />);
+  for (const label of ['Light', 'Dark', 'System']) {
+    const radio = screen.getByRole('radio', { name: label });
+    expect(typeof radio.props.onStartShouldSetResponder).toBe('function');
+    expect(radio.queryAll(node => typeof node.props.onStartShouldSetResponder === 'function')).toHaveLength(0);
+    await fireEvent.press(radio);
+    expect(screen.getByRole('radio', { name: label, selected: true })).toBeTruthy();
+    await waitFor(async () => expect(await AsyncStorage.getItem('appearance')).toBe(label.toLowerCase()));
+  }
 });

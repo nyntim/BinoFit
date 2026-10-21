@@ -1,16 +1,21 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUnsyncedWeightEntries } from '@/lib/weight';
+import { getUnsyncedWorkoutTree } from '@/lib/workouts/db';
+import { getUnsyncedRoutines, getUnsyncedRoutineExercises } from '@/lib/workouts/routines';
 import { reloadPreferences } from '@/lib/app-preferences';
 import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { getDeviceId } from '@/lib/device-id';
-import { beginAuthTransition } from '@/lib/auth-transition';
+import { beginAuthTransition, isAuthTransitioning } from '@/lib/auth-transition';
 import {
   clearUserData,
   markAllUnsynced,
   getUnsyncedFoodLogs,
   getUnsyncedMealDefinitions,
   getUnsyncedMealNames,
+  getUnsyncedCustomFoods,
 } from '@/lib/database';
 import {
   clearGoalsProfileSyncFlags,
@@ -50,6 +55,8 @@ async function syncNowAndWait(): Promise<void> {
 async function waitForSyncIdle(): Promise<void> {
   const m = await import('@/lib/sync');
   await m.waitForSyncIdle();
+  const health = await import('@/services/healthKitService');
+  await health.waitForHealthSyncIdle();
 }
 
 /** Marks everything unsynced so the next sync pushes it all to the current user. */
@@ -150,6 +157,7 @@ async function getSession(): Promise<Session | null> {
 
 /** Current Supabase user id (text form stored in `user_id` columns), or null with no session. */
 export async function getSessionUserId(): Promise<string | null> {
+  if (await AsyncStorage.getItem(ACCOUNT_DELETION_KEY)) return null;
   return (await getSession())?.user.id ?? null;
 }
 
@@ -213,8 +221,10 @@ export async function retryPendingMergeTicket(): Promise<void> {
     }
     // Held until the new uid is recorded and the restore is done, so no pass can see the
     // old uid and re-push local data over the account (the account's data wins).
+    if (isAuthTransitioning()) return;
     const release = beginAuthTransition();
     try {
+      await waitForSyncIdle();
       const { error } = await supabase.rpc('redeem_merge_ticket', { ticket: pending.ticket });
       if (!error) {
         await clearPendingMergeTicket();
@@ -317,6 +327,8 @@ async function validateSession(session: Session): Promise<Session | null> {
 }
 
 async function runInitAuth(force: boolean): Promise<InitAuthResult> {
+  if (isAuthTransitioning() || mergeInFlight) return { status: 'none', restored: false };
+  await resumeAccountDeletion();
   await resumePendingWipe();
   if (!isSyncConfigured()) return { status: 'none', restored: false };
 
@@ -411,7 +423,7 @@ export async function signInWithMerge(
   onProgress?: (p: RestoreProgress) => void
 ): Promise<SignInOutcome> {
   // One sign-in at a time: two concurrent calls would create two tickets.
-  if (mergeInFlight) return { status: 'error', message: 'Sign-in is already in progress.' };
+  if (mergeInFlight || isAuthTransitioning()) return { status: 'error', message: 'Sign-in is already in progress.' };
   mergeInFlight = true;
   try {
     return await runSignInWithMerge(obtainSession, onProgress);
@@ -428,6 +440,7 @@ async function runSignInWithMerge(
   let ticketStored = false;
   let signedIn = false;
   try {
+    if (await AsyncStorage.getItem(ACCOUNT_DELETION_KEY)) return { status: 'error', message: 'Finish account deletion before signing in.' };
     if (!isSyncConfigured()) return { status: 'error', message: 'Sign-in is not available.' };
 
     const before = await getSession();
@@ -712,10 +725,11 @@ export async function changePassword(
 export async function retryRestore(
   onProgress?: (p: RestoreProgress) => void
 ): Promise<RestoreResult> {
-  const userId = await getSessionUserId();
-  if (!userId) return { ok: false, error: 'Not signed in' };
+  if (isAuthTransitioning() || mergeInFlight || initInFlight) return { ok: false, error: 'Another account operation is in progress.' };
   const release = beginAuthTransition();
   try {
+    const userId = await getSessionUserId();
+    if (!userId) return { ok: false, error: 'Not signed in' };
     await waitForSyncIdle();
     return await restoreTracked(userId, onProgress);
   } finally {
@@ -728,14 +742,19 @@ export async function retryRestore(
 
 /** Rows on the device that the account does not have yet. */
 export async function countUnsynced(): Promise<number> {
-  const [logs, defs, names, goals, profile] = await Promise.all([
+  const [logs, defs, names, goals, profile, weight, tree, routines, routineExercises, foods] = await Promise.all([
     getUnsyncedFoodLogs(),
     getUnsyncedMealDefinitions(),
     getUnsyncedMealNames(),
     getUserGoals(),
     getUserProfile(),
+    getUnsyncedWeightEntries(),
+    getUnsyncedWorkoutTree(),
+    getUnsyncedRoutines(),
+    getUnsyncedRoutineExercises(),
+    getUnsyncedCustomFoods(),
   ]);
-  return logs.length + defs.length + names.length + (goals && !goals.synced_at ? 1 : 0) + (profile && !profile.synced_at ? 1 : 0);
+  return foods.length + weight.length + Object.values(tree).reduce((n, rows) => n + rows.length, 0) + routines.length + routineExercises.length + logs.length + defs.length + names.length + (goals && !goals.synced_at ? 1 : 0) + (profile && !profile.synced_at ? 1 : 0);
 }
 
 /** Step 1 of sign-out: one last sync attempt, then the count the confirm dialog warns about. */
@@ -753,11 +772,13 @@ export type SignOutResult = { ok: true } | { ok: false; message: string };
  * sign-out, a persisted flag makes the next initAuth finish it before any sync.
  */
 export async function signOutAndWipe(): Promise<SignOutResult> {
+  if (isAuthTransitioning() || mergeInFlight || initInFlight) return { ok: false, message: 'Another account operation is in progress.' };
   const release = beginAuthTransition();
   let signedOut = false;
   let result: SignOutResult = { ok: true };
   try {
     await waitForSyncIdle();
+    if (await AsyncStorage.getItem(ACCOUNT_DELETION_KEY)) return { ok: false, message: 'Finish account deletion before signing out.' };
     await setPendingWipe();
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) {
@@ -782,4 +803,105 @@ export async function signOutAndWipe(): Promise<SignOutResult> {
   }
   if (signedOut) await initAuth({ force: true }); // retries an unfinished wipe, then starts a new anonymous session
   return result;
+}
+
+// Persist the deletion phase separately from sign-out so startup never restores a deleted account.
+const ACCOUNT_DELETION_KEY = 'accountDeletionPending';
+
+export type PendingAccountDeletion = 'requested' | 'confirmed' | null;
+export async function getPendingAccountDeletion(): Promise<PendingAccountDeletion> {
+  const phase = await AsyncStorage.getItem(ACCOUNT_DELETION_KEY);
+  return phase === 'requested' || phase === 'confirmed' ? phase : null;
+}
+
+/** Only call after explicit confirmation that cloud deletion remains unverified. */
+export async function removePendingDeletionDeviceData(): Promise<SignOutResult> {
+  if (isAuthTransitioning() || mergeInFlight || initInFlight) {
+    return { ok: false, message: 'Another account operation is in progress.' };
+  }
+  const release = beginAuthTransition();
+  let completed = false;
+  try {
+    if (!(await getPendingAccountDeletion())) return { ok: false, message: 'There is no pending deletion.' };
+    await waitForSyncIdle();
+    await completeAccountDeletion();
+    completed = true;
+    return { ok: true };
+  } catch {
+    return { ok: false, message: 'Could not remove device data. Retry when this device is available.' };
+  } finally {
+    release();
+    if (completed) await initAuth({ force: true });
+  }
+}
+
+
+export async function canDeleteAccount(): Promise<boolean> {
+  if (!isSyncConfigured()) return false;
+  try {
+    const { data, error } = await supabase.rpc('account_deletion_capability');
+    return !error && data === 1;
+  } catch { return false; }
+}
+
+async function completeAccountDeletion(): Promise<void> {
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
+  if (error) throw error;
+  await finishWipe();
+  await AsyncStorage.removeItem(ACCOUNT_DELETION_KEY);
+}
+
+async function resumeAccountDeletion(): Promise<void> {
+  const phase = await AsyncStorage.getItem(ACCOUNT_DELETION_KEY);
+  if (!phase) return;
+  const release = beginAuthTransition();
+  try {
+    await waitForSyncIdle();
+    if (phase === 'requested') {
+      // The transaction may have committed before its response was lost. A protected
+      // receipt confirms that outcome; otherwise retry for the same authenticated owner.
+      const receipt = await supabase.rpc('account_deletion_status');
+      const { data, error } = !receipt.error && receipt.data === true
+        ? { data: true, error: null }
+        : await supabase.rpc('delete_own_account');
+      if (error || data !== true) throw new Error('Account deletion needs an online retry.');
+      await AsyncStorage.setItem(ACCOUNT_DELETION_KEY, 'confirmed');
+    }
+    await completeAccountDeletion();
+  } finally { release(); }
+}
+
+/** Deletes owned cloud data and auth user atomically before touching local data. */
+export async function deleteAccountAndWipe(): Promise<SignOutResult> {
+  if (isAuthTransitioning() || mergeInFlight || initInFlight) {
+    return { ok: false, message: 'Another account operation is in progress.' };
+  }
+  const release = beginAuthTransition();
+  let completed = false;
+  try {
+    await waitForSyncIdle();
+    const pending = await AsyncStorage.getItem(ACCOUNT_DELETION_KEY);
+    if (pending) {
+      await resumeAccountDeletion();
+    } else {
+      const session = await getSession();
+      if (!session || session.user.is_anonymous || !(await canDeleteAccount())) {
+        return { ok: false, message: 'Account deletion is unavailable. Connect and try again.' };
+      }
+      await AsyncStorage.setItem(ACCOUNT_DELETION_KEY, 'requested');
+      const { data, error } = await supabase.rpc('delete_own_account');
+      if (error || data !== true) {
+        return { ok: false, message: 'Could not confirm deletion. Your device data is kept. Retry when online.' };
+      }
+      await AsyncStorage.setItem(ACCOUNT_DELETION_KEY, 'confirmed');
+      await completeAccountDeletion();
+    }
+    completed = true;
+    return { ok: true };
+  } catch {
+    return { ok: false, message: 'Deletion is not confirmed. Device data is kept. Retry when online. If your session expired, verify cloud deletion separately or explicitly remove device data only.' };
+  } finally {
+    release();
+    if (completed) await initAuth({ force: true });
+  }
 }

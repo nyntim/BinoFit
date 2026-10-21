@@ -8,7 +8,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +22,7 @@ import { APPLE_SIGN_IN_SUPPORTED, AppleSignInButton } from '@/components/setting
 import { applyAuthRoute } from '@/components/auth/applyAuthRoute';
 
 export default function WelcomeScreen() {
+  const { restart } = useLocalSearchParams<{ restart?: string }>();
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
@@ -49,7 +50,7 @@ export default function WelcomeScreen() {
   }
 
   function goToGoals() {
-    router.push('/onboarding/goals' as any);
+    router.push({ pathname: '/onboarding/goals', params: { restart } });
   }
 
   function goToAccount(mode: 'signUp' | 'signIn') {
@@ -101,7 +102,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
         <View style={styles.footer}>
-          {!accountsAvailable ? (
+          {restart === '1' || !accountsAvailable ? (
             <TouchableOpacity style={primary} onPress={goToGoals} accessibilityRole="button">
               <Text style={[styles.buttonText, { color: background }]}>Continue</Text>
             </TouchableOpacity>
