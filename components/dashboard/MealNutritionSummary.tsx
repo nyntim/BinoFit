@@ -50,7 +50,7 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
     <Modal visible animationType="slide" onRequestClose={onClose} onDismiss={onDismiss}>
       <View accessibilityViewIsModal onAccessibilityEscape={onClose}
         style={[styles.root, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ControlSurface style={styles.header}>
+        <ControlSurface style={[styles.header, styles.navigationHeader]}>
           <Text accessibilityRole="header" style={[styles.heading, { color: text, flex: 1 }]}>Nutrition</Text>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close nutrition summary" onPress={onClose} style={styles.close}>
             <Text style={[styles.body, { color: tint }]}>Close</Text>
@@ -128,8 +128,9 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingVertical: 16, gap: 8 },
+  navigationHeader: { alignItems: 'center' },
   title: { flex: 1 },
-  close: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  close: { minWidth: 44, minHeight: 44, flexShrink: 0, justifyContent: 'center', alignItems: 'center' },
   content: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
   section: { padding: 20, borderRadius: 18, gap: 8 },
   heading: { fontSize: 17, fontWeight: '600' },

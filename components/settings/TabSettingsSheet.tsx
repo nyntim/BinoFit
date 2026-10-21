@@ -63,7 +63,7 @@ export function TrainingSettingsSheet({ visible, onClose }: BaseProps) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' }, avoider: { maxHeight: '90%' },
   sheet: { borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 20, paddingTop: 20, maxHeight: '100%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 20, fontWeight: '600' }, close: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, gap: 8 },
+  title: { fontSize: 20, fontWeight: '600', flex: 1, flexShrink: 1, minWidth: 0 }, close: { minWidth: 44, minHeight: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   done: { fontSize: 16, fontWeight: '600' }, content: { paddingBottom: 16 }, rest: { fontSize: 13, lineHeight: 18 },
 });
