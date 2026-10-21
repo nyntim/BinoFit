@@ -27,6 +27,7 @@ const mockReplace = jest.fn();
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ meal_slot: 'dinner-id', date: '2026-10-20' }), useRouter: () => ({ replace: mockReplace, push: mockPush, back: jest.fn() }) }));
 jest.mock('@/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboardHeight }));
+jest.mock('expo-router/react-navigation', () => ({ usePreventRemove: jest.fn(), useNavigation: () => ({ dispatch: jest.fn() }) }));
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Dinner' }) }));
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#444444' }));
 jest.mock('@expo/vector-icons/MaterialIcons', () => 'MaterialIcons');

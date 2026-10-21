@@ -98,6 +98,7 @@ export default function RootLayout() {
           <Stack.Screen name="account" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="food-search" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="serving-picker" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="food-batch-review" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="barcode-scanner" options={{ presentation: 'fullScreenModal', headerShown: false }} />
           <Stack.Screen name="day-detail" options={{ headerShown: false }} />
           <Stack.Screen name="custom-food" options={{ presentation: 'modal', headerShown: false }} />

@@ -9,8 +9,11 @@ import {
   ScrollView,
   FlatList,
   Platform,
+  Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useNavigation, usePreventRemove } from 'expo-router/react-navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { MacroColors } from '@/constants/theme';
@@ -31,6 +34,17 @@ import {
 } from '@/lib/food-service';
 import { foodSourceLabel } from '@/lib/food-source';
 import type { Food } from '@/lib/types';
+import { SelectionBar } from '@/components/food-search/SelectionBar';
+import { SelectionCheck } from '@/components/food-search/SelectionCheck';
+import { useFoodSelection } from '@/hooks/useFoodSelection';
+import { isSelected, selectedCount } from '@/lib/food-selection';
+import {
+  beginFoodSelection,
+  clearSelectedFoods,
+  endFoodSelection,
+  getFoodSelection,
+  toggleSelectedFood,
+} from '@/lib/food-selection-store';
 
 type DisplayRow =
   | { key: string; type: 'food'; food: Food }
@@ -105,6 +119,37 @@ export default function FoodSearchScreen() {
   const [selecting, setSelecting] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('best');
   const [parsedQuantity, setParsedQuantity] = useState<{ amount: number; unit: string } | null>(null);
+
+  // Multi-select: the draft lives in a module store so it survives queries, sorts and the review screen.
+  const navigation = useNavigation();
+  const [selectMode, setSelectMode] = useState(false);
+  const selection = useFoodSelection();
+  const pickedCount = selectedCount(selection);
+  const selectedIdsKey = selection.order.join('|');
+  useEffect(() => {
+    beginFoodSelection({ meal_slot, date });
+    return () => endFoodSelection();
+  }, [meal_slot, date]);
+  usePreventRemove(pickedCount > 0, ({ data }) => {
+    const remaining = selectedCount(getFoodSelection());
+    if (remaining === 0) {
+      navigation.dispatch(data.action);
+      return;
+    }
+    Alert.alert(`Discard ${remaining} ${remaining === 1 ? 'food' : 'foods'}?`, 'Your selected foods have not been added.', [
+      { text: 'Keep selecting', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+    ]);
+  });
+  const toggleSelectMode = () => {
+    if (!selectMode) return setSelectMode(true);
+    if (pickedCount === 0) return setSelectMode(false);
+    Alert.alert('Discard selection?', `${pickedCount} selected ${pickedCount === 1 ? 'food' : 'foods'} will be cleared.`, [
+      { text: 'Keep selecting', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => { clearSelectedFoods(); setSelectMode(false); } },
+    ]);
+  };
+  const openReview = () => router.push({ pathname: '/food-batch-review' as any, params: { meal_slot, date } });
 
   const searchIdRef = useRef(0);
   const showSuggestions = !query.trim();
@@ -230,6 +275,7 @@ export default function FoodSearchScreen() {
   const renderFood = (food: Food) => {
     const source = foodSourceLabel(food.source);
     const calories = Math.round(food.calories);
+    const picked = selectMode && isSelected(selection, food.id);
     const label = [
       food.name,
       food.brand,
@@ -244,13 +290,15 @@ export default function FoodSearchScreen() {
       <TouchableOpacity
         key={food.id}
         style={[styles.foodItem, { borderBottomColor: colors.separator }]}
-        onPress={() => selectFood(food)}
+        onPress={() => (selectMode ? toggleSelectedFood(food, parsedQuantity?.amount) : selectFood(food))}
         activeOpacity={0.7}
         disabled={selecting}
-        accessibilityRole="button"
         accessibilityLabel={label}
-        accessibilityState={{ disabled: selecting }}
+        {...(selectMode
+          ? { accessibilityRole: 'checkbox' as const, accessibilityState: { checked: picked, disabled: selecting } }
+          : { accessibilityRole: 'button' as const, accessibilityState: { disabled: selecting } })}
       >
+        {selectMode ? <SelectionCheck selected={picked} /> : null}
         <View style={styles.foodInfo}>
           <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>
             {food.name}
@@ -380,6 +428,15 @@ export default function FoodSearchScreen() {
             </TouchableOpacity>
           </View>
         )}
+        <TouchableOpacity
+          onPress={toggleSelectMode}
+          style={[styles.selectBtn, { backgroundColor: selectMode ? colors.tint : colors.cardBackground }]}
+          accessibilityRole="button"
+          accessibilityLabel="Select multiple"
+          accessibilityState={{ selected: selectMode }}
+        >
+          <MaterialIcons name="checklist" size={22} color={selectMode ? colors.background : colors.tint} />
+        </TouchableOpacity>
       </View>
       {parsedQuantity && (
         <View style={styles.quantityHint}>
@@ -398,12 +455,14 @@ export default function FoodSearchScreen() {
         />
       )}
 
+      <KeyboardAvoidingView style={styles.list} enabled={selectMode} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {showSuggestions ? (
         <FlatList
           key="suggestions"
           ref={suggestionsScrollRef}
           style={styles.list}
           data={suggestionRows}
+          extraData={selectedIdsKey}
           renderItem={renderRow}
           keyExtractor={rowKey}
           ListFooterComponent={footer}
@@ -424,6 +483,7 @@ export default function FoodSearchScreen() {
           ref={resultsScrollRef}
           style={styles.list}
           data={resultRows}
+          extraData={selectedIdsKey}
           renderItem={renderRow}
           keyExtractor={rowKey}
           ListFooterComponent={footer}
@@ -435,6 +495,8 @@ export default function FoodSearchScreen() {
           contentContainerStyle={listPadding}
         />
       )}
+      {selectMode ? <SelectionBar count={pickedCount} onClear={clearSelectedFoods} onReview={openReview} /> : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -455,6 +517,7 @@ const styles = StyleSheet.create({
   searchToolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 8 },
   scanSurface: { borderRadius: 12 },
   scanBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  selectBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   searchBar: {
     flex: 1,
     minHeight: 44,

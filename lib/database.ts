@@ -250,6 +250,56 @@ export async function addFoodLog(
   return { ...entry, id, created_at: now, updated_at: now, synced_at: null };
 }
 
+/**
+ * Inserts several logs plus the slot status row in one transaction (multi-select confirm).
+ * Rows match addFoodLog rows (synced_at NULL). Every food must exist locally, otherwise the whole
+ * batch rolls back: SQLite FKs are not enforced and an unresolved food would join to nothing.
+ */
+export async function addFoodLogsBatch(input: {
+  date: string;
+  meal_slot: MealSlot;
+  logged_time?: string | null;
+  items: readonly { food_id: string; serving_amount: number; serving_unit: string }[];
+  defaultEaten: boolean;
+}): Promise<FoodLog[]> {
+  if (input.items.length === 0) throw new Error('No foods to add');
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const logs: FoodLog[] = [];
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const item of input.items) {
+      const food = await txn.getFirstAsync<{ id: string }>('SELECT id FROM foods WHERE id = ?', [item.food_id]);
+      if (!food) throw new Error('Missing food');
+      const id = Crypto.randomUUID();
+      await txn.runAsync(
+        `INSERT INTO food_logs (id, date, meal_slot, food_id, serving_amount, serving_unit, logged_time, created_at, updated_at, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+        [id, input.date, input.meal_slot, item.food_id, item.serving_amount, item.serving_unit, input.logged_time ?? null, now, now]
+      );
+      logs.push({
+        id,
+        date: input.date,
+        meal_slot: input.meal_slot,
+        food_id: item.food_id,
+        serving_amount: item.serving_amount,
+        serving_unit: item.serving_unit,
+        logged_time: input.logged_time ?? null,
+        created_at: now,
+        updated_at: now,
+        synced_at: null,
+      } as FoodLog);
+    }
+    await txn.runAsync(
+      `INSERT INTO meal_slot_confirmations (id, date, meal_slot, confirmed, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(date, meal_slot) DO NOTHING`,
+      [Crypto.randomUUID(), input.date, input.meal_slot, input.defaultEaten ? 1 : 0, now]
+    );
+  });
+  fireAppleHealthSync();
+  return logs;
+}
+
 export async function getFoodLogsByDate(date: string): Promise<FoodLog[]> {
   const db = await getDatabase();
   return db.getAllAsync<FoodLog>('SELECT * FROM food_logs WHERE date = ? AND deleted_at IS NULL ORDER BY created_at', [date]);

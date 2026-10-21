@@ -65,3 +65,18 @@ export function formatServingAmount(value: number): string {
   if (point >= digits.length) return digits + '0'.repeat(point - digits.length);
   return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
+
+/**
+ * Re-expresses an amount when the unit changes (the serving picker's unit switch).
+ * Returns null when nothing should change: the input is invalid, the food has no usable
+ * base grams, or the unit is the same. The caller keeps the typed text and just swaps the unit.
+ */
+export function convertServingAmount(raw: string, from: ServingUnit, to: ServingUnit, baseGrams: number | null): string | null {
+  if (from === to || !validBaseGrams(baseGrams)) return null;
+  if (!validateServing(raw, from, baseGrams).valid) return null;
+  const parsed = parseFoodDecimal(raw, 'required');
+  if (!parsed.valid || parsed.value === null) return null;
+  const canonical = servingMultiplier(parsed.value, from, baseGrams);
+  const amount = to === 'default' ? canonical : to === 'grams' ? canonical * baseGrams : canonical * baseGrams / GRAMS_PER_OUNCE;
+  return Number.isFinite(amount) ? formatServingAmount(amount) : null;
+}
