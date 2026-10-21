@@ -1,4 +1,4 @@
-// Pub/sub store for device-only training preferences. Loaded once on launch;
+// Pub/sub store for device-only app preferences. Loaded once on launch;
 // setters update memory first, then write through to AsyncStorage.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -20,7 +20,7 @@ export type AppPreferences = {
 };
 
 const INITIAL: AppPreferences = {
-  weightUnit: 'kg',
+  weightUnit: 'lb',
   showRpe: false,
   defaultSetCount: 2,
   loaded: false,

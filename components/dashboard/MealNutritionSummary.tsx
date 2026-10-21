@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
@@ -8,7 +7,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { hasAnyTarget, type DayMeal } from '@/lib/meals';
 import { formatNutritionAmount as amount, macroEnergyShares, mealNutritionTotals, targetPercentage } from '@/lib/meal-nutrition-summary';
 import { NUTRIENTS } from '@/lib/nutrients';
-import { logTotals, slotNutrientTotals } from '@/lib/nutrition-totals';
+import { slotNutrientTotals } from '@/lib/nutrition-totals';
 import type { FoodLogWithFood } from '@/lib/types';
 
 type Props = {
@@ -50,12 +49,12 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
     <Modal visible animationType="slide" onRequestClose={onClose} onDismiss={onDismiss}>
       <View accessibilityViewIsModal onAccessibilityEscape={onClose}
         style={[styles.root, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ControlSurface style={[styles.header, styles.navigationHeader]}>
+        <View style={[styles.header, styles.navigationHeader]}>
           <Text accessibilityRole="header" style={[styles.heading, { color: text, flex: 1 }]}>Nutrition</Text>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close nutrition summary" onPress={onClose} style={styles.close}>
             <Text style={[styles.body, { color: tint }]}>Close</Text>
           </TouchableOpacity>
-        </ControlSurface>
+        </View>
         <View style={styles.header}>
           <View style={styles.title}>
             {caption(format(parseISO(date), 'EEEE, MMM d, yyyy'))}
@@ -106,18 +105,6 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
                 </View>
               ))
             )}
-          </View>
-          <View style={[styles.section, { backgroundColor: surface }]}>
-            {heading('Food contributions')}
-            {logs.length === 0 ? caption('No food logged for this meal') : logs.map(log => {
-              const values = logTotals(log);
-              return <View key={log.id} style={[styles.nutrient, { borderTopColor: separator }]}>
-                <Text style={[styles.body, { color: text }]}>{log.food_name}</Text>
-                {log.food_brand && caption(log.food_brand)}
-                {caption(`${log.serving_amount} × ${log.food_serving_units}`)}
-                <Text style={[styles.body, styles.number, { color: text }]}>{amount(values.calories, 0)} cal · Protein {amount(values.protein)} g · Carbs {amount(values.carbs)} g · Fat {amount(values.fat)} g</Text>
-              </View>;
-            })}
           </View>
         </ScrollView>
       </View>

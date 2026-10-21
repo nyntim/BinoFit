@@ -4,19 +4,20 @@ Follow the shared roles in this folder and [ship.md](ship.md). Codex roles live 
 
 ## Models
 
-| Who | Model |
-|---|---|
-| Lead | Sol (`gpt-6.1-sol`) |
-| Planner, including hard conflict resolution | Sol (`gpt-6.1-sol`) |
-| Builder, reviewer, QA reviewer, design reviewer, test engineer | Sol (`gpt-6.1-sol`) |
+| Who | Model | Reasoning effort |
+|---|---|---|
+| Lead | Sol (`gpt-6.1-sol`) | Low |
+| Planner, including hard conflict resolution | Sol (`gpt-6.1-sol`) | High |
+| Builder | Sol (`gpt-6.1-sol`) | Medium |
+| Reviewer, QA reviewer, design reviewer, test engineer | Sol (`gpt-6.1-sol`) | Low |
 
-The project config defaults new sessions to Sol with medium effort. Each role TOML pins its model. If the current chat overrides the project default, select Sol in the model picker; these files cannot switch a running lead.
+The project config defaults new sessions to Sol with low effort. Each role TOML pins its model and reasoning effort. If the current chat overrides the project default, select Sol with low effort in the model picker; these files cannot switch a running lead.
 
 ## Launch and continue
 
 Launch the configured custom agent matching the role name. Each prompt must stand alone: include the request, role file, plan path, workspace path and expected report.
 
-For hosts exposing collaboration tools instead of custom role selection, use `collaboration.spawn_agent` with `fork_turns: "none"`, the explicit model above and `reasoning_effort: "medium"`. Include the role wrapper's instructions in the message. Use Sol for every role, including planning and conflict resolution.
+For hosts exposing collaboration tools instead of custom role selection, use `collaboration.spawn_agent` with `fork_turns: "none"`, the explicit model above and the role's `reasoning_effort`: `"high"` for planning and hard conflict resolution, `"medium"` for building, and `"low"` for everything else. Include the role wrapper's instructions in the message. Use Sol for every role, including planning and conflict resolution.
 
 Keep each agent id. Use `send_message` for a running agent and `followup_task` for an idle agent. Other hosts may expose `send_input` and `resume_agent`; use the available continuation tools. Continue the same builder and reviewer for fixes. Use notifications or the available wait tool instead of busy polling.
 

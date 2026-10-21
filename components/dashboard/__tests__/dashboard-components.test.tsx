@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/theme';
@@ -18,6 +18,32 @@ jest.mock('@expo/vector-icons/MaterialIcons', () => {
 
 // The native time picker needs a SafeAreaProvider; it is not under test here.
 jest.mock('@/components/time-picker-sheet', () => ({ TimePickerSheet: () => null }));
+
+// Model bubbling on the rendered host ancestry. Native responder arbitration
+// still requires a device check; fireEvent alone stops at the first handler.
+function eventHandler(target: ReturnType<typeof screen.getByText>, name: 'onPress' | 'onLongPress') {
+  // RNTL 14 exposes host nodes only, with composite handlers on their owning fibers.
+  for (let fiber = target.unstable_fiber; fiber; fiber = fiber.return) {
+    const handler = fiber.memoizedProps?.[name] ?? fiber.memoizedProps?.[`testOnly_${name}`];
+    if (typeof handler === 'function') return handler;
+    if (!fiber.return || typeof fiber.return.type === 'string') break;
+  }
+  return undefined;
+}
+
+async function bubbleEvent(target: ReturnType<typeof screen.getByText>, name: 'onPress' | 'onLongPress') {
+  let stopped = false;
+  const event = { stopPropagation: jest.fn(() => { stopped = true; }) };
+  await act(() => {
+    for (let node: typeof target | null = target; node && !stopped; node = node.parent) {
+      const handler = eventHandler(node, name);
+      if (typeof handler === 'function') {
+        handler(event);
+      }
+    }
+  });
+  return event;
+}
 
 const colors = Colors.light;
 
@@ -102,11 +128,58 @@ describe('MealSlotCard', () => {
     expect(screen.getByLabelText('Nutrition summary for Other')).toBeTruthy();
   });
 
-  it('empty state shows "Tap to add food" and calls onAdd with the slot', async () => {
+  it.each([true, false])('card and header open once for populated eaten=%s with independent controls', async (eaten) => {
     const props = baseProps();
-    await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByText('Tap to add food'));
+    const onShowNutrition = jest.fn();
+    await render(<MealSlotCard {...props} eaten={eaten} logs={[makeLog()]} onShowNutrition={onShowNutrition} />);
+    expect(screen.queryByText('Nutrition')).toBeNull();
+    const header = screen.getByRole('button', { name: 'Nutrition summary for Breakfast' });
+    expect(screen.getByRole('button', { name: 'Edit Oatmeal' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove Oatmeal' })).toBeTruthy();
+    const event = await bubbleEvent(header, 'onPress');
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+    expect(onShowNutrition).toHaveBeenCalledTimes(1);
+    const outer = header.parent!.parent!;
+    expect(outer.props.accessible).toBe(false);
+    await bubbleEvent(outer, 'onPress');
+    expect(onShowNutrition).toHaveBeenCalledTimes(2);
+    onShowNutrition.mockClear();
+    for (const [name, action, callback] of [
+      ['Add food to Breakfast', 'onPress', props.onAdd],
+      [`Breakfast, ${eaten ? 'Eaten' : 'Planned'}`, 'onPress', props.onToggle],
+      ['Edit Oatmeal', 'onPress', props.onEditLog],
+      ['Edit Oatmeal', 'onLongPress', props.onDeleteLog],
+      ['Remove Oatmeal', 'onPress', props.onDeleteLog],
+    ] as const) {
+      const before = callback.mock.calls.length;
+      const nested = await bubbleEvent(screen.getByRole('button', { name }), action);
+      expect(nested.stopPropagation).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledTimes(before + 1);
+      expect(onShowNutrition).not.toHaveBeenCalled();
+    }
+    expect(props.onEditLog).toHaveBeenCalledTimes(1);
+    expect(props.onDeleteLog).toHaveBeenCalledTimes(2);
+  });
+
+  it('has no summary action when its callback is unavailable', async () => {
+    await render(<MealSlotCard {...baseProps()} />);
+    expect(screen.queryByRole('button', { name: /Nutrition summary/ })).toBeNull();
+    const header = screen.getByText('Breakfast').parent!.parent!;
+    expect(header.props.accessibilityRole).toBeUndefined();
+    expect(eventHandler(header, 'onPress')).toBeUndefined();
+    expect(eventHandler(header.parent!.parent!, 'onPress')).toBeUndefined();
+  });
+
+  it('empty state opens the summary through neutral body text, while plus alone adds', async () => {
+    const props = baseProps();
+    const onShowNutrition = jest.fn();
+    await render(<MealSlotCard {...props} onShowNutrition={onShowNutrition} />);
+    await bubbleEvent(screen.getByText('No food logged'), 'onPress');
+    expect(onShowNutrition).toHaveBeenCalledTimes(1);
+    expect(props.onAdd).not.toHaveBeenCalled();
+    await bubbleEvent(screen.getByRole('button', { name: 'Add food to Breakfast' }), 'onPress');
     expect(props.onAdd).toHaveBeenCalledWith('breakfast');
+    expect(onShowNutrition).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/ cal$/)).toBeNull();
   });
 
@@ -147,7 +220,7 @@ describe('MealSlotCard', () => {
     await render(<MealSlotCard {...props} logs={logs} eaten={false} />);
     expect(screen.getByText('222 cal')).toBeTruthy(); // 151.5 + 70 = 221.5 -> 222
     expect(screen.getByText('Egg')).toBeTruthy();
-    expect(screen.queryByText('Tap to add food')).toBeNull();
+    expect(screen.queryByText('No food logged')).toBeNull();
     await fireEvent.press(screen.getByText('Egg'));
     expect(props.onEditLog).toHaveBeenCalledWith(logs[1]);
   });
@@ -187,7 +260,7 @@ describe('MealSlotCard targets (view mode)', () => {
   it('hides add affordances when allowAdd is false', async () => {
     await render(<MealSlotCard {...props()} logs={[]} allowAdd={false} />);
     expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
-    expect(screen.queryByText('Tap to add food')).toBeNull();
+    expect(screen.getByText('No food logged')).toBeTruthy();
   });
 });
 
@@ -212,6 +285,7 @@ describe('MealSlotCard edit mode', () => {
     expect(screen.getByText('2 items · 150 cal')).toBeTruthy();
     expect(screen.queryByText('Eaten')).toBeNull();
     expect(screen.queryByText('Nutrition')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nutrition summary for Breakfast' })).toBeNull();
     expect(screen.queryByLabelText('Add food to Breakfast')).toBeNull();
     expect(screen.queryByText('Oatmeal')).toBeNull();
   });

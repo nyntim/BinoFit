@@ -20,11 +20,28 @@ beforeEach(async () => {
 describe('app-preferences', () => {
   it('starts with defaults and loaded false', () => {
     expect(getPreferences()).toEqual({
-      weightUnit: 'kg',
+      weightUnit: 'lb',
       showRpe: false,
       defaultSetCount: 2,
       loaded: false,
     });
+  });
+
+  it.each([null, 'invalid', 'kg', 'lb'])('hydrates %s using the saved unit or lb fallback', async (stored) => {
+    if (stored !== null) await AsyncStorage.setItem('weight_unit', stored);
+    await loadPreferences();
+    expect(getPreferences().weightUnit).toBe(stored === 'kg' ? 'kg' : 'lb');
+    expect(getPreferences().loaded).toBe(true);
+    expect(await AsyncStorage.getItem('weight_unit')).toBe(stored);
+  });
+
+  it('reset restores lb then reload hydrates a saved kg preference', async () => {
+    await setWeightUnit('kg');
+    resetPreferences();
+    expect(getPreferences().weightUnit).toBe('lb');
+    expect(getPreferences().loaded).toBe(false);
+    await reloadPreferences();
+    expect(getPreferences().weightUnit).toBe('kg');
   });
 
   it('loads stored unit and RPE, removes leftover tracking_mode, and marks loaded', async () => {
@@ -50,7 +67,7 @@ describe('app-preferences', () => {
     jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('disk'));
     await expect(loadPreferences()).resolves.toBeUndefined();
     expect(getPreferences().loaded).toBe(true);
-    expect(getPreferences().weightUnit).toBe('kg');
+    expect(getPreferences().weightUnit).toBe('lb');
   });
 
   it('setters update memory, notify, and write through to storage', async () => {
@@ -97,15 +114,15 @@ describe('app-preferences', () => {
     expect(good).toHaveBeenCalledTimes(1);
   });
 
-  it('reload after a wipe keeps unit, RPE and default sets', async () => {
+  it.each(['kg', 'lb'] as const)('reload after a wipe keeps saved %s, RPE and default sets', async (unit) => {
     await loadPreferences();
-    await setWeightUnit('lb');
+    await setWeightUnit(unit);
     await setShowRpe(true);
     await setDefaultSetCount(4);
     await clearUserStorage();
     await reloadPreferences();
     expect(getPreferences()).toEqual({
-      weightUnit: 'lb',
+      weightUnit: unit,
       showRpe: true,
       defaultSetCount: 4,
       loaded: true,

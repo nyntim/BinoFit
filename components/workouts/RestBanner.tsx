@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRestTimer } from '@/hooks/useRestTimer';
 import { formatDuration } from '@/lib/units';
@@ -10,6 +9,7 @@ import { formatDuration } from '@/lib/units';
  */
 export function RestBanner() {
   const { timer, remaining, add, subtract, skip } = useRestTimer();
+  const surface = useThemeColor({}, 'cardSecondary');
   const muted = useThemeColor({}, 'icon');
   const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
@@ -24,7 +24,7 @@ export function RestBanner() {
   ];
 
   return (
-    <ControlSurface style={styles.banner}>
+    <View style={[styles.banner, { backgroundColor: surface }]}>
       <View
         style={styles.texts}
         accessible
@@ -47,7 +47,7 @@ export function RestBanner() {
           <Text style={[styles.buttonText, { color: tint }]}>{b.label}</Text>
         </Pressable>
       ))}
-    </ControlSurface>
+    </View>
   );
 }
 

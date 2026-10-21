@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -151,7 +150,7 @@ export default function CustomFoodScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
-        <ControlSurface style={styles.header}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
             <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
           </TouchableOpacity>
@@ -161,7 +160,7 @@ export default function CustomFoodScreen() {
               {saving ? 'Saving…' : 'Save'}
             </Text>
           </TouchableOpacity>
-        </ControlSurface>
+        </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {loading ? <ActivityIndicator color={colors.tint} accessibilityLabel="Loading food" /> : null}

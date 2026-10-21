@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useState } from 'react';
 import {
   StyleSheet,
@@ -77,7 +76,7 @@ export default function DayDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <ControlSurface style={styles.headerRow}>
+      <View style={styles.headerRow}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <MaterialIcons name="chevron-left" size={28} color={colors.tint} />
         </TouchableOpacity>
@@ -86,7 +85,7 @@ export default function DayDetailScreen() {
           <Text style={[styles.headerTitle, { color: colors.text }]}>Day Summary</Text>
         </View>
         <View style={styles.backBtn} />
-      </ControlSurface>
+      </View>
 
       {loading || !mealsLoaded ? (
         <View style={styles.loadingContainer}>

@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Colors } from '@/constants/theme';
@@ -25,7 +24,7 @@ export function EditModeBar({ colors, onCancel, onDone, hasErrors, saving, style
   }, [hasErrors]);
 
   return (
-    <ControlSurface style={[styles.bar, { borderBottomColor: colors.separator }, style]}>
+    <View style={[styles.bar, { backgroundColor: colors.cardBackground, borderBottomColor: colors.separator }, style]}>
       {hasErrors && (
         <View style={styles.statusWrap} pointerEvents="none">
           <Text style={[styles.status, { color: colors.icon }]} numberOfLines={1} accessibilityLiveRegion="polite">
@@ -54,7 +53,7 @@ export function EditModeBar({ colors, onCancel, onDone, hasErrors, saving, style
       >
         <Text style={[styles.doneText, { color: colors.tint }]}>Done</Text>
       </TouchableOpacity>
-    </ControlSurface>
+    </View>
   );
 }
 

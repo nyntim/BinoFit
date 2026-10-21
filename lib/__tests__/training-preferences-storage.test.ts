@@ -8,6 +8,7 @@ import {
   parseRestTimer,
   resolveDefaultSetCount,
   resolveWeightUnit,
+  resetOnboarding,
   setActiveRestTimer,
   setDefaultSetCount,
   setShowRpe,
@@ -19,11 +20,20 @@ beforeEach(async () => {
 });
 
 describe('training preference storage', () => {
-  it('weight unit defaults to kg and round trips lb', async () => {
-    expect(await getWeightUnit()).toBe('kg');
-    expect(resolveWeightUnit('stone')).toBe('kg');
-    await setWeightUnit('lb');
+  it.each([null, '', 'stone'])('absent or invalid unit %s defaults to lb without writing it', async (stored) => {
+    if (stored !== null) await AsyncStorage.setItem('weight_unit', stored);
+    expect(resolveWeightUnit(stored)).toBe('lb');
     expect(await getWeightUnit()).toBe('lb');
+    expect(await AsyncStorage.getItem('weight_unit')).toBe(stored || null);
+  });
+
+  it.each(['kg', 'lb'] as const)('saved %s round trips and survives onboarding reset and user clear', async (unit) => {
+    await setWeightUnit(unit);
+    expect(await getWeightUnit()).toBe(unit);
+    await resetOnboarding();
+    expect(await getWeightUnit()).toBe(unit);
+    await clearUserStorage();
+    expect(await getWeightUnit()).toBe(unit);
   });
 
   it('show RPE defaults to false and round trips', async () => {

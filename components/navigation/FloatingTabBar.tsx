@@ -5,7 +5,6 @@ import { Keyboard, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HapticTab } from '@/components/haptic-tab';
 import { ActiveWorkoutBar } from '@/components/workouts/ActiveWorkoutBar';
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { TabBarSurface } from '@/components/navigation/TabBarSurface';
 import { useSetTabBarInset } from '@/context/TabBarInsetContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -25,6 +24,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
   const [lastHeight, setLastHeight] = useState(72 + safe.bottom);
   const [pressedKey, setPressedKey] = useState<string | null>(null);
+  const surface = useThemeColor({}, 'cardBackground');
   const shadow = useThemeColor({}, 'navShadow');
   const active = useThemeColor({}, 'navActive');
   const activePressed = useThemeColor({}, 'navActivePressed');
@@ -53,7 +53,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
       }}
     >
       <View pointerEvents="box-none" style={styles.stack}>
-        {workout ? <ControlSurface style={styles.session}><ActiveWorkoutBar transparentContent /></ControlSurface> : null}
+        {workout ? <View style={[styles.session, { backgroundColor: surface }]}><ActiveWorkoutBar /></View> : null}
         <View style={[styles.shadow, { shadowColor: shadow }]}>
           <TabBarSurface>
             <View style={styles.row}>

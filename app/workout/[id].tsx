@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -113,7 +112,7 @@ export default function WorkoutDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <ControlSurface style={[styles.header, { borderBottomColor: separator }]}>
+      <View style={[styles.header, { borderBottomColor: separator }]}>
         <Pressable
           onPress={() => {
             void editor.flush().then(() => router.back());
@@ -136,7 +135,7 @@ export default function WorkoutDetailScreen() {
         >
           <IconSymbol name="ellipsis" size={22} color={tint} />
         </Pressable>
-      </ControlSurface>
+      </View>
       {body}
       <OptionsSheet
         visible={menuOpen}

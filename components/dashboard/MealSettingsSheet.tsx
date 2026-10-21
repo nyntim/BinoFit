@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState } from 'react';
 import {
   AccessibilityInfo,
@@ -228,9 +227,9 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
         </View>
         </ScrollView>
 
-        <ControlSurface style={styles.buttons}>
+        <View style={styles.buttons}>
           <TouchableOpacity
-            style={styles.btn}
+            style={[styles.btn, { backgroundColor: colors.cardSecondary }]}
             onPress={onClose}
             accessibilityRole="button"
           >
@@ -245,7 +244,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
           >
             <Text style={[styles.btnText, styles.btnTextPrimary, { color: colors.background }]}>Save</Text>
           </TouchableOpacity>
-        </ControlSurface>
+        </View>
       </View>
       <TimePickerSheet
         visible={pickerOpen}
@@ -256,7 +255,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
       />
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={ACCESSORY_ID}>
-          <ControlSurface style={[styles.accessory, { borderTopColor: colors.separator }]}>
+          <View style={[styles.accessory, { backgroundColor: colors.cardSecondary, borderTopColor: colors.separator }]}>
             <TouchableOpacity
               onPress={() => Keyboard.dismiss()}
               style={styles.accessoryBtn}
@@ -265,7 +264,7 @@ function SheetBody({ mealName, targets, reminderTime, colors, onSave, onClose }:
             >
               <Text style={[styles.accessoryText, { color: colors.tint }]}>Done</Text>
             </TouchableOpacity>
-          </ControlSurface>
+          </View>
         </InputAccessoryView>
       )}
     </KeyboardAvoidingView>
@@ -327,7 +326,7 @@ const styles = StyleSheet.create({
   deniedText: { flex: 1 },
   settingsBtn: { minHeight: 44, justifyContent: 'center' },
   settingsLink: { fontSize: 13, fontWeight: '600' },
-  buttons: { flexDirection: 'row', gap: 12, marginTop: 4, padding: 4, borderRadius: 16 },
+  buttons: { flexDirection: 'row', gap: 12, marginTop: 4 },
   btn: { flex: 1, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 16, fontWeight: '400' },
   btnTextPrimary: { fontWeight: '600' },

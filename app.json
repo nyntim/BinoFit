@@ -6,7 +6,7 @@
       "ios",
       "android"
     ],
-    "version": "2.1.19",
+    "version": "2.1.20",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "binofit",
@@ -31,7 +31,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.nyn.tim.binofit"
+      "package": "com.nyn.tim.binofit",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -73,6 +77,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "085ee170-665b-4bed-aeaf-7fb02a639423"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/085ee170-665b-4bed-aeaf-7fb02a639423"
     }
   }
 }

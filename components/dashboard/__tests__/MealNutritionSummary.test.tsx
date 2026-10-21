@@ -27,9 +27,12 @@ test('catalog nutrients distinguish partial, unknown and zero, with one serving 
   expect(screen.getByText('Other nutrients')).toBeTruthy();
   expect(screen.getByText('Minerals')).toBeTruthy();
   expect(screen.getByText('Vitamins')).toBeTruthy();
-  expect(screen.getAllByText('Beans')).toHaveLength(3);
-  expect(screen.getAllByText('0.5 × 100 g')).toHaveLength(3);
-  expect(screen.getAllByText('62 cal · Protein 3.9 g · Carbs 10 g · Fat 1 g')).toHaveLength(3);
+  expect(screen.getByText('185 cal')).toBeTruthy();
+  expect(screen.getByText('11.7g')).toBeTruthy();
+  expect(screen.queryByText('Food contributions')).toBeNull();
+  expect(screen.queryByText('Beans')).toBeNull();
+  expect(screen.queryByText('0.5 × 100 g')).toBeNull();
+  expect(screen.queryByText(/cal · Protein/)).toBeNull();
   expect(screen.getAllByRole('button')).toHaveLength(1);
 });
 
@@ -46,7 +49,7 @@ test('live props update status, name, servings, targets and deletion to empty st
   expect(screen.getByText('Targets use current meal settings.')).toBeTruthy();
   await rerender(<MealNutritionSummary {...props} logs={[]} />);
   expect(screen.getByText('0 cal')).toBeTruthy();
-  expect(screen.getByText('No food logged for this meal')).toBeTruthy();
+  expect(screen.queryByText('Food contributions')).toBeNull();
   expect(screen.getByText('No macro split yet')).toBeTruthy();
   expect(screen.getByText('No nutrient data available for this meal.')).toBeTruthy();
 });

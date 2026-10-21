@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
@@ -309,13 +308,13 @@ export default function FoodSearchScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ControlSurface style={styles.header}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
           <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>{mealsLoaded ? `Add to ${slotLabel}` : ''}</Text>
         <View style={styles.cancelBtn} />
-      </ControlSurface>
+      </View>
 
       <View style={styles.searchToolbar}>
         <View style={[styles.searchBar, { backgroundColor: colors.cardBackground }]}>
@@ -335,7 +334,7 @@ export default function FoodSearchScreen() {
           )}
         </View>
         {Platform.OS !== 'web' && (
-          <ControlSurface style={styles.scanSurface}>
+          <View style={[styles.scanSurface, { backgroundColor: colors.cardBackground }]}>
             <TouchableOpacity
               onPress={() =>
                 router.replace({
@@ -349,7 +348,7 @@ export default function FoodSearchScreen() {
             >
               <MaterialIcons name="qr-code-scanner" size={22} color={colors.tint} />
             </TouchableOpacity>
-          </ControlSurface>
+          </View>
         )}
       </View>
       {parsedQuantity && (

@@ -1,8 +1,9 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.1.19",
+  "version": "2.1.20",
   "scripts": {
+    "deploy": "eas update --branch main --message",
     "start": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -45,6 +46,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",

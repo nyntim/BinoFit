@@ -40,8 +40,14 @@ test('food, training, combined, today and empty days have distinct semantic labe
   const today = screen.getByRole('button', { name: /Saturday, October 17, 2026, today, food logged, trained/ });
   expect(today.props.accessibilityState.selected).toBe(true);
   expect(screen.getByRole('button', { name: 'Monday, October 12, 2026' })).toBeTruthy();
+  expect(screen.queryByText('Logged')).toBeNull();
+  expect(screen.queryByText('Trained')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
   expect(screen.getByText('Logged')).toBeTruthy();
   expect(screen.getByText('Trained')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Close calendar' }));
+  expect(screen.queryByText('Logged')).toBeNull();
+  expect(screen.queryByText('Trained')).toBeNull();
 });
 
 test('week selection and month selection use full day buttons and planning limit', async () => {
@@ -49,6 +55,8 @@ test('week selection and month selection use full day buttons and planning limit
   await fireEvent.press(screen.getByRole('button', { name: 'Monday, October 12, 2026' }));
   expect(mockSetSelectedDate).toHaveBeenCalledWith('2026-10-12');
   await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
+  expect(screen.getByText('Logged')).toBeTruthy();
+  expect(screen.queryByText('Trained')).toBeNull();
   const monthDay = screen.getAllByRole('button', { name: 'Thursday, October 15, 2026' })[1];
   expect(StyleSheet.flatten(monthDay.props.style).width).toBe(44);
   expect(StyleSheet.flatten(monthDay.props.style).minHeight).toBeGreaterThanOrEqual(44);

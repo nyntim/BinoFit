@@ -47,7 +47,7 @@ The roles are the same in all tools. The model depends on the tool.
 | Planner | Grok 4.7 | Runs once per feature; a bad plan costs more in rebuilds than the stronger model costs |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | Follow a plan or a checklist |
 
-**Codex.** Use Sol (`gpt-6.1-sol`) for the lead and every role, including the planner and hard conflict resolution. Follow [codex.md](codex.md); roles are in `.codex/agents/`, and all five skills are in `.agents/skills/`.
+**Codex.** Use Sol (`gpt-6.1-sol`) for the lead and every role: high effort for planning and hard conflict resolution, medium for building, and low for everything else. Follow [codex.md](codex.md); roles are in `.codex/agents/`, and all five skills are in `.agents/skills/`.
 
 ## Keeping the lead cheap
 

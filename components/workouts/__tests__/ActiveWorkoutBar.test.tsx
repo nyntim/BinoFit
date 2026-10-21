@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ActiveWorkoutBar } from '@/components/workouts/ActiveWorkoutBar';
 
@@ -32,18 +31,4 @@ test('native accessory opens the active session and shows rest only for that wor
   mockWorkout = null;
   await result.rerender(<ActiveWorkoutBar nativeAccessory />);
   expect(screen.queryByRole('button', { name: 'Open workout' })).toBeNull();
-});
-
-
-test('fallback transparent content keeps its action and native accessory ignores the content mode', async () => {
-  mockWorkout = { id: 'w1', name: 'Upper', date: '2026-10-19', started_at: '2026-10-19T12:00:00Z' };
-  const result = await render(<ActiveWorkoutBar transparentContent />);
-  let button = screen.getByRole('button', { name: 'Open workout' });
-  expect(StyleSheet.flatten(button.props.style).backgroundColor).toBe('transparent');
-  await fireEvent.press(button);
-  expect(mockPush).toHaveBeenCalledWith('/workout/session');
-  await result.rerender(<ActiveWorkoutBar nativeAccessory transparentContent />);
-  button = screen.getByRole('button', { name: 'Open workout' });
-  expect(StyleSheet.flatten(button.props.style).backgroundColor).toBeUndefined();
-  expect(StyleSheet.flatten(button.props.style).minHeight).toBe(44);
 });

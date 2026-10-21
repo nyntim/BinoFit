@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View,
@@ -309,7 +308,7 @@ export default function ServingPickerScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <ControlSurface style={[styles.header, { borderBottomColor: colors.separator }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.headerSide}
@@ -343,7 +342,7 @@ export default function ServingPickerScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ControlSurface>
+      </View>
 
       {saveError ? (
         <View
@@ -615,11 +614,11 @@ export default function ServingPickerScreen() {
       {/* The decimal pad has no return key, so it gets a Done bar */}
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
-          <ControlSurface style={[styles.accessoryBar, { borderTopColor: colors.separator }]}>
+          <View style={[styles.accessoryBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
             <TouchableOpacity onPress={Keyboard.dismiss} style={styles.accessoryAction} hitSlop={8} accessibilityRole="button">
               <Text style={[styles.accessoryDone, { color: colors.tint }]}>Done</Text>
             </TouchableOpacity>
-          </ControlSurface>
+          </View>
         </InputAccessoryView>
       ) : null}
 

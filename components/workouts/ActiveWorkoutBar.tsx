@@ -19,15 +19,13 @@ type Props = {
   /** Extra text after the elapsed time. Defaults to the running rest ("Rest 1:24"). */
   detail?: string | null;
   nativeAccessory?: boolean;
-  /** Outer fallback banner already owns its material. Ignored by the native accessory. */
-  transparentContent?: boolean;
 };
 
 /**
  * The minimized live session, shown above the tab bar on every tab: name and elapsed time.
  * Tap opens the session. Renders nothing when no workout is active.
  */
-export function ActiveWorkoutBar({ detail, nativeAccessory = false, transparentContent = false }: Props) {
+export function ActiveWorkoutBar({ detail, nativeAccessory = false }: Props) {
   const { workout } = useActiveWorkout();
   const rest = useRestTimer();
   const now = useNow(1000, !!workout);
@@ -52,7 +50,7 @@ export function ActiveWorkoutBar({ detail, nativeAccessory = false, transparentC
       accessibilityRole="button"
       accessibilityLabel="Open workout"
       accessibilityHint={shownDetail?.startsWith('Rest') ? 'Resting. Opens the live session' : 'Opens the live session'}
-      style={[styles.bar, nativeAccessory ? styles.nativeAccessory : transparentContent ? { backgroundColor: 'transparent', borderTopWidth: 0 } : { backgroundColor: card, borderTopColor: separator }]}
+      style={[styles.bar, nativeAccessory ? styles.nativeAccessory : { backgroundColor: card, borderTopColor: separator }]}
     >
       <View style={[styles.icon, { backgroundColor: tint }]}>
         <IconSymbol name="dumbbell.fill" size={20} color={onTint} />

@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
@@ -69,11 +68,9 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
               {o.selected ? <IconSymbol name="checkmark" size={20} color={tint} /> : null}
             </Pressable>
           ))}
-          <ControlSurface style={styles.cancelSurface}>
-            <Pressable onPress={onClose} accessibilityRole="button" style={styles.cancel}>
-              <Text style={[styles.cancelText, { color: tint }]}>Cancel</Text>
-            </Pressable>
-          </ControlSurface>
+          <Pressable onPress={onClose} accessibilityRole="button" style={styles.cancel}>
+            <Text style={[styles.cancelText, { color: tint }]}>Cancel</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -91,7 +88,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   optionText: { fontSize: 17 },
-  cancelSurface: { marginTop: 4, borderRadius: 12 },
-  cancel: { minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  cancel: { marginTop: 4, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
   cancelText: { fontSize: 17, fontWeight: '600' },
 });

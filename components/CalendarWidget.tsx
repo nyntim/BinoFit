@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { addDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from 'date-fns';
@@ -124,17 +123,16 @@ export function CalendarWidget({ trainedDates = [], today = format(new Date(), '
         <MaterialIcons name="keyboard-arrow-down" size={20} color={muted} />
       </Pressable>
     </View>
-    {legend}
     <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
       <View style={[styles.backdrop, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} accessibilityLabel="Close calendar" />
         <View style={[styles.modalCard, { backgroundColor: cardColor }]}>
-          <ControlSurface style={[styles.modalHeader, { borderBottomColor: separator }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: separator }]}>
             <Text style={[styles.modalTitle, { color: textColor }]}>Select Date</Text>
             <Pressable style={styles.close} onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Close calendar">
               <MaterialIcons name="close" size={22} color={muted} />
             </Pressable>
-          </ControlSurface>
+          </View>
           <Calendar
             key={visibleMonth.slice(0, 7)}
             current={visibleMonth}

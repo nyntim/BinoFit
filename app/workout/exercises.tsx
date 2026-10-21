@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -156,7 +155,7 @@ export default function ExerciseLibraryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <ControlSurface style={styles.header}>
+      <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
@@ -176,7 +175,7 @@ export default function ExerciseLibraryScreen() {
         >
           <Text style={[styles.newButtonText, { color: background }]}>+ New exercise</Text>
         </Pressable>
-      </ControlSurface>
+      </View>
 
       <View style={styles.filters}>
         <View style={[styles.search, { backgroundColor: subtle }]}>

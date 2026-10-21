@@ -1,6 +1,5 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -23,7 +22,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
       <Stack.Screen options={{ gestureEnabled: !busy }} />
-      <ControlSurface style={styles.header}>
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.close}
           onPress={() => router.back()}
@@ -33,7 +32,7 @@ export default function AccountScreen() {
         >
           <Text style={[styles.closeText, { color: tint }]}>Close</Text>
         </TouchableOpacity>
-      </ControlSurface>
+      </View>
       <AuthForm initialMode={initialMode} context="settings" onRoute={applyAuthRoute} onBusyChange={setBusy} />
     </SafeAreaView>
   );

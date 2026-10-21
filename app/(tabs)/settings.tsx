@@ -17,10 +17,9 @@ import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { AccountSection } from '@/components/settings/AccountSection';
-import { NutritionSettingsSheet, TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
+import { UnitsSection } from '@/components/settings/UnitsSection';
 import { ExportDataSheet } from '@/components/settings/ExportDataSheet';
 import { usePreferences } from '@/hooks/usePreferences';
-import { homeRouteFor } from '@/lib/tracking-mode';
 import { useHealthKit } from '@/hooks/use-health-kit';
 import {
   getUserProfile,
@@ -81,8 +80,6 @@ export default function SettingsScreen() {
   const colors = { background, cardBackground, cardSecondary, danger, icon, text, tint };
 
   const [exportOpen, setExportOpen] = useState(false);
-  const [nutritionOpen, setNutritionOpen] = useState(false);
-  const [trainingOpen, setTrainingOpen] = useState(false);
   const [weight, setWeight] = useState('');
   const { weightUnit } = usePreferences();
   const weightTouched = useRef(false);
@@ -212,6 +209,8 @@ export default function SettingsScreen() {
             General
           </Text>
 
+          <UnitsSection />
+
           <AccountSection />
 
           <View style={styles.section}>
@@ -300,13 +299,6 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nutrition</Text>
-            <TouchableOpacity style={[styles.settingsEntry, bg]} onPress={() => setNutritionOpen(true)} accessibilityRole="button" accessibilityLabel="Nutrition settings">
-              <Text style={[styles.preferenceLabel, { color: colors.text }]}>Nutrition settings</Text>
-              <Text style={{ color: colors.icon }}>›</Text>
-            </TouchableOpacity>
-          </View>
 
           {showAppleHealth ? (
             <View style={styles.section}>
@@ -317,13 +309,6 @@ export default function SettingsScreen() {
             </View>
           ) : null}
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Training</Text>
-            <TouchableOpacity style={[styles.settingsEntry, bg]} onPress={() => setTrainingOpen(true)} accessibilityRole="button" accessibilityLabel="Training settings">
-              <Text style={[styles.preferenceLabel, { color: colors.text }]}>Training settings</Text>
-              <Text style={{ color: colors.icon }}>›</Text>
-            </TouchableOpacity>
-          </View>
 
           <View style={[styles.section, { marginBottom: 16 }]}>
             <TouchableOpacity
@@ -358,8 +343,6 @@ export default function SettingsScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
       <ExportDataSheet visible={exportOpen} onClose={() => setExportOpen(false)} />
-      <NutritionSettingsSheet visible={nutritionOpen} onClose={() => setNutritionOpen(false)} onManageReminders={() => router.push({ pathname: homeRouteFor(), params: { editMeals: '1' } })} />
-      <TrainingSettingsSheet visible={trainingOpen} onClose={() => setTrainingOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -391,7 +374,6 @@ const styles = StyleSheet.create({
   preferenceInfo: { flex: 1, marginRight: 16 },
   preferenceLabel: { fontSize: 16, fontWeight: '500' },
   preferenceSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  settingsEntry: { minHeight: 52, borderRadius: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   exportBtn: { minHeight: 44, justifyContent: 'center' },
   healthSyncBtn: {
     minHeight: 44,

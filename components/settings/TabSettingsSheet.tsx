@@ -1,4 +1,3 @@
-import { ControlSurface } from '@/components/navigation/ControlSurface';
 import { useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,12 +28,12 @@ function TabSettingsSheet({ visible, title, onClose, onBeforeClose, children }: 
       <Pressable accessibilityLabel="Dismiss settings" style={[StyleSheet.absoluteFill, { backgroundColor: backdrop, opacity: 0.45 }]} onPress={() => { if (Keyboard.isVisible()) Keyboard.dismiss(); else void requestClose(); }} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.avoider}>
         <View style={[styles.sheet, { backgroundColor: background, paddingBottom: Math.max(insets.bottom, 16) }]} accessibilityViewIsModal>
-          <ControlSurface style={styles.header}>
+          <View style={styles.header}>
             <Text accessibilityRole="header" style={[styles.title, { color: text }]}>{title}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Done" onPress={() => { void requestClose(); }} style={styles.close}>
               <Text style={[styles.done, { color: tint }]}>{closing ? 'Saving…' : 'Done'}</Text>
             </Pressable>
-          </ControlSurface>
+          </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>{children}</ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -63,7 +62,7 @@ export function TrainingSettingsSheet({ visible, onClose }: BaseProps) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' }, avoider: { maxHeight: '90%' },
   sheet: { borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 20, paddingTop: 20, maxHeight: '100%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { fontSize: 20, fontWeight: '600', flex: 1, flexShrink: 1, minWidth: 0 }, close: { minWidth: 44, minHeight: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   done: { fontSize: 16, fontWeight: '600' }, content: { paddingBottom: 16 }, rest: { fontSize: 13, lineHeight: 18 },
 });

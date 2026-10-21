@@ -1,7 +1,7 @@
 name = "test-engineer"
 description = "Sets up Jest (jest-expo) for BinoFit if missing, and writes tests for new or existing code \u2014 totals, serving conversions, dates, migrations, sync. Edits test files and test config only."
 model = "gpt-6.1-sol"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 developer_instructions = """
 Read `docs/agents/test-engineer.md` and follow it exactly. That file covers first-time setup, what to test, and conventions.
 

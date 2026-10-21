@@ -4,13 +4,17 @@ import { TrainingSettingsSheet } from '@/components/settings/TabSettingsSheet';
 
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#333333' }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
-jest.mock('@/components/settings/TrainingSection', () => ({ TrainingSection: () => null }));
+jest.mock('@/hooks/usePreferences', () => ({ usePreferences: () => ({ weightUnit: 'lb', showRpe: false, defaultSetCount: 2 }) }));
 
 test('training sheet shows scoped rest guidance and closes with Done', async () => {
   const onClose = jest.fn();
   await render(<TrainingSettingsSheet visible onClose={onClose} />);
   expect(screen.getByText('Training settings')).toBeTruthy();
+  expect(screen.getByLabelText('Show RPE')).toBeTruthy();
+  expect(screen.getByLabelText('Default sets, 2')).toBeTruthy();
+  expect(screen.queryByText('Units')).toBeNull();
+  expect(screen.queryAllByRole('radio')).toHaveLength(0);
   expect(screen.getByText('Set rest time in each exercise’s options. Choose Off to disable it.')).toBeTruthy();
-  fireEvent.press(screen.getByLabelText('Done'));
+  await fireEvent.press(screen.getByLabelText('Done'));
   expect(onClose).toHaveBeenCalledTimes(1);
 });

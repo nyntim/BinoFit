@@ -91,7 +91,7 @@ export async function setDefaultLogStatus(status: LogStatus): Promise<void> {
 // ── Training preferences (device only) ──────────────────────────
 
 export function resolveWeightUnit(stored: string | null): WeightUnit {
-  return stored === 'lb' ? 'lb' : 'kg';
+  return stored === 'kg' ? 'kg' : 'lb';
 }
 
 export async function getWeightUnit(): Promise<WeightUnit> {

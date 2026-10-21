@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { AccessibilityInfo, findNodeHandle, Platform, Pressable, StyleSheet, View, Text, TextInput, TouchableOpacity, type GestureResponderEvent } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { Colors } from '@/constants/theme';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
@@ -28,7 +28,7 @@ type ViewProps = BaseProps & {
   /** True when the slot is shown as Eaten, false when Planned. */
   eaten: boolean;
   showToggle: boolean;
-  /** False hides the add button and empty prompt (e.g. for the "Other" group). */
+  /** False hides the add button (e.g. for the "Other" group). */
   allowAdd?: boolean;
   onShowNutrition?: (slot: MealSlot, focusTarget?: number | null) => void;
   onToggle: (slot: MealSlot) => void;
@@ -81,8 +81,15 @@ function ViewCard({
   const calText = targetText.calories ?? (slotCals > 0 ? `${slotCals} cal` : null);
   const reminderText = targets?.reminder_time ? formatReminderTime(targets.reminder_time) : null;
 
+  const openSummary = (event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    onShowNutrition?.(slot, findNodeHandle(nutritionRef.current));
+  };
+
   return (
-    <View
+    <Pressable
+      accessible={false}
+      onPress={onShowNutrition ? openSummary : undefined}
       style={[
         styles.slotCard,
         { backgroundColor: colors.cardBackground },
@@ -96,7 +103,10 @@ function ViewCard({
       ]}
     >
       <View style={styles.slotHeader}>
-        <View style={styles.slotHeaderLeft}>
+        <Pressable ref={nutritionRef} style={styles.slotHeaderLeft}
+          accessible={!!onShowNutrition} accessibilityRole={onShowNutrition ? 'button' : undefined}
+          accessibilityLabel={onShowNutrition ? `Nutrition summary for ${label}` : undefined}
+          onPress={onShowNutrition ? openSummary : undefined}>
           <View style={styles.labelRow}>
             <Text style={[styles.slotLabel, { color: colors.text }]} numberOfLines={1}>
               {label}
@@ -115,7 +125,7 @@ function ViewCard({
           {targetText.macros && (
             <Text style={[styles.slotMacros, { color: colors.icon }]}>{targetText.macros}</Text>
           )}
-        </View>
+        </Pressable>
 
         <View style={styles.slotHeaderRight}>
           {showToggle && (
@@ -126,7 +136,7 @@ function ViewCard({
                   backgroundColor: eaten ? colors.tint + '18' : colors.icon + '12',
                 },
               ]}
-              onPress={() => onToggle(slot)}
+              onPress={(event) => { event?.stopPropagation(); onToggle(slot); }}
               activeOpacity={0.7}
               hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
               accessibilityRole="button"
@@ -146,7 +156,7 @@ function ViewCard({
           {allowAdd && (
             <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: colors.tint + '18' }]}
-              onPress={() => onAdd(slot)}
+              onPress={(event) => { event?.stopPropagation(); onAdd(slot); }}
               activeOpacity={0.7}
               hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               accessibilityRole="button"
@@ -157,14 +167,6 @@ function ViewCard({
           )}
         </View>
       </View>
-
-      {onShowNutrition && (
-        <TouchableOpacity ref={nutritionRef} style={styles.nutritionAction}
-          accessibilityRole="button" accessibilityLabel={`Nutrition summary for ${label}`}
-          onPress={() => onShowNutrition(slot, findNodeHandle(nutritionRef.current))}>
-          <Text style={[styles.targetsLink, { color: colors.tint }]}>Nutrition</Text>
-        </TouchableOpacity>
-      )}
 
       {hasLogs && (
         <View style={styles.logList}>
@@ -180,12 +182,12 @@ function ViewCard({
         </View>
       )}
 
-      {!hasLogs && allowAdd && (
-        <TouchableOpacity style={styles.emptySlot} onPress={() => onAdd(slot)} activeOpacity={0.6}>
-          <Text style={[styles.emptySlotText, { color: colors.icon }]}>Tap to add food</Text>
-        </TouchableOpacity>
+      {!hasLogs && (
+        <View style={styles.emptySlot}>
+          <Text style={[styles.emptySlotText, { color: colors.icon }]}>No food logged</Text>
+        </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -315,11 +317,10 @@ function EditCard({
 }
 
 const styles = StyleSheet.create({
-  nutritionAction: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
   slotCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   editCard: { marginBottom: 0, paddingVertical: 12, paddingHorizontal: 8, justifyContent: 'space-between' },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  slotHeaderLeft: { flex: 1 },
+  slotHeaderLeft: { flex: 1, minHeight: 44, justifyContent: 'center' },
   slotHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   confirmBtn: {
     flexDirection: 'row',
