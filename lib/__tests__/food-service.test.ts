@@ -134,9 +134,9 @@ describe('branded nutrient profiles', () => {
     const previousThen = supabase.then;
     supabase.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows, error: null });
     try {
-      expect(await searchBranded('Partial')).toEqual(rows);
+      expect(await searchBranded('Partial')).toEqual(rows.map((r: object) => ({ ...r, source: 'branded' })));
       expect(supabase.select).toHaveBeenCalledWith('id, name, brand, calories, protein, carbs, fat, serving_units');
-      expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial' }), { partial: true });
+      expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial', source: 'branded' }), { partial: true });
     } finally {
       supabase.then = previousThen;
     }

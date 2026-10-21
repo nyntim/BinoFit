@@ -7,9 +7,10 @@ import { addCustomFood, updateCustomFood, getFoodById, addFoodLog, updateFoodLog
 let mockParams: Record<string, string>;
 let mockFocusCallback: () => (() => void) | undefined;
 const mockFood = { id: 'food', name: 'Food', serving_units: '100g', calories: 100, protein: 10, carbs: 20, fat: 5, source: 'custom' };
-const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn() };
+const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn(), dismiss: jest.fn() };
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => mockRouter, useFocusEffect: (callback: typeof mockFocusCallback) => { mockFocusCallback = callback; require('react').useEffect(callback, [callback]); } }));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+jest.mock('@expo/vector-icons/MaterialIcons', () => 'MaterialIcons');
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#333333' }));
 jest.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Lunch' }) }));
@@ -82,6 +83,44 @@ test('untrusted initial amount stays visible and correction saves the canonical 
   await fireEvent.changeText(amount, '2.5');
   await fireEvent.press(screen.getByLabelText('Log to Lunch'));
   await waitFor(() => expect(addFoodLog).toHaveBeenCalledWith(expect.objectContaining({ serving_amount: 2.5, serving_unit: '100g' })));
+});
+
+test('header back is an arrow labelled for where it returns', async () => {
+  const first = await render(<ServingPickerScreen />);
+  await screen.findByLabelText('Amount, in servings');
+  expect(screen.queryByText('Back')).toBeNull();
+  expect(screen.getByLabelText('Back')).toBeTruthy();
+  await first.unmount();
+  mockParams.origin = 'search';
+  await render(<ServingPickerScreen />);
+  await screen.findByLabelText('Amount, in servings');
+  expect(screen.queryByText('Back')).toBeNull();
+  await fireEvent.press(screen.getByLabelText('Back to search'));
+  expect(mockRouter.back).toHaveBeenCalled();
+});
+
+test('logging from search closes the picker and search; otherwise just the picker', async () => {
+  mockParams.origin = 'search';
+  const first = await render(<ServingPickerScreen />);
+  await screen.findByLabelText('Amount, in servings');
+  await fireEvent.press(screen.getByLabelText('Log to Lunch'));
+  await waitFor(() => expect(mockRouter.dismiss).toHaveBeenCalledWith(2));
+  expect(mockRouter.back).not.toHaveBeenCalled();
+  await first.unmount();
+  jest.clearAllMocks();
+  delete mockParams.origin;
+  await render(<ServingPickerScreen />);
+  await screen.findByLabelText('Amount, in servings');
+  await fireEvent.press(screen.getByLabelText('Log to Lunch'));
+  await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
+  expect(mockRouter.dismiss).not.toHaveBeenCalled();
+});
+
+test('edit mode keeps the visible Cancel text', async () => {
+  mockParams.log_id = 'old';
+  (getFoodLogsWithFoodByDate as jest.Mock).mockResolvedValue([{ id: 'old', serving_amount: 2 }]);
+  await render(<ServingPickerScreen />);
+  expect(screen.getByText('Cancel')).toBeTruthy();
 });
 
 test('old out-of-range edits are not rewritten until corrected', async () => {

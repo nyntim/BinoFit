@@ -18,17 +18,21 @@ const props = { meal, logs: [log()], date: '2026-01-01', today: '2026-02-01', ea
 
 test('catalog nutrients distinguish partial, unknown and zero, with one serving multiplier', async () => {
   await render(<MealNutritionSummary {...props} logs={[log(), log({ id: 'b' }), log({ id: 'c', food_nutrients: undefined })]} />);
-  expect(screen.getByText('2 g · Partial')).toBeTruthy();
-  expect(screen.getByText('0 g · Partial')).toBeTruthy();
-  expect(screen.getByText('0.25 mg · Partial')).toBeTruthy();
-  expect(screen.getByText('0.75 mg · Partial')).toBeTruthy();
+  expect(screen.getByText('2 g')).toBeTruthy();
+  expect(screen.getByText('0 g')).toBeTruthy();
+  expect(screen.getByText('0.25 mg')).toBeTruthy();
+  expect(screen.getByText('0.75 mg')).toBeTruthy();
+  expect(screen.getAllByText('Partial')).toHaveLength(4);
+  expect(screen.getByText('2 of 8 known')).toBeTruthy();
+  expect(screen.getByText('1 of 10 known')).toBeTruthy();
   expect(screen.getAllByText('Data for 2 of 3 items')).toHaveLength(4);
   expect(screen.getAllByText('Not available').length).toBeGreaterThan(0);
   expect(screen.getByText('Other nutrients')).toBeTruthy();
   expect(screen.getByText('Minerals')).toBeTruthy();
   expect(screen.getByText('Vitamins')).toBeTruthy();
-  expect(screen.getByText('185 cal')).toBeTruthy();
-  expect(screen.getByText('11.7g')).toBeTruthy();
+  expect(screen.getByText('185')).toBeTruthy();
+  expect(screen.getByText('11.7 g')).toBeTruthy();
+  expect(screen.queryByText(/of \d+$/)).toBeNull();
   expect(screen.queryByText('Food contributions')).toBeNull();
   expect(screen.queryByText('Beans')).toBeNull();
   expect(screen.queryByText('0.5 × 100 g')).toBeNull();
@@ -38,17 +42,21 @@ test('catalog nutrients distinguish partial, unknown and zero, with one serving 
 
 test('live props update status, name, servings, targets and deletion to empty state', async () => {
   const { rerender } = await render(<MealNutritionSummary {...props} eaten={false} />);
-  expect(screen.getByText('Planned · Not included in consumed totals')).toBeTruthy();
+  expect(screen.getByText('Planned')).toBeTruthy();
+  expect(screen.getByText('Not included in consumed totals')).toBeTruthy();
   await rerender(<MealNutritionSummary {...props} meal={{ ...meal, name: 'Brunch', def: { ...meal.def!, calorie_target: 100, protein_target: 0, carb_target: 5 } }} logs={[log({ serving_amount: 1.5 })]} />);
   expect(screen.getByText('Brunch')).toBeTruthy();
   expect(screen.getByText('Eaten')).toBeTruthy();
-  expect(screen.getByText('185 / 100 cal')).toBeTruthy();
+  expect(screen.queryByText('Planned')).toBeNull();
+  expect(screen.getByTestId('calorie-ring')).toBeTruthy();
   expect(screen.getByText('185% of target')).toBeTruthy();
+  expect(screen.getByText('85 cal over')).toBeTruthy();
   expect(screen.getByText('600% of target')).toBeTruthy();
   expect(screen.getByText('Target: 0 g')).toBeTruthy();
   expect(screen.getByText('Targets use current meal settings.')).toBeTruthy();
   await rerender(<MealNutritionSummary {...props} logs={[]} />);
-  expect(screen.getByText('0 cal')).toBeTruthy();
+  expect(screen.getByText('0')).toBeTruthy();
+  expect(screen.getByText('cal')).toBeTruthy();
   expect(screen.queryByText('Food contributions')).toBeNull();
   expect(screen.getByText('No macro split yet')).toBeTruthy();
   expect(screen.getByText('No nutrient data available for this meal.')).toBeTruthy();
@@ -61,7 +69,9 @@ test('unknown nutrient data has a single empty state; current/future dates omit 
   expect(screen.queryByText('Not available')).toBeNull();
   expect(screen.queryByText('Targets use current meal settings.')).toBeNull();
   await rerender(<MealNutritionSummary {...props} date={props.today} meal={{ ...meal, def: { ...meal.def!, calorie_target: 0 } }} />);
-  expect(screen.getByText('62 / 0 cal')).toBeTruthy();
+  expect(screen.getByText('62')).toBeTruthy();
+  expect(screen.getByText('/ 0 cal')).toBeTruthy();
+  expect(screen.queryByTestId('calorie-ring')).toBeNull();
   expect(screen.queryByText(/% of target/)).toBeNull();
   expect(screen.queryByText('Targets use current meal settings.')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Close nutrition summary' }));
@@ -88,4 +98,21 @@ test('MacroBar keeps default whole grams and supports fractional goals with prec
   await rerender(<MacroBar {...base} decimalPlaces={1} goal={0} />);
   expect(screen.getByText('0.8g')).toBeTruthy();
   expect(screen.queryByText(/\//)).toBeNull();
+});
+
+test('ring, left caption, composition bar and tile labels follow targets and data', async () => {
+  const withTarget = { ...meal, def: { ...meal.def!, calorie_target: 400, protein_target: 40 } };
+  const three = [log(), log({ id: 'b' }), log({ id: 'c' })];
+  const { rerender } = await render(<MealNutritionSummary {...props} logs={three} meal={withTarget} />);
+  expect(screen.getByTestId('calorie-ring')).toBeTruthy();
+  expect(screen.getByText('216 cal left')).toBeTruthy();
+  expect(screen.getByLabelText('Protein, 11.7 grams of 40 grams, 29% of target')).toBeTruthy();
+  expect(screen.getByText('of 40 g')).toBeTruthy();
+  for (const label of ['Protein', 'Carbs', 'Fat']) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+  expect(screen.getByText('62%')).toBeTruthy();
+  expect(screen.queryByText('No macro split yet')).toBeNull();
+  await rerender(<MealNutritionSummary {...props} logs={three} meal={{ ...meal, def: { ...meal.def!, calorie_target: null } }} />);
+  expect(screen.queryByTestId('calorie-ring')).toBeNull();
+  expect(screen.queryByText(/cal (left|over)/)).toBeNull();
+  expect(screen.getByText('cal')).toBeTruthy();
 });

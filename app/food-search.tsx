@@ -16,6 +16,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { MacroColors } from '@/constants/theme';
 import type { Colors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { getRecentFoods, getFrequentFoods } from '@/lib/database';
@@ -28,6 +29,7 @@ import {
   sortFoodResults,
   type SortOption,
 } from '@/lib/food-service';
+import { foodSourceLabel } from '@/lib/food-source';
 import type { Food } from '@/lib/types';
 
 type DisplayRow =
@@ -114,13 +116,9 @@ export default function FoodSearchScreen() {
     suggestionsScrollRef.current.scrollToOffset({ offset, animated: false });
     return true;
   }, []);
-  const restoreResults = useCallback((offset: number) => {
-    if (!resultsScrollRef.current) return false;
-    resultsScrollRef.current.scrollToOffset({ offset, animated: false });
-    return true;
-  }, []);
   const suggestionsRestore = useScrollRestore('food-search-suggestions', restoreSuggestions, showSuggestions);
-  const resultsRestore = useScrollRestore('food-search-results', restoreResults, !showSuggestions);
+  const keyboardHeight = useKeyboardHeight();
+  const listPadding = { paddingBottom: 40 + keyboardHeight };
 
   useEffect(() => {
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
@@ -174,6 +172,8 @@ export default function FoodSearchScreen() {
       if (id !== searchIdRef.current) return;
 
       const sorted = await sortFoodResults(local, sortOption);
+      // New query or sort: start at the top (branded results appended later do not scroll)
+      resultsScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
       setLocalResults(sorted);
       setLocalLoading(false);
 
@@ -185,6 +185,11 @@ export default function FoodSearchScreen() {
 
     return () => clearTimeout(timer);
   }, [query, fetchBranded, sortOption]);
+
+  const handleQueryChange = (next: string) => {
+    resultsScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+    setQuery(next);
+  };
 
   const handleLoadBranded = () => {
     setBrandedRequested(true);
@@ -207,12 +212,13 @@ export default function FoodSearchScreen() {
       ) {
         await getFullBrandedFood(food.id);
       }
-      router.replace({
+      router.push({
         pathname: '/serving-picker' as any,
-        params: { 
-          food_id: food.id, 
-          meal_slot, 
+        params: {
+          food_id: food.id,
+          meal_slot,
           date,
+          origin: 'search',
           initial_amount: parsedQuantity ? String(parsedQuantity.amount) : undefined
         },
       });
@@ -221,34 +227,58 @@ export default function FoodSearchScreen() {
     }
   };
 
-  const renderFood = (food: Food) => (
-    <TouchableOpacity
-      key={food.id}
-      style={[styles.foodItem, { borderBottomColor: colors.separator }]}
-      onPress={() => selectFood(food)}
-      activeOpacity={0.7}
-      disabled={selecting}
-    >
-      <View style={styles.foodInfo}>
-        <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
-          {food.name}
-        </Text>
-        {food.brand ? (
-          <Text style={[styles.foodBrand, { color: colors.icon }]} numberOfLines={1}>
-            {food.brand}
+  const renderFood = (food: Food) => {
+    const source = foodSourceLabel(food.source);
+    const calories = Math.round(food.calories);
+    const label = [
+      food.name,
+      food.brand,
+      `${calories} calories`,
+      food.serving_units,
+      `protein ${food.protein} grams`,
+      `carbs ${food.carbs} grams`,
+      `fat ${food.fat} grams`,
+      source ? `source ${source}` : null,
+    ].filter(Boolean).join(', ');
+    return (
+      <TouchableOpacity
+        key={food.id}
+        style={[styles.foodItem, { borderBottomColor: colors.separator }]}
+        onPress={() => selectFood(food)}
+        activeOpacity={0.7}
+        disabled={selecting}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: selecting }}
+      >
+        <View style={styles.foodInfo}>
+          <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>
+            {food.name}
           </Text>
-        ) : null}
-        <Text style={[styles.foodMeta, { color: colors.icon }]}>
-          {food.serving_units} · {food.calories} cal
-        </Text>
-      </View>
-      <View style={styles.macroChips}>
-        <Text style={[styles.chip, { color: MacroColors.protein }]}>P {food.protein}g</Text>
-        <Text style={[styles.chip, { color: MacroColors.carbs }]}>C {food.carbs}g</Text>
-        <Text style={[styles.chip, { color: MacroColors.fat }]}>F {food.fat}g</Text>
-      </View>
-    </TouchableOpacity>
-  );
+          {food.brand ? (
+            <Text style={[styles.foodBrand, { color: colors.icon }]} numberOfLines={1}>
+              {food.brand}
+            </Text>
+          ) : null}
+          <View style={styles.metaRow}>
+            {source ? (
+              <View style={[styles.sourceTag, { backgroundColor: colors.cardBackground }]}>
+                <Text style={[styles.sourceTagText, { color: colors.icon }]}>{source}</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.foodMeta, { color: colors.icon }]}>{food.serving_units}</Text>
+            <Text style={[styles.chip, { color: MacroColors.protein }]}>P {food.protein}g</Text>
+            <Text style={[styles.chip, { color: MacroColors.carbs }]}>C {food.carbs}g</Text>
+            <Text style={[styles.chip, { color: MacroColors.fat }]}>F {food.fat}g</Text>
+          </View>
+        </View>
+        <View style={styles.calorieCol}>
+          <Text style={[styles.calorieValue, { color: colors.text }]} numberOfLines={1}>{calories}</Text>
+          <Text style={[styles.calorieUnit, { color: colors.icon }]}>cal</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const showBrandedButton =
     !showSuggestions &&
@@ -324,7 +354,7 @@ export default function FoodSearchScreen() {
             placeholder="Search foods…"
             placeholderTextColor={colors.icon}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleQueryChange}
             autoFocus
             returnKeyType="search"
             clearButtonMode="while-editing"
@@ -381,6 +411,8 @@ export default function FoodSearchScreen() {
           maxToRenderPerBatch={10}
           windowSize={7}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={listPadding}
           scrollEventThrottle={16}
           onLayout={suggestionsRestore.onLayout}
           onScroll={suggestionsRestore.onScroll}
@@ -399,11 +431,8 @@ export default function FoodSearchScreen() {
           maxToRenderPerBatch={10}
           windowSize={7}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.resultsScroll}
-          scrollEventThrottle={16}
-          onLayout={resultsRestore.onLayout}
-          onScroll={resultsRestore.onScroll}
-          onContentSizeChange={resultsRestore.onContentSizeChange}
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={listPadding}
         />
       )}
     </SafeAreaView>
@@ -445,20 +474,24 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 6,
   },
-  resultsScroll: { paddingBottom: 40 },
   foodItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  foodInfo: { flex: 1, marginRight: 8 },
-  foodName: { fontSize: 15, fontWeight: '500' },
+  foodInfo: { flex: 1, marginRight: 12 },
+  foodName: { fontSize: 15, fontWeight: '400' },
   foodBrand: { fontSize: 13, marginTop: 1 },
-  foodMeta: { fontSize: 12, marginTop: 2 },
-  macroChips: { alignItems: 'flex-end', gap: 2 },
-  chip: { fontSize: 11, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 2, marginTop: 4 },
+  foodMeta: { fontSize: 13 },
+  chip: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  sourceTag: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  sourceTagText: { fontSize: 11, fontWeight: '600' },
+  calorieCol: { flexShrink: 0, minWidth: 56, alignItems: 'flex-end' },
+  calorieValue: { fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  calorieUnit: { fontSize: 12 },
   emptyState: { alignItems: 'center', marginTop: 48 },
   emptyText: { textAlign: 'center', fontSize: 15 },
   emptyHint: { textAlign: 'center', paddingVertical: 6, fontSize: 13 },

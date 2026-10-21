@@ -236,7 +236,7 @@ export async function searchBranded(
       )
     );
 
-    return branded;
+    return branded.map((food) => ({ ...food, source: 'branded' }));
   } catch {
     return []; // Silent failure
   }

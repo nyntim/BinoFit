@@ -132,19 +132,22 @@ test('open modal derives live servings, confirmations, names, targets and deleti
   const { rerender } = await render(<HomeScreen />);
   await open();
   await act(async () => mockMealState.setLogs([log('Updated', { serving_amount: .5 })]));
-  expect(screen.getAllByText('50 cal')).toHaveLength(2);
-  expect(screen.getByText('5g')).toBeTruthy();
+  expect(screen.getAllByText('50 cal')).toHaveLength(1);
+  expect(screen.getByText('5 g')).toBeTruthy();
   expect(screen.queryByText('Food contributions')).toBeNull();
   await act(async () => mockMealState.setConfirmations([{ id: 'c', date: mockDate, meal_slot: 'lunch', confirmed: false, updated_at: '' }]));
-  expect(screen.getByText('Planned · Not included in consumed totals')).toBeTruthy();
+  expect(screen.getByText('Not included in consumed totals')).toBeTruthy();
   mockNames = [{ meal_id: 'lunch', name: 'Brunch', effective_from: '2025-01-01', updated_at: '' }];
   mockDefs = [{ ...mockDefs[0], calorie_target: 25 }];
   await rerender(<HomeScreen />);
-  expect(screen.getAllByText('50 / 25 cal')).toHaveLength(2);
+  expect(screen.getAllByText('50 / 25 cal')).toHaveLength(1);
+  expect(screen.getByTestId('calorie-ring')).toBeTruthy();
+  expect(screen.getByText('25 cal over')).toBeTruthy();
   expect(screen.getByText('200% of target')).toBeTruthy();
   expect(screen.getAllByText('Brunch').length).toBeGreaterThan(0);
   await act(async () => mockMealState.setLogs([]));
-  expect(screen.getAllByText('0 / 25 cal')).toHaveLength(2);
+  expect(screen.getAllByText('0 / 25 cal')).toHaveLength(1);
+  expect(screen.getByText('25 cal left')).toBeTruthy();
   expect(screen.getByText('No macro split yet')).toBeTruthy();
   mockDefs = [];
   await rerender(<HomeScreen />);
@@ -155,8 +158,8 @@ test('orphan meals open with no targets and close when last orphan log disappear
   foodRead.mockResolvedValue([log('Orphan', { meal_slot: 'deleted' })]);
   await render(<HomeScreen />);
   await open('Other');
-  expect(screen.getAllByText('100 cal')).toHaveLength(2);
-  expect(screen.getByText('10g')).toBeTruthy();
+  expect(screen.getAllByText('100 cal')).toHaveLength(1);
+  expect(screen.getByText('10 g')).toBeTruthy();
   expect(screen.queryByText('Targets use current meal settings.')).toBeNull();
   await act(async () => mockMealState.setLogs([]));
   expect(screen.queryByLabelText('Close nutrition summary')).toBeNull();
@@ -173,8 +176,8 @@ test('blur closes summary, invalidates reads, and focus reload reflects saved se
   await rerender(<HomeScreen />);
   await waitFor(() => expect(screen.getByText('Persisted')).toBeTruthy());
   await open();
-  expect(screen.getAllByText('200 cal')).toHaveLength(2);
-  expect(screen.getByText('20g')).toBeTruthy();
+  expect(screen.getAllByText('200 cal')).toHaveLength(1);
+  expect(screen.getByText('20 g')).toBeTruthy();
 });
 
 test('edit and settings entry dismiss the summary', async () => {

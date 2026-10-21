@@ -1,4 +1,5 @@
-import { formatNutritionAmount, macroEnergyShares, mealNutritionTotals, targetPercentage } from '@/lib/meal-nutrition-summary';
+import { calorieDelta, nutrientGroupCoverage, formatNutritionAmount, macroEnergyShares, mealNutritionTotals, targetPercentage } from '@/lib/meal-nutrition-summary';
+import { NUTRIENTS } from '@/lib/nutrients';
 import { logTotals, sumEatenTotals } from '@/lib/nutrition-totals';
 import type { FoodLogWithFood } from '@/lib/types';
 
@@ -37,4 +38,23 @@ test('macro energy uses grams only and has an explicit empty result', () => {
   expect(shares.carbs).toBeCloseTo(80 / 210 * 100);
   expect(shares.fat).toBeCloseTo(90 / 210 * 100);
   expect(macroEnergyShares({ protein: 0, carbs: 0, fat: 0 })).toBeNull();
+});
+
+test('nutrientGroupCoverage counts only known nutrients per group', () => {
+  const totals = Object.fromEntries(NUTRIENTS.map((n) => [n.id, { total: null, knownCount: 0, missingCount: 0 }])) as never as Parameters<typeof nutrientGroupCoverage>[0];
+  expect(nutrientGroupCoverage(totals, 'minerals')).toEqual({ known: 0, total: NUTRIENTS.filter((n) => n.group === 'minerals').length });
+  totals.fiber = { total: 0, knownCount: 1, missingCount: 0 };
+  totals.sugar = { total: null, knownCount: 0, missingCount: 2 };
+  totals.sodium = { total: 5, knownCount: 2, missingCount: 1 };
+  expect(nutrientGroupCoverage(totals, 'extended_macros').known).toBe(1);
+  expect(nutrientGroupCoverage(totals, 'minerals').known).toBe(1);
+  expect(nutrientGroupCoverage(totals, 'vitamins').known).toBe(0);
+});
+
+test('calorieDelta reports left or over only for a positive target', () => {
+  expect(calorieDelta(100, null)).toBeNull();
+  expect(calorieDelta(100, 0)).toBeNull();
+  expect(calorieDelta(100, 100)).toEqual({ kind: 'left', value: 0 });
+  expect(calorieDelta(80, 100)).toEqual({ kind: 'left', value: 20 });
+  expect(calorieDelta(135, 100)).toEqual({ kind: 'over', value: 35 });
 });

@@ -1,4 +1,5 @@
-import { logsForSlot, sumEatenTotals, type NutritionTotals } from '@/lib/nutrition-totals';
+import { NUTRIENTS } from '@/lib/nutrients';
+import { logsForSlot, sumEatenTotals, type NutritionTotals, type NutrientTotals } from '@/lib/nutrition-totals';
 import type { FoodLogWithFood, MealSlot } from '@/lib/types';
 
 /** A meal includes planned food; rounding belongs only in display. */
@@ -17,4 +18,16 @@ export function macroEnergyShares({ protein, carbs, fat }: Pick<NutritionTotals,
 
 export function formatNutritionAmount(amount: number, precision = 1): string {
   return String(Number(amount.toFixed(precision)));
+}
+
+/** Catalog items in a group that have at least one known value, out of the group size. */
+export function nutrientGroupCoverage(nutrients: NutrientTotals, group: (typeof NUTRIENTS)[number]['group']): { known: number; total: number } {
+  const items = NUTRIENTS.filter((n) => n.group === group);
+  return { known: items.filter((n) => nutrients[n.id].knownCount > 0 && nutrients[n.id].total != null).length, total: items.length };
+}
+
+/** Calories left or over a positive target; null without one. Exactly on target is "left 0". */
+export function calorieDelta(consumed: number, target: number | null | undefined): { kind: 'left' | 'over'; value: number } | null {
+  if (target == null || target <= 0) return null;
+  return consumed > target ? { kind: 'over', value: consumed - target } : { kind: 'left', value: target - consumed };
 }

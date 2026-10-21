@@ -14,6 +14,7 @@ import {
   Platform,
   type DimensionValue,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -64,12 +65,13 @@ const formatNum = (v: number) => v.toLocaleString('en-US', { maximumFractionDigi
 const percent = (fraction: number) => `${fraction * 100}%` as DimensionValue;
 
 export default function ServingPickerScreen() {
-  const { food_id, meal_slot, date, log_id, initial_amount } = useLocalSearchParams<{
+  const { food_id, meal_slot, date, log_id, initial_amount, origin } = useLocalSearchParams<{
     food_id: string;
     meal_slot: string;
     date: string;
     log_id?: string;
     initial_amount?: string;
+    origin?: string;
   }>();
   const router = useRouter();
   const cs = useColorScheme();
@@ -275,7 +277,9 @@ export default function ServingPickerScreen() {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      // From search the picker sits above it: close both so logging lands on Nutrition
+      if (origin === 'search') router.dismiss(2);
+      else router.back();
     } catch {
       setSaveError("Couldn't save this entry.");
     } finally {
@@ -314,10 +318,13 @@ export default function ServingPickerScreen() {
           style={styles.headerSide}
           hitSlop={8}
           accessibilityRole="button"
+          accessibilityLabel={isEdit ? 'Cancel' : origin === 'search' ? 'Back to search' : 'Back'}
         >
-          <Text style={[styles.headerBtnText, { color: colors.tint }]}>
-            {isEdit ? 'Cancel' : 'Back'}
-          </Text>
+          {isEdit ? (
+            <Text style={[styles.headerBtnText, { color: colors.tint }]}>Cancel</Text>
+          ) : (
+            <MaterialIcons name="chevron-left" size={28} color={colors.tint} style={styles.backIcon} />
+          )}
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
           {isEdit ? 'Edit Serving' : slotLabel}
@@ -1073,6 +1080,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerSide: { width: 72, minHeight: 44, justifyContent: 'center' },
+  backIcon: { marginLeft: -6 },
   headerSideRight: { alignItems: 'flex-end' },
   headerBtnText: { fontSize: 16 },
   title: { fontSize: 17, fontWeight: '600' },
