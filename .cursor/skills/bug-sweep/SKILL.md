@@ -3,7 +3,7 @@ name: bug-sweep
 description: Audit existing BinoFit code for bugs and tech debt and return a ranked list. No code changes. Use when the user asks for a bug sweep, code audit, tech-debt review, or "what's broken".
 ---
 
-In Cursor, ignore `.claude/skills/bug-sweep`. Follow `docs/agents/cursor.md`.
+Follow `docs/agents/cursor.md`.
 
 Spawn `qa-reviewer` with `model: composer-2.5-fast` in **audit mode**. Scope: the user's request. If no scope was given, start with `lib/`, `hooks/` and `context/`, where most of the logic lives.
 

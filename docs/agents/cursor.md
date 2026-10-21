@@ -1,6 +1,6 @@
 # Cursor
 
-Role files in this folder, and [ship.md](ship.md), stay the source of truth for steps, stops, and conflict rules. This file is how a Cursor lead runs them. Claude Code keeps using `.claude/agents/` and `.claude/skills/`.
+Role files in this folder, and [ship.md](ship.md), stay the source of truth for steps, stops, and conflict rules. This file is how a Cursor lead runs them. Claude Code uses the global `agent-team` agents and the project skills in `.claude/skills/`.
 
 ## Models
 
@@ -12,7 +12,7 @@ Start the lead chat on **Composer**. This file cannot switch the chat model.
 | Planner, including the hard conflicts [ship.md](ship.md) sends to the planner | Grok 4.7 | `grok-4.7-high-fast` |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | `composer-2.5-fast` |
 
-Those slugs are pinned in `.cursor/agents/`, which overrides `.claude/agents/` of the same name. Still pass `model` on every **new** Task call, because an omitted model inherits the parent chat. Omit `model` when `resume` is set; the earlier model stays.
+Those slugs are pinned in `.cursor/agents/`, which overrides the global `agent-team` agents of the same name. Still pass `model` on every **new** Task call, because an omitted model inherits the parent chat. Omit `model` when `resume` is set; the earlier model stays.
 
 ## Launching a role
 
@@ -47,4 +47,4 @@ Follow the conflict table in [ship.md](ship.md). The lead resolves every row its
 | Bug sweep | `.cursor/skills/bug-sweep` |
 | Test backfill | `.cursor/skills/test-backfill` |
 
-In Cursor, ignore the `.claude/skills` copy of the same name.
+In Cursor, ignore `.claude/skills` (`build-feature` and `ship` have a Claude Code copy there).

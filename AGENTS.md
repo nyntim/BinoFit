@@ -20,7 +20,7 @@ This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.m
 
 When you're asked to take on a role, read its file and follow it. [`docs/agents/README.md`](docs/agents/README.md) describes the full workflow.
 
-In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role. The skills are in `.cursor/skills/`. Claude Code keeps `.claude/agents/` and `.claude/skills/`.
+In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role. The skills are in `.cursor/skills/`. Claude Code uses the global `agent-team` agents, and keeps the project skills `.claude/skills/build-feature` and `.claude/skills/ship`.
 
 In Codex, follow [`docs/agents/codex.md`](docs/agents/codex.md): Sol (`gpt-6.1-sol`) for the lead and every role, with high effort for planning and conflict resolution, medium for building, and low for everything else. Roles are in `.codex/agents/`; the five workflow skills are in `.agents/skills/`.
 

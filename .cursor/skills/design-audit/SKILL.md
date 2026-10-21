@@ -3,7 +3,7 @@ name: design-audit
 description: Audit existing BinoFit screens against DESIGN.md and PRODUCT.md and return a ranked fix list. No code changes. Use when the user asks for a design audit, UI review of existing screens, or design consistency check.
 ---
 
-In Cursor, ignore `.claude/skills/design-audit`. Follow `docs/agents/cursor.md`.
+Follow `docs/agents/cursor.md`.
 
 Spawn `design-reviewer` with `model: composer-2.5-fast` in **audit mode**. Scope: the user's request. If no scope was given, cover all of `app/` and `components/`.
 

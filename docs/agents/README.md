@@ -70,7 +70,7 @@ Standalone audits change no code. They each return a ranked list of findings:
 
 ## Using the roles in different tools
 
-- **Claude Code** runs this workflow automatically. The agents in `.claude/agents/` wrap these role files, and the commands are `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
+- **Claude Code** runs this workflow automatically. The agents come from `agent-team` and load these role files through `agent-team context`, and the commands are `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
 - **Cursor** uses `.cursor/agents/` (same role names, Cursor models) and the skills in `.cursor/skills/`. Follow [cursor.md](cursor.md).
 - **Codex** uses `.codex/agents/` and `.agents/skills/`. Follow [codex.md](codex.md); invoke `$build-feature`, `$ship`, `$design-audit`, `$bug-sweep` or `$test-backfill`.
 - **Other tools** (Copilot and so on) read `AGENTS.md` at the repo root, which points here. Ask for a role by name, for example: "Act as the QA reviewer in `docs/agents/qa-reviewer.md` and review my diff."
