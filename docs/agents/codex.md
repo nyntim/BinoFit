@@ -1,17 +1,15 @@
 # Codex
 
-Follow the shared roles in this folder and [ship.md](ship.md). Codex roles live in `.codex/agents/`; skills live in `.agents/skills/`.
+Follow the shared roles in this folder, [project.md](project.md) and [ship.md](ship.md). The roles and skills come from the global `agent-team` install (`~/.codex/agents`, `~/.agents/skills`), the same in every tool.
 
 ## Models
 
 | Who | Model | Reasoning effort |
 |---|---|---|
-| Lead | Sol (`gpt-6.1-sol`) | Low |
-| Planner, including hard conflict resolution | Sol (`gpt-6.1-sol`) | High |
-| Builder | Sol (`gpt-6.1-sol`) | Medium |
-| Reviewer, QA reviewer, design reviewer, test engineer | Sol (`gpt-6.1-sol`) | Low |
+| Lead | Sol (`gpt-6.1-sol`) | Low (`.codex/config.toml`) |
+| Every role | Sol (`gpt-6.1-sol`) | `codexEffort` in `~/.agent-team/config.json` (medium) |
 
-The project config defaults new sessions to Sol with low effort. Each role TOML pins its model and reasoning effort. If the current chat overrides the project default, select Sol with low effort in the model picker; these files cannot switch a running lead.
+The project config defaults new sessions to Sol with low effort. If the current chat overrides the project default, select Sol with low effort in the model picker; these files cannot switch a running lead. `agent-team` sets one effort for every Codex role; when you launch through collaboration tools you can still pass a higher effort for the planner.
 
 ## Launch and continue
 
@@ -52,6 +50,6 @@ Only the lead performs git mutations. Root `AGENTS.md` requires user authorizati
 | `/bug-sweep` | `$bug-sweep <scope>` |
 | `/test-backfill` | `$test-backfill <scope>` |
 
-Read `.agents/skills/<name>/SKILL.md` and use the user's request as its arguments. Higher-priority session requirements for progress updates and permissions take precedence over shared workflow defaults. Restart Codex if new roles or skills do not appear. No user-level settings or permissions are changed.
+The skills are the global `agent-team` ones; use the user's request as their arguments. Default audit scopes are in [project.md](project.md). Higher-priority session requirements for progress updates and permissions take precedence over shared workflow defaults. Restart Codex if new roles or skills do not appear. No user-level settings or permissions are changed.
 
 See the official [custom agent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents) and [skill discovery documentation](https://learn.chatgpt.com/docs/build-skills).

@@ -47,7 +47,7 @@ The roles are the same in all tools. The model depends on the tool.
 | Planner | Grok 4.7 | Runs once per feature; a bad plan costs more in rebuilds than the stronger model costs |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | Follow a plan or a checklist |
 
-**Codex.** Use Sol (`gpt-6.1-sol`) for the lead and every role: high effort for planning and hard conflict resolution, medium for building, and low for everything else. Follow [codex.md](codex.md); roles are in `.codex/agents/`, and all five skills are in `.agents/skills/`.
+**Codex.** Use Sol (`gpt-6.1-sol`) for the lead and every role. Follow [codex.md](codex.md).
 
 ## Keeping the lead cheap
 
@@ -70,12 +70,15 @@ Standalone audits change no code. They each return a ranked list of findings:
 
 ## Using the roles in different tools
 
-- **Claude Code** runs this workflow automatically. The agents come from `agent-team` and load these role files through `agent-team context`, and the commands are `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
-- **Cursor** uses `.cursor/agents/` (same role names, Cursor models) and the skills in `.cursor/skills/`. Follow [cursor.md](cursor.md).
-- **Codex** uses `.codex/agents/` and `.agents/skills/`. Follow [codex.md](codex.md); invoke `$build-feature`, `$ship`, `$design-audit`, `$bug-sweep` or `$test-backfill`.
+The roles and the five workflow skills come from the global `agent-team` install (`agent-team sync` renders them into every enabled tool). The repo keeps no per-tool copies. Each role loads its file in this folder plus [project.md](project.md) through `agent-team context`. Run `agent-team doctor` to check the install.
+
+- **Claude Code**: `/build-feature`, `/ship`, `/design-audit`, `/bug-sweep` and `/test-backfill`.
+- **Cursor**: the same skills, launched as in [cursor.md](cursor.md).
+- **Codex**: `$build-feature`, `$ship`, `$design-audit`, `$bug-sweep` or `$test-backfill`, as in [codex.md](codex.md).
 - **Other tools** (Copilot and so on) read `AGENTS.md` at the repo root, which points here. Ask for a role by name, for example: "Act as the QA reviewer in `docs/agents/qa-reviewer.md` and review my diff."
 
 ## Rules for every role
+- Project context is `CLAUDE.md` (rules for every change, commands, overview) plus the per-area docs in `docs/architecture/` it indexes. Every tool reads the same files: Claude Code loads `CLAUDE.md` itself, and Cursor, Codex and others reach it through `AGENTS.md`. Read only the area docs your task touches.
 - Only the lead (the main session, or you) commits, pushes or creates branches.
 - If the lead gives you a workspace path (a worktree under `.worktrees/`), read, edit and run commands only inside it.
 - Branch names, commit messages and commit authorship follow `CLAUDE.md`: no references to AI or assistants, and commits are authored by the repo owner.

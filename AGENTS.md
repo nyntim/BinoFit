@@ -3,7 +3,7 @@
 Instructions for AI coding agents working in this repository.
 
 ## Project context
-Read `CLAUDE.md` first. Despite its name, it is the general project guide: architecture, commands, storage layers, conventions and commit rules. All of it applies to any agent. Then read:
+Read `CLAUDE.md` first. Despite its name, it is the general project guide: commands, a short overview, the rules for every change, commit rules, and an index of per-area docs in `docs/architecture/`. All of it applies to any agent. Read the area doc before changing that area. Then read:
 - `PRODUCT.md`: who the app is for, and its voice ("sharp, precise, quiet")
 - `DESIGN.md`: design tokens and component specs
 - `PRD_v2.md`: feature requirements and roadmap
@@ -20,9 +20,11 @@ This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.m
 
 When you're asked to take on a role, read its file and follow it. [`docs/agents/README.md`](docs/agents/README.md) describes the full workflow.
 
-In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role. The skills are in `.cursor/skills/`. Claude Code uses the global `agent-team` agents, and keeps the project skills `.claude/skills/build-feature` and `.claude/skills/ship`.
+The roles and the five workflow skills (`build-feature`, `ship`, `bug-sweep`, `design-audit`, `test-backfill`) come from the global `agent-team` install in every tool; the repo keeps no per-tool copies. They load BinoFit's rules through `agent-team context`: the role files in `docs/agents/` plus [`docs/agents/project.md`](docs/agents/project.md).
 
-In Codex, follow [`docs/agents/codex.md`](docs/agents/codex.md): Sol (`gpt-6.1-sol`) for the lead and every role, with high effort for planning and conflict resolution, medium for building, and low for everything else. Roles are in `.codex/agents/`; the five workflow skills are in `.agents/skills/`.
+In Cursor, follow [`docs/agents/cursor.md`](docs/agents/cursor.md): Grok 4.7 for planning and conflict resolution, Composer for the lead and every other role.
+
+In Codex, follow [`docs/agents/codex.md`](docs/agents/codex.md): Sol (`gpt-6.1-sol`) for the lead and every role.
 
 To build several features at once, act as the lead in [`docs/agents/ship.md`](docs/agents/ship.md): each feature gets its own git worktree and team, and the results land on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh` (`npm run ship -- <command>`).
 
