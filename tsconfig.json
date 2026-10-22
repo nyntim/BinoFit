@@ -21,6 +21,7 @@
     "jest.config.js",
     "android",
     "ios",
+    "supabase/functions",
     ".worktrees",
     ".claude/worktrees"
   ]
