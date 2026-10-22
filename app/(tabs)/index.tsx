@@ -8,21 +8,15 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Modal,
-  TextInput,
-  Keyboard,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
-import * as Crypto from 'expo-crypto';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { MacroColors } from '@/constants/theme';
-import type { Colors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   getUserGoals,
@@ -35,7 +29,6 @@ import {
   addWaterLog,
   getWaterLogsByDate,
   deleteWaterLog,
-  searchLiquids,
   countFoodLogsForMeal,
 } from '@/lib/database';
 import { CalorieRing } from '@/components/calorie-ring';
@@ -46,10 +39,14 @@ import { useDashboardTraining } from '@/hooks/useDashboardTraining';
 import { StreakBadge } from '@/components/StreakBadge';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
+import { CalorieStat } from '@/components/dashboard/CalorieStat';
+import { QuickAddButton } from '@/components/dashboard/QuickAddButton';
+import { CustomWaterModal, QuickAddSearchModal } from '@/components/dashboard/WaterModals';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { WATER_TRACKING_ENABLED } from '@/constants/features';
 import { useMealLogs } from '@/hooks/useMealLogs';
@@ -66,7 +63,7 @@ import { openMealEditAfterReload } from '@/lib/meal-settings-entry';
 import { usePreferences } from '@/hooks/usePreferences';
 import { setDefaultLogStatus } from '@/lib/app-preferences';
 import { PillSwitch } from '@/components/settings/PillSwitch';
-import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink, Food } from '@/lib/types';
+import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink } from '@/lib/types';
 
 const DEFAULT_GOALS: UserGoals = {
   calorie_goal: 2000,
@@ -132,18 +129,9 @@ export default function HomeScreen() {
   const [scrollLocked, setScrollLocked] = useState(false);
   // Android: pad the scroll content by the keyboard height so lower meal inputs can scroll into view.
   // iOS uses automaticallyAdjustKeyboardInsets instead.
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
   const tabBarInset = useTabBarInset();
   const nativeTabInsets = useTabBarInsetMode() === 'automatic';
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
   const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState({ steps: 0, activeCalories: 0 });
@@ -744,272 +732,6 @@ export default function HomeScreen() {
   );
 }
 
-function CalorieStat({
-  label,
-  value,
-  textColor,
-  subColor,
-}: {
-  label: string;
-  value: number;
-  textColor: string;
-  subColor: string;
-}) {
-  return (
-    <View>
-      <Text style={[styles.calorieStatValue, { color: textColor }]}>{value.toLocaleString()}</Text>
-      <Text style={[styles.calorieStatLabel, { color: subColor }]}>{label}</Text>
-    </View>
-  );
-}
-
-function QuickAddButton({
-  label,
-  onPress,
-  colors,
-  isEditing,
-  onRemove,
-}: {
-  label: string;
-  onPress: () => void;
-  colors: Pick<typeof Colors.light, 'cardSecondary' | 'separator' | 'text'>;
-  isEditing?: boolean;
-  onRemove?: () => void;
-}) {
-  const danger = useThemeColor({}, 'danger');
-  return (
-    <View style={styles.quickAddBtnWrapper}>
-      <TouchableOpacity
-        style={[
-          styles.quickAddBtn,
-          { backgroundColor: colors.cardSecondary, borderColor: colors.separator },
-        ]}
-        onPress={isEditing ? undefined : onPress}
-        activeOpacity={isEditing ? 1 : 0.7}
-      >
-        <Text style={[styles.quickAddBtnText, { color: colors.text }]} numberOfLines={1}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-      {isEditing && (
-        <TouchableOpacity
-          style={[styles.removeQuickAddBtn, { backgroundColor: danger }]}
-          onPress={onRemove}
-        >
-          <MaterialIcons name="close" size={12} color="#fff" />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
-
-function CustomWaterModal({
-  visible,
-  onClose,
-  onAdd,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onAdd: (amount: number, name: string) => void;
-  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'cardSecondary' | 'icon' | 'text' | 'tint'>;
-}) {
-  const overlay = useThemeColor({}, 'overlay');
-  const [amount, setAmount] = useState('8');
-  const [name, setName] = useState('Water');
-
-  const handleAdd = () => {
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount in oz.');
-      return;
-    }
-    onAdd(val, name || 'Water');
-    onClose();
-    setAmount('8');
-    setName('Water');
-  };
-
-  return (
-    <Modal visible={visible} animationType="fade" transparent>
-      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Add Custom Drink</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.icon }]}>Drink Name</Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Water, Coffee, etc."
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.icon }]}>Amount (oz)</Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder="8"
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.cardSecondary }]}
-              onPress={onClose}
-            >
-              <Text style={[styles.modalBtnText, { color: colors.text }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.tint }]}
-              onPress={handleAdd}
-            >
-              <Text
-                style={[
-                  styles.modalBtnText,
-                  { color: colors.background, fontWeight: '700' },
-                ]}
-              >
-                Add
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function QuickAddSearchModal({
-  visible,
-  onClose,
-  onSelect,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onSelect: (drink: QuickAddDrink) => void;
-  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'icon' | 'separator' | 'text' | 'tint'>;
-}) {
-  const overlay = useThemeColor({}, 'overlay');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Food[]>([]);
-  const [selectedFood, setSelectedFood] = useState<Food | null>(null);
-  const [amount, setAmount] = useState('8');
-
-  useEffect(() => {
-    if (visible && query.length > 1) {
-      searchLiquids(query).then(setResults);
-    } else if (query.length <= 1) {
-      setResults([]);
-    }
-  }, [query, visible]);
-
-  const handleSelect = (food: Food) => {
-    setSelectedFood(food);
-  };
-
-  const handleConfirm = () => {
-    if (!selectedFood) return;
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
-      return;
-    }
-    onSelect({
-      id: Crypto.randomUUID(),
-      name: `${val} oz ${selectedFood.name}`,
-      amount: val,
-      food_id: selectedFood.id,
-    });
-    setQuery('');
-    setResults([]);
-    setSelectedFood(null);
-    setAmount('8');
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background, height: '80%' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Quick-Add Drink</Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close quick-add drinks" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialIcons name="close" size={24} color={colors.icon} />
-            </TouchableOpacity>
-          </View>
-
-          {selectedFood ? (
-            <View style={{ gap: 20 }}>
-              <View>
-                <Text style={[styles.inputLabel, { color: colors.icon }]}>Selected Drink</Text>
-                <Text style={[styles.selectedFoodName, { color: colors.text }]}>{selectedFood.name}</Text>
-                <TouchableOpacity onPress={() => setSelectedFood(null)}>
-                  <Text style={{ color: colors.tint, marginTop: 4 }}>Change</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.icon }]}>Quick-Add Amount (oz)</Text>
-                <TextInput
-                  style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="decimal-pad"
-                  placeholder="8"
-                  autoFocus
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.tint }]}
-                onPress={handleConfirm}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.background, fontWeight: '700' }]}>
-                  Confirm
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <TextInput
-                style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search for water, coffee, soda..."
-                placeholderTextColor={colors.icon}
-                autoFocus
-              />
-
-              <ScrollView style={{ flex: 1, marginTop: 12 }}>
-                {results.map((food) => (
-                  <TouchableOpacity
-                    key={food.id}
-                    style={[styles.searchResultItem, { borderBottomColor: colors.separator }]}
-                    onPress={() => handleSelect(food)}
-                  >
-                    <Text style={[styles.resultName, { color: colors.text }]}>{food.name}</Text>
-                    {food.brand && <Text style={[styles.resultBrand, { color: colors.icon }]}>{food.brand}</Text>}
-                  </TouchableOpacity>
-                ))}
-                {query.length > 1 && results.length === 0 && (
-                  <Text style={{ textAlign: 'center', color: colors.icon, marginTop: 20 }}>No liquids found matching &quot;{query}&quot;</Text>
-                )}
-              </ScrollView>
-            </>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
   foodDefault: { gap: 8, marginBottom: 16, alignItems: 'flex-start' },
   foodDefaultLabel: { fontSize: 14, fontWeight: '600' },
@@ -1072,8 +794,6 @@ const styles = StyleSheet.create({
   calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   calorieSummary: { flex: 1, gap: 12 },
-  calorieStatValue: { fontSize: 18, fontWeight: '700' },
-  calorieStatLabel: { fontSize: 12, marginTop: 1 },
   macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
   activityCard: { borderRadius: 18, padding: 14, marginBottom: 14 },
   activityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
@@ -1107,36 +827,6 @@ const styles = StyleSheet.create({
   waterBarBg: { height: 32, borderRadius: 10, borderWidth: 2, overflow: 'hidden' },
   waterBarFill: { height: '100%', borderRadius: 8 },
   quickAddRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  quickAddBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickAddBtnText: { fontSize: 13, fontWeight: '500' },
-  quickAddBtnWrapper: {
-    flex: 1,
-    position: 'relative',
-  },
-  removeQuickAddBtn: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-  },
   addQuickAddBtn: {
     width: 40,
     height: 32,
@@ -1146,52 +836,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderStyle: 'dashed',
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: { width: '100%', borderRadius: 20, padding: 24, gap: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  inputGroup: { gap: 8 },
-  inputLabel: { fontSize: 14, fontWeight: '500' },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  selectedFoodName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  searchResultItem: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  resultName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  resultBrand: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  modalBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBtnText: { fontSize: 16, fontWeight: '600' },
 });

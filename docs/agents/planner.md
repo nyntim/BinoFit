@@ -21,7 +21,7 @@ Needs approval: yes | no — <reason>
 - `PRD_v2.md`: feature requirements (section 4) and roadmap (section 9)
 - `PRODUCT.md` and `DESIGN.md`: product voice and design tokens
 - `docs/phase-*.md`: earlier phase specs
-- `lib/types.ts`, `lib/database.ts`, `supabase/schema.sql`: the data model
+- `lib/types.ts`, `lib/database-connection.ts` (SQLite schema), `supabase/schema.sql`: the data model
 - The existing code you plan to touch
 
 ## Plan format

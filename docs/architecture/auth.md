@@ -1,5 +1,17 @@
 # Identity and accounts
 
+## Files
+
+`lib/auth.ts` only re-exports; callers import from `@/lib/auth` so `jest.mock('@/lib/auth')` covers them.
+
+- `lib/auth-session.ts`: `getSession`, `getSessionUserId`, auth state, and helpers the other files share (lazy sync calls, `restoreTracked`).
+- `lib/auth-init.ts`: `initAuth`, `ensureSession`, session validation, the legacy claim, merge tickets, `signInWithMerge` and `retryRestore`. `signInWithMerge` lives here because it shares the in-flight flags with `initAuth`; other files read them through `isAccountOperationInFlight()`.
+- `lib/auth-apple.ts`: `signInWithApple`.
+- `lib/auth-email.ts`: email sign-up, code verification, email sign-in, password reset and change.
+- `lib/auth-wipe.ts`: `finishWipe` and resuming an interrupted sign-out or account deletion on launch.
+- `lib/auth-sign-out.ts`: `countUnsynced`, `prepareSignOut`, `signOutAndWipe`.
+- `lib/auth-account-deletion.ts`: `deleteAccountAndWipe` and the pending-deletion helpers.
+
 ## Identity
 
 `lib/auth.ts` `initAuth()` (on launch) ensures a session via `signInAnonymously()`, claims legacy device-UUID rows once (`claim_device_data` RPC), redeems any pending merge ticket and triggers a sync.

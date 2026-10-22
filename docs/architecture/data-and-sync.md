@@ -2,11 +2,20 @@
 
 ## Storage layers
 
-- SQLite (`lib/database.ts`, wrapping `expo-sqlite`): foods, food logs, meals, weight entries (`lib/weight.ts`) and training tables (`lib/workouts/schema.ts`, called from `initSchema`).
+- SQLite (`lib/database.ts`, wrapping `expo-sqlite`): foods, food logs, meals, weight entries (`lib/weight.ts`) and training tables (`lib/workouts/schema.ts`, called from `initSchema` in `lib/database-connection.ts`).
 - AsyncStorage (`lib/storage.ts`): goals, profile, device preferences, quick-add drinks, sync timestamps. See [preferences.md](preferences.md).
 - Supabase (`lib/supabase.ts`): cloud sync and backup. Every install has a session (see [auth.md](auth.md)). Session tokens live in the Keychain via `lib/secure-session-storage.ts`.
 
 ## `lib/database.ts`
+
+`lib/database.ts` only re-exports. Callers import from `@/lib/database` (never a `database-*` file) so `jest.mock('@/lib/database')` covers them; the `database-*` files import each other directly to avoid cycles. Its re-exports are read-only, so `jest.spyOn` a function on its defining file instead.
+
+- `lib/database-connection.ts`: `getDatabase()`, `initSchema` (tables and migrations), default meal seeding.
+- `lib/database-foods.ts`: food search, the remote food cache, barcode and id lookups, custom foods.
+- `lib/database-food-logs.ts`: food log writes, reads by date or range, logged dates, recent and frequent foods, `isRemoteNewer`, `applyRemoteFoodLogs`.
+- `lib/database-meals.ts`: meal definitions and names, `saveMealDraft`, `replaceMealsFromRemote`, meal slot confirmations.
+- `lib/database-water.ts`: water logs.
+- `lib/database-maintenance.ts`: `getMissingFoodIds`, `clearUserData`, `markAllUnsynced`.
 
 - `getFoodLogsWithFoodByDate()`: daily logs joined with food data (also hydrates nutrients, see [nutrition.md](nutrition.md)).
 - `addCustomFood()`, `cacheRemoteFood()` (caches remote search results, also stores `barcode`), `getFoodByBarcode()` (local lookup by normalized barcode, custom food first, then most recent; `foods.barcode` is device-only, not synced).

@@ -33,7 +33,7 @@ The user is stopped only for a plan that needs approval, a blocker the lead can'
 
 From the summaries' `Files` lines, work out:
 
-1. **Overlap map**: every file that more than one plan touches, and who touches it. Watch `lib/database.ts` (migrations and schema), `lib/types.ts`, `supabase/schema.sql`, `lib/sync.ts`, `lib/storage.ts`, `constants/theme.ts`, shared components, and `package.json` (new dependencies).
+1. **Overlap map**: every file that more than one plan touches, and who touches it. Watch `lib/database-connection.ts` (migrations and schema), `lib/types.ts`, `supabase/schema.sql`, `lib/sync.ts`, `lib/storage.ts`, `constants/theme.ts`, shared components, and `package.json` (new dependencies).
 2. **Landing order**: smallest and least risky first, and anything others depend on before its dependents. If two tasks change the same function heavily, run the second **after** the first lands rather than in parallel.
 3. **Parallelism**: run at most **3 teams at once** by default (each worktree runs its own `npm ci`, lint, typecheck and tests). Queue the rest.
 
@@ -90,7 +90,7 @@ scripts/agents/ship.sh land <slug>     # re-bump version, lint + tsc + tests, fa
 | `version` in `package.json`, `app.json`, `package-lock.json` | Take either side; `land` rewrites it. |
 | `package-lock.json` beyond the version | Take `main`'s, then `npm install` in the worktree to re-add this branch's dependencies, and `git add` it. |
 | `package.json` dependencies | Keep both sides' entries. |
-| Migrations in `lib/database.ts` (`ALTER TABLE … ADD COLUMN`) and `supabase/schema.sql` | Keep both sides' lines. They're idempotent and order-independent. |
+| Migrations in `lib/database-connection.ts` (`ALTER TABLE … ADD COLUMN`) and `supabase/schema.sql` | Keep both sides' lines. They're idempotent and order-independent. |
 | `lib/types.ts`, imports, lists of exports | Keep both sides. |
 | The same function or component changed by both | Combine both intents, using both approved plans as the spec. If they can't both hold, stop and ask the user. |
 | Anything in sync, schema, migrations or tombstones beyond the line-level cases above | Don't resolve it yourself: send both sides and both plans to `planner` and apply its resolution (see [Keeping the lead cheap](README.md#keeping-the-lead-cheap)). |

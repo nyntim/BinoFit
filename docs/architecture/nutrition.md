@@ -2,6 +2,7 @@
 
 ## Dashboard (Nutrition tab, `app/(tabs)/index.tsx`)
 
+- `components/dashboard/CalorieStat.tsx`, `QuickAddButton.tsx`, `WaterModals.tsx` (custom drink and quick-add drink search modals): dashboard pieces split out of the screen.
 - `components/calorie-ring.tsx`, `components/macro-bar.tsx`: nutrition visualizations. `MacroBar` takes optional `goal`, `trackColor` and `decimalPlaces` (default 0).
 - `components/CalendarWidget.tsx`: week strip plus full-month modal calendar (`react-native-calendars`). Shows logged-food and finished-workout markers plus the selected day's workouts (`DayWorkouts`). `useDashboardTraining` owns local workout date and detail refresh on focus, date, session, unit and local-day changes; CalendarWidget owns range-based food marker refresh on focus and log revision. The compact week preview keeps markers but hides the Logged/Trained legend; the expanded calendar shows the legend.
 - `components/StreakBadge.tsx`: current logging streak, via `@/hooks/useStreak` (current and longest streak from logged dates, see [progress.md](progress.md)).
@@ -30,6 +31,7 @@ Tapping the meal card opens its read-only nutrition summary, including empty mea
 `lib/food-service.ts` searches SQLite first, falls back to a Supabase remote query (4 or more characters) and caches results locally.
 
 - Rows show calories in a right column and a neutral source tag from `lib/food-source.ts` (`foodSourceLabel`: USDA, Branded, Open Food Facts, Custom; `searchBranded` stamps `source: 'branded'`).
+- `app/serving-picker.tsx` sets the amount, unit and time and logs or edits an entry. Its parts are in `components/serving-picker/` (form rows, nutrition ring, macro detail panel, targets, unit picker) and `hooks/useServingDayTotals.ts` (the day's other totals, goals and slot statuses).
 - Selecting a food pushes `serving-picker` with `origin=search` so search state stays mounted: Back returns to it, Log calls `router.dismiss(2)`.
 - Multi-select collects several foods and opens `food-batch-review` to log them together.
 - A query or sort change scrolls results to the top; `hooks/useKeyboardHeight` pads lists on Android.

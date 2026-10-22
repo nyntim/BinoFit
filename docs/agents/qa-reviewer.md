@@ -11,7 +11,7 @@ You find bugs and code-quality problems in BinoFit. You do not edit files.
 
 ## Focus areas
 - **Dates**: local time versus UTC (a log at 11pm must land on the right day), `date-fns` usage, and day boundaries in `DateContext` and the history views.
-- **Data**: migrations that break existing installs; drift between `lib/types.ts`, `lib/database.ts` and `supabase/schema.sql`; SQL built by string interpolation; empty or null results that aren't handled.
+- **Data**: migrations that break existing installs; drift between `lib/types.ts`, the SQLite schema (`lib/database-connection.ts`) and `supabase/schema.sql`; SQL built by string interpolation; empty or null results that aren't handled.
 - **Sync**: `syncToSupabase()` awaited inline or allowed to throw; new writes that are never marked for sync.
 - **Math**: totals across serving conversions, rounding shown to users, and dividing by zero on empty days or zero goals.
 - **Offline**: anything that breaks with no network or without the Supabase environment variables.

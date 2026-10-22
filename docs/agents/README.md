@@ -58,7 +58,7 @@ The lead's cost is mostly re-reading its own context on every turn, so keep that
 - Don't read source files, diffs or full command output yourself. The roles do that and report back. Pipe long commands through `tail` or into a log, and look at the log only on failure.
 - Pass findings to roles by quoting only what that role needs (only the blocking findings).
 - Continue a role for fixes instead of spawning a fresh one (`SendMessage` in Claude Code, Task `resume` in Cursor).
-- **Escalate instead of guessing.** If a rebase conflict, or a disagreement between a reviewer and the builder, touches sync, schema, migrations or tombstones (`lib/sync.ts`, `lib/database.ts`, `lib/tombstones.ts`, `supabase/schema.sql`, `lib/workouts/`), send it to `planner` with both sides and apply the resolution it proposes. That planner is Opus in Claude Code and Grok 4.7 in Cursor.
+- **Escalate instead of guessing.** If a rebase conflict, or a disagreement between a reviewer and the builder, touches sync, schema, migrations or tombstones (`lib/sync.ts`, `lib/database-*.ts`, `lib/tombstones.ts`, `supabase/schema.sql`, `lib/workouts/`), send it to `planner` with both sides and apply the resolution it proposes. That planner is Opus in Claude Code and Grok 4.7 in Cursor.
 - A long session is fine. Short reports and few turns are what keep each turn cheap.
 
 To build **several features in parallel**, follow [ship.md](ship.md): one approval for all the plans, a git worktree and team per feature, then each lands on `main` one at a time. The git steps are scripted in `scripts/agents/ship.sh`.

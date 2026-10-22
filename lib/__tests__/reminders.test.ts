@@ -201,7 +201,9 @@ describe('requestReminderPermission', () => {
 
 describe('restoreMealReminders', () => {
   it('reads meals only when its turn in the queue comes, so it never applies stale data', async () => {
-    const db = require('@/lib/database');
+    // '@/lib/database' re-exports through read-only getters, so spy on the defining module;
+    // reminders still imports from '@/lib/database', which reads through to these spies.
+    const db = require('@/lib/database-meals');
     const getDefs = jest.spyOn(db, 'getMealDefinitions').mockResolvedValue([def('a', '08:00')]);
     jest.spyOn(db, 'getMealNames').mockResolvedValue([name('a', 'Breakfast')]);
 

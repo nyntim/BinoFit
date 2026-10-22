@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,25 +6,33 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Modal,
   Pressable,
   TextInput,
   InputAccessoryView,
   Keyboard,
   Platform,
-  type DimensionValue,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import Svg, { Circle, Line } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MacroColors, TargetTints } from '@/constants/theme';
-import type { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
+import { Chevron } from '@/components/serving-picker/Chevron';
+import { ExpandSection } from '@/components/serving-picker/ExpandSection';
+import { FormRow, formRowStyles } from '@/components/serving-picker/FormRow';
+import { MacroDetailPanel } from '@/components/serving-picker/MacroDetailPanel';
+import { MicroExpandRow } from '@/components/serving-picker/MicroExpandRow';
+import { NutritionRing } from '@/components/serving-picker/NutritionRing';
+import { SectionHeading } from '@/components/serving-picker/SectionHeading';
+import { TargetRow } from '@/components/serving-picker/TargetRow';
+import { UnitPickerModal } from '@/components/serving-picker/UnitPickerModal';
+import { round1 } from '@/components/serving-picker/format';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
+import { useServingDayTotals } from '@/hooks/useServingDayTotals';
 import {
   getFoodById,
   addFoodLog,
@@ -32,17 +40,15 @@ import {
   getFoodLogsWithFoodByDate,
   cacheRemoteFood,
   hasAnyMicros,
-  getMealSlotConfirmationsByDate,
   ensureMealSlotStatus,
 } from '@/lib/database';
-import { NUTRIENTS, scaleNutrients, type NutrientValues } from '@/lib/nutrients';
-import { isSlotEaten, sumEatenTotals } from '@/lib/nutrition-totals';
+import { NUTRIENTS, scaleNutrients } from '@/lib/nutrients';
+import { isSlotEaten } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
 import { parseBaseGrams } from '@/lib/serving-units';
 import { validateServing, parseFoodDecimal, servingMultiplier, formatServingAmount, validBaseGrams, type ServingUnit } from '@/lib/food-validation';
 import { getUSDAFoodById } from '@/lib/foods-db';
-import { getUserGoals, getDefaultLogStatus } from '@/lib/storage';
-import type { Food, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/types';
+import type { Food, MealSlot } from '@/lib/types';
 
 // Food ids already refetched for micronutrients this app session
 const refetchedFoodIds = new Set<string>();
@@ -58,11 +64,6 @@ function formatTime(d: Date): string {
   h = h % 12 || 12;
   return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
 }
-
-const round1 = (v: number) => Math.round(v * 10) / 10;
-const formatNutrientValue = (value: number) => value.toLocaleString('en-US', { maximumSignificantDigits: 8 });
-const formatNum = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 1 });
-const percent = (fraction: number) => `${fraction * 100}%` as DimensionValue;
 
 export default function ServingPickerScreen() {
   const { food_id, meal_slot, date, log_id, initial_amount, origin } = useLocalSearchParams<{
@@ -99,16 +100,6 @@ export default function ServingPickerScreen() {
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [dailyCalories, setDailyCalories] = useState(0);
-  const [dailyProtein, setDailyProtein] = useState(0);
-  const [dailyCarbsState, setDailyCarbsState] = useState(0);
-  const [dailyFat, setDailyFat] = useState(0);
-  const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
-  const [proteinGoal, setProteinGoal] = useState<number | null>(null);
-  const [carbGoal, setCarbGoal] = useState<number | null>(null);
-  const [fatGoal, setFatGoal] = useState<number | null>(null);
-  const [confirmations, setConfirmations] = useState<MealSlotConfirmation[]>([]);
-  const [defaultStatus, setDefaultStatus] = useState<LogStatus>('eaten');
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
   const [expandNutrients, setExpandNutrients] = useState(false);
   const amountRef = useRef<TextInput>(null);
@@ -182,32 +173,18 @@ export default function ServingPickerScreen() {
     };
   }, [food_id, log_id, date, loadAttempt]);
 
-  useEffect(() => {
-    if (!date) return;
-    Promise.all([
-      getFoodLogsWithFoodByDate(date),
-      getUserGoals(),
-      getMealSlotConfirmationsByDate(date),
-      getDefaultLogStatus(),
-    ]).then(([logs, goals, slotConfirmations, status]) => {
-      setConfirmations(slotConfirmations);
-      setDefaultStatus(status);
-      const others = logs.filter((l) => l.id !== log_id);
-      const totals = sumEatenTotals(others, slotConfirmations);
-      setDailyCalories(Math.round(totals.calories));
-      setDailyProtein(Math.round(totals.protein * 10) / 10);
-      setDailyCarbsState(Math.round(totals.carbs * 10) / 10);
-      setDailyFat(Math.round(totals.fat * 10) / 10);
-      if (goals) {
-        setCalorieGoal(goals.calorie_goal);
-        setProteinGoal(goals.protein_goal);
-        setCarbGoal(goals.carb_goal);
-        setFatGoal(goals.fat_goal);
-      }
-    }).catch(() => {
-      // Totals are supplementary; the food/edit loaders expose their own retry states.
-    });
-  }, [date, log_id]);
+  const {
+    dailyCalories,
+    dailyProtein,
+    dailyCarbsState,
+    dailyFat,
+    calorieGoal,
+    proteinGoal,
+    carbGoal,
+    fatGoal,
+    confirmations,
+    defaultStatus,
+  } = useServingDayTotals(date, log_id);
 
   const parsedBaseGrams = food ? parseBaseGrams(food.serving_units) : null;
   const baseGrams = validBaseGrams(parsedBaseGrams) ? parsedBaseGrams : null;
@@ -448,11 +425,11 @@ export default function ServingPickerScreen() {
           <View style={[styles.formCard, { backgroundColor: colors.cardBackground }]}>
             <Pressable
               onPress={() => amountRef.current?.focus()}
-              style={[styles.formRow, styles.formRowDivider, { borderBottomColor: colors.separator }]}
+              style={[formRowStyles.formRow, formRowStyles.formRowDivider, { borderBottomColor: colors.separator }]}
               accessible={false}
             >
               <View style={styles.amountLabelCol}>
-                <Text style={[styles.formRowLabel, { color: colors.text }]}>Amount</Text>
+                <Text style={[formRowStyles.formRowLabel, { color: colors.text }]}>Amount</Text>
               </View>
               <TextInput
                 ref={amountRef}
@@ -655,419 +632,6 @@ export default function ServingPickerScreen() {
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function SectionHeading({ title, colors }: { title: string; colors: Pick<typeof Colors.light, 'icon'> }) {
-  return (
-    <Text style={[styles.sectionHeading, { color: colors.icon }]}>{title}</Text>
-  );
-}
-
-function Chevron({ size, color, up }: { size: number; color: string; up?: boolean }) {
-  return (
-    <View style={{ transform: [{ rotate: up ? '180deg' : '0deg' }] }}>
-      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Polyline
-          points="6 9 12 15 18 9"
-          stroke={color}
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </View>
-  );
-}
-
-type MacroDetailRow = {
-  key: string;
-  label: string;
-  value: number | null;
-  goal: number | null;
-  unit?: string;
-  indent?: number;
-};
-
-function buildMacroRows(
-  macro: 'protein' | 'carbs' | 'fat',
-  pro: number,
-  carb: number,
-  fat: number,
-  nutrients: NutrientValues,
-  proteinGoal: number | null,
-  carbGoal: number | null,
-  fatGoal: number | null,
-): MacroDetailRow[] {
-  if (macro === 'protein') {
-    return [
-      { key: 'total', label: 'Protein (Total)', value: pro, goal: proteinGoal, indent: 0 },
-      { key: 'cystine', label: 'Cystine', value: null, goal: null, indent: 1 },
-      { key: 'histidine', label: 'Histidine', value: null, goal: null, indent: 1 },
-      { key: 'isoleucine', label: 'Isoleucine', value: null, goal: null, indent: 1 },
-      { key: 'leucine', label: 'Leucine', value: null, goal: null, indent: 1 },
-      { key: 'lysine', label: 'Lysine', value: null, goal: null, indent: 1 },
-      { key: 'methionine', label: 'Methionine', value: null, goal: null, indent: 1 },
-      { key: 'phenylalanine', label: 'Phenylalanine', value: null, goal: null, indent: 1 },
-      { key: 'threonine', label: 'Threonine', value: null, goal: null, indent: 1 },
-      { key: 'tryptophan', label: 'Tryptophan', value: null, goal: null, indent: 1 },
-      { key: 'tyrosine', label: 'Tyrosine', value: null, goal: null, indent: 1 },
-      { key: 'valine', label: 'Valine', value: null, goal: null, indent: 1 },
-    ];
-  }
-  const rows: MacroDetailRow[] = [
-    { key: 'total', label: macro === 'carbs' ? 'Carbs (Total)' : 'Fats (Total)', value: macro === 'carbs' ? carb : fat, goal: macro === 'carbs' ? carbGoal : fatGoal, unit: 'g' },
-    ...NUTRIENTS.filter((nutrient) => 'macroParent' in nutrient && nutrient.macroParent === macro).map(({ id, label, unit }) => ({ key: id, label, value: nutrients[id], goal: null, unit: unit === 'ug' ? 'µg' : unit, indent: 1 })),
-  ];
-  if (macro === 'carbs' && nutrients.fiber !== null) rows.push({ key: 'net', label: 'Carbs (Net)', value: round1(carb - nutrients.fiber), goal: null, unit: 'g' });
-  return rows;
-}
-
-function MacroDetailPanel({
-  macro, pro, carb, fat, nutrients,
-  proteinGoal, carbGoal, fatGoal, onClose, colors,
-}: {
-  macro: 'protein' | 'carbs' | 'fat';
-  pro: number;
-  carb: number;
-  fat: number;
-  nutrients: NutrientValues;
-  proteinGoal: number | null;
-  carbGoal: number | null;
-  fatGoal: number | null;
-  onClose: () => void;
-  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'track'>;
-}) {
-  const rows = buildMacroRows(macro, pro, carb, fat, nutrients, proteinGoal, carbGoal, fatGoal);
-  // Rows with no data are hidden; a single note says so
-  const visibleRows = rows.filter((r) => r.value != null);
-  const hiddenCount = rows.length - visibleRows.length;
-  const color = macro === 'protein' ? MacroColors.protein : macro === 'carbs' ? MacroColors.carbs : MacroColors.fat;
-  const title = macro === 'protein' ? 'Protein' : macro === 'carbs' ? 'Carbs' : 'Fats';
-  const hiddenNote = macro === 'protein'
-    ? 'No amino acid data for this food'
-    : 'Details with no data for this food are hidden';
-
-  return (
-    <View style={[styles.macroDetailCard, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
-      <View style={styles.macroDetailHeader}>
-        <Text style={[styles.macroDetailTitle, { color: colors.text }]}>{title}</Text>
-        <TouchableOpacity
-          onPress={onClose}
-          hitSlop={14}
-          accessibilityRole="button"
-          accessibilityLabel={`Close ${title.toLowerCase()} details`}
-        >
-          <Text style={{ color: colors.icon, fontSize: 16 }}>✕</Text>
-        </TouchableOpacity>
-      </View>
-      {visibleRows.map((row) => (
-        <DetailRow key={row.key} row={row} color={color} colors={colors} />
-      ))}
-      {hiddenCount > 0 ? (
-        <Text style={[styles.macroDetailNote, { color: colors.icon }]}>{hiddenNote}</Text>
-      ) : null}
-    </View>
-  );
-}
-
-function DetailRow({
-  row, color, colors,
-}: {
-  row: MacroDetailRow;
-  color: string;
-  colors: Pick<typeof Colors.light, 'icon' | 'text' | 'track'>;
-}) {
-  const hasValue = row.value != null;
-  const indent = row.indent ?? 0;
-  const pct = hasValue && row.goal
-    ? Math.min((row.value as number) / Math.max(row.goal, 1), 1)
-    : 0;
-  const valueText = !hasValue
-    ? 'No Data'
-    : row.goal
-    ? `${formatNutrientValue(row.value!)} / ${row.goal} ${row.unit ?? 'g'}`
-    : `${formatNutrientValue(row.value!)} ${row.unit ?? 'g'}`;
-  const pctText = hasValue && row.goal ? `${Math.round(pct * 100)}%` : '0%';
-
-  return (
-    <View style={[styles.detailRow, { paddingLeft: 16 + indent * 16 }]}>
-      <View style={styles.detailRowTop}>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <Text style={[styles.detailRowLabel, { color: colors.text, fontWeight: indent === 0 ? '700' : '600' }]}>
-            {row.label}
-          </Text>
-          <Text style={[styles.detailRowValueInline, { color: colors.icon }]}>
-            {'  '}{valueText}
-          </Text>
-        </View>
-        <Text style={[styles.detailRowPct, { color: colors.icon }]}>{pctText}</Text>
-      </View>
-      {hasValue && row.goal ? (
-        <View style={[styles.progressBar, { backgroundColor: colors.track }]}>
-          <View style={[styles.progressFill, { width: percent(pct), backgroundColor: color }]} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function FormRow({
-  label, value, onPress, accessibilityLabel, divider, chevron, colors,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-  accessibilityLabel: string;
-  divider?: boolean;
-  chevron?: boolean;
-  colors: Pick<typeof Colors.light, 'icon' | 'separator' | 'text' | 'tint'>;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={[styles.formRow, divider && [styles.formRowDivider, { borderBottomColor: colors.separator }]]}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Text style={[styles.formRowLabel, { color: colors.text }]}>{label}</Text>
-      <View style={styles.formRowValue}>
-        <Text style={[styles.formRowValueText, { color: colors.tint }]}>{value}</Text>
-        {chevron && <Text style={{ fontSize: 13, color: colors.icon }}>▾</Text>}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function NutritionRing({
-  cal, protein, carbs, fat, colors,
-}: {
-  cal: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  colors: Pick<typeof Colors.light, 'icon' | 'separator' | 'text'>;
-}) {
-  const size = 80;
-  const sw = 8;
-  const r = (size - sw) / 2;
-  const circ = 2 * Math.PI * r;
-
-  const protCal = protein * 4;
-  const carbCal = carbs * 4;
-  const fatCal = fat * 9;
-  const total = Math.max(protCal + carbCal + fatCal, 1);
-
-  const protFrac = protCal / total;
-  const carbFrac = carbCal / total;
-  const fatFrac = fatCal / total;
-
-  const carbOff = protFrac * circ;
-  const fatOff = (protFrac + carbFrac) * circ;
-
-  const cx = size / 2;
-  const cy = size / 2;
-
-  const seg = (frac: number, offset: number, color: string) =>
-    frac > 0 ? (
-      <Circle
-        cx={cx} cy={cy} r={r}
-        stroke={color} strokeWidth={sw} fill="none"
-        strokeDasharray={[frac * circ, circ - frac * circ]}
-        strokeDashoffset={-offset}
-        strokeLinecap="round"
-        rotation="-90"
-        origin={`${cx}, ${cy}`}
-      />
-    ) : null;
-
-  return (
-    <View
-      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
-      accessible
-      accessibilityLabel={`${cal} calories`}
-    >
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={cx} cy={cy} r={r} stroke={colors.separator} strokeWidth={sw} fill="none" />
-        {seg(fatFrac, fatOff, MacroColors.fat)}
-        {seg(carbFrac, carbOff, MacroColors.carbs)}
-        {seg(protFrac, 0, MacroColors.protein)}
-      </Svg>
-      <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] }}>
-        {cal}
-      </Text>
-      <Text style={{ fontSize: 10, color: colors.icon }}>cal</Text>
-    </View>
-  );
-}
-
-function ExpandSection({
-  title, expanded, onToggle, colors, children,
-}: {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text'>;
-  children: ReactNode;
-}) {
-  return (
-    <View style={[styles.expandCard, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity
-        style={styles.expandHeader}
-        onPress={onToggle}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        accessibilityLabel={title}
-      >
-        <Text style={[styles.expandTitle, { color: colors.text }]}>{title}</Text>
-        <Chevron size={14} color={colors.icon} up={expanded} />
-      </TouchableOpacity>
-      {expanded && (
-        <View style={[styles.expandBody, { borderTopColor: colors.separator }]}>
-          {children}
-        </View>
-      )}
-    </View>
-  );
-}
-
-// Already eaten in the macro color, then this food as a pale segment
-function TargetRow({
-  label, eaten, add, goal, unit, color, tint, colors,
-}: {
-  label: string;
-  eaten: number;
-  add: number;
-  goal: number;
-  unit: string;
-  color: string;
-  tint: string;
-  colors: Pick<typeof Colors.light, 'text' | 'track'>;
-}) {
-  const g = Math.max(goal, 1);
-  const eatenFrac = Math.min(eaten / g, 1);
-  const addFrac = Math.max(Math.min((eaten + add) / g, 1) - eatenFrac, 0);
-  const spokenUnit = unit === 'cal' ? 'calories' : 'grams';
-  return (
-    <View
-      style={styles.targetBlock}
-      accessible
-      accessibilityLabel={`${label}, ${formatNum(eaten + add)} of ${formatNum(goal)} ${spokenUnit}`}
-    >
-      <View style={styles.targetTop}>
-        <Text style={[styles.targetLabel, { color: colors.text }]}>{label}</Text>
-        <View style={styles.targetNums}>
-          <Text style={[styles.targetNum, styles.targetEaten, { color: colors.text }]}>{formatNum(eaten + add)}</Text>
-          <Text style={[styles.targetNum, { color: colors.text }]}>/</Text>
-          <Text style={[styles.targetNum, styles.targetGoal, { color: colors.text }]}>{formatNum(goal)}</Text>
-          <Text style={[styles.targetNum, styles.targetUnit, { color: colors.text }]}>{unit}</Text>
-        </View>
-      </View>
-      <View style={[styles.targetTrack, { backgroundColor: colors.track }]}>
-        <View style={{ width: percent(eatenFrac), backgroundColor: color }} />
-        <View style={{ width: percent(addFrac), backgroundColor: tint }} />
-      </View>
-    </View>
-  );
-}
-
-function MicroExpandRow({
-  label, value, unit, colors,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-  colors: Pick<typeof Colors.light, 'icon' | 'text'>;
-}) {
-  const hasValue = value != null;
-  return (
-    <View
-      style={styles.microExpandRow}
-      accessible
-      accessibilityLabel={hasValue ? `${label}, ${value} ${unit}` : `${label}, no data`}
-    >
-      <Text style={{ fontSize: 14, color: colors.icon, flexShrink: 1 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: hasValue ? '600' : '400', color: hasValue ? colors.text : colors.icon, fontVariant: ['tabular-nums'] }}>
-        {hasValue ? `${formatNutrientValue(value!)} ${unit}` : 'No Data'}
-      </Text>
-    </View>
-  );
-}
-
-function UnitPickerModal({
-  visible, servingUnit, baseGrams, foodServingUnits,
-  onSelectUnit, onClose, colors,
-}: {
-  visible: boolean;
-  servingUnit: ServingUnit;
-  baseGrams: number | null;
-  foodServingUnits: string;
-  onSelectUnit: (unit: ServingUnit) => void;
-  onClose: () => void;
-  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'tint'>;
-}) {
-  const { bottom } = useSafeAreaInsets();
-
-  type UnitOption = { unit: ServingUnit; label: string; sublabel: string };
-  const unitOptions: UnitOption[] = [
-    { unit: 'default', label: foodServingUnits, sublabel: 'Default serving' },
-    ...(baseGrams
-      ? [
-          { unit: 'grams' as ServingUnit, label: 'Grams', sublabel: 'Weight in g' },
-          { unit: 'oz' as ServingUnit, label: 'Ounces', sublabel: 'Weight in oz' },
-        ]
-      : []),
-  ];
-
-  const overlay = useThemeColor({}, 'overlay');
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close serving size" />
-        <View style={[styles.pickerSheet, { backgroundColor: colors.cardBackground, paddingBottom: 24 + bottom }]}>
-          <Text style={[styles.pickerTitle, { color: colors.text }]}>Serving Size</Text>
-
-          {unitOptions.map(({ unit, label, sublabel }, i) => {
-            const isActive = servingUnit === unit;
-            const isLast = i === unitOptions.length - 1;
-            return (
-              <TouchableOpacity
-                key={unit}
-                style={[
-                  styles.unitOption,
-                  { borderBottomColor: colors.separator },
-                  isLast && styles.unitOptionLast,
-                ]}
-                onPress={() => onSelectUnit(unit)}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-              >
-                <View style={styles.unitOptionText}>
-                  <Text style={[styles.unitOptionLabel, { color: colors.text }]}>{label}</Text>
-                  <Text style={[styles.unitOptionSub, { color: colors.icon }]}>{sublabel}</Text>
-                </View>
-                {isActive && (
-                  <Text style={[styles.unitOptionCheck, { color: colors.tint }]}>✓</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-
-          {baseGrams ? (
-            <Text style={[styles.unitNote, { color: colors.icon }]}>
-              Per 100 g values show under Nutrition, so they never change what you log.
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -1146,44 +710,6 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16, paddingBottom: 32, gap: 8 },
 
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginTop: 8,
-    marginBottom: 2,
-    marginLeft: 4,
-  },
-
-  macroDetailCard: {
-    marginTop: -8,
-    borderRadius: 18,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  macroDetailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  macroDetailTitle: { fontSize: 14, fontWeight: '700' },
-  macroDetailNote: { fontSize: 12, paddingHorizontal: 16, marginTop: 8 },
-  detailRow: { gap: 4, paddingRight: 16, paddingVertical: 6 },
-  detailRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  detailRowLabel: { fontSize: 13 },
-  detailRowValueInline: { fontSize: 12, fontVariant: ['tabular-nums'] },
-  detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 36, textAlign: 'right' },
-
   editFood: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   foodCard: { borderRadius: 18, padding: 16 },
   foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
@@ -1191,16 +717,6 @@ const styles = StyleSheet.create({
 
   // Form card
   formCard: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
-  formRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  formRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth },
-  formRowLabel: { fontSize: 15, fontWeight: '500' },
-  formRowValue: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  formRowValueText: { fontSize: 17, fontWeight: '600', textAlign: 'right' },
   amountLabelCol: { gap: 2 },
   amountHint: { fontSize: 12 },
   amountInput: {
@@ -1252,68 +768,4 @@ const styles = StyleSheet.create({
 
   // Targets
   targetsCard: { borderRadius: 18, padding: 16, gap: 12 },
-  targetBlock: { gap: 6 },
-  targetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  targetLabel: { fontSize: 12, fontWeight: '600' },
-  targetNums: { flexDirection: 'row', gap: 4 },
-  targetNum: { fontSize: 12, fontVariant: ['tabular-nums'] },
-  targetEaten: { minWidth: 36, textAlign: 'right' },
-  targetGoal: { minWidth: 32, textAlign: 'right' },
-  targetUnit: { minWidth: 22 },
-  targetTrack: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden' },
-
-  // Expand sections
-  expandCard: { borderRadius: 18, overflow: 'hidden' },
-  expandHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  expandTitle: { fontSize: 15, fontWeight: '700' },
-  expandBody: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    gap: 12,
-  },
-
-  // Detail progress bars
-  progressBar: { height: 4, borderRadius: 2 },
-  progressFill: { height: 4, borderRadius: 2 },
-
-  // Micro expand rows
-  microExpandRow: {
-    gap: 12,
-    flexWrap: 'wrap',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  // Modals
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  pickerTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 12 },
-
-  // Unit picker
-  unitOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  unitOptionLast: { borderBottomWidth: 0 },
-  unitOptionText: { flexShrink: 1 },
-  unitOptionLabel: { fontSize: 16, fontWeight: '500' },
-  unitOptionSub: { fontSize: 12, marginTop: 1 },
-  unitOptionCheck: { fontSize: 18, fontWeight: '600' },
-  unitNote: { fontSize: 12, lineHeight: 17, marginTop: 14 },
 });
