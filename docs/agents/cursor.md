@@ -1,6 +1,6 @@
 # Cursor
 
-Role files in this folder, and [ship.md](ship.md), stay the source of truth for steps, stops, and conflict rules. This file is how a Cursor lead runs them. Claude Code uses the global `agent-team` agents and the project skills in `.claude/skills/`.
+Role files in this folder, and [ship.md](ship.md), stay the source of truth for steps, stops, and conflict rules. This file is how a Cursor lead runs them. The roles and skills come from the global `agent-team` install (`~/.cursor/agents`, `~/.cursor/skills`), the same in every tool; BinoFit's lead rules are in [project.md](project.md).
 
 ## Models
 
@@ -12,7 +12,7 @@ Start the lead chat on **Composer**. This file cannot switch the chat model.
 | Planner, including the hard conflicts [ship.md](ship.md) sends to the planner | Grok 4.7 | `grok-4.7-high-fast` |
 | Builder, reviewer, QA reviewer, design reviewer, test engineer | Composer | `composer-2.5-fast` |
 
-Those slugs are pinned in `.cursor/agents/`, which overrides the global `agent-team` agents of the same name. Still pass `model` on every **new** Task call, because an omitted model inherits the parent chat. Omit `model` when `resume` is set; the earlier model stays.
+`agent-team` pins those slugs in the global Cursor agents (from `~/.agent-team/config.json`). Still pass `model` on every **new** Task call, because an omitted model inherits the parent chat. Omit `model` when `resume` is set; the earlier model stays.
 
 ## Launching a role
 
@@ -41,10 +41,10 @@ Follow the conflict table in [ship.md](ship.md). The lead resolves every row its
 
 | Ask | Skill |
 |---|---|
-| One feature | `.cursor/skills/build-feature` |
-| Several features at once | `.cursor/skills/ship` |
-| Design audit | `.cursor/skills/design-audit` |
-| Bug sweep | `.cursor/skills/bug-sweep` |
-| Test backfill | `.cursor/skills/test-backfill` |
+| One feature | `build-feature` |
+| Several features at once | `ship` (follows [ship.md](ship.md)) |
+| Design audit | `design-audit` |
+| Bug sweep | `bug-sweep` |
+| Test backfill | `test-backfill` |
 
-In Cursor, ignore `.claude/skills` (`build-feature` and `ship` have a Claude Code copy there).
+Default audit scopes are in [project.md](project.md).

@@ -1,13 +1,14 @@
 # Role: Builder
 
-You implement an approved plan in BinoFit. The lead gives you the path to the plan file (under `.plans/` in the main checkout); read it there, even if your workspace is a worktree. Read `CLAUDE.md` first, and `DESIGN.md` before any UI work. Follow the plan; if it turns out to be wrong or incomplete, stop and report instead of improvising a different design.
+You implement an approved plan in BinoFit. The lead gives you the path to the plan file (under `.plans/` in the main checkout); read it there, even if your workspace is a worktree. Read `CLAUDE.md` first, then the `docs/architecture/` doc for each area you touch (its Where to look table lists them), and `DESIGN.md` before any UI work. Follow the plan; if it turns out to be wrong or incomplete, stop and report instead of improvising a different design.
 
 ## Data layer (`lib/`, `services/`, `supabase/`)
 - **Keep the three storage layers distinct.** SQLite (`lib/database.ts`) holds foods and logs, AsyncStorage (`lib/storage.ts`) holds goals, profile and preferences, and Supabase is used only for cloud sync. The app must work fully offline.
 - **Migrations must be safe for existing installs.** Never drop or recreate tables that hold user data. Add columns with defaults and guard them with existence checks.
 - **Keep the schemas in step.** A change to a synced table updates `lib/types.ts`, `lib/database.ts` and `supabase/schema.sql` together. New synced rows need `updated_at` and `synced_at` handling.
 - **Sync is fire-and-forget.** Call `syncToSupabase()` after writes without awaiting it; `lib/sync.ts` never throws.
-- `user_id` is the device UUID from `lib/device-id.ts`. There is no auth.
+- `user_id` is the Supabase session user (`getSessionUserId()` in `lib/auth.ts`). `lib/device-id.ts` is legacy and read only for the one-time claim.
+- **Keep the docs in step.** When your change alters behavior described in a `docs/architecture/` doc, update that doc. Add to `CLAUDE.md` only a rule that applies across areas.
 - Use parameterized SQL only. Never interpolate values into query strings.
 
 ## UI layer (`app/`, `components/`, `hooks/`)
