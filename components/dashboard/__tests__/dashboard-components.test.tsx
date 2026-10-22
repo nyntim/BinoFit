@@ -407,3 +407,12 @@ describe('EditModeBar', () => {
     expect(screen.queryByText('Fix errors to save')).toBeNull();
   });
 });
+
+
+test('serving captions round without changing calorie math or the log', async () => {
+  const log = makeLog({ serving_amount: 1.234567, food_calories: 1000 });
+  await render(<FoodLogRow log={log} colors={colors} />);
+  expect(screen.getByText('1.23 × cup')).toBeTruthy();
+  expect(screen.getByText('1235')).toBeTruthy();
+  expect(log.serving_amount).toBe(1.234567);
+});

@@ -1,5 +1,5 @@
 // Pure rules for when a set has data and what saving a logged-afterward workout does.
-import type { ExerciseLogType, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
+import type { EffortMetric, ExerciseLogType, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
 import type { SetValues, WorkoutPatch } from '@/lib/workouts/db';
 
 type FillSet = Pick<WorkoutSet, 'weight_kg' | 'reps' | 'duration_seconds' | 'distance_m'>;
@@ -22,7 +22,18 @@ export function isSetFilled(set: FillSet, logType: ExerciseLogType): boolean {
   }
 }
 
+export type EffortPatch = Partial<Pick<WorkoutSet, 'rpe' | 'rir'>>;
+
+/** Defaults belong only to an explicit completion of a set that supports effort. */
+export function completionEffortPatch(set: EffortPatch, logType: ExerciseLogType, metric: EffortMetric | null): EffortPatch {
+  if (logType === 'duration' || logType === 'distance_duration') return {};
+  if (metric === 'rpe' && set.rpe == null) return { rpe: 10 };
+  if (metric === 'rir' && set.rir == null) return { rir: 0 };
+  return {};
+}
+
 export type SavePlan = {
+  effortPatches?: Record<string, EffortPatch>;
   /** Empty sets of exercises that stay. */
   deleteSetIds: string[];
   /** Sets with data that are not ticked yet. */
@@ -49,10 +60,11 @@ export function endFromDuration(startedAt: string | null, durationSeconds: numbe
  * What Save does to a logged-afterward draft: drop empty sets and exercises left with none, tick
  * the sets with data and mark the workout done (ended at start + duration when both are known).
  */
-export function planSave(w: WorkoutWithExercises, now: Date): SavePlan {
+export function planSave(w: WorkoutWithExercises, now: Date, metric: EffortMetric | null = null): SavePlan {
   const deleteSetIds: string[] = [];
   const tickSetIds: string[] = [];
   const removeExerciseIds: string[] = [];
+  const effortPatches: Record<string, EffortPatch> = {};
   let hasData = false;
   // Nothing may be dated after now: the start is clamped, and so are the end and the ticks.
   const startMs = w.started_at ? new Date(w.started_at).getTime() : NaN;
@@ -71,14 +83,18 @@ export function planSave(w: WorkoutWithExercises, now: Date): SavePlan {
     hasData = true;
     for (const s of ex.sets) {
       if (!isSetFilled(s, logType)) deleteSetIds.push(s.id);
-      else if (!s.completed_at) tickSetIds.push(s.id);
+      else if (!s.completed_at) {
+        tickSetIds.push(s.id);
+        const effort = completionEffortPatch(s, logType, metric);
+        if (Object.keys(effort).length) effortPatches[s.id] = effort;
+      }
     }
   }
 
   const patch: WorkoutPatch = { status: 'done' };
   if (endedAt) patch.ended_at = endedAt;
   if (startedAt !== w.started_at && startedAt) patch.started_at = startedAt;
-  return { deleteSetIds, tickSetIds, removeExerciseIds, patch, hasData, tickedAt };
+  return { deleteSetIds, tickSetIds, removeExerciseIds, patch, hasData, tickedAt, effortPatches };
 }
 
 /**
@@ -86,12 +102,13 @@ export function planSave(w: WorkoutWithExercises, now: Date): SavePlan {
  * values first (the same fields as the prefill); a set that already has data keeps its values.
  */
 export function tickPatch(
-  set: FillSet,
+  set: FillSet & EffortPatch,
   logType: ExerciseLogType,
   previous: (FillSet & { set_type?: WorkoutSet['set_type'] }) | null,
-  nowIso: string
+  nowIso: string,
+  metric: EffortMetric | null = null
 ): SetValues {
-  const patch: SetValues = { completed_at: nowIso };
+  const patch: SetValues = { completed_at: nowIso, ...completionEffortPatch(set, logType, metric) };
   if (!isSetFilled(set, logType) && previous) {
     // Only fields still empty: typed values are never overwritten.
     if (set.weight_kg == null) patch.weight_kg = previous.weight_kg;

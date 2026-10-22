@@ -55,3 +55,11 @@ describe('serving bounds and conversions', () => {
     expect(formatServingAmount(1e21)).toBe('1000000000000000000000');
   });
 });
+
+
+describe('display-only serving precision', () => {
+  test.each([[1, '1'], [1.5, '1.5'], [1.23, '1.23'], [1.2300, '1.23'], [1.234567, '1.23'], [1.999, '2'], [0.0001, '0'], [-0.0001, '0'], [0.1 + 0.2, '0.3'], [100, '100']])('%s displays as %s', (amount, expected) => {
+    const { formatServingAmountDisplay } = require('@/lib/food-validation');
+    expect(formatServingAmountDisplay(amount)).toBe(expected);
+  });
+});

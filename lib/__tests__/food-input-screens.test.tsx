@@ -259,3 +259,14 @@ test('returning from a custom edit refreshes nutrients while keeping amount and 
   expect(updateFoodLog).toHaveBeenCalledWith('old', 2.5, '100g', expect.any(String));
   cleanupFocus?.();
 });
+
+
+test('edit shows Log with Save changes accessibility and preserves full serving precision', async () => {
+  mockParams.log_id = 'log';
+  (getFoodLogsWithFoodByDate as jest.Mock).mockResolvedValue([{ id: 'log', food_id: 'food', serving_amount: 1.23456789 }]);
+  await render(<ServingPickerScreen />);
+  expect(await screen.findByDisplayValue('1.23456789')).toBeTruthy();
+  expect(screen.getByText('Log')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Save changes'));
+  await waitFor(() => expect(updateFoodLog).toHaveBeenCalledWith('log', 1.23456789, '100g', expect.any(String)));
+});

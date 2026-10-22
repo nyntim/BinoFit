@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadPreferences, resetPreferences, reloadPreferences } from '@/lib/app-preferences';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import HomeScreen from '@/app/(tabs)/index';
-import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate, getWaterLogsByDate } from '@/lib/database';
+import { getFoodLogsWithFoodByDate, getMealSlotConfirmationsByDate, getWaterLogsByDate, upsertMealSlotConfirmation } from '@/lib/database';
 import { NO_TARGETS } from '@/lib/meals';
 import type { FoodLogWithFood, MealDefinition, MealNameEntry } from '@/lib/types';
 import type { useMealLogs } from '@/hooks/useMealLogs';
@@ -46,7 +48,7 @@ jest.mock('@/hooks/useMealLogs', () => ({ useMealLogs: (date: string) => {
 } }));
 jest.mock('@/hooks/useMealDraft', () => ({ useMealDraft: () => ({ start: mockStart, cancel: mockCancel, dirty: false, draft: null }) }));
 jest.mock('@/lib/database', () => ({ getFoodLogsWithFoodByDate: jest.fn(), getMealSlotConfirmationsByDate: jest.fn(), getWaterLogsByDate: jest.fn(), upsertMealSlotConfirmation: jest.fn() }));
-jest.mock('@/lib/storage', () => ({ getUserGoals: jest.fn(async () => null), getQuickAddDrinks: jest.fn(async () => []) }));
+jest.mock('@/lib/storage', () => ({ ...jest.requireActual('@/lib/storage'), getUserGoals: jest.fn(async () => null), getQuickAddDrinks: jest.fn(async () => []) }));
 jest.mock('@/lib/reminders', () => ({ restoreMealReminders: jest.fn() }));
 jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
 jest.mock('@/components/CalendarWidget', () => ({ CalendarWidget: () => null }));
@@ -74,7 +76,11 @@ const open = async (name = 'Lunch') => {
   expect(screen.getByLabelText('Close nutrition summary')).toBeTruthy();
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  resetPreferences();
+  await loadPreferences();
+  jest.clearAllMocks();
   mockDate = '2026-01-01'; mockFocused = true;
   mockDefs = [{ ...NO_TARGETS, id: 'lunch', position: 0, reminder_time: null, created_at: '', updated_at: '' }];
   mockNames = [{ meal_id: 'lunch', name: 'Lunch', effective_from: '2025-01-01', updated_at: '' }, { meal_id: 'lunch', name: 'Dinner', effective_from: '2026-02-01', updated_at: '' }];
@@ -218,4 +224,45 @@ test('closing restores focus to the existing accessible meal header', async () =
     handle.mockRestore();
     focus.mockRestore();
   }
+});
+
+
+test('dashboard default hydrates and persists rapid selections without altering existing meals', async () => {
+  await AsyncStorage.setItem('default_log_status', 'planned');
+  await reloadPreferences();
+  await render(<HomeScreen />);
+  await screen.findByText('Food A');
+  const group = screen.getByLabelText('Default for new food');
+  expect(group).toBeTruthy();
+  expect(screen.getByRole('radio', { name: 'Planned', selected: true })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Eaten' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Planned' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Eaten' }));
+  await waitFor(async () => expect(await AsyncStorage.getItem('default_log_status')).toBe('eaten'));
+  await act(async () => { await reloadPreferences(); });
+  expect(screen.getByRole('radio', { name: 'Eaten', selected: true })).toBeTruthy();
+  expect(upsertMealSlotConfirmation).not.toHaveBeenCalled();
+  expect(screen.getByText('Food A')).toBeTruthy();
+});
+test('dashboard reports failed default writes, rolls back, and clears the error on retry', async () => {
+  await render(<HomeScreen />);
+  await screen.findByText('Food A');
+  const failure = jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Planned' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save the food default. Try again.');
+  expect(screen.getByRole('radio', { name: 'Eaten', selected: true })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Planned' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  expect(screen.getByRole('radio', { name: 'Planned', selected: true })).toBeTruthy();
+  failure.mockRestore();
+});
+test('dashboard hides the default until preferences load and while editing meals', async () => {
+  resetPreferences();
+  await render(<HomeScreen />);
+  await screen.findByText('Food A');
+  expect(screen.queryByLabelText('Default for new food')).toBeNull();
+  await act(async () => { await loadPreferences(); });
+  expect(screen.getByLabelText('Default for new food')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Edit meals'));
+  expect(screen.queryByLabelText('Default for new food')).toBeNull();
 });

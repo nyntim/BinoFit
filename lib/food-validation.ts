@@ -66,6 +66,12 @@ export function formatServingAmount(value: number): string {
   return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
+/** Caption precision only. Inputs and calculations retain the original amount. */
+export function formatServingAmountDisplay(value: number): string {
+  const rounded = value.toFixed(2).replace(/\.?0+$/, '');
+  return rounded === '-0' ? '0' : rounded;
+}
+
 /**
  * Re-expresses an amount when the unit changes (the serving picker's unit switch).
  * Returns null when nothing should change: the input is invalid, the food has no usable

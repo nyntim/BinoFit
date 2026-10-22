@@ -9,6 +9,7 @@ let state = INITIAL;
 let persisted = { ...INITIAL };
 let loading: Promise<void> | null = null;
 let tail: Promise<void> = Promise.resolve();
+let effortTail: Promise<void> = Promise.resolve();
 let revision = 0;
 const fieldRevision: Partial<Record<keyof AppPreferences, number>> = {};
 const listeners = new Set<() => void>();
@@ -52,9 +53,22 @@ export function setAppearance(value: AppearancePreference) { return write('appea
 export function setDefaultLogStatus(value: LogStatus) { return write('defaultLogStatus', value, () => storage.setDefaultLogStatus(value)); }
 export function setShowEffort(value: boolean) { return write('showEffort', value, () => storage.setShowEffort(value)); }
 export function setEffortMetric(value: EffortMetric) { return write('effortMetric', value, () => storage.setEffortMetric(value)); }
+export type EffortMode = EffortMetric | 'none';
+/** Serialize whole selections so the legacy scale and enablement writes stay together. */
+export function setEffortMode(value: EffortMode): Promise<void> {
+  const next = effortTail.catch(() => undefined).then(async () => {
+    if (value === 'none') await setShowEffort(false);
+    else {
+      await setEffortMetric(value);
+      await setShowEffort(true);
+    }
+  });
+  effortTail = next;
+  return next;
+}
 export function setRestTimerEnabled(value: boolean) { return write('restTimerEnabled', value, () => storage.setRestTimerEnabled(value)); }
 export function setDefaultSetCount(value: number): Promise<void> {
   if (!Number.isInteger(value) || value < MIN_DEFAULT_SET_COUNT || value > MAX_DEFAULT_SET_COUNT) return Promise.resolve();
   return write('defaultSetCount', value, () => storage.setDefaultSetCount(value));
 }
-export function resetPreferences() { revision++; Object.keys(fieldRevision).forEach(key => delete fieldRevision[key as keyof AppPreferences]); loading = null; tail = Promise.resolve(); state = INITIAL; persisted = { ...INITIAL }; listeners.forEach(l => l()); }
+export function resetPreferences() { revision++; Object.keys(fieldRevision).forEach(key => delete fieldRevision[key as keyof AppPreferences]); loading = null; tail = Promise.resolve(); effortTail = Promise.resolve(); state = INITIAL; persisted = { ...INITIAL }; listeners.forEach(l => l()); }

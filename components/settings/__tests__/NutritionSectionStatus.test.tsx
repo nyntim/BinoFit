@@ -24,11 +24,15 @@ beforeEach(() => {
   mockDefault.mockResolvedValue(undefined);
 });
 
-test('default status is stored immediately and failures are visible', async () => {
-  mockDefault.mockRejectedValueOnce(new Error('disk'));
+test('goals load independently of food status and the moved control is absent', async () => {
+  mockStatus.mockRejectedValueOnce(new Error('disk'));
   await render(<NutritionSection onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
-  await fireEvent.press(screen.getByText('Planned'));
-  await waitFor(() => expect(screen.getByText('Couldn’t save the food default. Try again.')).toBeTruthy());
-  expect(mockDefault).toHaveBeenCalledWith('planned');
+  expect(mockStatus).not.toHaveBeenCalled();
+  expect(screen.queryByText('Default for new food')).toBeNull();
+  expect(screen.queryByRole('radio')).toBeNull();
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2100');
+  await fireEvent.press(screen.getByText('Save'));
+  await waitFor(() => expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ calorie_goal: 2100 })));
+  expect(mockDefault).not.toHaveBeenCalled();
 });

@@ -1,4 +1,5 @@
 import { addDays, format, subHours } from 'date-fns';
+import { getPreferences } from '@/lib/app-preferences';
 import { getDatabase } from '@/lib/database';
 import { tombstoneSql } from '@/lib/tombstones';
 import type { Workout } from '@/lib/types';
@@ -75,9 +76,18 @@ export async function applyCompletionPlan(workoutId: string, plan: SavePlan): Pr
       }
     }
     for (const id of plan.tickSetIds) {
+      const assignments = ['completed_at = ?', 'updated_at = ?', 'synced_at = NULL'];
+      const values: (string | number | null)[] = [plan.tickedAt, now];
+      for (const column of ['rpe', 'rir'] as const) {
+        const value = plan.effortPatches?.[id]?.[column];
+        if (value !== undefined) {
+          assignments.push(`${column} = ?`);
+          values.push(value);
+        }
+      }
       await txn.runAsync(
-        'UPDATE workout_sets SET completed_at = ?, updated_at = ?, synced_at = NULL WHERE id = ? AND deleted_at IS NULL',
-        [plan.tickedAt, now, id]
+        `UPDATE workout_sets SET ${assignments.join(', ')} WHERE id = ? AND deleted_at IS NULL`,
+        [...values, id]
       );
     }
     // The workout patch is part of the same transaction: no half-finished state on a crash.
@@ -104,7 +114,8 @@ const PATCH_COLUMNS = ['status', 'source', 'name', 'date', 'started_at', 'ended_
 export async function saveDraft(id: string, now: Date): Promise<'saved' | 'empty'> {
   const w = await getWorkoutWithExercises(id);
   if (!w) return 'empty';
-  const plan = planSave(w, now);
+  const preferences = getPreferences();
+  const plan = planSave(w, now, preferences.showEffort ? preferences.effortMetric : null);
   if (!plan.hasData) return 'empty';
   await applyCompletionPlan(id, plan);
   return 'saved';

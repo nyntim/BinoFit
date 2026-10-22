@@ -3,8 +3,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SettingsScreen from '@/app/(tabs)/settings';
 import PreferencesScreen from '@/app/settings/preferences';
+import TrainingSettings from '@/app/settings/training';
 import { TrainingSection } from '@/components/settings/TrainingSection';
-import { getPreferences, loadPreferences, resetPreferences, setWeightUnit } from '@/lib/app-preferences';
+import { getPreferences, loadPreferences, reloadPreferences, resetPreferences, setWeightUnit } from '@/lib/app-preferences';
 import { getLastSyncAt, saveUserProfile } from '@/lib/storage';
 import { router } from 'expo-router';
 import { getMealDefinitions } from '@/lib/database';
@@ -117,4 +118,32 @@ test('appearance radios have one native touch responder and directly persist sel
     expect(screen.getByRole('radio', { name: label, selected: true })).toBeTruthy();
     await waitFor(async () => expect(await AsyncStorage.getItem('appearance')).toBe(label.toLowerCase()));
   }
+});
+
+
+test.each([['false', 'rir', 'None'], ['true', 'rir', 'RIR'], ['true', 'rpe', 'RPE']])('Training hydrates legacy %s/%s as %s', async (enabled, metric, label) => {
+  await AsyncStorage.setItem('show_rpe', enabled);
+  await AsyncStorage.setItem('effort_metric', metric);
+  await act(async () => { await reloadPreferences(); });
+  await render(<TrainingSection />);
+  expect(screen.getByRole('radio', { name: label, selected: true })).toBeTruthy();
+  expect(screen.getAllByRole('radio').map(radio => radio.props.accessibilityState.selected)).toEqual(['None', 'RIR', 'RPE'].map(option => option === label));
+  await fireEvent.press(screen.getByRole('radio', { name: 'None' }));
+  await waitFor(async () => expect(await AsyncStorage.getItem('show_rpe')).toBe('false'));
+  expect(await AsyncStorage.getItem('effort_metric')).toBe(metric);
+  await fireEvent.press(screen.getByRole('radio', { name: 'RIR' }));
+  await waitFor(() => expect(screen.getByRole('radio', { name: 'RIR', selected: true })).toBeTruthy());
+  expect(await AsyncStorage.getItem('effort_metric')).toBe('rir');
+});
+
+
+test('Training shows a failed scale write and retries without enabling an unintended scale', async () => {
+  await render(<TrainingSettings />);
+  (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('disk'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'RIR' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save preferences. Try again.');
+  expect(screen.getByRole('radio', { name: 'None', selected: true })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: 'RIR' }));
+  await waitFor(() => expect(screen.getByRole('radio', { name: 'RIR', selected: true })).toBeTruthy());
+  expect(screen.queryByRole('alert')).toBeNull();
 });

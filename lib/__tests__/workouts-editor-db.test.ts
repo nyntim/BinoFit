@@ -322,3 +322,22 @@ describe('active workout store', () => {
     expect(store.getActiveWorkoutState().loaded).toBe(true);
   });
 });
+
+
+test.each(['rpe', 'rir'] as const)('manual Save persists %s defaults but leaves completed effort unchanged', async (metric) => {
+  const prefs = require('@/lib/app-preferences');
+  await prefs.setEffortMode(metric);
+  addExercise('effort');
+  const d = await drafts.getOrCreateDraft(new Date());
+  const link = await w.addWorkoutExercise({ workout_id: d.id, exercise_id: 'effort' });
+  const fresh = await w.addWorkoutSet({ workout_exercise_id: link.id, weight_kg: 50, reps: 5 });
+  const entered = await w.addWorkoutSet({ workout_exercise_id: link.id, weight_kg: 50, reps: 5, rpe: 8, rir: 0 });
+  const old = await w.addWorkoutSet({ workout_exercise_id: link.id, weight_kg: 50, reps: 5, completed_at: T });
+  await drafts.saveDraft(d.id, new Date());
+  expect(rowOf('workout_sets', fresh.id)).toMatchObject({ [metric]: metric === 'rpe' ? 10 : 0, synced_at: null });
+  expect(rowOf('workout_sets', entered.id)).toMatchObject({ rpe: 8, rir: 0 });
+  expect(rowOf('workout_sets', old.id)).toMatchObject({ rpe: null, rir: null, completed_at: T });
+  await w.addWorkoutSet({ workout_exercise_id: link.id });
+  await drafts.cleanupEmptyEntries(d.id, new Date());
+  expect(rowOf('workout_sets', old.id)).toMatchObject({ rpe: null, rir: null });
+});

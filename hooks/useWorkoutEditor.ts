@@ -3,6 +3,7 @@ import { Keyboard } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { syncToSupabase } from '@/lib/sync';
 import type { SetType, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
+import { getPreferences } from '@/lib/app-preferences';
 import { tickPatch } from '@/lib/workouts/completion';
 import {
   addWorkoutSet,
@@ -280,12 +281,14 @@ export function useWorkoutEditor(id: string | undefined, mode: EditorMode): Work
 
   const toggleDone = useCallback(
     (setId: string): ToggleResult | null => {
+      commitPendingEdits();
+      const preferences = getPreferences();
       const found = findSet(setId);
       if (!found) return null;
       const { ex, set, index } = found;
       const ticked = !set.completed_at;
       const patch: SetValues = ticked
-        ? tickPatch(set, ex.exercise?.log_type ?? 'weight_reps', previousRef.current.get(ex.exercise_id)?.[index] ?? null, new Date().toISOString())
+        ? tickPatch(set, ex.exercise?.log_type ?? 'weight_reps', previousRef.current.get(ex.exercise_id)?.[index] ?? null, new Date().toISOString(), preferences.showEffort ? preferences.effortMetric : null)
         : { completed_at: null };
       updateSet(setId, patch);
       return {

@@ -181,3 +181,38 @@ test('effort scale and rest timer switch write through and roll back on failure'
   await expect(setRestTimerEnabled(true)).rejects.toThrow('disk');
   expect(getPreferences().restTimerEnabled).toBe(false);
 });
+
+
+test('effort None preserves the saved scale, and ordered selections persist the last mode', async () => {
+  const { setEffortMode } = require('@/lib/app-preferences');
+  await setEffortMetric('rir');
+  const writes = jest.spyOn(AsyncStorage, 'setItem');
+  writes.mockClear();
+  await setEffortMode('none');
+  expect(writes.mock.calls).toEqual([['show_rpe', 'false']]);
+  expect(getPreferences()).toMatchObject({ showEffort: false, effortMetric: 'rir' });
+  await Promise.all([setEffortMode('rir'), setEffortMode('none'), setEffortMode('rpe')]);
+  await reloadPreferences();
+  expect(getPreferences()).toMatchObject({ showEffort: true, effortMetric: 'rpe' });
+});
+test('a failed effort scale write never enables effort and the next selection can succeed', async () => {
+  const { setEffortMode } = require('@/lib/app-preferences');
+  await loadPreferences();
+  const writes = jest.spyOn(AsyncStorage, 'setItem').mockClear().mockRejectedValueOnce(new Error('disk'));
+  await expect(setEffortMode('rir')).rejects.toThrow('disk');
+  expect(writes.mock.calls).toEqual([['effort_metric', 'rir']]);
+  expect(getPreferences()).toMatchObject({ showEffort: false, effortMetric: 'rpe' });
+  expect(getPreferences().error).toMatch(/save preferences/);
+  await setEffortMode('rir');
+  expect(getPreferences()).toMatchObject({ showEffort: true, effortMetric: 'rir', error: null });
+});
+test('food default writes serialize, reload, and roll back failed changes', async () => {
+  const { setDefaultLogStatus } = require('@/lib/app-preferences');
+  await Promise.all([setDefaultLogStatus('planned'), setDefaultLogStatus('eaten'), setDefaultLogStatus('planned')]);
+  await reloadPreferences();
+  expect(getPreferences().defaultLogStatus).toBe('planned');
+  expect(await AsyncStorage.getItem('default_log_status')).toBe('planned');
+  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'));
+  await expect(setDefaultLogStatus('eaten')).rejects.toThrow('disk');
+  expect(getPreferences().defaultLogStatus).toBe('planned');
+});

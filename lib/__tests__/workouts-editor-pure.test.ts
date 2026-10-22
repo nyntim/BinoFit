@@ -399,3 +399,30 @@ describe('editorReducer', () => {
     expect(p2.started_at).toBe(new Date(2026, 9, 10, 9, 0).toISOString());
   });
 });
+
+
+describe('effort at a new completion', () => {
+  test.each(['weight_reps', 'bodyweight_reps', 'assisted'] as const)('%s defaults only the enabled blank effort', (logType) => {
+    const { completionEffortPatch } = require('@/lib/workouts/completion');
+    expect(completionEffortPatch(set(), logType, 'rpe')).toEqual({ rpe: 10 });
+    expect(completionEffortPatch(set({ rpe: 8 }), logType, 'rpe')).toEqual({});
+    expect(completionEffortPatch(set({ rpe: 8 }), logType, 'rir')).toEqual({ rir: 0 });
+    expect(completionEffortPatch(set({ rir: 0 }), logType, 'rir')).toEqual({});
+    expect(completionEffortPatch(set(), logType, null)).toEqual({});
+  });
+  test.each(['duration', 'distance_duration'] as const)('%s never gains hidden effort', (logType) => {
+    const { completionEffortPatch } = require('@/lib/workouts/completion');
+    expect(completionEffortPatch(set(), logType, 'rpe')).toEqual({});
+    expect(completionEffortPatch(set(), logType, 'rir')).toEqual({});
+  });
+  test.each(['warmup', 'normal', 'drop', 'failure'])('%s completes without copying previous effort', (set_type) => {
+    expect(tickPatch(set({ set_type }), 'weight_reps', set({ weight_kg: 50, reps: 5, rpe: 6 }), 'now', 'rpe')).toMatchObject({ rpe: 10, weight_kg: 50, reps: 5 });
+  });
+  test('manual Save plans defaults for newly completed filled sets only', () => {
+    const workout = { started_at: null, duration_seconds: null, exercises: [{ id: 'ex', exercise: { log_type: 'weight_reps' }, sets: [set({ id: 'new', weight_kg: 50, reps: 5 }), set({ id: 'old', weight_kg: 50, reps: 5, completed_at: 'before' }), set({ id: 'empty', rpe: 8 })] }] } as any;
+    const plan = planSave(workout, new Date(), 'rir');
+    expect(plan.tickSetIds).toEqual(['new']);
+    expect(plan.effortPatches).toEqual({ new: { rir: 0 } });
+    expect(plan.deleteSetIds).toEqual(['empty']);
+  });
+});

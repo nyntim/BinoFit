@@ -20,6 +20,7 @@ import { formatMealTargets, mealsForDay } from '@/lib/meals';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { CalorieRing } from '@/components/calorie-ring';
 import { MacroBar } from '@/components/macro-bar';
+import { formatServingAmountDisplay } from '@/lib/food-validation';
 import type { FoodLogWithFood, MealSlotConfirmation, UserGoals } from '@/lib/types';
 
 const DEFAULT_GOALS: UserGoals = {
@@ -164,7 +165,7 @@ export default function DayDetailScreen() {
                               {log.food_name}
                             </Text>
                             <Text style={[styles.logMeta, { color: colors.icon }]}>
-                              {log.serving_amount} × {log.food_serving_units}
+                              {formatServingAmountDisplay(log.serving_amount)} × {log.food_serving_units}
                             </Text>
                           </View>
                           <View style={styles.logRight}>

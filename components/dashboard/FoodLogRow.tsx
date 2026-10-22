@@ -1,5 +1,6 @@
 import { StyleSheet, View, Text, TouchableOpacity, type GestureResponderEvent } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { formatServingAmountDisplay } from '@/lib/food-validation';
 import type { Colors } from '@/constants/theme';
 import type { FoodLogWithFood } from '@/lib/types';
 
@@ -24,7 +25,7 @@ export function FoodLogRow({ log, colors, onEdit, onDelete }: FoodLogRowProps) {
             {log.food_name}
           </Text>
           <Text style={[styles.logMeta, { color: colors.icon }]}>
-            {log.serving_amount} × {log.food_serving_units}
+            {formatServingAmountDisplay(log.serving_amount)} × {log.food_serving_units}
           </Text>
         </View>
         <View style={styles.logRight}>

@@ -5,17 +5,17 @@ import { PillSwitch } from '@/components/settings/PillSwitch';
 import {
   getPreferences,
   setDefaultSetCount,
-  setEffortMetric,
+  setEffortMode,
+  type EffortMode,
   setRestTimerEnabled,
-  setShowEffort,
 } from '@/lib/app-preferences';
-import type { EffortMetric } from '@/lib/types';
 import { stopRestTimer } from '@/lib/workouts/rest-timer-store';
 import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 
-const SCALES: { value: EffortMetric; label: string }[] = [
-  { value: 'rpe', label: 'RPE' },
+const SCALES: { value: EffortMode; label: string }[] = [
+  { value: 'none', label: 'None' },
   { value: 'rir', label: 'RIR' },
+  { value: 'rpe', label: 'RPE' },
 ];
 
 export function TrainingSection() {
@@ -29,41 +29,18 @@ export function TrainingSection() {
 
   return (
     <View style={styles.section}>
-      <View style={[styles.row, { backgroundColor: card }]}>
+      <View style={[styles.row, styles.stacked, { backgroundColor: card }]}>
         <View style={styles.info}>
           <Text style={[styles.label, { color: text }]}>Effort per set</Text>
           <Text style={[styles.subtitle, { color: muted }]}>Adds an effort column to each set.</Text>
         </View>
-        <Switch
-          value={showEffort}
-          onValueChange={(v) => {
-            void setShowEffort(v).catch(() => undefined);
-          }}
-          trackColor={{ false: muted, true: tint }}
-          thumbColor={background}
-          ios_backgroundColor={muted}
+        <PillSwitch
+          value={showEffort ? effortMetric : 'none'}
+          options={SCALES}
+          onChange={(mode) => { void setEffortMode(mode).catch(() => undefined); }}
           accessibilityLabel="Effort per set"
         />
       </View>
-
-      {showEffort && (
-        <View style={[styles.row, styles.stacked, { backgroundColor: card }]}>
-          <View style={styles.info}>
-            <Text style={[styles.label, { color: text }]}>Effort scale</Text>
-            <Text style={[styles.subtitle, { color: muted }]}>
-              {effortMetric === 'rir' ? 'Reps you had left in the tank, 0 to 10.' : 'How hard the set felt, 1 to 10.'}
-            </Text>
-          </View>
-          <PillSwitch
-            value={effortMetric}
-            options={SCALES}
-            onChange={(metric) => {
-              void setEffortMetric(metric).catch(() => undefined);
-            }}
-            accessibilityLabel="Effort scale"
-          />
-        </View>
-      )}
 
       <View style={[styles.row, { backgroundColor: card }]}>
         <View style={styles.info}>

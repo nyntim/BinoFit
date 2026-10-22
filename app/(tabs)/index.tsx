@@ -63,6 +63,9 @@ import { isSlotEaten, logsForSlot } from '@/lib/nutrition-totals';
 import { syncToSupabase } from '@/lib/sync';
 import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
 import { openMealEditAfterReload } from '@/lib/meal-settings-entry';
+import { usePreferences } from '@/hooks/usePreferences';
+import { setDefaultLogStatus } from '@/lib/app-preferences';
+import { PillSwitch } from '@/components/settings/PillSwitch';
 import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink, Food } from '@/lib/types';
 
 const DEFAULT_GOALS: UserGoals = {
@@ -80,6 +83,8 @@ const DEFAULT_QUICK_DRINKS: QuickAddDrink[] = [
 ];
 
 export default function HomeScreen() {
+  const preferences = usePreferences();
+  const [foodDefaultError, setFoodDefaultError] = useState('');
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({}, 'cardBackground');
   const cardSecondary = useThemeColor({}, 'cardSecondary');
@@ -609,6 +614,23 @@ export default function HomeScreen() {
             )}
 
             {/* Meals */}
+            {!isEditing && preferences.loaded && (
+              <View style={styles.foodDefault}>
+                <Text style={[styles.foodDefaultLabel, { color: text }]}>Default for new food</Text>
+                <PillSwitch
+                  value={preferences.defaultLogStatus}
+                  options={[{ value: 'eaten', label: 'Eaten' }, { value: 'planned', label: 'Planned' }]}
+                  onChange={(value) => {
+                    void setDefaultLogStatus(value).then(() => setFoodDefaultError('')).catch(() => {
+                      setFoodDefaultError('Couldn’t save the food default. Try again.');
+                    });
+                  }}
+                  accessibilityLabel="Default for new food"
+                />
+                <Text style={[styles.foodDefaultHelp, { color: icon }]}>Planned meals don’t count toward your daily totals until you mark them eaten.</Text>
+                {foodDefaultError ? <Text accessibilityRole="alert" style={{ color: danger }}>{foodDefaultError}</Text> : null}
+              </View>
+            )}
             {isEditing && mealDraft.draft ? (
               <>
                 <Text style={[styles.editWarning, { color: colors.text }]}>
@@ -989,6 +1011,9 @@ function QuickAddSearchModal({
 }
 
 const styles = StyleSheet.create({
+  foodDefault: { gap: 8, marginBottom: 16, alignItems: 'flex-start' },
+  foodDefaultLabel: { fontSize: 14, fontWeight: '600' },
+  foodDefaultHelp: { fontSize: 12, lineHeight: 16 },
   container: { flex: 1 },
   swipeOuter: { flex: 1, overflow: 'hidden' },
   swipeInner: { flex: 1 },

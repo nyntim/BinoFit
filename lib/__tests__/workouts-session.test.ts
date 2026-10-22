@@ -395,3 +395,19 @@ describe('finish-flow button wiring', () => {
     expect(alertMock).not.toHaveBeenCalled();
   });
 });
+
+
+test('Finish never fills historical blank effort or completes unticked sets', async () => {
+  await require('@/lib/app-preferences').setEffortMode('rpe');
+  const workout = await session.startEmptyWorkout(at(10));
+  const { sets } = await addSets(workout.id, 'ex1', [{ weight_kg: 50, reps: 5, completed_at: iso(at(11)) }, { weight_kg: 50, reps: 5 }]);
+  const snapshot = (await w.getWorkoutWithExercises(workout.id))!;
+  const plan = completion.planFinish(snapshot, NOW, { discardUnticked: true });
+  expect(plan.tickSetIds).toEqual([]);
+  expect(plan.effortPatches).toBeUndefined();
+  const { applyCompletionPlan } = require('@/lib/workouts/drafts');
+  await applyCompletionPlan(workout.id, plan);
+  const kept = mem.raw.prepare('SELECT * FROM workout_sets WHERE id = ?').get(sets[0].id) as any;
+  expect(kept).toMatchObject({ rpe: null, rir: null, completed_at: iso(at(11)) });
+  expect(mem.raw.prepare('SELECT * FROM workout_sets WHERE id = ?').get(sets[1].id)).toBeUndefined();
+});

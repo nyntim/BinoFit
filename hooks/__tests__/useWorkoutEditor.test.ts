@@ -1,0 +1,47 @@
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { createMemoryDb } from '@/test-utils/sqlite-memory';
+import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
+import { createWorkout, addWorkoutExercise, addWorkoutSet, getWorkoutWithExercises } from '@/lib/workouts/db';
+import { registerPendingEdit } from '@/lib/workouts/pending-edits';
+import { resetPreferences, setEffortMode } from '@/lib/app-preferences';
+
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined }));
+jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
+
+test('Done commits pending effort, uses current preferences, persists optimistic changes, and unticks without clearing effort', async () => {
+  const mem = createMemoryDb();
+  const SQLite = require('expo-sqlite');
+  (SQLite.openDatabaseAsync as jest.Mock).mockResolvedValue(mem);
+  resetPreferences();
+  await setEffortMode('rpe');
+  const workout = await createWorkout({ date: '2026-10-22', status: 'active' });
+  const link = await addWorkoutExercise({ workout_id: workout.id, exercise_id: 'bench-press' });
+  const set = await addWorkoutSet({ workout_exercise_id: link.id, weight_kg: 50, reps: 5 });
+  const { result } = await renderHook(() => useWorkoutEditor(workout.id, 'live'));
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  const currentSet = () => result.current.workout!.exercises[0].sets[0];
+  let unregister = registerPendingEdit(() => result.current.updateSet(set.id, { rpe: 8 }));
+  await act(() => { result.current.toggleDone(set.id); });
+  unregister();
+  expect(currentSet()).toMatchObject({ rpe: 8 });
+  expect(currentSet().completed_at).not.toBeNull();
+  await act(async () => { await result.current.flush(); });
+  expect((await getWorkoutWithExercises(workout.id))!.exercises[0].sets[0].rpe).toBe(8);
+  await act(() => { result.current.toggleDone(set.id); });
+  expect(currentSet()).toMatchObject({ rpe: 8, completed_at: null });
+  await setEffortMode('rir');
+  unregister = registerPendingEdit(() => result.current.updateSet(set.id, { rir: null }));
+  await act(() => { result.current.toggleDone(set.id); });
+  unregister();
+  expect(currentSet()).toMatchObject({ rpe: 8, rir: 0 });
+  await act(async () => { await result.current.flush(); });
+  expect((await getWorkoutWithExercises(workout.id))!.exercises[0].sets[0]).toMatchObject({ rpe: 8, rir: 0 });
+  await act(() => { result.current.toggleDone(set.id); });
+  await setEffortMode('rpe');
+  unregister = registerPendingEdit(() => result.current.updateSet(set.id, { rpe: null }));
+  await act(() => { result.current.toggleDone(set.id); });
+  unregister();
+  expect(currentSet()).toMatchObject({ rpe: 10, rir: 0 });
+  await act(async () => { await result.current.flush(); });
+  expect((await getWorkoutWithExercises(workout.id))!.exercises[0].sets[0]).toMatchObject({ rpe: 10, rir: 0 });
+});

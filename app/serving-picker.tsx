@@ -344,7 +344,7 @@ export default function ServingPickerScreen() {
               <ActivityIndicator size="small" color={colors.background} />
             ) : (
               <Text style={[styles.logPillText, { color: colors.background }]}>
-                {isEdit ? 'Save' : 'Log'}
+                Log
               </Text>
             )}
           </TouchableOpacity>
