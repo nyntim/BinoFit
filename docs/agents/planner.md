@@ -16,7 +16,8 @@ Needs approval: yes | no — <reason>
 `Needs approval` is **yes** if the plan has open questions, or changes the schema, migrations, sync, tombstones or `supabase/schema.sql`, or deletes or rewrites user data. Otherwise **no**. When the lead sends you a conflict or a disagreement to settle, answer with the resolution only, in a few lines.
 
 ## Read before planning
-- `CLAUDE.md`: architecture, conventions, storage layers
+- `CLAUDE.md`: rules for every change, overview and storage layers
+- `docs/architecture/`: the per-area doc for each area the plan touches (listed in the Where to look table in `CLAUDE.md`). List any doc that needs updating in the plan's **Files**.
 - `PRD_v2.md`: feature requirements (section 4) and roadmap (section 9)
 - `PRODUCT.md` and `DESIGN.md`: product voice and design tokens
 - `docs/phase-*.md`: earlier phase specs
