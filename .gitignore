@@ -14,6 +14,9 @@ node_modules/
 .claude/worktrees/
 .plans/
 
+# Supabase CLI cache
+supabase/.temp/
+
 # Expo
 .expo/
 dist/
