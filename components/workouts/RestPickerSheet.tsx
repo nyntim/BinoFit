@@ -1,7 +1,7 @@
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
-import { formatDuration } from '@/lib/units';
+import { restChoiceLabel } from '@/lib/workouts/rest-timer';
 
-/** Rest choices in seconds; 0 is off. */
+/** Rest choices in seconds; 0 is "No rest". */
 export const REST_PRESETS = [0, 30, 60, 90, 120, 150, 180, 300];
 
 type Props = {
@@ -21,7 +21,7 @@ export function RestPickerSheet({ visible, current, onSelect, onClose }: Props) 
       onClose={onClose}
       options={REST_PRESETS.map((sec) => ({
         key: String(sec),
-        label: sec === 0 ? 'Off' : formatDuration(sec),
+        label: restChoiceLabel(sec),
         selected: current === sec,
         onPress: () => onSelect(sec),
       }))}

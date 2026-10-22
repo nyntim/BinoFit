@@ -41,7 +41,7 @@ export async function loadExport(kind: ExportKind, start: string | null, end: st
         w.notes AS workout_notes, we.id AS workout_exercise_id, we.exercise_id,
         e.name AS exercise, we.position AS exercise_position, we.notes AS exercise_notes,
         s.id AS set_id, s.position AS set_position, s.set_type, s.weight_kg, s.reps,
-        s.duration_seconds, s.distance_m, s.rpe, s.completed_at
+        s.duration_seconds, s.distance_m, s.rpe, s.rir, s.completed_at
        FROM workouts w
        LEFT JOIN workout_exercises we ON we.workout_id = w.id AND we.deleted_at IS NULL
        LEFT JOIN exercises e ON e.id = we.exercise_id
@@ -52,10 +52,10 @@ export async function loadExport(kind: ExportKind, start: string | null, end: st
     headers = ['Date', 'Workout ID', 'Workout', 'Started at', 'Ended at', 'Workout duration (s)',
       'Workout notes', 'Workout exercise ID', 'Exercise ID', 'Exercise', 'Exercise position',
       'Exercise notes', 'Set ID', 'Set position', 'Set type', 'Weight (kg)', 'Reps', 'Duration (s)',
-      'Distance (m)', 'RPE', 'Completed at'];
+      'Distance (m)', 'RPE', 'RIR', 'Completed at'];
     keys = ['date', 'id', 'name', 'started_at', 'ended_at', 'workout_seconds', 'workout_notes',
       'workout_exercise_id', 'exercise_id', 'exercise', 'exercise_position', 'exercise_notes',
-      'set_id', 'set_position', 'set_type', 'weight_kg', 'reps', 'duration_seconds', 'distance_m', 'rpe', 'completed_at'];
+      'set_id', 'set_position', 'set_type', 'weight_kg', 'reps', 'duration_seconds', 'distance_m', 'rpe', 'rir', 'completed_at'];
   }
   return {
     csv: tableCsv(headers, rows.map((r) => keys.map((k) => r[k]))), count: rows.length,

@@ -41,6 +41,7 @@ export function prefillSets(prev: WorkoutSet[], emptyCount: number = DEFAULT_SET
     duration_seconds: s.duration_seconds,
     distance_m: s.distance_m,
     rpe: null,
+    rir: null,
     completed_at: null,
   }));
 }

@@ -55,3 +55,35 @@ it('discardActiveWorkout ends the rest timer and cancels its notification', asyn
   expect(restStore.getRestTimerState().timer).toBeNull();
   expect(cancels()).toContain(`rest-timer:${a.id}`);
 });
+
+describe('global rest timer switch off', () => {
+  const prefs = () => require('@/lib/app-preferences') as typeof import('@/lib/app-preferences');
+
+  it('startRestTimer returns null, emits no timer and schedules nothing', async () => {
+    await prefs().setRestTimerEnabled(false);
+    jest.clearAllMocks();
+    expect(restStore.startRestTimer({ workoutId: 'w1', durationSeconds: 90 }, NOW.getTime())).toBeNull();
+    expect(restStore.getRestTimerState().timer).toBeNull();
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('turning it off clears a running timer on the next start attempt', async () => {
+    restStore.startRestTimer({ workoutId: 'w1', durationSeconds: 90 }, NOW.getTime());
+    expect(restStore.getRestTimerState().timer).not.toBeNull();
+    await prefs().setRestTimerEnabled(false);
+    restStore.startRestTimer({ workoutId: 'w1', durationSeconds: 90 }, NOW.getTime());
+    expect(restStore.getRestTimerState().timer).toBeNull();
+  });
+
+  it('restoreRestTimer with the switch off clears the stored timer and cancels notifications', async () => {
+    const storage = require('@/lib/storage') as typeof import('@/lib/storage');
+    await storage.setActiveRestTimer({ workoutId: 'w1', endsAt: NOW.getTime() + 60_000, durationSeconds: 60 });
+    await prefs().setRestTimerEnabled(false);
+    jest.clearAllMocks();
+    await restStore.restoreRestTimer('w1', NOW.getTime());
+    expect(restStore.getRestTimerState().timer).toBeNull();
+    expect(await storage.getActiveRestTimer()).toBeNull();
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+});

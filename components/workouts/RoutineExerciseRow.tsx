@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { RoutineExerciseWithExercise } from '@/lib/types';
-import { formatDuration } from '@/lib/units';
+import { restChoiceLabel } from '@/lib/workouts/rest-timer';
 import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
 import {
   DEFAULT_REST_SECONDS,
@@ -38,7 +38,7 @@ export function RoutineExerciseRow({
   const title = item.exercise ? exerciseDisplayName(item.exercise) : item.exercise_name;
   const setCount = item.set_count;
   const restSeconds = item.rest_seconds ?? DEFAULT_REST_SECONDS;
-  const restValue = restSeconds === 0 ? 'Off' : formatDuration(restSeconds);
+  const restValue = restChoiceLabel(restSeconds);
   const canDecrement = setCount > MIN_DEFAULT_SET_COUNT;
   const canIncrement = setCount < MAX_DEFAULT_SET_COUNT;
 

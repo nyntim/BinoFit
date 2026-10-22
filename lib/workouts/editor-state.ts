@@ -12,7 +12,7 @@ import {
   parseDecimal,
 } from '@/lib/units';
 import { parseClockDigits } from '@/lib/workouts/format';
-import type { ExerciseLogType, SetType, WeightUnit, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
+import type { EffortMetric, ExerciseLogType, SetType, WeightUnit, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
 import type { SetValues, WorkoutExercisePatch, WorkoutPatch } from '@/lib/workouts/db';
 
 // ── Reducer ────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ export function setBadges(sets: Pick<WorkoutSet, 'set_type'>[]): SetBadge[] {
 
 // ── Columns ────────────────────────────────────────────────────
 
-export type CellKey = 'weight' | 'reps' | 'duration' | 'distance' | 'rpe';
+export type CellKey = 'weight' | 'reps' | 'duration' | 'distance' | 'rpe' | 'rir';
 export type ColumnKey = 'badge' | 'previous' | CellKey | 'pace' | 'done';
 
 export type SetColumn = {
@@ -125,14 +125,14 @@ const col = (c: SetColumn): SetColumn => c;
 
 /**
  * The table columns for an exercise: Set, Previous (not for distance + time), the inputs for its log
- * type, Pace for distance + time, optional RPE and the Done column. Widths follow the mockups
+ * type, Pace for distance + time, optional RPE or RIR and the Done column. Widths follow the mockups
  * (36 / flex / 64 / 56 / 44 for strength, 36 / 80 / 80 / flex for cardio).
  */
 export function setColumns(
   logType: ExerciseLogType,
   perSide: boolean,
   unit: WeightUnit,
-  opts: { showRpe: boolean; showDone: boolean }
+  opts: { effort: EffortMetric | null; showDone: boolean }
 ): SetColumn[] {
   const cols: SetColumn[] = [col({ key: 'badge', label: 'Set', width: 36, align: 'center' })];
   const reps = col({ key: 'reps', label: perSide ? 'Reps/side' : 'Reps', width: perSide ? 72 : 56, align: 'center' });
@@ -172,8 +172,12 @@ export function setColumns(
       );
       break;
   }
-  if (opts.showRpe && logType !== 'duration' && logType !== 'distance_duration') {
-    cols.push(col({ key: 'rpe', label: 'RPE', width: 48, align: 'center' }));
+  if (opts.effort && logType !== 'duration' && logType !== 'distance_duration') {
+    cols.push(
+      opts.effort === 'rir'
+        ? col({ key: 'rir', label: 'RIR', accessibilityLabel: 'Reps in reserve', width: 48, align: 'center' })
+        : col({ key: 'rpe', label: 'RPE', width: 48, align: 'center' })
+    );
   }
   if (opts.showDone) cols.push(col({ key: 'done', label: 'Done', width: 44, align: 'center' }));
   return cols;
@@ -181,7 +185,7 @@ export function setColumns(
 
 // ── Cells ──────────────────────────────────────────────────────
 
-type CellSet = Pick<WorkoutSet, 'weight_kg' | 'reps' | 'duration_seconds' | 'distance_m' | 'rpe'>;
+type CellSet = Pick<WorkoutSet, 'weight_kg' | 'reps' | 'duration_seconds' | 'distance_m' | 'rpe' | 'rir'>;
 
 /** The text shown in a numeric cell ("" when empty): weights in the display unit, time as m:ss, distance with 2 decimals. */
 export function cellText(set: Partial<CellSet>, key: CellKey, unit: WeightUnit): string {
@@ -196,6 +200,8 @@ export function cellText(set: Partial<CellSet>, key: CellKey, unit: WeightUnit):
       return set.distance_m ? metresToDisplay(set.distance_m, unit).toFixed(2) : '';
     case 'rpe':
       return set.rpe === null || set.rpe === undefined ? '' : String(set.rpe);
+    case 'rir':
+      return set.rir === null || set.rir === undefined ? '' : String(set.rir);
   }
 }
 
@@ -233,6 +239,12 @@ export function cellPatch(key: CellKey, text: string, unit: WeightUnit): SetValu
       const n = parseDecimal(t);
       if (n === null || n < 1 || n > 10) return null;
       return { rpe: n };
+    }
+    case 'rir': {
+      if (!t) return { rir: null };
+      if (!/^\d{1,2}$/.test(t)) return null;
+      const n = Number(t);
+      return n > 10 ? null : { rir: n };
     }
   }
 }

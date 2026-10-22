@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   BackHandler,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { BuilderInput } from '@/components/workouts/BuilderInput';
@@ -21,6 +19,7 @@ import { ReviewRow } from '@/components/workouts/ReviewRow';
 import { StepProgress } from '@/components/workouts/StepProgress';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
+import { useKeyboardOverlap } from '@/hooks/useKeyboardOverlap';
 import { usePreferences } from '@/hooks/usePreferences';
 import { syncToSupabase } from '@/lib/sync';
 import { parseDecimal } from '@/lib/units';
@@ -38,6 +37,7 @@ import {
   applyEquipment,
   applyLogType,
   applySuggestion,
+  brandChips,
   builderSteps,
   draftDisplayName,
   draftSummary,
@@ -78,6 +78,14 @@ export default function NewExerciseScreen() {
   const { weightUnit } = usePreferences();
   const { brands } = useExercises();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const rootRef = useRef<View>(null);
+  const keyboardOverlap = useKeyboardOverlap(rootRef);
+  const rootStyle = [
+    styles.container,
+    { paddingTop: insets.top, paddingBottom: keyboardOverlap > 0 ? 0 : insets.bottom },
+  ];
+  const footerLift = { paddingBottom: keyboardOverlap > 0 ? keyboardOverlap + 12 : 12 };
 
   const initial = useMemo(() => emptyDraft(prefillName), [prefillName]);
   const [draft, setDraft] = useState<BuilderDraft>(initial);
@@ -261,7 +269,7 @@ export default function NewExerciseScreen() {
   // ── Saved card ─────────────────────────────────────────────────
   if (saved) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+      <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
         <View style={styles.savedBody}>
           <Text style={[styles.label, { color: muted }]}>SAVED TO YOUR EXERCISES</Text>
           <View style={[styles.savedCard, { backgroundColor: card }]}>
@@ -271,7 +279,7 @@ export default function NewExerciseScreen() {
           </View>
           {saved.addedTo ? <Text style={[styles.hint, { color: muted }]}>{`Added to ${saved.addedTo}.`}</Text> : null}
         </View>
-        <View style={styles.footer}>
+        <View style={[styles.footer, footerLift]}>
           <Pressable
             onPress={onDone}
             accessibilityRole="button"
@@ -280,13 +288,13 @@ export default function NewExerciseScreen() {
             <Text style={[styles.primaryText, { color: background }]}>Done</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (loadState !== 'ready') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+      <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
@@ -300,7 +308,7 @@ export default function NewExerciseScreen() {
         {loadState === 'missing' ? (
           <Text style={[styles.hint, styles.padded, { color: muted }]}>Couldn’t find this exercise.</Text>
         ) : null}
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -308,6 +316,7 @@ export default function NewExerciseScreen() {
   const suggestions = nameSuggestions(draft.name, SEED_EXERCISES);
   const showSuggestions = suggestions.length > 0 && !draft.copiedFrom;
   const isPlate = isPlateLoaded(draft);
+  const chips = brandChips(brands);
 
   const questionFor = (id: BuilderStepId) =>
     ({
@@ -351,11 +360,11 @@ export default function NewExerciseScreen() {
             autoCapitalize="words"
             returnKeyType="done"
           />
-          {brands.length > 0 && (
+          {chips.used.length > 0 && (
             <>
               <Text style={[styles.label, { color: muted }]}>BRANDS YOU’VE USED</Text>
               <View style={styles.chips}>
-                {brands.map((b) => (
+                {chips.used.map((b) => (
                   <ChipToggle
                     key={b}
                     label={b}
@@ -366,6 +375,17 @@ export default function NewExerciseScreen() {
               </View>
             </>
           )}
+          <Text style={[styles.label, { color: muted }]}>COMMON BRANDS</Text>
+          <View style={styles.chips}>
+            {chips.common.map((b) => (
+              <ChipToggle
+                key={b}
+                label={b}
+                selected={draft.brand.trim().toLowerCase() === b.toLowerCase()}
+                onPress={() => patch({ brand: b })}
+              />
+            ))}
+          </View>
         </>
       );
       break;
@@ -423,7 +443,7 @@ export default function NewExerciseScreen() {
           {showSuggestions && (
             <>
               <Text style={[styles.label, { color: muted }]}>
-                SIMILAR BUILT-IN EXERCISES · TAP TO COPY MUSCLES AND LOGGING
+                SIMILAR BUILT-IN EXERCISES · TAP TO COPY
               </Text>
               <View style={[styles.suggestCard, { backgroundColor: card }]}>
                 {suggestions.map((s, i) => (
@@ -431,7 +451,7 @@ export default function NewExerciseScreen() {
                     key={s.id}
                     onPress={() => setDraft((d) => applySuggestion(d, s))}
                     accessibilityRole="button"
-                    accessibilityLabel={`${s.name}. Copy muscles and logging`}
+                    accessibilityLabel={`${s.name}. Use name, muscles and logging`}
                     style={[
                       styles.suggestRow,
                       i < suggestions.length - 1 && {
@@ -442,7 +462,7 @@ export default function NewExerciseScreen() {
                   >
                     <Text style={[styles.suggestName, { color: text }]}>{s.name}</Text>
                     <Text style={[styles.suggestMuscles, { color: muted }]}>
-                      {s.primary_muscles.map((m) => MUSCLE_LABELS[m]).join(', ')}
+                      {s.primary_muscles.map((m) => MUSCLE_LABELS[m] ?? m).join(', ')}
                     </Text>
                   </Pressable>
                 ))}
@@ -451,9 +471,32 @@ export default function NewExerciseScreen() {
           )}
           {draft.copiedFrom ? (
             <Text style={[styles.hint, { color: muted }]}>
-              {`Muscles and logging copied from ${draft.copiedFrom}. You can change them next.`}
+              {`Name, muscles and logging copied from ${draft.copiedFrom}. You can change them next.`}
             </Text>
           ) : null}
+          {isRepLogType(draft.logType) && (
+            <Pressable
+              onPress={() => patch({ perSide: !draft.perSide })}
+              accessibilityRole="switch"
+              accessibilityLabel="Per side / unilateral"
+              accessibilityState={{ checked: draft.perSide }}
+              style={[styles.switchRow, { backgroundColor: card }]}
+            >
+              <View style={styles.switchText}>
+                <Text style={[styles.optionTitle, { color: text }]}>Per side / unilateral</Text>
+                <Text style={[styles.meta, { color: muted }]}>One arm or leg at a time; reps are per side</Text>
+              </View>
+              <Switch
+                value={draft.perSide}
+                onValueChange={(perSide) => patch({ perSide })}
+                trackColor={{ false: muted, true: tint }}
+                thumbColor={background}
+                ios_backgroundColor={muted}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            </Pressable>
+          )}
         </>
       );
       break;
@@ -499,29 +542,6 @@ export default function NewExerciseScreen() {
               />
             ))}
           </View>
-          {isRepLogType(draft.logType) && (
-            <Pressable
-              onPress={() => patch({ perSide: !draft.perSide })}
-              accessibilityRole="switch"
-              accessibilityLabel="Per side"
-              accessibilityState={{ checked: draft.perSide }}
-              style={[styles.switchRow, { backgroundColor: card }]}
-            >
-              <View style={styles.switchText}>
-                <Text style={[styles.optionTitle, { color: text }]}>Per side</Text>
-                <Text style={[styles.meta, { color: muted }]}>One arm or leg at a time; reps are per side</Text>
-              </View>
-              <Switch
-                value={draft.perSide}
-                onValueChange={(perSide) => patch({ perSide })}
-                trackColor={{ false: muted, true: tint }}
-                thumbColor={background}
-                ios_backgroundColor={muted}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              />
-            </Pressable>
-          )}
         </>
       );
       break;
@@ -586,7 +606,7 @@ export default function NewExerciseScreen() {
   const label = primaryLabel(draft, step, editing);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+    <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -602,7 +622,7 @@ export default function NewExerciseScreen() {
         <View style={styles.headerSide} />
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.flex}>
         <StepProgress step={index + 1} total={steps.length} />
         <ScrollView
           style={styles.flex}
@@ -618,7 +638,7 @@ export default function NewExerciseScreen() {
           {body}
         </ScrollView>
 
-        <View style={[styles.footer, styles.footerRule, { borderTopColor: separator }]}>
+        <View style={[styles.footer, styles.footerRule, footerLift, { borderTopColor: separator }]}>
           {index > 0 && (
             <Pressable
               onPress={() => setStepId(steps[index - 1])}
@@ -638,8 +658,8 @@ export default function NewExerciseScreen() {
             <Text style={[styles.primaryText, { color: background }]}>{label}</Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
@@ -689,7 +709,7 @@ const styles = StyleSheet.create({
   notes: { height: 120, paddingTop: 12 },
   reviewHead: { gap: 4 },
   reviewCard: { borderRadius: 18, paddingHorizontal: 16 },
-  footer: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
+  footer: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12 },
   footerRule: { borderTopWidth: StyleSheet.hairlineWidth },
   primary: { minHeight: 48, borderRadius: 18, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
   primaryGrow: { flex: 1 },

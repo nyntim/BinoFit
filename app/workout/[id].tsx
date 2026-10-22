@@ -10,7 +10,7 @@ import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
 import { syncToSupabase } from '@/lib/sync';
 import { deleteWorkout } from '@/lib/workouts/db';
 import { cleanupEmptyEntries } from '@/lib/workouts/drafts';
-import { saveWorkoutAsRoutine } from '@/lib/workouts/routines';
+import { saveAsRoutineWithFeedback } from '@/lib/workouts/routine-flow';
 
 /** A finished workout: every edit writes through to SQLite and syncs. */
 export default function WorkoutDetailScreen() {
@@ -45,18 +45,8 @@ export default function WorkoutDetailScreen() {
 
   const onSaveAsRoutine = async () => {
     if (!id) return;
-    try {
-      await editor.flush();
-      const routine = await saveWorkoutAsRoutine(id);
-      if (!routine) {
-        Alert.alert('This workout has no exercises.');
-        return;
-      }
-      syncToSupabase();
-      Alert.alert(`Saved as ${routine.name}.`);
-    } catch {
-      Alert.alert('Couldn’t save the routine.', 'Try again.');
-    }
+    await editor.flush();
+    await saveAsRoutineWithFeedback(id);
   };
 
   const confirmDelete = () => {

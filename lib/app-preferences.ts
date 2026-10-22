@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as storage from '@/lib/storage';
-import type { LogStatus, WeightUnit } from '@/lib/types';
+import type { EffortMetric, LogStatus, WeightUnit } from '@/lib/types';
 import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 export type AppearancePreference = storage.AppearancePreference;
-export type AppPreferences = { weightUnit: WeightUnit; showRpe: boolean; defaultSetCount: number; appearance: AppearancePreference; defaultLogStatus: LogStatus; loaded: boolean; error: string | null };
-const INITIAL: AppPreferences = { weightUnit: 'lb', showRpe: false, defaultSetCount: 2, appearance: 'system', defaultLogStatus: 'eaten', loaded: false, error: null };
+export type AppPreferences = { weightUnit: WeightUnit; showEffort: boolean; effortMetric: EffortMetric; restTimerEnabled: boolean; defaultSetCount: number; appearance: AppearancePreference; defaultLogStatus: LogStatus; loaded: boolean; error: string | null };
+const INITIAL: AppPreferences = { weightUnit: 'lb', showEffort: false, effortMetric: 'rpe', restTimerEnabled: true, defaultSetCount: 2, appearance: 'system', defaultLogStatus: 'eaten', loaded: false, error: null };
 let state = INITIAL;
 let persisted = { ...INITIAL };
 let loading: Promise<void> | null = null;
@@ -18,9 +18,9 @@ export function subscribePreferences(listener: () => void) { listeners.add(liste
 export function loadPreferences(): Promise<void> {
   if (!loading) {
     const started = revision;
-    loading = Promise.all([storage.getWeightUnit(), storage.getShowRpe(), storage.getDefaultSetCount(), storage.getAppearance(), storage.getDefaultLogStatus()]).then(async ([weightUnit, showRpe, defaultSetCount, appearance, defaultLogStatus]) => {
+    loading = Promise.all([storage.getWeightUnit(), storage.getShowEffort(), storage.getEffortMetric(), storage.getRestTimerEnabled(), storage.getDefaultSetCount(), storage.getAppearance(), storage.getDefaultLogStatus()]).then(async ([weightUnit, showEffort, effortMetric, restTimerEnabled, defaultSetCount, appearance, defaultLogStatus]) => {
       try { await AsyncStorage.removeItem('tracking_mode'); } catch { /* Retired key cleanup. */ }
-      const loaded = { weightUnit, showRpe, defaultSetCount, appearance, defaultLogStatus };
+      const loaded = { weightUnit, showEffort, effortMetric, restTimerEnabled, defaultSetCount, appearance, defaultLogStatus };
       const patch = Object.fromEntries(Object.entries(loaded).filter(([key]) => (fieldRevision[key as keyof AppPreferences] ?? 0) <= started));
       persisted = { ...persisted, ...patch };
       set({ ...patch, loaded: true, error: null });
@@ -29,7 +29,7 @@ export function loadPreferences(): Promise<void> {
   return loading;
 }
 export function reloadPreferences() { loading = null; return loadPreferences(); }
-function write<K extends 'weightUnit' | 'showRpe' | 'defaultSetCount' | 'appearance' | 'defaultLogStatus'>(key: K, value: AppPreferences[K], persist: () => Promise<void>): Promise<void> {
+function write<K extends 'weightUnit' | 'showEffort' | 'effortMetric' | 'restTimerEnabled' | 'defaultSetCount' | 'appearance' | 'defaultLogStatus'>(key: K, value: AppPreferences[K], persist: () => Promise<void>): Promise<void> {
   revision++;
   const selectedRevision = revision;
   fieldRevision[key] = selectedRevision;
@@ -50,7 +50,9 @@ function write<K extends 'weightUnit' | 'showRpe' | 'defaultSetCount' | 'appeara
 export function setWeightUnit(unit: WeightUnit) { return write('weightUnit', unit, () => storage.setWeightUnit(unit)); }
 export function setAppearance(value: AppearancePreference) { return write('appearance', value, () => storage.setAppearance(value)); }
 export function setDefaultLogStatus(value: LogStatus) { return write('defaultLogStatus', value, () => storage.setDefaultLogStatus(value)); }
-export function setShowRpe(value: boolean) { return write('showRpe', value, () => storage.setShowRpe(value)); }
+export function setShowEffort(value: boolean) { return write('showEffort', value, () => storage.setShowEffort(value)); }
+export function setEffortMetric(value: EffortMetric) { return write('effortMetric', value, () => storage.setEffortMetric(value)); }
+export function setRestTimerEnabled(value: boolean) { return write('restTimerEnabled', value, () => storage.setRestTimerEnabled(value)); }
 export function setDefaultSetCount(value: number): Promise<void> {
   if (!Number.isInteger(value) || value < MIN_DEFAULT_SET_COUNT || value > MAX_DEFAULT_SET_COUNT) return Promise.resolve();
   return write('defaultSetCount', value, () => storage.setDefaultSetCount(value));

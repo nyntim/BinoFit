@@ -351,13 +351,29 @@ describe('editorReducer', () => {
     expect(b[3].accessibilityLabel).toBe('Set 2');
   });
   it('builds columns per log type', () => {
-    const keys = (lt: any, ps = false, o = { showRpe: false, showDone: false }) => setColumns(lt, ps, 'kg', o).map((c) => c.key);
+    const keys = (lt: any, ps = false, o: any = { effort: null, showDone: false }) => setColumns(lt, ps, 'kg', o).map((c) => c.key);
     expect(keys('weight_reps')).toEqual(['badge', 'previous', 'weight', 'reps']);
-    expect(keys('weight_reps', false, { showRpe: true, showDone: true })).toEqual(['badge', 'previous', 'weight', 'reps', 'rpe', 'done']);
-    expect(keys('duration', false, { showRpe: true, showDone: false })).toEqual(['badge', 'previous', 'duration']);
+    expect(keys('weight_reps', false, { effort: 'rpe', showDone: true })).toEqual(['badge', 'previous', 'weight', 'reps', 'rpe', 'done']);
+    expect(keys('weight_reps', false, { effort: 'rir', showDone: true })).toEqual(['badge', 'previous', 'weight', 'reps', 'rir', 'done']);
+    expect(keys('duration', false, { effort: 'rpe', showDone: false })).toEqual(['badge', 'previous', 'duration']);
+    expect(keys('distance_duration', false, { effort: 'rir', showDone: false })).toEqual(['badge', 'distance', 'duration', 'pace']);
     expect(keys('distance_duration')).toEqual(['badge', 'distance', 'duration', 'pace']);
-    expect(setColumns('weight_reps', true, 'kg', { showRpe: false, showDone: false })[3].label).toBe('Reps/side');
-    expect(setColumns('bodyweight_reps', false, 'lb', { showRpe: false, showDone: false })[2].label).toBe('+lb');
+    expect(setColumns('weight_reps', true, 'kg', { effort: null, showDone: false })[3].label).toBe('Reps/side');
+    expect(setColumns('bodyweight_reps', false, 'lb', { effort: null, showDone: false })[2].label).toBe('+lb');
+  });
+  it('labels the RIR column', () => {
+    const c = setColumns('weight_reps', false, 'kg', { effort: 'rir', showDone: false }).find((x) => x.key === 'rir')!;
+    expect(c.label).toBe('RIR');
+    expect(c.accessibilityLabel).toBe('Reps in reserve');
+    expect(setColumns('weight_reps', false, 'kg', { effort: 'rpe', showDone: false }).find((x) => x.key === 'rpe')!.label).toBe('RPE');
+  });
+  it('reads and parses RIR cells', () => {
+    expect(cellText({ rir: 3 }, 'rir', 'kg')).toBe('3');
+    expect(cellText({ rir: null }, 'rir', 'kg')).toBe('');
+    expect(cellPatch('rir', '', 'kg')).toEqual({ rir: null });
+    expect(cellPatch('rir', '0', 'kg')).toEqual({ rir: 0 });
+    expect(cellPatch('rir', '10', 'kg')).toEqual({ rir: 10 });
+    for (const bad of ['11', '-1', '2.5', 'abc']) expect(cellPatch('rir', bad, 'kg')).toBeNull();
   });
   it('applySchedule never puts the start after now', () => {
     const cur = { date: '2026-10-15', started_at: new Date(2026, 9, 15, 9, 0).toISOString(), duration_seconds: 3600 };

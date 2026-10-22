@@ -2,7 +2,10 @@ import {
   applyEquipment,
   applyLogType,
   applySuggestion,
+  brandChips,
   builderSteps,
+  COMMON_MACHINE_BRANDS,
+  draftSummary,
   draftToExerciseInput,
   emptyDraft,
   exerciseToDraft,
@@ -10,6 +13,7 @@ import {
   isStepValid,
   nameSuggestions,
   primaryLabel,
+  reviewRows,
   setDraftName,
   toggleMuscle,
   type BuilderDraft,
@@ -148,6 +152,50 @@ describe('name suggestions', () => {
     expect(d.copiedFrom).toBe('Push-up');
     d = setDraftName(d, 'Push-ups');
     expect(d.copiedFrom).toBe('');
+    expect(d.primary).toEqual(['chest']);
+  });
+  it('picking a suggestion sets the name and still drops per side for non-rep log types', () => {
+    const d = applySuggestion({ ...emptyDraft('push'), perSide: true }, seeds[2]);
+    expect(d.name).toBe('Push-up');
+    expect(d.perSide).toBe(true);
+    const timed = applySuggestion({ ...emptyDraft('plank'), perSide: true }, {
+      name: 'Plank', primary_muscles: ['abs'], secondary_muscles: [], log_type: 'duration',
+    } as any);
+    expect(timed.name).toBe('Plank');
+    expect(timed.perSide).toBe(false);
+  });
+});
+
+describe('per side on the name step', () => {
+  it('review has a Per side / unilateral row for rep log types only, jumping to the name step', () => {
+    const rep = reviewRows(valid({ perSide: true }), 'kg');
+    expect(rep.find((r) => r.label === 'Per side / unilateral')).toEqual({ step: 'name', label: 'Per side / unilateral', value: 'Yes' });
+    expect(reviewRows(valid(), 'kg').find((r) => r.label === 'Per side / unilateral')?.value).toBe('No');
+    expect(reviewRows(valid({ logType: 'duration' }), 'kg').some((r) => r.label === 'Per side / unilateral')).toBe(false);
+  });
+  it('Logged as omits per side in review but the saved summary keeps it', () => {
+    const d = valid({ perSide: true });
+    expect(reviewRows(d, 'kg').find((r) => r.label === 'Logged as')?.value).toBe('Weight × reps');
+    expect(draftSummary(d)).toContain(', per side');
+  });
+  it('choosing a time log type after setting per side stores per_side 0', () => {
+    const d = applyLogType(valid({ perSide: true }), 'duration');
+    expect(draftToExerciseInput(d, 'kg').per_side).toBe(0);
+  });
+});
+
+describe('brandChips', () => {
+  it('offers the full common list when no brands were used', () => {
+    expect(brandChips([])).toEqual({ used: [], common: [...COMMON_MACHINE_BRANDS] });
+  });
+  it('removes used brands from common case-insensitively and keeps list order', () => {
+    const out = brandChips(['hammer strength']);
+    expect(out.used).toEqual(['hammer strength']);
+    expect(out.common).not.toContain('Hammer Strength');
+    expect(out.common).toEqual(COMMON_MACHINE_BRANDS.filter((b) => b !== 'Hammer Strength'));
+  });
+  it('collapses duplicate used brands and trims whitespace', () => {
+    expect(brandChips(['  Cybex ', 'cybex', '', 'Home gym']).used).toEqual(['Cybex', 'Home gym']);
   });
 });
 

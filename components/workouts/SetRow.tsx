@@ -37,6 +37,7 @@ const CELL_KEYBOARD: Record<CellKey, 'decimal-pad' | 'number-pad'> = {
   duration: 'number-pad',
   distance: 'decimal-pad',
   rpe: 'decimal-pad',
+  rir: 'number-pad',
 };
 
 /** Spoken name of a cell, e.g. "weight", "reps", "distance in km", "time". */
@@ -51,6 +52,8 @@ function cellLabel(c: SetColumn, unit: WeightUnit): string {
       return 'time';
     case 'rpe':
       return 'RPE';
+    case 'rir':
+      return 'reps in reserve';
     default:
       return c.label.toLowerCase();
   }

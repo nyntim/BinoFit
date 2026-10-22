@@ -77,6 +77,7 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
       duration_seconds INTEGER,
       distance_m REAL,
       rpe REAL,
+      rir INTEGER,
       completed_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -119,5 +120,9 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
     CREATE INDEX IF NOT EXISTS idx_routines_position ON routines(position);
     CREATE INDEX IF NOT EXISTS idx_routine_exercises_routine ON routine_exercises(routine_id, position);
   `);
+  const setColumns = new Set(
+    (await db.getAllAsync<{ name: string }>('PRAGMA table_info(workout_sets)')).map((c) => c.name)
+  );
+  if (!setColumns.has('rir')) await db.execAsync('ALTER TABLE workout_sets ADD COLUMN rir INTEGER');
   await seedExercises(db);
 }

@@ -1,11 +1,25 @@
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import { getPreferences, setDefaultSetCount, setShowRpe } from '@/lib/app-preferences';
+import { PillSwitch } from '@/components/settings/PillSwitch';
+import {
+  getPreferences,
+  setDefaultSetCount,
+  setEffortMetric,
+  setRestTimerEnabled,
+  setShowEffort,
+} from '@/lib/app-preferences';
+import type { EffortMetric } from '@/lib/types';
+import { stopRestTimer } from '@/lib/workouts/rest-timer-store';
 import { MAX_DEFAULT_SET_COUNT, MIN_DEFAULT_SET_COUNT } from '@/lib/workouts/prefill';
 
+const SCALES: { value: EffortMetric; label: string }[] = [
+  { value: 'rpe', label: 'RPE' },
+  { value: 'rir', label: 'RIR' },
+];
+
 export function TrainingSection() {
-  const { showRpe, defaultSetCount } = usePreferences();
+  const { showEffort, effortMetric, restTimerEnabled, defaultSetCount } = usePreferences();
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const card = useThemeColor({}, 'cardBackground');
@@ -17,20 +31,58 @@ export function TrainingSection() {
     <View style={styles.section}>
       <View style={[styles.row, { backgroundColor: card }]}>
         <View style={styles.info}>
-          <Text style={[styles.label, { color: text }]}>Show RPE</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>
-            Adds an effort rating (1 to 10) to each set.
-          </Text>
+          <Text style={[styles.label, { color: text }]}>Effort per set</Text>
+          <Text style={[styles.subtitle, { color: muted }]}>Adds an effort column to each set.</Text>
         </View>
         <Switch
-          value={showRpe}
+          value={showEffort}
           onValueChange={(v) => {
-            void setShowRpe(v).catch(() => undefined);
+            void setShowEffort(v).catch(() => undefined);
           }}
           trackColor={{ false: muted, true: tint }}
           thumbColor={background}
           ios_backgroundColor={muted}
-          accessibilityLabel="Show RPE"
+          accessibilityLabel="Effort per set"
+        />
+      </View>
+
+      {showEffort && (
+        <View style={[styles.row, styles.stacked, { backgroundColor: card }]}>
+          <View style={styles.info}>
+            <Text style={[styles.label, { color: text }]}>Effort scale</Text>
+            <Text style={[styles.subtitle, { color: muted }]}>
+              {effortMetric === 'rir' ? 'Reps you had left in the tank, 0 to 10.' : 'How hard the set felt, 1 to 10.'}
+            </Text>
+          </View>
+          <PillSwitch
+            value={effortMetric}
+            options={SCALES}
+            onChange={(metric) => {
+              void setEffortMetric(metric).catch(() => undefined);
+            }}
+            accessibilityLabel="Effort scale"
+          />
+        </View>
+      )}
+
+      <View style={[styles.row, { backgroundColor: card }]}>
+        <View style={styles.info}>
+          <Text style={[styles.label, { color: text }]}>Rest timer</Text>
+          <Text style={[styles.subtitle, { color: muted }]}>
+            Counts down after each completed set and notifies you when rest is over.
+          </Text>
+        </View>
+        <Switch
+          value={restTimerEnabled}
+          onValueChange={(v) => {
+            void setRestTimerEnabled(v)
+              .then(() => (v ? undefined : stopRestTimer()))
+              .catch(() => undefined);
+          }}
+          trackColor={{ false: muted, true: tint }}
+          thumbColor={background}
+          ios_backgroundColor={muted}
+          accessibilityLabel="Rest timer"
         />
       </View>
 
@@ -91,6 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
   },
+  stacked: { flexDirection: 'column', alignItems: 'flex-start', gap: 12 },
   info: { flex: 1, marginRight: 16 },
   label: { fontSize: 16, fontWeight: '500' },
   subtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },

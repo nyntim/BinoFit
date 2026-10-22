@@ -46,6 +46,36 @@ export type ExerciseInput = {
 /** Common short words that should not trigger a suggestion on their own. */
 const STOPWORDS = new Set(['the', 'and', 'with', 'for', 'from']);
 
+/** Brands offered as quick chips on the brand step. */
+export const COMMON_MACHINE_BRANDS: readonly string[] = [
+  'Hammer Strength',
+  'Life Fitness',
+  'Technogym',
+  'Precor',
+  'Cybex',
+  'Matrix',
+  'Nautilus',
+  'Rogue',
+  'Gym80',
+  'Panatta',
+  'Prime',
+  'Atlantis',
+];
+
+/** Brand chips: the user's own brands (trimmed, deduped case-insensitively), then the common ones not already used. */
+export function brandChips(used: readonly string[]): { used: string[]; common: string[] } {
+  const seen = new Set<string>();
+  const own: string[] = [];
+  for (const raw of used) {
+    const brand = raw.trim();
+    const key = brand.toLowerCase();
+    if (!brand || seen.has(key)) continue;
+    seen.add(key);
+    own.push(brand);
+  }
+  return { used: own, common: COMMON_MACHINE_BRANDS.filter((b) => !seen.has(b.toLowerCase())) };
+}
+
 const BRAND_EQUIPMENT: readonly Equipment[] = ['machine', 'cable', 'cardio_machine'];
 
 export function hasBrandStep(equipment: Equipment | null): boolean {
@@ -201,11 +231,12 @@ export function nameSuggestions<T extends SeedLike>(name: string, seeds: readonl
     .map((x) => x.s);
 }
 
-/** Copies the suggestion's muscles and log type. */
+/** Copies the suggestion's name, muscles and log type. */
 export function applySuggestion(draft: BuilderDraft, seed: SeedLike): BuilderDraft {
   return applyLogType(
     {
       ...draft,
+      name: seed.name,
       primary: [...seed.primary_muscles],
       secondary: [...seed.secondary_muscles],
       copiedFrom: seed.name,
@@ -232,13 +263,13 @@ export function loadingText(draft: BuilderDraft, unit: WeightUnit): string {
 }
 
 export function musclesText(draft: Pick<BuilderDraft, 'primary' | 'secondary'>): string {
-  const primary = draft.primary.map((m) => MUSCLE_LABELS[m]).join(', ');
-  const secondary = draft.secondary.map((m) => MUSCLE_LABELS[m]).join(', ');
+  const primary = draft.primary.map((m) => MUSCLE_LABELS[m] ?? m).join(', ');
+  const secondary = draft.secondary.map((m) => MUSCLE_LABELS[m] ?? m).join(', ');
   return primary + (secondary ? ` · also ${secondary}` : '');
 }
 
-export function loggedAsText(draft: BuilderDraft): string {
-  return logTypeLabel(draft.logType) + (draft.perSide && isRepLogType(draft.logType) ? ', per side' : '');
+export function loggedAsText(draft: BuilderDraft, withPerSide = true): string {
+  return logTypeLabel(draft.logType) + (withPerSide && draft.perSide && isRepLogType(draft.logType) ? ', per side' : '');
 }
 
 export type ReviewRowData = { step: BuilderStepId; label: string; value: string };
@@ -254,9 +285,12 @@ export function reviewRows(draft: BuilderDraft, unit: WeightUnit): ReviewRowData
   rows.push(
     { step: 'name', label: 'Name', value: draft.name.trim() },
     { step: 'muscles', label: 'Muscles', value: musclesText(draft) },
-    { step: 'logtype', label: 'Logged as', value: loggedAsText(draft) },
-    { step: 'notes', label: 'Setup notes', value: draft.notes.trim() || 'None' }
+    { step: 'logtype', label: 'Logged as', value: loggedAsText(draft, false) }
   );
+  if (isRepLogType(draft.logType)) {
+    rows.push({ step: 'name', label: 'Per side / unilateral', value: draft.perSide ? 'Yes' : 'No' });
+  }
+  rows.push({ step: 'notes', label: 'Setup notes', value: draft.notes.trim() || 'None' });
   return rows;
 }
 
@@ -270,7 +304,7 @@ export function draftDisplayName(draft: BuilderDraft): string {
 /** One-line summary for the saved card: "Machine · Chest · Weight × reps, per side". */
 export function draftSummary(draft: BuilderDraft): string {
   const equipment = draft.equipment ? EQUIPMENT_LABELS[draft.equipment] : '';
-  const primary = draft.primary.map((m) => MUSCLE_LABELS[m]).join(', ');
+  const primary = draft.primary.map((m) => MUSCLE_LABELS[m] ?? m).join(', ');
   return [equipment, primary, loggedAsText(draft)].filter(Boolean).join(' · ');
 }
 

@@ -234,6 +234,9 @@ export type ExerciseLogType =
   | 'duration'
   | 'distance_duration';
 
+/** Which per-set effort column the editor shows (device preference). */
+export type EffortMetric = 'rpe' | 'rir';
+
 export type MuscleGroup =
   | 'chest'
   | 'front_delts'
@@ -247,8 +250,10 @@ export type MuscleGroup =
   | 'lower_back'
   | 'abs'
   | 'glutes'
+  | 'abductors'
   | 'quads'
   | 'hamstrings'
+  | 'adductors'
   | 'calves'
   | 'full_body'
   | 'cardio';
@@ -331,6 +336,8 @@ export type WorkoutSet = {
   duration_seconds: number | null;
   distance_m: number | null;
   rpe: number | null;
+  /** Reps in reserve, whole 0 to 10. */
+  rir: number | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -412,6 +419,8 @@ export type RemoteWorkoutSet = {
   duration_seconds: number | null;
   distance_m: number | null;
   rpe: number | null;
+  /** Absent on rows written before the column existed. */
+  rir?: number | null;
   completed_at: string | null;
   created_at: string | null;
   updated_at: string | null;

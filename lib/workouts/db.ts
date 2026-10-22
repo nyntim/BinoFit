@@ -368,6 +368,7 @@ export type SetValues = {
   duration_seconds?: number | null;
   distance_m?: number | null;
   rpe?: number | null;
+  rir?: number | null;
   completed_at?: string | null;
 };
 
@@ -404,6 +405,7 @@ export function buildWorkoutSetRow(
     duration_seconds: input.duration_seconds ?? null,
     distance_m: input.distance_m ?? null,
     rpe: input.rpe ?? null,
+    rir: input.rir ?? null,
     completed_at: input.completed_at ?? null,
     created_at: now,
     updated_at: now,
@@ -417,8 +419,8 @@ export async function insertWorkoutSet(db: SQLite.SQLiteDatabase, set: WorkoutSe
   await db.runAsync(
     `INSERT INTO workout_sets
        (id, workout_id, workout_exercise_id, position, set_type, weight_kg, reps, duration_seconds,
-        distance_m, rpe, completed_at, created_at, updated_at, synced_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+        distance_m, rpe, rir, completed_at, created_at, updated_at, synced_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
     [
       set.id,
       set.workout_id,
@@ -430,6 +432,7 @@ export async function insertWorkoutSet(db: SQLite.SQLiteDatabase, set: WorkoutSe
       set.duration_seconds,
       set.distance_m,
       set.rpe,
+      set.rir,
       set.completed_at,
       set.created_at,
       set.updated_at,
@@ -457,6 +460,7 @@ const SET_PATCH_COLUMNS = [
   'duration_seconds',
   'distance_m',
   'rpe',
+  'rir',
   'completed_at',
 ] as const;
 

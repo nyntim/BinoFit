@@ -2,7 +2,9 @@ import {
   REST_ADJUST_SECONDS,
   adjustRest,
   remainingSeconds,
+  restChoiceLabel,
   restNotificationBody,
+  restSecondsForTick,
   restoreRest,
   startRest,
 } from '@/lib/workouts/rest-timer';
@@ -85,6 +87,21 @@ describe('restNotificationBody', () => {
   it('falls back without a name', () => {
     expect(restNotificationBody(undefined)).toBe('Next set.');
     expect(restNotificationBody('')).toBe('Next set.');
+  });
+});
+
+describe('restChoiceLabel and restSecondsForTick', () => {
+  it('labels 0 as No rest and others as m:ss', () => {
+    expect(restChoiceLabel(0)).toBe('No rest');
+    expect(restChoiceLabel(90)).toBe('1:30');
+  });
+  it('is 0 when disabled, the default when unset and keeps an explicit 0', () => {
+    expect(restSecondsForTick(60, false)).toBe(0);
+    expect(restSecondsForTick(null, false)).toBe(0);
+    expect(restSecondsForTick(null, true)).toBe(90);
+    expect(restSecondsForTick(undefined, true)).toBe(90);
+    expect(restSecondsForTick(0, true)).toBe(0);
+    expect(restSecondsForTick(45, true)).toBe(45);
   });
 });
 

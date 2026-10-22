@@ -3,7 +3,12 @@ import {
   clearUserStorage,
   getActiveRestTimer,
   getDefaultSetCount,
-  getShowRpe,
+  getEffortMetric,
+  getRestTimerEnabled,
+  resolveEffortMetric,
+  setEffortMetric,
+  setRestTimerEnabled,
+  getShowEffort,
   getWeightUnit,
   parseRestTimer,
   resolveDefaultSetCount,
@@ -11,7 +16,7 @@ import {
   resetOnboarding,
   setActiveRestTimer,
   setDefaultSetCount,
-  setShowRpe,
+  setShowEffort,
   setWeightUnit,
 } from '@/lib/storage';
 
@@ -36,12 +41,29 @@ describe('training preference storage', () => {
     expect(await getWeightUnit()).toBe(unit);
   });
 
-  it('show RPE defaults to false and round trips', async () => {
-    expect(await getShowRpe()).toBe(false);
-    await setShowRpe(true);
-    expect(await getShowRpe()).toBe(true);
-    await setShowRpe(false);
-    expect(await getShowRpe()).toBe(false);
+  it('show effort defaults to false and round trips', async () => {
+    expect(await getShowEffort()).toBe(false);
+    await setShowEffort(true);
+    expect(await getShowEffort()).toBe(true);
+    await setShowEffort(false);
+    expect(await getShowEffort()).toBe(false);
+  });
+
+  it('effort metric defaults to rpe, resolves invalid values to rpe and round trips', async () => {
+    expect(await getEffortMetric()).toBe('rpe');
+    expect(resolveEffortMetric('bogus')).toBe('rpe');
+    await setEffortMetric('rir');
+    expect(await getEffortMetric()).toBe('rir');
+  });
+
+  it('rest timer switch defaults on and only the string false turns it off', async () => {
+    expect(await getRestTimerEnabled()).toBe(true);
+    await AsyncStorage.setItem('rest_timer_enabled', 'garbage');
+    expect(await getRestTimerEnabled()).toBe(true);
+    await setRestTimerEnabled(false);
+    expect(await getRestTimerEnabled()).toBe(false);
+    await setRestTimerEnabled(true);
+    expect(await getRestTimerEnabled()).toBe(true);
   });
 
   it('rest timer round trips and null clears it', async () => {
@@ -70,15 +92,19 @@ describe('training preference storage', () => {
     expect(await getDefaultSetCount()).toBe(4);
   });
 
-  it('clearUserStorage keeps unit, RPE and default sets but clears rest timer', async () => {
+  it('clearUserStorage keeps unit, effort, rest timer switch and default sets but clears rest timer', async () => {
     await setWeightUnit('lb');
-    await setShowRpe(true);
+    await setShowEffort(true);
+    await setEffortMetric('rir');
+    await setRestTimerEnabled(false);
     await setDefaultSetCount(4);
     await AsyncStorage.setItem('tracking_mode', 'training');
     await setActiveRestTimer({ workoutId: 'w', endsAt: 5, durationSeconds: 60 });
     await clearUserStorage();
     expect(await getWeightUnit()).toBe('lb');
-    expect(await getShowRpe()).toBe(true);
+    expect(await getShowEffort()).toBe(true);
+    expect(await getEffortMetric()).toBe('rir');
+    expect(await getRestTimerEnabled()).toBe(false);
     expect(await getDefaultSetCount()).toBe(4);
     expect(await AsyncStorage.getItem('tracking_mode')).toBe('training');
     expect(await getActiveRestTimer()).toBeNull();

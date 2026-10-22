@@ -1,6 +1,7 @@
 // Pub/sub store of the running rest timer, kept in step with AsyncStorage (so it survives a restart)
 // and the local "Rest over" notification. Every function is fire-and-forget safe: none throws.
 // Callers: the live session (tick starts, untick cancels), finish/discard, wipe and app launch.
+import { getPreferences, loadPreferences } from '@/lib/app-preferences';
 import { getActiveRestTimer, setActiveRestTimer } from '@/lib/storage';
 import type { RestTimerState } from '@/lib/types';
 import {
@@ -51,6 +52,11 @@ export function startRestTimer(
   input: { workoutId: string; durationSeconds: number; workoutExerciseId?: string; setId?: string; exerciseName?: string },
   now: number = Date.now()
 ): RestTimerState | null {
+  if (!getPreferences().restTimerEnabled) {
+    // Global switch off: no timer, notification or permission prompt. Also ends any running rest.
+    if (state.timer) void stopRestTimer();
+    return null;
+  }
   const timer = startRest(input.workoutId, input.durationSeconds, now, input);
   emit(timer);
   persist(timer);
@@ -117,6 +123,11 @@ export async function clearRestTimerAndNotifications(): Promise<void> {
 export async function restoreRestTimer(activeWorkoutId: string | null, now: number = Date.now()): Promise<void> {
   try {
     if (state.timer) return; // a rest already started in this launch wins over the stored one
+    await loadPreferences();
+    if (!getPreferences().restTimerEnabled) {
+      await clearRestTimerAndNotifications();
+      return;
+    }
     const stored = await getActiveRestTimer();
     const timer = restoreRest(stored, activeWorkoutId, now);
     if (timer) {

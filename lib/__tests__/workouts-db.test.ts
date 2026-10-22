@@ -69,7 +69,39 @@ describe('workout schema', () => {
     load();
     await database.getDatabase();
     expect(count('exercises', "source = 'custom'")).toBe(1);
-    expect(count('exercises', "source = 'seed'")).toBe(46);
+    expect(count('exercises', "source = 'seed'")).toBe(49);
+  });
+
+  it('adds the rir column to an existing workout_sets table, keeping rows and RPE', async () => {
+    mem.raw.exec(
+      `DROP TABLE workout_sets;
+       CREATE TABLE workout_sets (
+         id TEXT PRIMARY KEY, workout_id TEXT NOT NULL, workout_exercise_id TEXT NOT NULL,
+         position INTEGER NOT NULL, set_type TEXT NOT NULL DEFAULT 'normal', weight_kg REAL, reps INTEGER,
+         duration_seconds INTEGER, distance_m REAL, rpe REAL, completed_at TEXT,
+         created_at TEXT NOT NULL, updated_at TEXT NOT NULL, synced_at TEXT, deleted_at TEXT);`
+    );
+    mem.raw
+      .prepare(`INSERT INTO workout_sets (id,workout_id,workout_exercise_id,position,rpe,created_at,updated_at) VALUES ('old','w','we',0,8,?,?)`)
+      .run(T, T);
+    load();
+    await database.getDatabase();
+    expect(rowOf('workout_sets', 'old')).toMatchObject({ rpe: 8, rir: null });
+    // Running the schema again on an up-to-date table is safe.
+    load();
+    await database.getDatabase();
+    expect(rowOf('workout_sets', 'old')).toMatchObject({ rpe: 8, rir: null });
+  });
+
+  it('buildWorkoutSetRow defaults rir to null and updateWorkoutSet persists and clears it', async () => {
+    insertExercise('ex1');
+    expect(w.buildWorkoutSetRow({ workout_exercise_id: 'we' }, 'w', 0).rir).toBeNull();
+    const { set } = await tree('done');
+    mem.raw.prepare('UPDATE workout_sets SET synced_at = ? WHERE id = ?').run(T, set.id);
+    await w.updateWorkoutSet(set.id, { rir: 2 });
+    expect(rowOf('workout_sets', set.id)).toMatchObject({ rir: 2, synced_at: null });
+    await w.updateWorkoutSet(set.id, { rir: null });
+    expect(rowOf('workout_sets', set.id).rir).toBeNull();
   });
 
   it('every workout table has the sync columns', () => {
@@ -378,7 +410,7 @@ describe('wipe', () => {
       .run(T, T);
     await database.clearUserData();
     expect(count('exercises', "source = 'custom'")).toBe(0);
-    expect(count('exercises', "source = 'seed'")).toBe(47);
+    expect(count('exercises', "source = 'seed'")).toBe(50);
     expect(rowOf('exercises', 'seed1')).toBeDefined();
     expect(
       count('workouts') +

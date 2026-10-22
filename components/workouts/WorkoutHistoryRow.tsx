@@ -2,9 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { WorkoutSummary } from '@/lib/types';
 
-type Props = { summary: WorkoutSummary; onPress: () => void; last?: boolean };
+type Props = { summary: WorkoutSummary; onPress: () => void; onLongPress?: () => void; last?: boolean };
 
-export function WorkoutHistoryRow({ summary, onPress, last }: Props) {
+export function WorkoutHistoryRow({ summary, onPress, onLongPress, last }: Props) {
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const separator = useThemeColor({}, 'separator');
@@ -13,6 +13,12 @@ export function WorkoutHistoryRow({ summary, onPress, last }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityActions={onLongPress ? [{ name: 'saveAsRoutine', label: 'Save as routine' }] : undefined}
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === 'saveAsRoutine') onLongPress?.();
+      }}
+      accessibilityHint={onLongPress ? 'Long press for more options' : undefined}
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, durationLabel, detailLabel].filter(Boolean).join('. ')}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separator }]}

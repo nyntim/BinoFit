@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { OptionsSheet } from '@/components/workouts/OptionsSheet';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWorkoutHistory } from '@/hooks/useWorkoutHistory';
+import type { WorkoutSummary } from '@/lib/types';
+import { saveAsRoutineWithFeedback } from '@/lib/workouts/routine-flow';
 import { groupByMonth } from '@/lib/workouts/summary';
 
 /** All finished workouts, newest first, grouped by month. */
@@ -17,6 +20,7 @@ export default function WorkoutHistoryScreen() {
   const card = useThemeColor({}, 'cardBackground');
 
   const history = useWorkoutHistory();
+  const [optionsFor, setOptionsFor] = useState<WorkoutSummary | null>(null);
   const sections = useMemo(
     () => groupByMonth(history.items).map((g) => ({ key: g.key, title: g.label, data: g.items })),
     [history.items]
@@ -98,9 +102,31 @@ export default function WorkoutHistoryScreen() {
               summary={item}
               last={index === section.data.length - 1}
               onPress={() => router.push({ pathname: '/workout/[id]', params: { id: item.id } })}
+              onLongPress={() => setOptionsFor(item)}
             />
           </View>
         )}
+      />
+      <OptionsSheet
+        visible={!!optionsFor}
+        title={optionsFor?.title}
+        onClose={() => setOptionsFor(null)}
+        options={[
+          {
+            key: 'routine',
+            label: 'Save as routine',
+            onPress: () => {
+              if (optionsFor) void saveAsRoutineWithFeedback(optionsFor.id);
+            },
+          },
+          {
+            key: 'open',
+            label: 'Open',
+            onPress: () => {
+              if (optionsFor) router.push({ pathname: '/workout/[id]', params: { id: optionsFor.id } });
+            },
+          },
+        ]}
       />
     </SafeAreaView>
   );

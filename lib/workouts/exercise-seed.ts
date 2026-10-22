@@ -1,15 +1,16 @@
 import type * as SQLite from 'expo-sqlite';
+import type { Region } from '@/lib/workouts/exercise-catalog';
 import type { Equipment, ExerciseLogType, MuscleGroup } from '@/lib/types';
 
 /** Bump when SEED_EXERCISES changes; `seedExercises` reruns only when the stored version is lower. */
-export const EXERCISE_SEED_VERSION = 1;
+export const EXERCISE_SEED_VERSION = 2;
 export const EXERCISE_SEED_VERSION_KEY = 'exercise_seed_version';
 
 export type SeedExercise = {
   id: string;
   name: string;
-  /** Spec group (docs/phase-4-training.md). Must equal MUSCLE_REGION[primary[0]]. */
-  group: 'Chest' | 'Back' | 'Shoulders' | 'Arms' | 'Legs' | 'Core' | 'Cardio';
+  /** Spec group (docs/phase-4-training.md). Equals MUSCLE_REGION[primary[0]]. */
+  group: Exclude<Region, 'All'>;
   log_type: ExerciseLogType;
   primary_muscles: MuscleGroup[];
   secondary_muscles: MuscleGroup[];
@@ -49,13 +50,13 @@ const ROWS: Row[] = [
   ['push-up', 'Push-up', 'Chest', BW, ['chest'], ['triceps', 'front_delts'], 'bodyweight', 0, 90, 3.8],
   ['dip', 'Dip', 'Chest', BW, ['chest'], ['triceps', 'front_delts'], 'bodyweight', 0, 120, 5],
   // Back (7)
-  ['deadlift', 'Deadlift', 'Back', W, ['lower_back'], ['glutes', 'hamstrings', 'upper_back'], 'barbell', 0, 180, 6],
-  ['pull-up', 'Pull-up', 'Back', BW, ['lats'], ['biceps', 'upper_back'], 'bodyweight', 0, 120, 4],
-  ['chin-up', 'Chin-up', 'Back', BW, ['lats'], ['biceps', 'upper_back'], 'bodyweight', 0, 120, 4],
-  ['lat-pulldown', 'Lat pulldown', 'Back', W, ['lats'], ['biceps', 'upper_back'], 'cable', 0, 90, 4],
-  ['barbell-row', 'Barbell row', 'Back', W, ['upper_back'], ['lats', 'biceps', 'lower_back'], 'barbell', 0, 120, 5],
-  ['dumbbell-row', 'Dumbbell row', 'Back', W, ['lats'], ['upper_back', 'biceps'], 'dumbbell', 1, 90, 4.5],
-  ['seated-cable-row', 'Seated cable row', 'Back', W, ['upper_back'], ['lats', 'biceps'], 'cable', 0, 90, 4.5],
+  ['deadlift', 'Deadlift', 'Erectors', W, ['lower_back'], ['glutes', 'hamstrings', 'upper_back'], 'barbell', 0, 180, 6],
+  ['pull-up', 'Pull-up', 'Lats', BW, ['lats'], ['biceps', 'upper_back'], 'bodyweight', 0, 120, 4],
+  ['chin-up', 'Chin-up', 'Lats', BW, ['lats'], ['biceps', 'upper_back'], 'bodyweight', 0, 120, 4],
+  ['lat-pulldown', 'Lat pulldown', 'Lats', W, ['lats'], ['biceps', 'upper_back'], 'cable', 0, 90, 4],
+  ['barbell-row', 'Barbell row', 'Lats', W, ['lats', 'upper_back'], ['biceps', 'lower_back'], 'barbell', 0, 120, 5],
+  ['dumbbell-row', 'Dumbbell row', 'Lats', W, ['lats'], ['upper_back', 'biceps'], 'dumbbell', 1, 90, 4.5],
+  ['seated-cable-row', 'Seated cable row', 'Lats', W, ['lats', 'upper_back'], ['biceps'], 'cable', 0, 90, 4.5],
   // Shoulders (5)
   ['overhead-press', 'Overhead press', 'Shoulders', W, ['front_delts'], ['triceps', 'side_delts'], 'barbell', 0, 150, 5],
   ['dumbbell-shoulder-press', 'Dumbbell shoulder press', 'Shoulders', W, ['front_delts'], ['triceps', 'side_delts'], 'dumbbell', 0, 120, 5],
@@ -63,27 +64,30 @@ const ROWS: Row[] = [
   ['rear-delt-fly', 'Rear delt fly', 'Shoulders', W, ['rear_delts'], ['upper_back'], 'dumbbell', 0, 60, 3.5],
   ['face-pull', 'Face pull', 'Shoulders', W, ['rear_delts'], ['upper_back', 'side_delts'], 'cable', 0, 60, 3.5],
   // Arms (6)
-  ['barbell-curl', 'Barbell curl', 'Arms', W, ['biceps'], ['forearms'], 'barbell', 0, 75, 3.5],
-  ['dumbbell-curl', 'Dumbbell curl', 'Arms', W, ['biceps'], ['forearms'], 'dumbbell', 0, 75, 3.5],
-  ['hammer-curl', 'Hammer curl', 'Arms', W, ['biceps'], ['forearms'], 'dumbbell', 0, 75, 3.5],
-  ['triceps-pushdown', 'Triceps pushdown', 'Arms', W, ['triceps'], [], 'cable', 0, 75, 3.5],
-  ['overhead-triceps-extension', 'Overhead triceps extension', 'Arms', W, ['triceps'], [], 'dumbbell', 0, 75, 3.5],
-  ['skull-crusher', 'Skull crusher', 'Arms', W, ['triceps'], [], 'barbell', 0, 75, 3.5],
+  ['barbell-curl', 'Barbell curl', 'Biceps', W, ['biceps'], ['forearms'], 'barbell', 0, 75, 3.5],
+  ['dumbbell-curl', 'Dumbbell curl', 'Biceps', W, ['biceps'], ['forearms'], 'dumbbell', 0, 75, 3.5],
+  ['hammer-curl', 'Hammer curl', 'Biceps', W, ['biceps'], ['forearms'], 'dumbbell', 0, 75, 3.5],
+  ['triceps-pushdown', 'Triceps pushdown', 'Triceps', W, ['triceps'], [], 'cable', 0, 75, 3.5],
+  ['overhead-triceps-extension', 'Overhead triceps extension', 'Triceps', W, ['triceps'], [], 'dumbbell', 0, 75, 3.5],
+  ['skull-crusher', 'Skull crusher', 'Triceps', W, ['triceps'], [], 'barbell', 0, 75, 3.5],
   // Legs (10)
-  ['back-squat', 'Back squat', 'Legs', W, ['quads'], ['glutes', 'hamstrings', 'lower_back'], 'barbell', 0, 180, 6],
-  ['front-squat', 'Front squat', 'Legs', W, ['quads'], ['glutes', 'abs'], 'barbell', 0, 180, 6],
-  ['romanian-deadlift', 'Romanian deadlift', 'Legs', W, ['hamstrings'], ['glutes', 'lower_back'], 'barbell', 0, 150, 6],
-  ['leg-press', 'Leg press', 'Legs', W, ['quads'], ['glutes', 'hamstrings'], 'machine', 0, 150, 5],
-  ['bulgarian-split-squat', 'Bulgarian split squat', 'Legs', W, ['quads'], ['glutes'], 'dumbbell', 1, 90, 5],
-  ['walking-lunge', 'Walking lunge', 'Legs', W, ['quads'], ['glutes', 'hamstrings'], 'dumbbell', 1, 90, 5],
-  ['leg-extension', 'Leg extension', 'Legs', W, ['quads'], [], 'machine', 0, 75, 3.5],
-  ['leg-curl', 'Leg curl', 'Legs', W, ['hamstrings'], [], 'machine', 0, 75, 3.5],
-  ['hip-thrust', 'Hip thrust', 'Legs', W, ['glutes'], ['hamstrings'], 'barbell', 0, 120, 5],
-  ['standing-calf-raise', 'Standing calf raise', 'Legs', W, ['calves'], [], 'machine', 0, 60, 3.5],
+  ['back-squat', 'Back squat', 'Quads', W, ['quads'], ['glutes', 'hamstrings', 'lower_back'], 'barbell', 0, 180, 6],
+  ['front-squat', 'Front squat', 'Quads', W, ['quads'], ['glutes', 'abs'], 'barbell', 0, 180, 6],
+  ['romanian-deadlift', 'Romanian deadlift', 'Hamstrings', W, ['hamstrings'], ['glutes', 'lower_back'], 'barbell', 0, 150, 6],
+  ['leg-press', 'Leg press', 'Quads', W, ['quads'], ['glutes', 'hamstrings'], 'machine', 0, 150, 5],
+  ['bulgarian-split-squat', 'Bulgarian split squat', 'Quads', W, ['quads'], ['glutes'], 'dumbbell', 1, 90, 5],
+  ['walking-lunge', 'Walking lunge', 'Quads', W, ['quads'], ['glutes', 'hamstrings'], 'dumbbell', 1, 90, 5],
+  ['leg-extension', 'Leg extension', 'Quads', W, ['quads'], [], 'machine', 0, 75, 3.5],
+  ['leg-curl', 'Leg curl', 'Hamstrings', W, ['hamstrings'], [], 'machine', 0, 75, 3.5],
+  ['hip-thrust', 'Hip thrust', 'Glutes', W, ['glutes'], ['hamstrings'], 'barbell', 0, 120, 5],
+  ['standing-calf-raise', 'Standing calf raise', 'Calves', W, ['calves'], [], 'machine', 0, 60, 3.5],
+  ['hip-adduction', 'Hip adduction', 'Adductors', W, ['adductors'], [], 'machine', 0, 60, 3.5],
+  ['hip-abduction', 'Hip abduction', 'Glutes', W, ['abductors'], ['glutes'], 'machine', 0, 60, 3.5],
   // Core (3)
-  ['plank', 'Plank', 'Core', T, ['abs'], ['lower_back'], 'bodyweight', 0, 60, 3.8],
-  ['hanging-leg-raise', 'Hanging leg raise', 'Core', BW, ['abs'], ['forearms'], 'bodyweight', 0, 75, 4],
-  ['cable-crunch', 'Cable crunch', 'Core', W, ['abs'], [], 'cable', 0, 75, 3.5],
+  ['plank', 'Plank', 'Abdominals', T, ['abs'], ['lower_back'], 'bodyweight', 0, 60, 3.8],
+  ['hanging-leg-raise', 'Hanging leg raise', 'Abdominals', BW, ['abs'], ['forearms'], 'bodyweight', 0, 75, 4],
+  ['cable-crunch', 'Cable crunch', 'Abdominals', W, ['abs'], [], 'cable', 0, 75, 3.5],
+  ['copenhagen-plank', 'Copenhagen plank', 'Adductors', T, ['adductors'], ['abs'], 'bodyweight', 0, 60, 3.8],
   // Cardio (8)
   ['run', 'Run', 'Cardio', D, ['cardio'], [], 'bodyweight', 0, null, 9.8],
   ['walk', 'Walk', 'Cardio', D, ['cardio'], [], 'bodyweight', 0, null, 3.5],

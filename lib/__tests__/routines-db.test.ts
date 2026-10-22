@@ -300,7 +300,7 @@ describe('clearUserData and markAllUnsynced', () => {
     await routines.addExerciseToRoutine(r.id, 'ex1');
     await database.clearUserData();
     expect(count('routines') + count('routine_exercises')).toBe(0);
-    expect(count('exercises', "source = 'seed'")).toBe(46);
+    expect(count('exercises', "source = 'seed'")).toBe(49);
   });
 
   it('markAllUnsynced clears synced_at on routines and routine_exercises', async () => {

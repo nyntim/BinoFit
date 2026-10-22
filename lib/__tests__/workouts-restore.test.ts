@@ -132,6 +132,20 @@ describe('applyRemoteWorkoutTree', () => {
     expect(rowOf('workout_sets', 's1')).toMatchObject({ weight_kg: 60, reps: 5 });
   });
 
+  it('restores rir, and null when the remote row has no rir key', async () => {
+    await apply.applyRemoteWorkoutTree(tree({ sets: [rSet({ rir: 2 }), rSet({ id: 's2', position: 1 })] }));
+    expect(rowOf('workout_sets', 's1').rir).toBe(2);
+    expect(rowOf('workout_sets', 's2').rir).toBeNull();
+  });
+
+  it('last write wins for rir', async () => {
+    await apply.applyRemoteWorkoutTree(tree({ sets: [rSet({ rir: 2 })] }));
+    await apply.applyRemoteWorkoutTree(tree({ sets: [rSet({ rir: 5, updated_at: NEW })] }));
+    expect(rowOf('workout_sets', 's1').rir).toBe(5);
+    await apply.applyRemoteWorkoutTree(tree({ sets: [rSet({ rir: 9, updated_at: OLD })] }));
+    expect(rowOf('workout_sets', 's1').rir).toBe(5);
+  });
+
   it('forces status done whatever the remote row says', async () => {
     await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ status: 'active' })] }));
     expect(rowOf('workouts', 'w1').status).toBe('done');

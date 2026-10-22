@@ -69,6 +69,7 @@ function makeSet(over: SetOverrides = {}): WorkoutSet {
     duration_seconds: null,
     distance_m: null,
     rpe: null,
+    rir: null,
     completed_at:
       over.completed_at !== undefined ? over.completed_at : '2026-10-10T10:05:00.000Z',
     created_at: '2026-10-10T10:00:00.000Z',

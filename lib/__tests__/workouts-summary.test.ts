@@ -4,6 +4,7 @@ import {
   formatVolume,
   formatWeekRange,
   groupByMonth,
+  pairRows,
   setsPerMuscle,
   summarizeWeek,
   summarizeWorkout,
@@ -255,7 +256,7 @@ describe('setsPerMuscle', () => {
 
     expect(setsPerMuscle([workout])).toEqual([
       { region: 'Chest', sets: 4 },
-      { region: 'Back', sets: 2 },
+      { region: 'Erectors', sets: 2 },
     ]);
   });
 
@@ -282,12 +283,19 @@ describe('setsPerMuscle', () => {
   });
 
   it('credits distinct primary muscles in the same region once per set', () => {
-    const back = ex({
-      primary_muscles: ['lats', 'upper_back', 'lower_back'],
-      secondary_muscles: ['biceps'],
+    const glutes = ex({
+      primary_muscles: ['glutes', 'abductors'],
+      secondary_muscles: ['hamstrings'],
     });
-    expect(setsPerMuscle([wk({}, [link(back, [set({ completed_at: T })])])])).toEqual([
-      { region: 'Back', sets: 1 },
+    expect(setsPerMuscle([wk({}, [link(glutes, [set({ completed_at: T })])])])).toEqual([
+      { region: 'Glutes', sets: 1 },
+    ]);
+  });
+
+  it('counts adductors under Adductors', () => {
+    const adduction = ex({ primary_muscles: ['adductors'], secondary_muscles: [] });
+    expect(setsPerMuscle([wk({}, [link(adduction, [set({ completed_at: T }), set({ completed_at: T })])])])).toEqual([
+      { region: 'Adductors', sets: 2 },
     ]);
   });
 
@@ -298,7 +306,8 @@ describe('setsPerMuscle', () => {
     });
     expect(setsPerMuscle([wk({}, [link(custom, [set({ completed_at: T })])])])).toEqual([
       { region: 'Chest', sets: 1 },
-      { region: 'Back', sets: 1 },
+      { region: 'Traps', sets: 1 },
+      { region: 'Erectors', sets: 1 },
     ]);
   });
 
@@ -325,7 +334,7 @@ describe('setsPerMuscle', () => {
     }
     const validPlusUnknown = ex({ primary_muscles: ['not_a_muscle', 'abs'] });
     expect(setsPerMuscle([wk({}, [link(validPlusUnknown, [set({ completed_at: T })])])])).toEqual([
-      { region: 'Core', sets: 1 },
+      { region: 'Abdominals', sets: 1 },
     ]);
   });
 
@@ -347,7 +356,7 @@ describe('setsPerMuscle', () => {
       secondary_muscles: ['forearms'],
     });
     expect(setsPerMuscle([wk({}, [link(unilateral, [set({ completed_at: T })])])])).toEqual([
-      { region: 'Arms', sets: 1 },
+      { region: 'Biceps', sets: 1 },
     ]);
   });
 
@@ -379,7 +388,7 @@ describe('setsPerMuscle', () => {
     });
     const w1 = wk({ id: 'w1' }, [link(row, [set({ completed_at: T }), set({ completed_at: T })])]);
     const w2 = wk({ id: 'w2' }, [link(row, [set({ completed_at: T })])]);
-    expect(setsPerMuscle([w1, w2])).toEqual([{ region: 'Back', sets: 3 }]);
+    expect(setsPerMuscle([w1, w2])).toEqual([{ region: 'Traps', sets: 3 }]);
   });
 
   it('respects Monday-to-Sunday week boundaries when caller filters workouts by date', () => {
@@ -413,8 +422,22 @@ describe('setsPerMuscle', () => {
     const inWeek = all.filter((w) => w.date >= range.start && w.date <= range.end);
     expect(setsPerMuscle(inWeek)).toEqual([
       { region: 'Chest', sets: 1 },
-      { region: 'Back', sets: 1 },
+      { region: 'Lats', sets: 1 },
     ]);
+  });
+});
+
+describe('pairRows', () => {
+  it('pairs rows in order, leaving null for an odd last cell', () => {
+    expect(pairRows([])).toEqual([]);
+    expect(pairRows(['a'])).toEqual([['a', null]]);
+    expect(pairRows(['a', 'b'])).toEqual([['a', 'b']]);
+    expect(pairRows(['a', 'b', 'c'])).toEqual([['a', 'b'], ['c', null]]);
+    const fifteen = Array.from({ length: 15 }, (_, i) => i);
+    const pairs = pairRows(fifteen);
+    expect(pairs).toHaveLength(8);
+    expect(pairs[7]).toEqual([14, null]);
+    expect(pairs.flat().filter((x) => x !== null)).toEqual(fifteen);
   });
 });
 

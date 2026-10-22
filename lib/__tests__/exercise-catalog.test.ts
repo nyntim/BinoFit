@@ -5,6 +5,9 @@ import {
   splitSections,
   isRepLogType,
   MUSCLE_GROUPS,
+  MUSCLE_LABELS,
+  MUSCLE_REGION,
+  REGIONS,
   EQUIPMENT_OPTIONS,
 } from '@/lib/workouts/exercise-catalog';
 import { workoutDisplayName } from '@/lib/workouts/format';
@@ -72,10 +75,18 @@ describe('filterExercises', () => {
       ex({ id: '1', name: 'A', primary_muscles: ['chest'] }),
       ex({ id: '2', name: 'B', primary_muscles: ['lats'], secondary_muscles: ['chest'] }),
       ex({ id: '3', name: 'C', primary_muscles: ['full_body'] }),
+      ex({ id: '4', name: 'D', primary_muscles: ['upper_back'] }),
+      ex({ id: '5', name: 'E', primary_muscles: ['lower_back'] }),
+      ex({ id: '6', name: 'F', primary_muscles: ['abductors'] }),
+      ex({ id: '7', name: 'G', primary_muscles: ['adductors'] }),
     ];
     expect(names(filterExercises(list, { region: 'Chest' }))).toEqual(['A']);
-    expect(names(filterExercises(list, { region: 'Back' }))).toEqual(['B']);
-    expect(names(filterExercises(list, { region: 'All' }))).toEqual(['A', 'B', 'C']);
+    expect(names(filterExercises(list, { region: 'Lats' }))).toEqual(['B']);
+    expect(names(filterExercises(list, { region: 'Traps' }))).toEqual(['D']);
+    expect(names(filterExercises(list, { region: 'Erectors' }))).toEqual(['E']);
+    expect(names(filterExercises(list, { region: 'Glutes' }))).toEqual(['F']);
+    expect(names(filterExercises(list, { region: 'Adductors' }))).toEqual(['G']);
+    expect(names(filterExercises(list, { region: 'All' }))).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
   });
 
   it('excludes hidden and deleted exercises', () => {
@@ -127,8 +138,26 @@ describe('display strings', () => {
     expect(['weight_reps', 'bodyweight_reps', 'assisted'].every((t) => isRepLogType(t as any))).toBe(true);
     expect(isRepLogType('duration')).toBe(false);
     expect(isRepLogType('distance_duration')).toBe(false);
-    expect(MUSCLE_GROUPS).toHaveLength(17);
     expect(EQUIPMENT_OPTIONS).toHaveLength(7);
+  });
+
+  it('has the agreed regions, muscle labels and region map', () => {
+    expect(REGIONS).toEqual([
+      'All', 'Chest', 'Shoulders', 'Triceps', 'Biceps', 'Forearms', 'Lats', 'Traps', 'Erectors',
+      'Abdominals', 'Glutes', 'Quads', 'Hamstrings', 'Adductors', 'Calves', 'Cardio',
+    ]);
+    expect(MUSCLE_GROUPS).toHaveLength(19);
+    for (const m of MUSCLE_GROUPS) {
+      expect(MUSCLE_LABELS[m]).toBeTruthy();
+      expect(m in MUSCLE_REGION).toBe(true);
+    }
+    expect(MUSCLE_GROUPS.filter((m) => MUSCLE_REGION[m] === null)).toEqual(['full_body']);
+    expect(MUSCLE_LABELS.upper_back).toBe('Traps');
+    expect(MUSCLE_LABELS.lower_back).toBe('Erectors');
+    expect(MUSCLE_LABELS.abs).toBe('Abdominals');
+    expect(MUSCLE_LABELS.abductors).toBe('Abductors');
+    expect(MUSCLE_LABELS.adductors).toBe('Adductors');
+    expect(MUSCLE_REGION.abductors).toBe('Glutes');
   });
 });
 

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PillSwitch } from '@/components/settings/PillSwitch';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { setWeightUnit } from '@/lib/app-preferences';
@@ -14,9 +15,6 @@ export function UnitsSection() {
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const card = useThemeColor({}, 'cardBackground');
-  const subtle = useThemeColor({}, 'cardSecondary');
-  const tint = useThemeColor({}, 'tint');
-  const background = useThemeColor({}, 'background');
 
   return (
     <View style={styles.section}>
@@ -27,31 +25,14 @@ export function UnitsSection() {
             Metric: kg, km, cm. Imperial: lb, mi, ft and in.
           </Text>
         </View>
-        <View
-          style={[styles.switch, { backgroundColor: subtle }]}
-          accessibilityRole="radiogroup"
+        <PillSwitch
+          value={weightUnit}
+          options={UNITS}
+          onChange={(unit) => {
+            void setWeightUnit(unit).catch(() => undefined);
+          }}
           accessibilityLabel="Units"
-        >
-          {UNITS.map((opt) => {
-            const selected = weightUnit === opt.value;
-            return (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.segment, selected && { backgroundColor: tint }]}
-                onPress={() => {
-                  void setWeightUnit(opt.value).catch(() => undefined);
-                }}
-                activeOpacity={0.7}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.segmentText, { color: selected ? background : muted }]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        />
       </View>
 
     </View>
@@ -64,16 +45,4 @@ const styles = StyleSheet.create({
   info: { flex: 1, marginRight: 16 },
   label: { fontSize: 16, fontWeight: '500' },
   subtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  switch: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', borderRadius: 20, padding: 3 },
-  segment: {
-    maxWidth: '100%',
-    flexShrink: 1,
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: 14,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  segmentText: { fontSize: 13, fontWeight: '600' },
 });

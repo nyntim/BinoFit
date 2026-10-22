@@ -20,6 +20,7 @@ const makeSet = (over: Partial<WorkoutSet> = {}): WorkoutSet => ({
   duration_seconds: null,
   distance_m: null,
   rpe: 9,
+  rir: null,
   completed_at: '2026-06-01T10:00:00.000Z',
   created_at: '2026-06-01T10:00:00.000Z',
   updated_at: '2026-06-01T10:00:00.000Z',
@@ -27,7 +28,7 @@ const makeSet = (over: Partial<WorkoutSet> = {}): WorkoutSet => ({
 });
 
 describe('setsForRoutineExercise', () => {
-  it('previous sets win: copies count, type, weight, reps, duration and distance, strips RPE and completed_at, and ignores planned count', () => {
+  it('previous sets win: copies count, type, weight, reps, duration and distance, strips RPE, RIR and completed_at, and ignores planned count', () => {
     const prev: WorkoutSet[] = [
       makeSet({ id: 's1', set_type: 'warmup', weight_kg: 60, reps: 10, rpe: 7 }),
       makeSet({
@@ -50,6 +51,7 @@ describe('setsForRoutineExercise', () => {
       duration_seconds: null,
       distance_m: null,
       rpe: null,
+      rir: null,
       completed_at: null,
     });
     expect(result[1]).toEqual({
@@ -59,6 +61,7 @@ describe('setsForRoutineExercise', () => {
       duration_seconds: 45,
       distance_m: 200,
       rpe: null,
+      rir: null,
       completed_at: null,
     });
   });

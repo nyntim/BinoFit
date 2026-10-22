@@ -242,13 +242,13 @@ export async function applyRemoteWorkoutTree(tree: RemoteWorkoutTree): Promise<n
       await txn.runAsync(
         `INSERT INTO workout_sets
            (id, workout_id, workout_exercise_id, position, set_type, weight_kg, reps, duration_seconds,
-            distance_m, rpe, completed_at, created_at, updated_at, synced_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            distance_m, rpe, rir, completed_at, created_at, updated_at, synced_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(id) DO UPDATE SET
            workout_id = excluded.workout_id, workout_exercise_id = excluded.workout_exercise_id,
            position = excluded.position, set_type = excluded.set_type, weight_kg = excluded.weight_kg,
            reps = excluded.reps, duration_seconds = excluded.duration_seconds,
-           distance_m = excluded.distance_m, rpe = excluded.rpe, completed_at = excluded.completed_at,
+           distance_m = excluded.distance_m, rpe = excluded.rpe, rir = excluded.rir, completed_at = excluded.completed_at,
            updated_at = excluded.updated_at, synced_at = excluded.synced_at, deleted_at = NULL`,
         [
           r.id,
@@ -261,6 +261,7 @@ export async function applyRemoteWorkoutTree(tree: RemoteWorkoutTree): Promise<n
           r.duration_seconds,
           r.distance_m,
           r.rpe,
+          typeof r.rir === 'number' ? r.rir : null,
           r.completed_at,
           toIso(r.created_at, updatedAt),
           updatedAt,

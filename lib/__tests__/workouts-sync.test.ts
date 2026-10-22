@@ -85,6 +85,17 @@ describe('workout sync', () => {
     }
   });
 
+  it('pushes the set rir value, and null when unset', async () => {
+    insertExercise('ex1');
+    const d = await tree('done');
+    const other = await w.addWorkoutSet({ workout_exercise_id: d.link.id, weight_kg: 40, reps: 8 });
+    await w.updateWorkoutSet(d.set.id, { rir: 3 });
+    await run();
+    const sets = pushed('workout_sets');
+    expect(sets.find((s) => s.id === d.set.id).rir).toBe(3);
+    expect(sets.find((s) => s.id === other.id).rir).toBeNull();
+  });
+
   it('seed exercises never push', async () => {
     insertExercise('seed1', 'seed');
     await run();

@@ -18,7 +18,7 @@ import { parseReminderTime } from '@/lib/meals';
 import { getReminderPermission, type ReminderPermission } from '@/lib/notification-permissions';
 export default function SettingsScreen() {
   const background = useThemeColor({}, 'background'); const text = useThemeColor({}, 'text'); const muted = useThemeColor({}, 'icon');
-  const { weightUnit, appearance, showRpe, defaultSetCount } = usePreferences();
+  const { weightUnit, appearance, showEffort, effortMetric, restTimerEnabled, defaultSetCount } = usePreferences();
   const auth = useAuth(); const { state: sync } = useSyncStatus();
   const bottom = useTabBarInset(); const automatic = useTabBarInsetMode() === 'automatic';
   const [profileSummary, setProfileSummary] = useState('Loading…'); const [nutritionSummary, setNutritionSummary] = useState('Loading…');
@@ -57,7 +57,7 @@ export default function SettingsScreen() {
     : lastSyncAt === null ? 'Cloud never synced'
     : `Cloud synced ${new Date(lastSyncAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
   const groups = [
-    { title: 'You', rows: [{ label: 'Profile', route: 'profile', value: profileSummary }, { label: 'Nutrition', route: 'nutrition', value: nutritionSummary }, { label: 'Training', route: 'training', value: `${defaultSetCount} default sets · RPE ${showRpe ? 'on' : 'off'}` }] },
+    { title: 'You', rows: [{ label: 'Profile', route: 'profile', value: profileSummary }, { label: 'Nutrition', route: 'nutrition', value: nutritionSummary }, { label: 'Training', route: 'training', value: `${defaultSetCount} default sets · ${showEffort ? effortMetric.toUpperCase() : 'Effort off'}${restTimerEnabled ? '' : ' · Rest off'}` }] },
     { title: 'App', rows: [{ label: 'Preferences', route: 'preferences', value: `${appearance.charAt(0).toUpperCase() + appearance.slice(1)} · ${weightUnit === 'kg' ? 'Metric' : 'Imperial'}` }, { label: 'Notifications', route: 'notifications', value: notificationSummary }] },
     { title: 'Account and data', rows: [{ label: 'Account', route: 'account', value: auth.status === 'signedIn' ? auth.email ?? 'Signed in' : auth.status === 'anonymous' ? 'Guest account' : 'Not connected' }, { label: 'Integrations', route: 'integrations', value: cloudSummary }, { label: 'Data and Privacy', route: 'data-privacy', value: 'Export, backup and privacy' }] },
     { title: 'Help', rows: [{ label: 'About', route: 'about', value: Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'Version unavailable' }, { label: 'Support', route: 'support', value: 'Problems and feedback' }] },

@@ -113,6 +113,7 @@ describe('recordValues and eligibility', () => {
       duration_seconds: null,
       distance_m: null,
       rpe: 8,
+      rir: null,
       completed_at: '2026-01-01T10:00:00.000Z',
       created_at: '2026-01-01T10:00:00.000Z',
       updated_at: '2026-01-01T10:00:00.000Z',

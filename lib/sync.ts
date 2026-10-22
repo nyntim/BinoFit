@@ -243,6 +243,7 @@ async function syncWorkoutTree(userId: string): Promise<void> {
         duration_seconds: s.duration_seconds,
         distance_m: s.distance_m,
         rpe: s.rpe,
+        rir: s.rir ?? null,
         completed_at: s.completed_at,
         created_at: s.created_at,
         updated_at: s.updated_at,

@@ -1,6 +1,8 @@
 // Pure helpers for the exercise library: labels, regions, search and display strings.
 import type { Equipment, Exercise, ExerciseLogType, MuscleGroup } from '@/lib/types';
 
+// Muscle ids are stored in exercises and synced, so they keep their original names. The labels
+// changed: `upper_back` shows as Traps, `lower_back` as Erectors and `abs` as Abdominals.
 export const MUSCLE_GROUPS: readonly MuscleGroup[] = [
   'chest',
   'front_delts',
@@ -14,8 +16,10 @@ export const MUSCLE_GROUPS: readonly MuscleGroup[] = [
   'lower_back',
   'abs',
   'glutes',
+  'abductors',
   'quads',
   'hamstrings',
+  'adductors',
   'calves',
   'full_body',
   'cardio',
@@ -30,12 +34,14 @@ export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   biceps: 'Biceps',
   forearms: 'Forearms',
   lats: 'Lats',
-  upper_back: 'Upper back',
-  lower_back: 'Lower back',
-  abs: 'Abs',
+  upper_back: 'Traps',
+  lower_back: 'Erectors',
+  abs: 'Abdominals',
   glutes: 'Glutes',
+  abductors: 'Abductors',
   quads: 'Quads',
   hamstrings: 'Hamstrings',
+  adductors: 'Adductors',
   calves: 'Calves',
   full_body: 'Full body',
   cardio: 'Cardio',
@@ -80,26 +86,61 @@ export function logTypeLabel(type: ExerciseLogType): string {
   return LOG_TYPE_OPTIONS.find((o) => o.id === type)?.label ?? type;
 }
 
-export type Region = 'All' | 'Chest' | 'Back' | 'Shoulders' | 'Arms' | 'Legs' | 'Core' | 'Cardio';
-export const REGIONS: readonly Region[] = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio'];
+export type Region =
+  | 'All'
+  | 'Chest'
+  | 'Shoulders'
+  | 'Triceps'
+  | 'Biceps'
+  | 'Forearms'
+  | 'Lats'
+  | 'Traps'
+  | 'Erectors'
+  | 'Abdominals'
+  | 'Glutes'
+  | 'Quads'
+  | 'Hamstrings'
+  | 'Adductors'
+  | 'Calves'
+  | 'Cardio';
+export const REGIONS: readonly Region[] = [
+  'All',
+  'Chest',
+  'Shoulders',
+  'Triceps',
+  'Biceps',
+  'Forearms',
+  'Lats',
+  'Traps',
+  'Erectors',
+  'Abdominals',
+  'Glutes',
+  'Quads',
+  'Hamstrings',
+  'Adductors',
+  'Calves',
+  'Cardio',
+];
 
 /** Body region of a muscle. `full_body` belongs to no region (it only appears under All). */
 export const MUSCLE_REGION: Record<MuscleGroup, Exclude<Region, 'All'> | null> = {
   chest: 'Chest',
-  lats: 'Back',
-  upper_back: 'Back',
-  lower_back: 'Back',
   front_delts: 'Shoulders',
   side_delts: 'Shoulders',
   rear_delts: 'Shoulders',
-  biceps: 'Arms',
-  triceps: 'Arms',
-  forearms: 'Arms',
-  glutes: 'Legs',
-  quads: 'Legs',
-  hamstrings: 'Legs',
-  calves: 'Legs',
-  abs: 'Core',
+  triceps: 'Triceps',
+  biceps: 'Biceps',
+  forearms: 'Forearms',
+  lats: 'Lats',
+  upper_back: 'Traps',
+  lower_back: 'Erectors',
+  abs: 'Abdominals',
+  glutes: 'Glutes',
+  abductors: 'Glutes',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  adductors: 'Adductors',
+  calves: 'Calves',
   cardio: 'Cardio',
   full_body: null,
 };

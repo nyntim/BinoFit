@@ -5,6 +5,7 @@ import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext
 import { router } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { OptionsSheet } from '@/components/workouts/OptionsSheet';
 import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
@@ -14,6 +15,8 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { useRoutines } from '@/hooks/useRoutines';
 import { useTrainingOverview } from '@/hooks/useTrainingOverview';
 import { syncToSupabase } from '@/lib/sync';
+import type { WorkoutSummary } from '@/lib/types';
+import { saveAsRoutineWithFeedback } from '@/lib/workouts/routine-flow';
 import { routineDisplayName, routineSubtitle } from '@/lib/workouts/routine-plan';
 import { createRoutine, reorderRoutines } from '@/lib/workouts/routines';
 
@@ -33,6 +36,7 @@ export default function TrainingScreen() {
   const { workout: active, loaded: activeLoaded } = useActiveWorkout();
   const overview = useTrainingOverview();
   const routines = useRoutines();
+  const [optionsFor, setOptionsFor] = useState<WorkoutSummary | null>(null);
   const [reordering, setReordering] = useState(false);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [creatingRoutine, setCreatingRoutine] = useState(false);
@@ -135,6 +139,7 @@ export default function TrainingScreen() {
                 summary={w}
                 last={i === overview.recent.length - 1}
                 onPress={() => router.push({ pathname: '/workout/[id]', params: { id: w.id } })}
+                onLongPress={() => setOptionsFor(w)}
               />
             ))
           ) : overview.status === 'error' ? (
@@ -276,6 +281,27 @@ export default function TrainingScreen() {
           {link('Log past workout', '/workout/log', true)}
         </View>
       </ScrollView>
+      <OptionsSheet
+        visible={!!optionsFor}
+        title={optionsFor?.title}
+        onClose={() => setOptionsFor(null)}
+        options={[
+          {
+            key: 'routine',
+            label: 'Save as routine',
+            onPress: () => {
+              if (optionsFor) void saveAsRoutineWithFeedback(optionsFor.id, { onSaved: () => routines.reload() });
+            },
+          },
+          {
+            key: 'open',
+            label: 'Open',
+            onPress: () => {
+              if (optionsFor) router.push({ pathname: '/workout/[id]', params: { id: optionsFor.id } });
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

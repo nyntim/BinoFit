@@ -11,7 +11,7 @@ import { WorkoutMetaCard } from '@/components/workouts/WorkoutMetaCard';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import type { ToggleResult, WorkoutEditor as Editor, EditorMode } from '@/hooks/useWorkoutEditor';
-import { formatDuration } from '@/lib/units';
+import { restChoiceLabel } from '@/lib/workouts/rest-timer';
 import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
 import {
   applySchedule,
@@ -50,7 +50,7 @@ type Props = {
  * and "+ Add exercises". Used by Log past workout, the finished-workout screen and the live session.
  */
 export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMeta = true, header, onToggled }: Props) {
-  const { weightUnit: unit, showRpe } = usePreferences();
+  const { weightUnit: unit, showEffort, effortMetric, restTimerEnabled } = usePreferences();
   const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'icon');
   const [exerciseMenu, setExerciseMenu] = useState<string | null>(null);
@@ -99,12 +99,16 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
       {workout.exercises.map((ex) => {
         const logType = ex.exercise?.log_type ?? 'weight_reps';
         const perSide = !!ex.exercise?.per_side;
-        const columns = setColumns(logType, perSide, unit, { showRpe, showDone: live });
+        const columns = setColumns(logType, perSide, unit, { effort: showEffort ? effortMetric : null, showDone: live });
         const badges = setBadges(ex.sets);
         const prevSets = editor.previous.get(ex.exercise_id);
         const title = ex.exercise ? exerciseDisplayName(ex.exercise) : ex.exercise_name;
         const restLabel =
-          live && ex.rest_seconds !== null ? (ex.rest_seconds === 0 ? 'Rest off' : `Rest ${formatDuration(ex.rest_seconds)}`) : null;
+          live && restTimerEnabled && ex.rest_seconds !== null
+            ? ex.rest_seconds === 0
+              ? restChoiceLabel(0)
+              : `Rest ${restChoiceLabel(ex.rest_seconds)}`
+            : null;
         const rawLogType = ex.exercise?.log_type ?? null;
         const priorForEx =
           rawLogType === 'weight_reps' && editor.priorRecords !== null
@@ -203,7 +207,7 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
         title={menuExercise ? (menuExercise.exercise ? exerciseDisplayName(menuExercise.exercise) : menuExercise.exercise_name) : undefined}
         onClose={() => setExerciseMenu(null)}
         options={[
-          ...(live && menuExercise
+          ...(live && restTimerEnabled && menuExercise
             ? [{ key: 'rest', label: 'Rest time', onPress: () => setRestMenu(menuExercise.id) }]
             : []),
           ...(menuExercise

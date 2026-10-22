@@ -5,7 +5,9 @@ import {
   reloadPreferences,
   resetPreferences,
   setDefaultSetCount,
-  setShowRpe,
+  setShowEffort,
+  setEffortMetric,
+  setRestTimerEnabled,
   setWeightUnit,
   setAppearance,
   subscribePreferences,
@@ -23,7 +25,9 @@ describe('app-preferences', () => {
     expect(getPreferences()).toEqual({
       appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: 'lb',
-      showRpe: false,
+      showEffort: false,
+      effortMetric: 'rpe',
+      restTimerEnabled: true,
       defaultSetCount: 2,
       loaded: false,
     });
@@ -46,7 +50,7 @@ describe('app-preferences', () => {
     expect(getPreferences().weightUnit).toBe('kg');
   });
 
-  it('loads stored unit and RPE, removes leftover tracking_mode, and marks loaded', async () => {
+  it('loads stored unit and effort, removes leftover tracking_mode, and marks loaded', async () => {
     await AsyncStorage.setItem('tracking_mode', 'training');
     await AsyncStorage.setItem('weight_unit', 'lb');
     await AsyncStorage.setItem('show_rpe', 'true');
@@ -56,7 +60,9 @@ describe('app-preferences', () => {
     expect(getPreferences()).toEqual({
       appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: 'lb',
-      showRpe: true,
+      showEffort: true,
+      effortMetric: 'rpe',
+      restTimerEnabled: true,
       defaultSetCount: 4,
       loaded: true,
     });
@@ -79,7 +85,7 @@ describe('app-preferences', () => {
     const p = setWeightUnit('lb');
     expect(getPreferences().weightUnit).toBe('lb'); // memory first
     await p;
-    await setShowRpe(true);
+    await setShowEffort(true);
     expect(listener).toHaveBeenCalledTimes(2);
     expect(await AsyncStorage.getItem('weight_unit')).toBe('lb');
     expect(await AsyncStorage.getItem('show_rpe')).toBe('true');
@@ -109,25 +115,29 @@ describe('app-preferences', () => {
     const good = jest.fn();
     const offBad = subscribePreferences(bad);
     const off = subscribePreferences(good);
-    await setShowRpe(true);
+    await setShowEffort(true);
     expect(good).toHaveBeenCalledTimes(1);
     off();
     offBad();
-    await setShowRpe(false);
+    await setShowEffort(false);
     expect(good).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['kg', 'lb'] as const)('reload after a wipe keeps saved %s, RPE and default sets', async (unit) => {
+  it.each(['kg', 'lb'] as const)('reload after a wipe keeps saved %s, effort, rest timer and default sets', async (unit) => {
     await loadPreferences();
     await setWeightUnit(unit);
-    await setShowRpe(true);
+    await setShowEffort(true);
+    await setEffortMetric('rir');
+    await setRestTimerEnabled(false);
     await setDefaultSetCount(4);
     await clearUserStorage();
     await reloadPreferences();
     expect(getPreferences()).toEqual({
       appearance: 'system', defaultLogStatus: 'eaten', error: null,
       weightUnit: unit,
-      showRpe: true,
+      showEffort: true,
+      effortMetric: 'rir',
+      restTimerEnabled: false,
       defaultSetCount: 4,
       loaded: true,
     });
@@ -153,4 +163,21 @@ test('appearance remains saved across user storage clearing', async () => {
   await clearUserStorage();
   await reloadPreferences();
   expect(getPreferences().appearance).toBe('dark');
+});
+
+test('existing show_rpe loads as showEffort, invalid effort_metric falls back to rpe, only false disables rest', async () => {
+  await AsyncStorage.setItem('show_rpe', 'true');
+  await AsyncStorage.setItem('effort_metric', 'bogus');
+  await AsyncStorage.setItem('rest_timer_enabled', 'nope');
+  await loadPreferences();
+  expect(getPreferences()).toMatchObject({ showEffort: true, effortMetric: 'rpe', restTimerEnabled: true });
+});
+test('effort scale and rest timer switch write through and roll back on failure', async () => {
+  await setEffortMetric('rir');
+  await setRestTimerEnabled(false);
+  expect(await AsyncStorage.getItem('effort_metric')).toBe('rir');
+  expect(await AsyncStorage.getItem('rest_timer_enabled')).toBe('false');
+  jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk'));
+  await expect(setRestTimerEnabled(true)).rejects.toThrow('disk');
+  expect(getPreferences().restTimerEnabled).toBe(false);
 });

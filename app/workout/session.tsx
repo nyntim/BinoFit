@@ -10,11 +10,12 @@ import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useNow } from '@/hooks/useNow';
 import { useWorkoutEditor, type ToggleResult } from '@/hooks/useWorkoutEditor';
 import { elapsedSeconds } from '@/components/workouts/ActiveWorkoutBar';
+import { getPreferences } from '@/lib/app-preferences';
 import { formatDuration } from '@/lib/units';
 import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
 import { confirmAndDiscard, confirmAndFinish, type FlowResult } from '@/lib/workouts/finish-flow';
 import { workoutDisplayName } from '@/lib/workouts/format';
-import { DEFAULT_REST_SECONDS } from '@/lib/workouts/prefill';
+import { restSecondsForTick } from '@/lib/workouts/rest-timer';
 import { startRestTimer, stopRestTimerForSet } from '@/lib/workouts/rest-timer-store';
 import { startEmptyWorkout } from '@/lib/workouts/session';
 
@@ -141,9 +142,11 @@ export default function SessionScreen() {
       void stopRestTimerForSet(id, result.setId);
       return;
     }
+    const durationSeconds = restSecondsForTick(result.restSeconds, getPreferences().restTimerEnabled);
+    if (durationSeconds === 0 && !getPreferences().restTimerEnabled) return;
     startRestTimer({
       workoutId: id,
-      durationSeconds: result.restSeconds ?? DEFAULT_REST_SECONDS,
+      durationSeconds,
       workoutExerciseId: result.workoutExerciseId,
       setId: result.setId,
       exerciseName: result.exerciseName,

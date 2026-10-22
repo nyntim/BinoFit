@@ -162,6 +162,13 @@ function regionOf(muscle: string): Exclude<Region, 'All'> | null {
   return (MUSCLE_REGION as Record<string, Exclude<Region, 'All'> | null | undefined>)[muscle] ?? null;
 }
 
+/** Splits rows into pairs for a two-column grid; the last pair has null when the count is odd. */
+export function pairRows<T>(rows: readonly T[]): [T, T | null][] {
+  const pairs: [T, T | null][] = [];
+  for (let i = 0; i < rows.length; i += 2) pairs.push([rows[i], rows[i + 1] ?? null]);
+  return pairs;
+}
+
 /**
  * Working sets per body region across the given done workouts. Each ticked non-warmup set credits
  * each distinct primary region once. Sorted by sets desc, then `REGIONS` order.

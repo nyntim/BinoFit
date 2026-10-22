@@ -1,11 +1,24 @@
 // Pure rest-timer rules. The timer stores an absolute end time; the UI derives the remaining time,
 // so backgrounding and app kills never drift it. `now` is always passed in (epoch ms).
 import type { RestTimerState } from '@/lib/types';
+import { formatDuration } from '@/lib/units';
+import { DEFAULT_REST_SECONDS } from '@/lib/workouts/prefill';
 
 /** Size of the -15s / +15s buttons. */
 export const REST_ADJUST_SECONDS = 15;
 
 type RestMeta = { workoutExerciseId?: string; setId?: string; exerciseName?: string };
+
+/** Label for a rest choice: "No rest" for 0, else m:ss. */
+export function restChoiceLabel(seconds: number): string {
+  return seconds === 0 ? 'No rest' : formatDuration(seconds);
+}
+
+/** Rest to start after a tick: 0 when the global rest timer is off, else the saved rest or the default. */
+export function restSecondsForTick(restSeconds: number | null | undefined, enabled: boolean): number {
+  if (!enabled) return 0;
+  return restSeconds ?? DEFAULT_REST_SECONDS;
+}
 
 /** Starts a rest of `durationSeconds`. Returns null when the duration is 0 or less (rest off). */
 export function startRest(

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveDefaultSetCount } from '@/lib/workouts/prefill';
 import type {
+  EffortMetric,
   LogStatus,
   RestTimerState,
   WeightUnit,   RemoteUserGoals,
@@ -24,7 +25,10 @@ const KEYS = {
   SYNCED_UID: 'last_synced_uid',
   WEIGHT_UNIT: 'weight_unit',
   APPEARANCE: 'appearance',
+  // Key kept from when this was Show RPE; it now means "show the effort column".
   SHOW_RPE: 'show_rpe',
+  EFFORT_METRIC: 'effort_metric',
+  REST_TIMER_ENABLED: 'rest_timer_enabled',
   DEFAULT_SET_COUNT: 'default_set_count',
   ACTIVE_REST_TIMER: 'active_rest_timer',
 } as const;
@@ -103,12 +107,33 @@ export async function setWeightUnit(unit: WeightUnit): Promise<void> {
   await AsyncStorage.setItem(KEYS.WEIGHT_UNIT, unit);
 }
 
-export async function getShowRpe(): Promise<boolean> {
+export async function getShowEffort(): Promise<boolean> {
   return (await AsyncStorage.getItem(KEYS.SHOW_RPE)) === 'true';
 }
 
-export async function setShowRpe(show: boolean): Promise<void> {
+export async function setShowEffort(show: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.SHOW_RPE, show ? 'true' : 'false');
+}
+
+export function resolveEffortMetric(stored: string | null): EffortMetric {
+  return stored === 'rir' ? 'rir' : 'rpe';
+}
+
+export async function getEffortMetric(): Promise<EffortMetric> {
+  return resolveEffortMetric(await AsyncStorage.getItem(KEYS.EFFORT_METRIC));
+}
+
+export async function setEffortMetric(metric: EffortMetric): Promise<void> {
+  await AsyncStorage.setItem(KEYS.EFFORT_METRIC, metric);
+}
+
+/** On unless the stored value is exactly 'false'. */
+export async function getRestTimerEnabled(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.REST_TIMER_ENABLED)) !== 'false';
+}
+
+export async function setRestTimerEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.REST_TIMER_ENABLED, enabled ? 'true' : 'false');
 }
 
 export { resolveDefaultSetCount };
@@ -284,7 +309,7 @@ export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<voi
 /**
  * Removes everything a signed-out user owns in AsyncStorage: goals, profile, the onboarding
  * flag, quick-add drinks, the pending merge ticket, the last-sync stamp, restore-pending, synced uid, and the active rest timer. Keeps the device
- * id, the legacy-claimed flag, the default log status, weight unit, Show RPE and default set count preferences.
+ * id, the legacy-claimed flag, the default log status, weight unit, effort per set, effort scale, rest timer switch and default set count preferences.
  */
 export async function clearUserStorage(): Promise<void> {
   await AsyncStorage.multiRemove([

@@ -35,14 +35,16 @@ describe('seed data', () => {
   const rows = () => seed.SEED_EXERCISES;
   const cat = () => require('@/lib/workouts/exercise-catalog') as typeof import('@/lib/workouts/exercise-catalog');
 
-  it('has 46 rows with unique ids', () => {
-    expect(rows()).toHaveLength(46);
-    expect(new Set(rows().map((r) => r.id)).size).toBe(46);
+  it('has 49 rows with unique ids', () => {
+    expect(rows()).toHaveLength(49);
+    expect(new Set(rows().map((r) => r.id)).size).toBe(49);
   });
 
   it('group counts match the spec', () => {
     const count = (g: string) => rows().filter((r) => r.group === g).length;
-    expect(['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio'].map(count)).toEqual([7, 7, 5, 6, 10, 3, 8]);
+    const regions = ['Chest', 'Shoulders', 'Triceps', 'Biceps', 'Lats', 'Erectors', 'Abdominals', 'Glutes', 'Quads', 'Hamstrings', 'Adductors', 'Calves', 'Cardio'];
+    expect(regions.map(count)).toEqual([7, 5, 3, 3, 6, 1, 3, 2, 6, 2, 2, 1, 8]);
+    expect(regions.reduce((n, g) => n + count(g), 0)).toBe(49);
   });
 
   it('uses valid enums and the group equals the region of the first primary muscle', () => {
@@ -82,8 +84,8 @@ describe('seed data', () => {
 });
 
 describe('seedExercises', () => {
-  it('seeds 46 visible rows on first schema init with the version stored', () => {
-    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed' AND hidden=0").get() as any).c).toBe(46);
+  it('seeds 49 visible rows on first schema init with the version stored', () => {
+    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed' AND hidden=0").get() as any).c).toBe(49);
     expect((mem.raw.prepare('SELECT value FROM app_meta WHERE key = ?').get(seed.EXERCISE_SEED_VERSION_KEY) as any).value).toBe(
       String(seed.EXERCISE_SEED_VERSION)
     );
@@ -108,6 +110,18 @@ describe('seedExercises', () => {
     expect(custom.synced_at).toBe('2026-01-01T00:00:00.000Z');
     expect(custom.name).toBe('Chest press');
     expect(rowOf('run')).toMatchObject({ name: 'Run', hidden: 0 });
+  });
+
+  it('seed version 2 updates seed muscles on a v1 database and leaves custom rows alone', async () => {
+    expect(seed.EXERCISE_SEED_VERSION).toBe(2);
+    const c = await lib.createCustomExercise(input({ primary: ['upper_back'] }));
+    mem.raw.prepare('UPDATE app_meta SET value = ? WHERE key = ?').run('1', seed.EXERCISE_SEED_VERSION_KEY);
+    mem.raw.prepare("UPDATE exercises SET primary_muscles = '[\"upper_back\"]' WHERE id = 'barbell-row'").run();
+    mem.raw.prepare("DELETE FROM exercises WHERE id = 'hip-adduction'").run();
+    await seed.seedExercises(mem);
+    expect(JSON.parse(rowOf('barbell-row').primary_muscles)).toEqual(['lats', 'upper_back']);
+    expect(JSON.parse(rowOf('hip-adduction').primary_muscles)).toEqual(['adductors']);
+    expect(JSON.parse(rowOf(c.id).primary_muscles)).toEqual(['upper_back']);
   });
 
   it('a seed id dropped from the list is hidden, not deleted', async () => {
@@ -182,7 +196,7 @@ describe('exercise CRUD', () => {
 
   it('getExercises returns seeds and custom rows', async () => {
     await lib.createCustomExercise(input());
-    expect(await lib.getExercises()).toHaveLength(47);
+    expect(await lib.getExercises()).toHaveLength(50);
   });
 
   it('brands are distinct case-insensitively, most recent first, excluding deleted', async () => {
@@ -204,6 +218,6 @@ describe('exercise CRUD', () => {
     await lib.createCustomExercise(input());
     await database.clearUserData();
     expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='custom'").get() as any).c).toBe(0);
-    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed'").get() as any).c).toBe(46);
+    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed'").get() as any).c).toBe(49);
   });
 });

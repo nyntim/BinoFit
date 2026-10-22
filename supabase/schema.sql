@@ -283,12 +283,17 @@ create table if not exists public.workout_sets (
   duration_seconds    integer,
   distance_m          double precision,
   rpe                 double precision,
+  rir                 integer,
   completed_at        timestamptz,
   created_at          timestamptz default now(),
   updated_at          timestamptz default now(),
   deleted_at          timestamptz
 );
 create index if not exists idx_workout_sets_user on public.workout_sets (user_id);
+
+-- BEGIN workout_sets_rir
+alter table public.workout_sets add column if not exists rir integer;
+-- END workout_sets_rir
 
 create table if not exists public.routines (
   id         text primary key,
