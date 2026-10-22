@@ -12,6 +12,7 @@ jest.mock('@/lib/sync', () => ({
   syncToSupabase: jest.fn(async () => {}),
   waitForSyncIdle: jest.fn(async () => {}),
 }));
+jest.mock('@/lib/spotify/session-store', () => ({ clearSpotifySession: jest.fn(async () => {}) }));
 jest.mock('@/lib/reminders', () => ({ restoreMealReminders: jest.fn(async () => {}) }));
 jest.mock('@/lib/device-id', () => ({ getDeviceId: jest.fn(async () => 'legacy-device') }));
 jest.mock('@/lib/database', () => ({
@@ -30,6 +31,7 @@ import * as db from '@/lib/database';
 import { restoreFromAccount } from '@/lib/restore';
 import { syncToSupabase } from '@/lib/sync';
 import { restoreMealReminders } from '@/lib/reminders';
+import { clearSpotifySession } from '@/lib/spotify/session-store';
 import { getSyncedUid, setSyncedUid, getPendingWipe, getPendingMergeTicket, getLegacyClaimed, saveUserGoals, setPendingMergeTicket, setOnboardingComplete } from '@/lib/storage';
 
 const sb = supabase as any;
@@ -364,6 +366,16 @@ describe('sign out', () => {
     expect(db.clearUserData).toHaveBeenCalled();
     expect(await AsyncStorage.getItem('onboarding_complete')).toBeNull();
     expect(restoreMealReminders).toHaveBeenCalled();
+  });
+
+  it('signOutAndWipe clears the Spotify session, and a failure there does not stop the wipe', async () => {
+    (clearSpotifySession as jest.Mock).mockClear();
+    (clearSpotifySession as jest.Mock).mockRejectedValueOnce(new Error('keychain'));
+    (db.clearUserData as jest.Mock).mockClear();
+    setSession(appleSession);
+    expect(await auth.signOutAndWipe()).toEqual({ ok: true });
+    expect(clearSpotifySession).toHaveBeenCalled();
+    expect(db.clearUserData).toHaveBeenCalled();
   });
 
   it('signOutAndWipe clears the rest timer and cancels rest notifications', async () => {

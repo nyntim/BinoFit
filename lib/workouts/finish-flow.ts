@@ -1,6 +1,7 @@
 // Native Alert flows around finishing and discarding the live session. The rules live in
 // session.ts; this file only asks the questions.
 import { Alert } from 'react-native';
+import { captureFinalPlaylist } from '@/lib/spotify/now-playing';
 import { stopRestTimer } from '@/lib/workouts/rest-timer-store';
 import { discardActiveWorkout, finishWorkout } from '@/lib/workouts/session';
 import { getWorkoutWithExercises } from '@/lib/workouts/db';
@@ -38,6 +39,9 @@ export async function confirmAndDiscard(id: string): Promise<FlowResult> {
  * Callers flush the editor first.
  */
 export async function confirmAndFinish(id: string, endAt?: Date): Promise<FlowResult> {
+  // Finishing now: one last look at what is playing (never throws, gives up after 3 s). A back-dated
+  // finish (stale prompt) skips it, as current playback says nothing about the earlier session.
+  if (endAt === undefined) await captureFinalPlaylist(id, 3000);
   const first = await finishWorkout(id, { endAt, discardUnticked: false }, new Date());
   if (first === 'finished') return 'finished';
   if (first === 'gone') {

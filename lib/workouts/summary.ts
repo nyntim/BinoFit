@@ -9,6 +9,7 @@ import {
 } from '@/lib/workouts/exercise-catalog';
 import { formatShortDate, workoutDisplayName } from '@/lib/workouts/format';
 import { workoutVolumeKg } from '@/lib/workouts/volume';
+import { playlistLabel } from '@/lib/spotify/playback';
 import { formatPace, kgToLb, metresToDisplay, pace } from '@/lib/units';
 import type {
   MuscleGroup,
@@ -126,6 +127,7 @@ export function summarizeWorkout(w: WorkoutWithExercises, unit: WeightUnit): Wor
     subtitle: subtitleParts.join(' · '),
     durationLabel: formatDurationShort(workoutSeconds(w)),
     detailLabel,
+    playlistLabel: w.playlist_id ? playlistLabel(w.playlist_name ?? null) : null,
   };
 }
 

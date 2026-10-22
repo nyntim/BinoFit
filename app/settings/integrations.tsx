@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SettingsPage, SettingsRow } from '@/components/settings/SettingsPage';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -10,6 +10,9 @@ import { countUnsynced } from '@/lib/auth';
 import { isSyncConfigured } from '@/lib/sync-status';
 import { getLastSyncAt } from '@/lib/storage';
 import { syncToSupabase } from '@/lib/sync';
+import { useSpotifyConnection } from '@/hooks/useSpotifyConnection';
+import { connectSpotify } from '@/lib/spotify/connect';
+import { disconnectSpotify } from '@/lib/spotify/session-store';
 
 export default function IntegrationsSettings() {
   const text = useThemeColor({}, 'text');
@@ -17,6 +20,7 @@ export default function IntegrationsSettings() {
   const { state } = useSyncStatus();
   const auth = useAuth();
   const health = useHealthKit();
+  const spotify = useSpotifyConnection();
   const [lastCloud, setLastCloud] = useState<number | null>(null);
   const [pending, setPending] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,6 +61,31 @@ export default function IntegrationsSettings() {
       <SettingsRow label="Last successful Health sync" value={health.lastSyncedAt?.toLocaleString() ?? 'Never'} />
       <SettingsRow label={health.syncFailed ? 'Retry Health sync' : 'Connect and sync Health'} disabled={!health.available || health.syncing} onPress={() => { void health.runSync(); }} />
       <SettingsRow label="Manage Health permissions" description="Open Settings, then Health, Data Access & Devices, BinoFit. Enable the data types you want to share. Previously exported records remain in Health after sign-out or account deletion." disabled={!health.available} onPress={() => { Linking.openSettings().catch(() => setMessage('Could not open Settings. Open Health permissions from device Settings.')); }} />
+      <Text style={[styles.heading, { color: text }]}>Spotify</Text>
+      <Text style={[styles.body, { color: secondary }]}>Shows what is playing during a live workout and saves the playlist with the finished workout. BinoFit only reads playback. It never plays, pauses or skips.</Text>
+      {spotify.status === 'unconfigured' ? (
+        <SettingsRow label="Spotify" value="Unavailable in this build" />
+      ) : spotify.status === 'connected' ? (
+        <>
+          <SettingsRow label="Status" value="Connected" />
+          <SettingsRow label="Disconnect Spotify" onPress={() => {
+            Alert.alert('Disconnect Spotify?', 'Playlists already saved on workouts stay.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Disconnect', style: 'destructive', onPress: () => { disconnectSpotify().catch(() => {}); } },
+            ]);
+          }} />
+          <Text style={[styles.body, { color: secondary }]}>To remove BinoFit&apos;s access completely, open your Spotify account settings, Apps.</Text>
+        </>
+      ) : (
+        <>
+          {spotify.status === 'reconnect' && <SettingsRow label="Status" value="Access ended" />}
+          <SettingsRow label="Connect Spotify" disabled={spotify.connecting || spotify.status === 'loading'} onPress={async () => {
+            setMessage(null);
+            const result = await connectSpotify();
+            if (result === 'error') setMessage('Could not connect Spotify. Check your connection and try again.');
+          }} />
+        </>
+      )}
       {message && <View accessibilityLiveRegion="polite"><Text style={[styles.body, { color: secondary }]}>{message}</Text></View>}
     </SettingsPage>
   );

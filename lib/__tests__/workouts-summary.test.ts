@@ -143,6 +143,12 @@ describe('summarizeWorkout', () => {
     expect(s.detailLabel).toBe('3,307 lb');
     expect(s.durationLabel).toBe('59 min');
   });
+  it('playlistLabel is set only with a playlist id, with a fallback name', () => {
+    expect(summarizeWorkout(wk({}, [link(ex(), [])]), 'kg').playlistLabel).toBeNull();
+    expect(summarizeWorkout(wk({ playlist_id: 'abc', playlist_name: ' Lift ' }, [link(ex(), [])]), 'kg').playlistLabel).toBe('Lift');
+    expect(summarizeWorkout(wk({ playlist_id: 'abc', playlist_name: null }, [link(ex(), [])]), 'kg').playlistLabel).toBe('Spotify playlist');
+    expect(summarizeWorkout(wk({ playlist_name: 'orphan' }, [link(ex(), [])]), 'kg').playlistLabel).toBeNull();
+  });
   it('subtitle is just the date when nothing has sets', () => {
     const s = summarizeWorkout(wk({}, [link(ex(), [])]), 'kg');
     expect(s.subtitle).toBe('Wed 15 Oct');

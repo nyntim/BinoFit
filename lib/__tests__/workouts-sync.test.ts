@@ -96,6 +96,17 @@ describe('workout sync', () => {
     expect(sets.find((s) => s.id === other.id).rir).toBeNull();
   });
 
+  it('pushes the playlist fields, null when absent', async () => {
+    insertExercise('ex1');
+    const a = await tree('done');
+    mem.raw.prepare('UPDATE workouts SET playlist_id = ?, playlist_name = ? WHERE id = ?').run('abc123', 'Lift', a.workout.id);
+    const b = await tree('done');
+    await run();
+    const rows = pushed('workouts');
+    expect(rows.find((r) => r.id === a.workout.id)).toMatchObject({ playlist_id: 'abc123', playlist_name: 'Lift' });
+    expect(rows.find((r) => r.id === b.workout.id)).toMatchObject({ playlist_id: null, playlist_name: null });
+  });
+
   it('seed exercises never push', async () => {
     insertExercise('seed1', 'seed');
     await run();

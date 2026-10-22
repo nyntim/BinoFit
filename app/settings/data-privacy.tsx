@@ -25,8 +25,8 @@ export default function DataPrivacySettings() {
   }
   return <SettingsPage title="Data and Privacy">
     <SettingsRow label="Export data" description="Food logs, finished workouts with exercises and sets, and weight history. CSV files use data saved on this device and work offline." onPress={() => setExporting(true)} />
-    <SettingsRow label="Backup coverage" description="When cloud sync is available, food logs, custom foods, goals, profile, meals, weight history, finished workouts, custom exercises and routines can sync. An anonymous session is tied to this installation. Sign in to a durable account to recover synced data on another device." />
-    <SettingsRow label="Device-only data" description="Water logs, meal Eaten/Planned confirmations, quick-add drinks, display and training preferences, active workouts and drafts stay on this device." />
+    <SettingsRow label="Backup coverage" description="When cloud sync is available, food logs, custom foods, goals, profile, meals, weight history, finished workouts (including any saved Spotify playlist), custom exercises and routines can sync. An anonymous session is tied to this installation. Sign in to a durable account to recover synced data on another device." />
+    <SettingsRow label="Device-only data" description="Water logs, meal Eaten/Planned confirmations, quick-add drinks, display and training preferences, active workouts, drafts and the Spotify connection stay on this device." />
     <SettingsRow label="Unsynced changes" description="Recent edits and deletions may still be waiting to sync. A CSV contains local saved records, including unsynced entries, but is not a restorable account backup. Check Integrations before removing the app or changing accounts." />
     <DestinationRow label="Privacy Policy" destination="privacy" />
     <SettingsRow label="Restart setup" description="Review setup with your saved values. Keeps your account and history." onPress={restart} />

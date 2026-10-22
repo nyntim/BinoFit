@@ -32,7 +32,7 @@ export function createMemoryDb() {
       realmSafe(() => db.exec(sql));
     },
     runAsync: async (sql: string, params: any[] = []) => {
-      realmSafe(() => db.prepare(sql).run(...params));
+      return realmSafe(() => db.prepare(sql).run(...params));
     },
     getAllAsync: async (sql: string, params: any[] = []) => realmSafe(() => db.prepare(sql).all(...params)),
     withTransactionAsync: transaction,

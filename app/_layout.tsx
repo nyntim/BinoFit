@@ -115,6 +115,7 @@ export default function RootLayout() {
             name="workout/session"
             options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', headerShown: false }}
           />
+          <Stack.Screen name="spotify-auth" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="workout/log" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="workout/[id]" options={{ presentation: 'card', headerShown: false }} />
           <Stack.Screen name="workout/history" options={{ presentation: 'card', headerShown: false }} />

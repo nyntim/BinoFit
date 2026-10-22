@@ -38,6 +38,7 @@ import {
 import { hasRestoredData, restoreFromAccount, type RestoreProgress, type RestoreResult } from '@/lib/restore';
 import { restoreMealReminders } from '@/lib/reminders';
 import { clearRestTimerAndNotifications } from '@/lib/workouts/rest-timer-store';
+import { clearSpotifySession } from '@/lib/spotify/session-store';
 import { reportAuthIssue } from '@/lib/auth-debug';
 import { authErrorMessage, normalizeEmail } from '@/lib/auth-validation';
 import type { AuthMethod, AuthState, AuthStatus } from '@/lib/types';
@@ -95,6 +96,11 @@ async function restoreTracked(
 /** Local half of sign-out: empties user data. Safe to run again. */
 async function finishWipe(): Promise<void> {
   await clearRestTimerAndNotifications(); // forget the rest timer and cancel its notification
+  try {
+    await clearSpotifySession(); // Keychain tokens must not outlive the account on this device
+  } catch {
+    // a Keychain error must not stop the wipe
+  }
   await clearUserData();
   await clearUserStorage();
   await reloadPreferences(); // refresh the in-memory copy after sign-out cleared user keys

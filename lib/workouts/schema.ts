@@ -47,6 +47,8 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
       duration_seconds INTEGER,
       notes TEXT,
       routine_id TEXT,
+      playlist_name TEXT,
+      playlist_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       synced_at TEXT,
@@ -124,5 +126,10 @@ export async function initWorkoutSchema(db: SQLite.SQLiteDatabase): Promise<void
     (await db.getAllAsync<{ name: string }>('PRAGMA table_info(workout_sets)')).map((c) => c.name)
   );
   if (!setColumns.has('rir')) await db.execAsync('ALTER TABLE workout_sets ADD COLUMN rir INTEGER');
+  // Existing installs: add the playlist columns once. Existing rows get NULL.
+  const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(workouts)');
+  const have = new Set(cols.map((c) => c.name));
+  if (!have.has('playlist_name')) await db.execAsync('ALTER TABLE workouts ADD COLUMN playlist_name TEXT');
+  if (!have.has('playlist_id')) await db.execAsync('ALTER TABLE workouts ADD COLUMN playlist_id TEXT');
   await seedExercises(db);
 }

@@ -88,8 +88,8 @@ export async function insertWorkout(db: SQLite.SQLiteDatabase, workout: Workout)
     await db.runAsync(
       `INSERT INTO workouts
          (id, status, source, name, date, started_at, ended_at, duration_seconds, notes, routine_id,
-          created_at, updated_at, synced_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+          playlist_name, playlist_id, created_at, updated_at, synced_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
       [
         workout.id,
         workout.status,
@@ -101,6 +101,8 @@ export async function insertWorkout(db: SQLite.SQLiteDatabase, workout: Workout)
         workout.duration_seconds,
         workout.notes,
         workout.routine_id,
+        workout.playlist_name ?? null,
+        workout.playlist_id ?? null,
         workout.created_at,
         workout.updated_at,
       ]
@@ -206,6 +208,23 @@ const WORKOUT_PATCH_COLUMNS = [
   'duration_seconds',
   'notes',
 ] as const;
+
+/**
+ * Saves the detected Spotify playlist on a live workout. Only an active, live row changes, so a
+ * late poll response cannot rewrite a workout that has already finished. Returns whether a row changed.
+ */
+export async function setWorkoutPlaylist(
+  id: string,
+  playlist: { id: string; name: string | null }
+): Promise<boolean> {
+  const db = await getDatabase();
+  const res = await db.runAsync(
+    `UPDATE workouts SET playlist_id = ?, playlist_name = ?, updated_at = ?, synced_at = NULL
+     WHERE id = ? AND status = 'active' AND deleted_at IS NULL`,
+    [playlist.id, playlist.name, new Date().toISOString(), id]
+  );
+  return res.changes > 0;
+}
 
 /** Applies a patch, bumps updated_at and clears synced_at. Returns the stored row (null if gone). */
 export async function updateWorkout(id: string, patch: WorkoutPatch): Promise<Workout | null> {

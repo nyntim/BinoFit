@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { NowPlayingLine } from '@/components/workouts/NowPlayingLine';
+import { useSpotifyNowPlaying } from '@/hooks/useSpotifyNowPlaying';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { RestBanner } from '@/components/workouts/RestBanner';
 import { WorkoutEditorBody } from '@/components/workouts/WorkoutEditor';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -18,6 +21,23 @@ import { workoutDisplayName } from '@/lib/workouts/format';
 import { restSecondsForTick } from '@/lib/workouts/rest-timer';
 import { startRestTimer, stopRestTimerForSet } from '@/lib/workouts/rest-timer-store';
 import { startEmptyWorkout } from '@/lib/workouts/session';
+
+function useKeyboardOpen(): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', () => setOpen(true));
+    const showDid = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setOpen(false));
+    const hideDid = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
+    return () => {
+      show.remove();
+      showDid.remove();
+      hide.remove();
+      hideDid.remove();
+    };
+  }, []);
+  return open;
+}
 
 /**
  * The live session. Opens the active workout, or starts an empty one when none is active. The
@@ -38,6 +58,9 @@ export default function SessionScreen() {
     flushRef.current = editor.flush;
   });
   const now = useNow(1000, !!active);
+  const nowPlaying = useSpotifyNowPlaying(id);
+  const keyboardHeight = useKeyboardHeight();
+  const keyboardOpen = useKeyboardOpen();
   // Explicit insets: SafeAreaView can report zero inside a native fullScreenModal,
   // which put the header (and Finish) under the status bar and Dynamic Island.
   const insets = useSafeAreaInsets();
@@ -242,6 +265,7 @@ export default function SessionScreen() {
           <Text style={[styles.finishText, { color: onTint }]}>Finish</Text>
         </Pressable>
       </View>
+      {nowPlaying && keyboardHeight === 0 && !keyboardOpen ? <NowPlayingLine nowPlaying={nowPlaying} /> : null}
       <RestBanner />
       {body}
     </View>

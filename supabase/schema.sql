@@ -250,10 +250,21 @@ create table if not exists public.workouts (
   duration_seconds integer,
   notes            text,
   routine_id       text,
+  playlist_name    text,
+  playlist_id      text,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now(),
   deleted_at       timestamptz
 );
+
+-- BEGIN workouts_playlist_columns
+-- Run this in the Supabase SQL editor BEFORE installing a client that saves Spotify playlists:
+-- the client sends these keys on every workouts push.
+alter table public.workouts
+  add column if not exists playlist_name text,
+  add column if not exists playlist_id text;
+-- END workouts_playlist_columns
+
 create index if not exists idx_workouts_user on public.workouts (user_id);
 create index if not exists idx_workouts_user_date on public.workouts (user_id, date);
 

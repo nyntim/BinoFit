@@ -199,6 +199,8 @@ async function syncWorkoutTree(userId: string): Promise<void> {
         duration_seconds: w.duration_seconds,
         notes: w.notes,
         routine_id: w.routine_id,
+        playlist_name: w.playlist_name ?? null,
+        playlist_id: w.playlist_id ?? null,
         created_at: w.created_at,
         updated_at: w.updated_at,
         deleted_at: w.deleted_at ?? null,

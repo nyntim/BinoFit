@@ -7,6 +7,7 @@ import { RestPickerSheet } from '@/components/workouts/RestPickerSheet';
 import { SetRow } from '@/components/workouts/SetRow';
 import { SetTableHeader } from '@/components/workouts/SetTableHeader';
 import { SetTypeSheet } from '@/components/workouts/SetTypeSheet';
+import { PlaylistRow } from '@/components/workouts/PlaylistRow';
 import { WorkoutMetaCard } from '@/components/workouts/WorkoutMetaCard';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
@@ -94,6 +95,9 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
           onChangeName={(name) => editor.updateMeta({ name })}
           onChangeSchedule={(change) => editor.updateMeta(applySchedule(workout, change))}
         />
+      ) : null}
+      {mode === 'edit' && workout.playlist_id ? (
+        <PlaylistRow playlistId={workout.playlist_id} playlistName={workout.playlist_name} />
       ) : null}
 
       {workout.exercises.map((ex) => {

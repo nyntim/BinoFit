@@ -1,5 +1,6 @@
 import { getDatabase } from '@/lib/database';
 import { decideRemoteApply } from '@/lib/tombstones';
+import { cleanPlaylist } from '@/lib/spotify/playback';
 import type {
   RemoteExercise,
   RemoteRoutine,
@@ -153,16 +154,18 @@ export async function applyRemoteWorkoutTree(tree: RemoteWorkoutTree): Promise<n
         await txn.runAsync('DELETE FROM workouts WHERE id = ?', [r.id]);
         continue;
       }
+      const playlist = cleanPlaylist(r.playlist_id, r.playlist_name);
       await txn.runAsync(
         `INSERT INTO workouts
            (id, status, source, name, date, started_at, ended_at, duration_seconds, notes, routine_id,
-            created_at, updated_at, synced_at, deleted_at)
-         VALUES (?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            playlist_name, playlist_id, created_at, updated_at, synced_at, deleted_at)
+         VALUES (?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(id) DO UPDATE SET
            status = 'done', source = excluded.source, name = excluded.name, date = excluded.date,
            started_at = excluded.started_at, ended_at = excluded.ended_at,
            duration_seconds = excluded.duration_seconds, notes = excluded.notes,
-           routine_id = excluded.routine_id, updated_at = excluded.updated_at,
+           routine_id = excluded.routine_id, playlist_name = excluded.playlist_name,
+           playlist_id = excluded.playlist_id, updated_at = excluded.updated_at,
            synced_at = excluded.synced_at, deleted_at = NULL`,
         [
           r.id,
@@ -174,6 +177,8 @@ export async function applyRemoteWorkoutTree(tree: RemoteWorkoutTree): Promise<n
           r.duration_seconds,
           r.notes,
           r.routine_id,
+          playlist.name,
+          playlist.id,
           toIso(r.created_at, updatedAt),
           updatedAt,
           now,

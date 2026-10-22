@@ -306,6 +306,8 @@ export type Workout = {
   duration_seconds: number | null;
   notes: string | null;
   routine_id: string | null;
+  playlist_name?: string | null;
+  playlist_id?: string | null;
   created_at: string;
   updated_at: string;
   synced_at?: string | null;
@@ -389,6 +391,8 @@ export type RemoteWorkout = {
   duration_seconds: number | null;
   notes: string | null;
   routine_id: string | null;
+  playlist_name?: string | null;
+  playlist_id?: string | null;
   created_at: string | null;
   updated_at: string | null;
   deleted_at?: string | null;
@@ -441,6 +445,8 @@ export type WorkoutSummary = {
   durationLabel: string;
   /** e.g. "4,820 kg", "cardio", or null when there is nothing to show. */
   detailLabel: string | null;
+  /** Saved Spotify playlist name (fallback label when unnamed), or null when none was saved. */
+  playlistLabel: string | null;
 };
 
 /** Totals for one Monday to Sunday week (volume in kg). */

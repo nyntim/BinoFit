@@ -123,6 +123,28 @@ describe('fix: tombstoned exercise and orphan children', () => {
   });
 });
 
+describe('applyRemoteWorkoutTree playlist', () => {
+  it('applies a remote playlist', async () => {
+    await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ playlist_id: 'abc123', playlist_name: 'Lift' })] }));
+    expect(rowOf('workouts', 'w1')).toMatchObject({ playlist_id: 'abc123', playlist_name: 'Lift' });
+  });
+  it('drops a non-string or invalid id and its name', async () => {
+    await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ playlist_id: 42, playlist_name: 'x' })] }));
+    expect(rowOf('workouts', 'w1')).toMatchObject({ playlist_id: null, playlist_name: null });
+    await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ id: 'w2', playlist_id: '../x', playlist_name: 'x' })], workoutExercises: [], sets: [] }));
+    expect(rowOf('workouts', 'w2')).toMatchObject({ playlist_id: null, playlist_name: null });
+  });
+  it('an older remote does not overwrite a newer local playlist', async () => {
+    await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ playlist_id: 'newer', playlist_name: 'New', updated_at: NEW })] }));
+    await apply.applyRemoteWorkoutTree(tree({ workouts: [rWo({ playlist_id: 'older', playlist_name: 'Old', updated_at: MID })] }));
+    expect(rowOf('workouts', 'w1')).toMatchObject({ playlist_id: 'newer', playlist_name: 'New' });
+  });
+  it('a remote row without the fields restores as null', async () => {
+    await apply.applyRemoteWorkoutTree(tree());
+    expect(rowOf('workouts', 'w1')).toMatchObject({ playlist_id: null, playlist_name: null });
+  });
+});
+
 describe('applyRemoteWorkoutTree', () => {
   it('inserts the tree marked synced and returns the workout count', async () => {
     expect(await apply.applyRemoteWorkoutTree(tree())).toBe(1);
