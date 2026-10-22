@@ -8,6 +8,8 @@ import { ExerciseRow } from '@/components/workouts/ExerciseRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
 import { syncToSupabase } from '@/lib/sync';
+import { COMMON_MACHINE_BRANDS } from '@/lib/workouts/exercise-builder';
+import { SEED_ALIASES } from '@/lib/workouts/machine-seed';
 import { addExerciseToWorkout } from '@/lib/workouts/previous';
 import { addExerciseToRoutine } from '@/lib/workouts/routines';
 import {
@@ -30,6 +32,7 @@ export default function ExerciseLibraryScreen() {
   const { exercises, status, reload } = useExercises();
   const [query, setQuery] = useState('');
   const [region, setRegion] = useState<Region>('All');
+  const [brand, setBrand] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
   const background = useThemeColor({}, 'background');
@@ -40,7 +43,8 @@ export default function ExerciseLibraryScreen() {
   const tint = useThemeColor({}, 'tint');
   const fieldBorder = useThemeColor({}, 'fieldBorder');
 
-  const results = useMemo(() => filterExercises(exercises, { query, region }), [exercises, query, region]);
+  const results = useMemo(() => filterExercises(exercises, { query, region, brand, aliases: SEED_ALIASES }),
+    [exercises, query, region, brand]);
   const { yours, all } = useMemo(() => splitSections(results), [results]);
   const trimmed = query.trim();
 
@@ -141,7 +145,9 @@ export default function ExerciseLibraryScreen() {
   } else if (results.length === 0) {
     body = (
       <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>No exercises in this group.</Text>
+        <Text style={[styles.messageText, { color: muted }]}>
+          {brand ? `No ${brand} machines in this group.` : 'No exercises in this group.'}
+        </Text>
       </View>
     );
   } else {
@@ -203,6 +209,19 @@ export default function ExerciseLibraryScreen() {
         >
           {REGIONS.map((r) => (
             <ChipToggle key={r} label={r} role="radio" size="compact" selected={region === r} onPress={() => setRegion(r)} />
+          ))}
+        </ScrollView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.chips}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Brand"
+        >
+          <ChipToggle label="All brands" role="radio" size="compact" selected={brand === null} onPress={() => setBrand(null)} />
+          {COMMON_MACHINE_BRANDS.map((b) => (
+            <ChipToggle key={b} label={b} role="radio" size="compact" selected={brand === b} onPress={() => setBrand(b)} />
           ))}
         </ScrollView>
       </View>

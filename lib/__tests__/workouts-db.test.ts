@@ -69,7 +69,7 @@ describe('workout schema', () => {
     load();
     await database.getDatabase();
     expect(count('exercises', "source = 'custom'")).toBe(1);
-    expect(count('exercises', "source = 'seed'")).toBe(49);
+    expect(count('exercises', "source = 'seed'")).toBe(seedCount());
   });
 
   it('adds the rir column to an existing workout_sets table, keeping rows and RPE', async () => {
@@ -410,7 +410,7 @@ describe('wipe', () => {
       .run(T, T);
     await database.clearUserData();
     expect(count('exercises', "source = 'custom'")).toBe(0);
-    expect(count('exercises', "source = 'seed'")).toBe(50);
+    expect(count('exercises', "source = 'seed'")).toBe(seedCount() + 1);
     expect(rowOf('exercises', 'seed1')).toBeDefined();
     expect(
       count('workouts') +
@@ -455,3 +455,7 @@ describe('wipe', () => {
     }
   });
 });
+
+function seedCount(): number {
+  return (require('@/lib/workouts/exercise-seed') as typeof import('@/lib/workouts/exercise-seed')).ALL_SEED_EXERCISES.length;
+}

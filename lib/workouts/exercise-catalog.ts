@@ -171,7 +171,14 @@ export function exerciseSubtitle(
   return parts.join(' · ');
 }
 
-export type ExerciseFilter = { query?: string; region?: Region };
+export type ExerciseFilter = {
+  query?: string;
+  region?: Region;
+  /** Keep only exercises of this brand (case-insensitive); null or undefined means all. */
+  brand?: string | null;
+  /** Extra search terms by exercise id (the seed machine aliases). */
+  aliases?: ReadonlyMap<string, readonly string[]>;
+};
 
 function tokensOf(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -187,14 +194,17 @@ function matchTier(name: string, query: string): number {
 }
 
 /**
- * Filters and ranks exercises. Every query token must match the name or brand. Ranking: exact,
- * prefix, word prefix, substring, then alphabetical. The region compares `primary_muscles[0]`.
- * Hidden and deleted exercises are excluded.
+ * Filters and ranks exercises. Every query token must match the name, brand or an alias. Ranking
+ * on the tokens that are not part of the brand: exact, prefix, word prefix, substring (name or
+ * alias), then brand-only matches, then alphabetical. The region compares `primary_muscles[0]`;
+ * `brand` keeps one brand. Hidden and deleted exercises are excluded.
  */
 export function filterExercises(list: readonly Exercise[], filter: ExerciseFilter = {}): Exercise[] {
   const query = (filter.query ?? '').trim().toLowerCase();
   const tokens = tokensOf(query);
   const region = filter.region ?? 'All';
+  const brand = filter.brand?.trim().toLowerCase() || null;
+  const aliasesOf = (e: Exercise) => (filter.aliases?.get(e.id) ?? []).map((a) => a.toLowerCase());
 
   const matched = list.filter((e) => {
     if (e.hidden || e.deleted_at) return false;
@@ -202,8 +212,9 @@ export function filterExercises(list: readonly Exercise[], filter: ExerciseFilte
       const first = e.primary_muscles[0];
       if (!first || MUSCLE_REGION[first] !== region) return false;
     }
+    if (brand && e.brand?.trim().toLowerCase() !== brand) return false;
     if (tokens.length === 0) return true;
-    const hay = `${e.name} ${e.brand ?? ''}`.toLowerCase();
+    const hay = `${e.name} ${e.brand ?? ''} ${aliasesOf(e).join(' ')}`.toLowerCase();
     return tokens.every((t) => hay.includes(t));
   });
 
@@ -212,7 +223,16 @@ export function filterExercises(list: readonly Exercise[], filter: ExerciseFilte
   if (tokens.length === 0) return matched.sort(byName);
 
   const tier = new Map<string, number>();
-  for (const e of matched) tier.set(e.id, matchTier(e.name.toLowerCase(), query));
+  for (const e of matched) {
+    const brandText = (e.brand ?? '').toLowerCase();
+    const nameQuery = tokens.filter((tk) => !brandText.split(/\s+/).some((w) => w.startsWith(tk))).join(' ');
+    if (!nameQuery) {
+      tier.set(e.id, 4);
+      continue;
+    }
+    const best = [e.name.toLowerCase(), ...aliasesOf(e)].map((n) => matchTier(n, nameQuery));
+    tier.set(e.id, Math.min(...best));
+  }
   return matched.sort((a, b) => (tier.get(a.id)! - tier.get(b.id)!) || byName(a, b));
 }
 

@@ -47,7 +47,7 @@ export type ExerciseInput = {
 const STOPWORDS = new Set(['the', 'and', 'with', 'for', 'from']);
 
 /** Brands offered as quick chips on the brand step. */
-export const COMMON_MACHINE_BRANDS: readonly string[] = [
+export const COMMON_MACHINE_BRANDS = [
   'Hammer Strength',
   'Life Fitness',
   'Technogym',
@@ -60,7 +60,7 @@ export const COMMON_MACHINE_BRANDS: readonly string[] = [
   'Panatta',
   'Prime',
   'Atlantis',
-];
+] as const;
 
 /** Brand chips: the user's own brands (trimmed, deduped case-insensitively), then the common ones not already used. */
 export function brandChips(used: readonly string[]): { used: string[]; common: string[] } {

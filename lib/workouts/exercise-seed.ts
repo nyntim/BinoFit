@@ -1,9 +1,10 @@
 import type * as SQLite from 'expo-sqlite';
 import type { Region } from '@/lib/workouts/exercise-catalog';
-import type { Equipment, ExerciseLogType, MuscleGroup } from '@/lib/types';
+import type { Equipment, ExerciseLogType, LoadType, MuscleGroup } from '@/lib/types';
+import { MACHINE_SEED_EXERCISES } from '@/lib/workouts/machine-seed';
 
-/** Bump when SEED_EXERCISES changes; `seedExercises` reruns only when the stored version is lower. */
-export const EXERCISE_SEED_VERSION = 2;
+/** Bump when SEED_EXERCISES or MACHINE_SEED_EXERCISES changes; `seedExercises` reruns only when the stored version is lower. */
+export const EXERCISE_SEED_VERSION = 3;
 export const EXERCISE_SEED_VERSION_KEY = 'exercise_seed_version';
 
 export type SeedExercise = {
@@ -19,6 +20,8 @@ export type SeedExercise = {
   default_rest_seconds: number | null;
   /** Metabolic equivalent (Compendium of Physical Activities), for the later burn estimate. */
   met: number;
+  brand: string | null;
+  load_type: LoadType | null;
 };
 
 type Row = [
@@ -111,8 +114,13 @@ export const SEED_EXERCISES: readonly SeedExercise[] = ROWS.map(
     per_side,
     default_rest_seconds: rest,
     met,
+    brand: null,
+    load_type: null,
   })
 );
+
+/** Base exercises plus the branded machines: everything the seed pipeline writes. */
+export const ALL_SEED_EXERCISES: readonly SeedExercise[] = [...SEED_EXERCISES, ...MACHINE_SEED_EXERCISES];
 
 /**
  * Inserts or updates the built-in exercises when `app_meta.exercise_seed_version` is below
@@ -139,19 +147,21 @@ async function seedExercisesUnsafe(db: SQLite.SQLiteDatabase): Promise<void> {
 
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
-    for (const e of SEED_EXERCISES) {
+    for (const e of ALL_SEED_EXERCISES) {
       await txn.runAsync(
         `INSERT INTO exercises
            (id, name, log_type, primary_muscles, secondary_muscles, equipment, brand, load_type,
             base_weight_kg, per_side, setup_notes, default_rest_seconds, met, source, hidden,
             created_at, updated_at, synced_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, NULL, ?, ?, 'seed', 0, ?, ?, NULL, NULL)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, 'seed', 0, ?, ?, NULL, NULL)
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name,
            log_type = excluded.log_type,
            primary_muscles = excluded.primary_muscles,
            secondary_muscles = excluded.secondary_muscles,
            equipment = excluded.equipment,
+           brand = excluded.brand,
+           load_type = excluded.load_type,
            per_side = excluded.per_side,
            default_rest_seconds = excluded.default_rest_seconds,
            met = excluded.met,
@@ -165,6 +175,8 @@ async function seedExercisesUnsafe(db: SQLite.SQLiteDatabase): Promise<void> {
           JSON.stringify(e.primary_muscles),
           JSON.stringify(e.secondary_muscles),
           e.equipment,
+          e.brand,
+          e.load_type,
           e.per_side,
           e.default_rest_seconds,
           e.met,
@@ -173,11 +185,11 @@ async function seedExercisesUnsafe(db: SQLite.SQLiteDatabase): Promise<void> {
         ]
       );
     }
-    const keep = SEED_EXERCISES.map(() => '?').join(',');
+    const keep = ALL_SEED_EXERCISES.map(() => '?').join(',');
     await txn.runAsync(
       `UPDATE exercises SET hidden = 1, updated_at = ?
         WHERE source = 'seed' AND hidden = 0 AND id NOT IN (${keep})`,
-      [now, ...SEED_EXERCISES.map((e) => e.id)]
+      [now, ...ALL_SEED_EXERCISES.map((e) => e.id)]
     );
     await txn.runAsync(
       `INSERT INTO app_meta (key, value) VALUES (?, ?)

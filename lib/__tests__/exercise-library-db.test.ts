@@ -85,7 +85,9 @@ describe('seed data', () => {
 
 describe('seedExercises', () => {
   it('seeds 49 visible rows on first schema init with the version stored', () => {
-    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed' AND hidden=0").get() as any).c).toBe(49);
+    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed' AND hidden=0").get() as any).c).toBe(
+      seed.ALL_SEED_EXERCISES.length
+    );
     expect((mem.raw.prepare('SELECT value FROM app_meta WHERE key = ?').get(seed.EXERCISE_SEED_VERSION_KEY) as any).value).toBe(
       String(seed.EXERCISE_SEED_VERSION)
     );
@@ -113,7 +115,7 @@ describe('seedExercises', () => {
   });
 
   it('seed version 2 updates seed muscles on a v1 database and leaves custom rows alone', async () => {
-    expect(seed.EXERCISE_SEED_VERSION).toBe(2);
+    expect(seed.EXERCISE_SEED_VERSION).toBeGreaterThanOrEqual(2);
     const c = await lib.createCustomExercise(input({ primary: ['upper_back'] }));
     mem.raw.prepare('UPDATE app_meta SET value = ? WHERE key = ?').run('1', seed.EXERCISE_SEED_VERSION_KEY);
     mem.raw.prepare("UPDATE exercises SET primary_muscles = '[\"upper_back\"]' WHERE id = 'barbell-row'").run();
@@ -196,7 +198,7 @@ describe('exercise CRUD', () => {
 
   it('getExercises returns seeds and custom rows', async () => {
     await lib.createCustomExercise(input());
-    expect(await lib.getExercises()).toHaveLength(50);
+    expect(await lib.getExercises()).toHaveLength(seed.ALL_SEED_EXERCISES.length + 1);
   });
 
   it('brands are distinct case-insensitively, most recent first, excluding deleted', async () => {
@@ -218,6 +220,53 @@ describe('exercise CRUD', () => {
     await lib.createCustomExercise(input());
     await database.clearUserData();
     expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='custom'").get() as any).c).toBe(0);
-    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed'").get() as any).c).toBe(49);
+    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed'").get() as any).c).toBe(
+      seed.ALL_SEED_EXERCISES.length
+    );
+  });
+});
+
+describe('machine seeds', () => {
+  it('seeds machines with brand and load type on a fresh database', () => {
+    expect(seed.EXERCISE_SEED_VERSION).toBe(3);
+    expect(rowOf('life-fitness-chest-press')).toMatchObject({
+      brand: 'Life Fitness',
+      load_type: 'stack',
+      source: 'seed',
+      synced_at: null,
+    });
+    expect(rowOf('barbell-bench-press').brand).toBeNull();
+  });
+
+  it('upgrading from version 2 inserts the machines and hides nothing seeded', async () => {
+    mem.raw.prepare("DELETE FROM exercises WHERE brand IS NOT NULL AND source = 'seed'").run();
+    mem.raw.prepare('UPDATE app_meta SET value = ? WHERE key = ?').run('2', seed.EXERCISE_SEED_VERSION_KEY);
+    await seed.seedExercises(mem);
+    expect((mem.raw.prepare("SELECT COUNT(*) c FROM exercises WHERE source='seed' AND hidden=0").get() as any).c).toBe(
+      seed.ALL_SEED_EXERCISES.length
+    );
+  });
+
+  it('leaves a same-named custom exercise alone and keeps seed brands out of the brand list', async () => {
+    const c = await lib.createCustomExercise(input({ brand: 'Life Fitness' }));
+    mem.raw.prepare('UPDATE app_meta SET value = ? WHERE key = ?').run('2', seed.EXERCISE_SEED_VERSION_KEY);
+    await seed.seedExercises(mem);
+    expect(rowOf(c.id)).toMatchObject({ source: 'custom', hidden: 0, brand: 'Life Fitness' });
+    expect(await lib.getCustomExerciseBrands()).toEqual(['Life Fitness']);
+    expect(await w.getUnsyncedCustomExercises()).toHaveLength(1);
+  });
+
+  it('hides a dropped machine id and keeps its name on past workouts', async () => {
+    const now = '2026-01-01T00:00:00.000Z';
+    mem.raw
+      .prepare(
+        `INSERT INTO exercises (id, name, log_type, primary_muscles, secondary_muscles, equipment, brand, per_side, source, hidden, created_at, updated_at)
+         VALUES ('rogue-old-machine', 'Old machine', 'weight_reps', '["chest"]', '[]', 'machine', 'Rogue', 0, 'seed', 0, ?, ?)`
+      )
+      .run(now, now);
+    mem.raw.prepare('UPDATE app_meta SET value = ? WHERE key = ?').run('2', seed.EXERCISE_SEED_VERSION_KEY);
+    await seed.seedExercises(mem);
+    expect(rowOf('rogue-old-machine').hidden).toBe(1);
+    expect(await lib.getExerciseById('rogue-old-machine')).toMatchObject({ name: 'Old machine' });
   });
 });

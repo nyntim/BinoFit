@@ -300,7 +300,7 @@ describe('clearUserData and markAllUnsynced', () => {
     await routines.addExerciseToRoutine(r.id, 'ex1');
     await database.clearUserData();
     expect(count('routines') + count('routine_exercises')).toBe(0);
-    expect(count('exercises', "source = 'seed'")).toBe(49);
+    expect(count('exercises', "source = 'seed'")).toBe(seedCount());
   });
 
   it('markAllUnsynced clears synced_at on routines and routine_exercises', async () => {
@@ -314,3 +314,7 @@ describe('clearUserData and markAllUnsynced', () => {
     expect(rowOf('routine_exercises', c.id).synced_at).toBeNull();
   });
 });
+
+function seedCount(): number {
+  return (require('@/lib/workouts/exercise-seed') as typeof import('@/lib/workouts/exercise-seed')).ALL_SEED_EXERCISES.length;
+}

@@ -170,3 +170,54 @@ describe('workoutDisplayName', () => {
     expect(workoutDisplayName({ name: '   ', date: '2026-10-14' })).toBe('Workout · Wed 14 Oct');
   });
 });
+
+describe('filterExercises machine aliases and brands', () => {
+  const aliases = new Map<string, readonly string[]>([
+    ['hs-chest', ['plate chest press']],
+    ['lf-fly', ['pec deck']],
+    ['hs-fly', ['pec deck']],
+    ['hs-curl', ['arm curl']],
+  ]);
+  const list = [
+    ex({ id: 'hs-chest', name: 'Plate-loaded chest press', brand: 'Hammer Strength', equipment: 'machine' }),
+    ex({ id: 'hs-fly', name: 'Pec fly', brand: 'Hammer Strength', equipment: 'machine' }),
+    ex({ id: 'lf-fly', name: 'Pec fly', brand: 'Life Fitness', equipment: 'machine' }),
+    ex({ id: 'hs-curl', name: 'Biceps curl machine', brand: 'Hammer Strength', primary_muscles: ['biceps'] }),
+    ex({ id: 'hammer-curl', name: 'Hammer curl', primary_muscles: ['biceps'] }),
+    ex({ id: 'deck-thing', name: 'Pec deck row' }),
+    ex({ id: 'custom-fly', name: 'Cable fly', brand: ' life fitness ', source: 'custom' }),
+  ];
+
+  it('matches aliases only when passed, ranked above substring matches', () => {
+    expect(filterExercises(list, { query: 'pec deck' }).map((e) => e.id)).toEqual(['deck-thing']);
+    const r = filterExercises(list, { query: 'pec deck', aliases }).map((e) => e.id);
+    expect(r).toEqual(['hs-fly', 'lf-fly', 'deck-thing']);
+  });
+
+  it('splits tokens across name, brand and alias', () => {
+    expect(filterExercises(list, { query: 'hammer strength chest', aliases }).map((e) => e.id)).toEqual(['hs-chest']);
+    expect(filterExercises(list, { query: 'pec deck life', aliases }).map((e) => e.id)).toEqual(['lf-fly']);
+  });
+
+  it('puts a name prefix above brand-only matches', () => {
+    const r = filterExercises(list, { query: 'hammer', aliases }).map((e) => e.id);
+    expect(r[0]).toBe('hammer-curl');
+    expect(r.slice(1)).toEqual(['hs-curl', 'hs-fly', 'hs-chest']);
+  });
+
+  it('filters by brand case-insensitively, including custom rows', () => {
+    const ids = (f: object) => filterExercises(list, { aliases, ...f }).map((e) => e.id);
+    expect(ids({ brand: '  LIFE fitness ' })).toEqual(['custom-fly', 'lf-fly']);
+    expect(ids({ brand: null })).toHaveLength(list.length);
+    expect(ids({ brand: 'Hammer Strength', region: 'Biceps' })).toEqual(['hs-curl']);
+    expect(ids({ brand: 'Hammer Strength', query: 'fly' })).toEqual(['hs-fly']);
+  });
+
+  it('excludes hidden and deleted machines even when an alias matches', () => {
+    const l = [
+      ex({ id: 'hs-fly', name: 'Pec fly', hidden: 1 }),
+      ex({ id: 'lf-fly', name: 'Pec fly', deleted_at: 'x' }),
+    ];
+    expect(filterExercises(l, { query: 'pec deck', aliases })).toEqual([]);
+  });
+});

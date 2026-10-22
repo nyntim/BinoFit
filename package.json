@@ -1,7 +1,7 @@
 {
   "name": "binofit",
   "main": "expo-router/entry",
-  "version": "2.1.27",
+  "version": "2.1.28",
   "scripts": {
     "deploy": "eas update --branch main --message",
     "start": "expo start --tunnel",
