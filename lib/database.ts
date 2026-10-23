@@ -2,6 +2,8 @@
 // (never a database-* file) so jest.mock('@/lib/database') keeps covering them.
 export { getDatabase } from '@/lib/database-connection';
 export {
+  getFoodSearchMetadata,
+  getFoodsByIds,
   searchFoods,
   searchFoodsByTokens,
   searchFoodsBySingleToken,

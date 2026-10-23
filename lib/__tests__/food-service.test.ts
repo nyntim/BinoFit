@@ -3,6 +3,8 @@ import * as db from '@/lib/database';
 import type { Food } from '@/lib/types';
 
 jest.mock('@/lib/database', () => ({
+  getFoodSearchMetadata: jest.fn(),
+  getFoodsByIds: jest.fn(),
   searchFoods: jest.fn(),
   searchFoodsByTokens: jest.fn(),
   searchFoodsBySingleToken: jest.fn(),
@@ -11,6 +13,8 @@ jest.mock('@/lib/database', () => ({
   getRecentFoods: jest.fn(),
 }));
 jest.mock('@/lib/foods-db', () => ({
+  getUSDASearchMetadata: jest.fn(),
+  getUSDAFoodsByIds: jest.fn(),
   searchUSDAFoods: jest.fn(),
   searchUSDAFoodsByTokens: jest.fn(),
   searchUSDAFoodsBySingleToken: jest.fn(),
@@ -40,8 +44,8 @@ describe('parseQuery', () => {
   it('strips filler words', () => {
     expect(parseQuery('bread with butter').tokens).toEqual(['bread', 'butter']);
   });
-  it('keeps filler tokens when the query is only filler words', () => {
-    expect(parseQuery('the of').tokens).toEqual(['the', 'of']);
+  it('rejects filler-only queries', () => {
+    expect(parseQuery('the of').tokens).toEqual([]);
   });
   it('returns no tokens for an empty query', () => {
     expect(parseQuery('   ').tokens).toEqual([]);
@@ -130,33 +134,57 @@ describe('branded nutrient profiles', () => {
   });
 
   it('retains provenance, marks summaries pending and caches no incomplete rows', async () => {
-    const rows = [{ ...food('partial', 'Partial'), source: 'open_food_facts' }, { ...food('other', 'Other'), source: 'usda' }, food('fallback', 'Fallback')];
+    const rows = [{ ...food('partial', 'Partial'), source: 'open_food_facts' }, { ...food('other', 'Partial other'), source: 'usda' }, food('fallback', 'Partial fallback')];
     supabase.rpc.mockResolvedValueOnce({ data: rows, error: null });
     expect(await searchBranded('Partial')).toEqual(rows.map((r) => ({ ...r, source: r.source || 'open_food_facts', detailsPending: true })));
     expect(db.cacheRemoteFood).not.toHaveBeenCalled();
   });
 
-  it('calls the ranked search_foods RPC with the trimmed query, exclusions and limit 20', async () => {
-    supabase.rpc.mockResolvedValueOnce({ data: [], error: null });
-    await searchBranded('  oat milk ', ['off:1', 'off:2']);
-    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', {
-      q: 'oat milk', exclude_ids: ['off:1', 'off:2'], max_results: 20,
-    });
+  it('sends normalized tokens and a limit, deduping locally without a growing exclusion payload', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [food('off:1', 'Oat milk')], error: null });
+    expect(await searchBranded('  oat milk ', ['off:1'])).toEqual([]);
+    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', { q: 'oat milk', max_results: 20 });
   });
 
-  it('passes punctuation through unchanged', async () => {
-    supabase.rpc.mockResolvedValueOnce({ data: [], error: null });
-    await searchBranded("ben & jerry's, (pint)");
-    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', expect.objectContaining({ q: "ben & jerry's, (pint)" }));
+  it('treats punctuation as token separators and gates every returned word', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [food('1', "Ben & Jerry's (pint)"), food('2', 'Ben')], error: null });
+    expect(await searchBranded("ben & jerry's, (pint)")).toHaveLength(1);
+    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', expect.objectContaining({ q: 'ben jerry s pint' }));
   });
 
-  it('returns [] on RPC error, thrown errors and queries under 3 characters', async () => {
+  it('preserves server tie signals after applying the shared coverage gate', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [food('popular', 'Oat milk vanilla'), food('shorter', 'Oat milk plain'), food('noise', 'Oats')], error: null });
+    expect((await searchBranded('oat milk')).map((row: Food) => row.id)).toEqual(['popular', 'shorter']);
+  });
+
+  it('distinguishes errors from successful negative results and cancellation', async () => {
     supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
-    expect(await searchBranded('oats')).toEqual([]);
+    await expect(searchBranded('oats')).rejects.toEqual({ message: 'boom' });
     supabase.rpc.mockRejectedValueOnce(new Error('offline'));
-    expect(await searchBranded('oats')).toEqual([]);
+    await expect(searchBranded('oats')).rejects.toThrow('offline');
+    const signal = new AbortController(); signal.abort();
+    const abortSignal = jest.fn().mockResolvedValue({ data: [], error: null });
+    supabase.rpc.mockReturnValueOnce({ abortSignal });
+    await expect(searchBranded('oats', [], { signal: signal.signal })).rejects.toThrow('cancelled');
+    expect(abortSignal).toHaveBeenCalledWith(signal.signal);
     supabase.rpc.mockClear();
     expect(await searchBranded(' ab ')).toEqual([]);
     expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('metadata search hydration', () => {
+  it('scores complete metadata before hydrating only accepted winners', async () => {
+    const usda = require('@/lib/foods-db');
+    (db.getFoodSearchMetadata as jest.Mock).mockResolvedValue([food('mine', 'Chicken soup')]);
+    usda.getUSDASearchMetadata.mockResolvedValue([food('usda', 'Chicken breast'), food('other', 'Chickpea')]);
+    (db.getFrequentFoods as jest.Mock).mockResolvedValue([food('mine', 'Chicken soup')]);
+    (db.getRecentFoods as jest.Mock).mockResolvedValue([]);
+    (db.getFoodsByIds as jest.Mock).mockResolvedValue([]);
+    usda.getUSDAFoodsByIds.mockResolvedValue([{ ...food('usda', 'Chicken breast'), iron: 2 }]);
+    const { searchLocal } = require('@/lib/food-service');
+    expect(await searchLocal('100g chiken breast')).toMatchObject([{ id: 'usda', iron: 2 }]);
+    expect(usda.getUSDAFoodsByIds).toHaveBeenCalledWith(['usda']);
+    expect(db.getFoodsByIds).toHaveBeenCalledWith([]);
   });
 });

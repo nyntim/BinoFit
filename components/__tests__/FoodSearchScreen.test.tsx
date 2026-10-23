@@ -35,7 +35,7 @@ jest.mock('@/lib/database', () => ({ getRecentFoods: jest.fn(), getFrequentFoods
 jest.mock('@/lib/food-service', () => ({
   searchLocal: jest.fn(), searchBranded: jest.fn(), sortFoodResults: jest.fn(), getFullBrandedFood: jest.fn(),
   shouldAutoFetchBranded: (count: number) => count < 8,
-  parseQuery: (query: string) => ({ term: query.replace(/^2 /, ''), quantity: query.startsWith('2 ') ? 2 : null, unit: '' }),
+  parseQuery: (query: string) => ({ term: query.replace(/^2 /, ''), tokens: query.replace(/^2 /, '').trim().split(/\s+/).filter(Boolean), quantity: query.startsWith('2 ') ? 2 : null, unit: '' }),
 }));
 const foods: Food[] = Array.from({ length: 60 }, (_, i) => ({ id: `food-${i}`, name: `Food ${String(i).padStart(2, '0')} with a long descriptive name`, brand: i % 2 ? 'Brand' : null, serving_units: '100g', calories: 100, protein: 10, carbs: 12, fat: 3, source: 'usda', updated_at: '2026-10-20' }));
 const list = () => ({ props: mockListProps });
@@ -80,42 +80,44 @@ test('suggestions retain section order and distinct keys for shared foods; empty
   expect(list().props.ListHeaderComponent).toBeUndefined();
 });
 
-test.each([['Best Match', 'best'], ['Frequent', 'frequent'], ['Recent', 'recent'], ['A → Z', 'az'], ['Z → A', 'za']])('local sequence and id keys follow %s sorting without sorting branded rows', async (label, option) => {
+test.each([['Best Match', 'best'], ['Frequent', 'frequent'], ['Recent', 'recent'], ['A → Z', 'az'], ['Z → A', 'za']])('local sequence and id keys follow %s sorting without another network lookup', async (label, option) => {
   const ordered = [...foods].reverse();
-  (sortFoodResults as jest.Mock).mockImplementation(async (items, sort) => sort === option ? ordered : items);
+  (sortFoodResults as jest.Mock).mockImplementation(async (items, sort) => items.length && sort === option ? [...items].reverse() : items);
   await render(<FoodSearchScreen />); await search();
   await fireEvent.press(screen.getByText(label));
   await act(async () => { jest.advanceTimersByTime(300); });
   expect(rows().map((r) => r.key)).toEqual(ordered.map((f) => `local:${f.id}`));
   expect(screen.getByText('Load branded foods')).toBeTruthy();
-  (searchBranded as jest.Mock).mockResolvedValue([foods[2], foods[1]]);
+  (searchBranded as jest.Mock).mockResolvedValue([{ ...foods[2], id: 'remote-2' }, { ...foods[1], id: 'remote-1' }]);
   await fireEvent.press(screen.getByText('Load branded foods'));
-  expect(searchBranded).toHaveBeenCalledWith('food', ordered.map((f) => f.id));
-  expect(rows().slice(-2).map((r) => r.key)).toEqual(['branded:food-2', 'branded:food-1']);
+  expect(searchBranded).toHaveBeenCalledWith('food', [], expect.objectContaining({ signal: expect.any(Object), current: expect.any(Function) }));
+  expect(rows().slice(-2).map((r) => r.key)).toEqual(['branded:remote-1', 'branded:remote-2']);
   expect(screen.queryByText('Load branded foods')).toBeNull();
 });
 
-test('local loading, local empty and branded loading/empty remain separate status rows', async () => {
+test('loading remains visible until one final no-results state', async () => {
   let resolveLocal!: (value: Food[]) => void, resolveBranded!: (value: Food[]) => void;
   (searchLocal as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveLocal = resolve; }));
   (searchBranded as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveBranded = resolve; }));
   await render(<FoodSearchScreen />); await search();
   expect(rows()).toEqual([]);
   await act(async () => resolveLocal([]));
-  expect(rows().map((r) => r.key)).toEqual(['local:empty', 'branded:divider', 'branded:heading', 'branded:loading']);
-  expect(screen.getByText('Try different words or check the spelling')).toBeTruthy();
-  expect(searchBranded).toHaveBeenCalledWith('food', []);
+  expect(rows().map((r) => r.key)).toEqual(['branded:loading']);
+  expect(screen.queryByText('No results for \"food\"')).toBeNull();
+  await act(async () => { await jest.advanceTimersByTimeAsync(500); });
+  expect(searchBranded).toHaveBeenCalledWith('food', [], expect.any(Object));
   await act(async () => resolveBranded([]));
-  expect(screen.getByText('No branded results found')).toBeTruthy();
+  expect(screen.getByText('No results for \"food\"')).toBeTruthy();
 });
 
-test.each(['branded', 'open_food_facts'])('local empty message remains for %s; hydration disables rows and preserves parsed quantity', async (source) => {
+test.each(['branded', 'open_food_facts'])('remote results suppress the empty message for %s; hydration disables rows and preserves parsed quantity', async (source) => {
   const branded = { ...foods[0], source, detailsPending: true };
   (searchLocal as jest.Mock).mockResolvedValue([]); (searchBranded as jest.Mock).mockResolvedValue([branded]);
   let resolve!: () => void;
   (getFullBrandedFood as jest.Mock).mockReturnValue(new Promise<void>((r) => { resolve = r; }));
   await render(<FoodSearchScreen />); await search('2 food');
-  expect(screen.getByText('No results for "2 food"')).toBeTruthy();
+  await act(async () => { await jest.advanceTimersByTimeAsync(500); });
+  expect(screen.queryByText('No results for "2 food"')).toBeNull();
   const cell = mockListProps.renderItem!({ item: rows().find((r) => r.type === 'food')!, index: 3, separators: { highlight: jest.fn(), unhighlight: jest.fn(), updateProps: jest.fn() } }) as import('react').ReactElement<{ onPress: () => Promise<void> }>;
   await act(async () => { void cell.props.onPress(); });
   expect(getFullBrandedFood).toHaveBeenCalledWith(branded.id);
@@ -144,6 +146,7 @@ test('branded and custom foods are tagged', async () => {
   (searchLocal as jest.Mock).mockResolvedValue([{ ...foods[0], id: 'c', name: 'Mine', source: 'custom' }]);
   (searchBranded as jest.Mock).mockResolvedValue([{ ...foods[1], id: 'd', name: 'Boxed', source: 'branded' }]);
   await render(<FoodSearchScreen />); await search();
+  await act(async () => { await jest.advanceTimersByTimeAsync(500); });
   expect(screen.getByText('Custom')).toBeTruthy();
   expect(screen.getByText('Branded')).toBeTruthy();
 });

@@ -97,12 +97,28 @@ describe('searchUSDAFoods', () => {
     expect(await load().searchUSDAFoods('   ')).toEqual([]);
     expect(fake.getAllAsync).not.toHaveBeenCalled();
   });
-  it('builds one LIKE condition per word and maps rows', async () => {
+  it('reads immutable metadata once, then hydrates matching rows in one parameterized batch', async () => {
+    const fake = mockFoodsDb({ ...baseRow, name: 'Red apple' });
+    const api = load();
+    expect(await api.searchUSDAFoods('red apple')).toHaveLength(1);
+    await api.searchUSDAFoods('red apple');
+    const metadataCalls = fake.getAllAsync.mock.calls.filter((call: any[]) => call[0].startsWith('SELECT id, name, source'));
+    expect(metadataCalls).toHaveLength(1);
+    expect(fake.getAllAsync).toHaveBeenCalledWith('SELECT * FROM foods WHERE id IN (?)', ['u1']);
+  });
+  it('retries a rejected metadata promise and shares concurrent successful reads', async () => {
     const fake = mockFoodsDb(baseRow);
-    const res = await load().searchUSDAFoods('red apple');
-    expect(res).toHaveLength(1);
-    const [sql, params] = fake.getAllAsync.mock.calls[0] as unknown as [string, any[]];
-    expect(sql).toContain('name LIKE ? AND name LIKE ?');
-    expect(params).toEqual(['%red%', '%apple%', 'red apple', 'red apple', 50]);
+    fake.getAllAsync.mockRejectedValueOnce(new Error('read failed'));
+    const api = load();
+    await expect(api.getUSDASearchMetadata()).rejects.toThrow('read failed');
+    const [first, second] = await Promise.all([api.getUSDASearchMetadata(), api.getUSDASearchMetadata()]);
+    expect(first).toBe(second);
+    expect(fake.getAllAsync).toHaveBeenCalledTimes(2);
+  });
+  it('scales batch hydration exactly as an individual USDA lookup', async () => {
+    mockFoodsDb({ ...baseRow, serving_size: 25, iron: 2, source: 'usda_foundation' });
+    const api = load();
+    expect(await api.getUSDAFoodsByIds(['u1'])).toEqual([await api.getUSDAFoodById('u1')]);
+    expect(await api.getUSDAFoodsByIds([])).toEqual([]);
   });
 });

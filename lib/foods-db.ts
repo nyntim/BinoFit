@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { importDatabaseFromAssetAsync } from 'expo-sqlite';
+import { indexFoodMetadata, queryTokens, rankFoods, type FoodMetadata } from '@/lib/food-search-relevance';
 import type { Food } from '@/lib/types';
 import { scaleNutrients, type NutrientValues } from '@/lib/nutrients';
 
@@ -35,7 +36,7 @@ async function getFoodsDatabase(): Promise<SQLite.SQLiteDatabase> {
 
   _foodsDb = await SQLite.openDatabaseAsync(FOODS_DB_NAME);
   const count = await _foodsDb.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM foods');
-  console.log(`[foods-db] Opened foods.db — ${count?.c ?? 0} rows`);
+  console.log(`[foods-db] Opened foods.db: ${count?.c ?? 0} rows`);
   return _foodsDb;
 }
 
@@ -79,67 +80,32 @@ export async function getUSDAFoodById(id: string): Promise<Food | null> {
   }
 }
 
+let metadataPromise: Promise<FoodMetadata[]> | undefined;
+
+/** The bundled catalog is immutable. Retain names only, and retry failed reads. */
+export function getUSDASearchMetadata(): Promise<FoodMetadata[]> {
+  if (!metadataPromise) {
+    metadataPromise = getFoodsDatabase().then(db => db.getAllAsync<FoodMetadata>('SELECT id, name, source FROM foods')).then(rows => rows.map(indexFoodMetadata))
+      .catch(error => { metadataPromise = undefined; throw error; });
+  }
+  return metadataPromise;
+}
+
+export async function getUSDAFoodsByIds(ids: readonly string[]): Promise<Food[]> {
+  if (!ids.length) return [];
+  const db = await getFoodsDatabase();
+  const rows = await db.getAllAsync<USDARow>(`SELECT * FROM foods WHERE id IN (${ids.map(() => '?').join(', ')})`, [...ids]);
+  return rows.map(mapUSDARow);
+}
+
 export async function searchUSDAFoods(query: string, limit = 50): Promise<Food[]> {
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
   try {
-    const db = await getFoodsDatabase();
-    const words = query.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) return [];
-
-    // Each word must appear in name (AND between words)
-    const wordConditions = words.map(() => `name LIKE ?`).join(' AND ');
-    const wordParams = words.map((w) => `%${w}%`);
-
-    const rows = await db.getAllAsync<USDARow>(
-      `SELECT *,
-         CASE
-           WHEN lower(name) = lower(?)           THEN 1
-           WHEN lower(name) LIKE lower(? || '%') THEN 2
-           ELSE                                       3
-         END as matchTier
-       FROM foods
-       WHERE ${wordConditions}
-       ORDER BY matchTier ASC, length(name) ASC
-       LIMIT ?`,
-      [...wordParams, query, query, limit]
-    );
-    return rows.map(mapUSDARow);
-  } catch (e) {
-    console.error('[foods-db] searchUSDAFoods error:', e);
-    return [];
-  }
+    const winners = rankFoods(await getUSDASearchMetadata(), tokens).slice(0, limit);
+    const rows = new Map((await getUSDAFoodsByIds(winners.map(food => food.id))).map(food => [food.id, food]));
+    return winners.flatMap(food => rows.has(food.id) ? [rows.get(food.id)!] : []);
+  } catch { return []; }
 }
-
-export async function searchUSDAFoodsByTokens(tokens: string[], limit = 50): Promise<Food[]> {
-  try {
-    const db = await getFoodsDatabase();
-    const wordConditions = tokens.map(() => `name LIKE ?`).join(' AND ');
-    const wordParams = tokens.map((w) => `%${w}%`);
-
-    const rows = await db.getAllAsync<USDARow>(
-      `SELECT *, 3 as matchTier FROM foods
-       WHERE ${wordConditions}
-       ORDER BY length(name) ASC
-       LIMIT ?`,
-      [...wordParams, limit]
-    );
-    return rows.map(mapUSDARow);
-  } catch {
-    return [];
-  }
-}
-
-export async function searchUSDAFoodsBySingleToken(token: string, limit = 50): Promise<Food[]> {
-  try {
-    const db = await getFoodsDatabase();
-    const rows = await db.getAllAsync<USDARow>(
-      `SELECT *, 4 as matchTier FROM foods
-       WHERE name LIKE ?
-       ORDER BY length(name) ASC
-       LIMIT ?`,
-      [`%${token}%`, limit]
-    );
-    return rows.map(mapUSDARow);
-  } catch {
-    return [];
-  }
-}
+export const searchUSDAFoodsByTokens = (tokens: string[], limit = 50) => searchUSDAFoods(tokens.join(' '), limit);
+export const searchUSDAFoodsBySingleToken = (token: string, limit = 50) => searchUSDAFoods(token, limit);

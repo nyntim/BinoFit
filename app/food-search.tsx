@@ -26,14 +26,15 @@ import { getRecentFoods, getFrequentFoods } from '@/lib/database';
 import {
   searchLocal,
   searchBranded,
-  shouldAutoFetchBranded,
   getFullBrandedFood,
   parseQuery,
   sortFoodResults,
   type SortOption,
 } from '@/lib/food-service';
-import { foodSourceLabel } from '@/lib/food-source';
+import { FoodSearchSession } from '@/lib/food-search-session';
+import { supabase } from '@/lib/supabase';
 import { needsRemoteDetails } from '@/lib/food-resolve';
+import { foodSourceLabel } from '@/lib/food-source';
 import type { Food } from '@/lib/types';
 import { SelectionBar } from '@/components/food-search/SelectionBar';
 import { SelectionCheck } from '@/components/food-search/SelectionCheck';
@@ -117,6 +118,13 @@ export default function FoodSearchScreen() {
   const [localLoading, setLocalLoading] = useState(false);
   const [brandedLoading, setBrandedLoading] = useState(false);
   const [brandedRequested, setBrandedRequested] = useState(false);
+  const [remoteError, setRemoteError] = useState(false);
+  const [rawLocal, setRawLocal] = useState<Food[]>([]);
+  const [rawRemote, setRawRemote] = useState<Food[]>([]);
+  const sessionRef = useRef<FoodSearchSession | null>(null);
+  const sortGeneration = useRef(0);
+  const suggestionGeneration = useRef(0);
+  const scrollWhenSorted = useRef(false);
   const [selecting, setSelecting] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('best');
   const [parsedQuantity, setParsedQuantity] = useState<{ amount: number; unit: string } | null>(null);
@@ -152,7 +160,6 @@ export default function FoodSearchScreen() {
   };
   const openReview = () => router.push({ pathname: '/food-batch-review' as any, params: { meal_slot, date } });
 
-  const searchIdRef = useRef(0);
   const showSuggestions = !query.trim();
 
   const suggestionsScrollRef = useRef<FlatList<DisplayRow>>(null);
@@ -167,81 +174,70 @@ export default function FoodSearchScreen() {
   const listPadding = { paddingBottom: 40 + keyboardHeight };
 
   useEffect(() => {
+    const version = suggestionGeneration;
+    const generation = ++version.current;
     Promise.all([getRecentFoods(8), getFrequentFoods(8)]).then(([recent, frequent]) => {
+      if (generation !== version.current) return;
       setRecentFoods(recent);
       setFrequentFoods(frequent);
-    });
+    }).catch(() => {});
+    return () => { version.current++; };
   }, []);
 
-  const fetchBranded = useCallback(
-    async (q: string, excludeIds: string[], id: number) => {
-      setBrandedLoading(true);
-      try {
-        const branded = await searchBranded(q, excludeIds);
-        if (id === searchIdRef.current) {
-          setBrandedResults(branded);
-        }
-      } finally {
-        if (id === searchIdRef.current) {
-          setBrandedLoading(false);
-        }
+  useEffect(() => {
+    const session = new FoodSearchSession({
+      local: searchLocal,
+      remote: (q, signal, current) => searchBranded(q, [], { signal, current }),
+      changed: state => {
+        setRawLocal(state.local); setRawRemote(state.remote);
+        setLocalLoading(state.localLoading); setBrandedLoading(state.remoteLoading);
+        setBrandedRequested(state.requested); setRemoteError(state.error);
+      },
+    });
+    sessionRef.current = session;
+    let account: string | null | undefined;
+    const { data } = supabase.auth.onAuthStateChange((event, authSession) => {
+      const nextAccount = authSession?.user.id ?? null;
+      if (event === 'SIGNED_OUT' || (account !== undefined && account !== nextAccount)) {
+        sortGeneration.current++;
+        suggestionGeneration.current++;
+        setRecentFoods([]); setFrequentFoods([]);
+        session.reset();
+        setQuery(''); setLocalResults([]); setBrandedResults([]);
       }
-    },
-    []
-  );
+      account = nextAccount;
+    });
+    const sortVersion = sortGeneration;
+    return () => { sortVersion.current++; session.dispose(); sessionRef.current = null; data.subscription.unsubscribe(); };
+  }, []);
 
   useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setLocalResults([]);
-      setBrandedResults([]);
-      setBrandedRequested(false);
-      setParsedQuantity(null);
-      return;
-    }
-
-    setLocalLoading(true);
-    setBrandedResults([]);
-    setBrandedRequested(false);
-
-    const id = ++searchIdRef.current;
-
-    const timer = setTimeout(async () => {
-      const parsed = parseQuery(trimmed);
-      if (parsed.quantity) {
-        setParsedQuantity({ amount: parsed.quantity, unit: parsed.unit || '' });
-      } else {
-        setParsedQuantity(null);
-      }
-
-      const local = await searchLocal(parsed.term);
-      if (id !== searchIdRef.current) return;
-
-      const sorted = await sortFoodResults(local, sortOption);
-      // New query or sort: start at the top (branded results appended later do not scroll)
-      resultsScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
-      setLocalResults(sorted);
-      setLocalLoading(false);
-
-      if (shouldAutoFetchBranded(local.length)) {
-        setBrandedRequested(true);
-        fetchBranded(parsed.term, local.map((f) => f.id), id);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query, fetchBranded, sortOption]);
+    const generation = ++sortGeneration.current;
+    if (localLoading) return;
+    const ids = new Set(rawLocal.map(food => food.id));
+    Promise.all([sortFoodResults(rawLocal, sortOption), sortFoodResults(rawRemote.filter(food => !ids.has(food.id)), sortOption)])
+      .then(([local, remote]) => {
+        if (generation !== sortGeneration.current) return;
+        setLocalResults(local); setBrandedResults(remote);
+        if (scrollWhenSorted.current) {
+          resultsScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+          scrollWhenSorted.current = false;
+        }
+      });
+  }, [rawLocal, rawRemote, sortOption, localLoading]);
 
   const handleQueryChange = (next: string) => {
+    sortGeneration.current++;
+    scrollWhenSorted.current = true;
     resultsScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+    setLocalResults([]); setBrandedResults([]);
+    const parsed = parseQuery(next);
+    setParsedQuantity(parsed.quantity ? { amount: parsed.quantity, unit: parsed.unit || '' } : null);
+    sessionRef.current?.change(parsed.tokens.join(' '));
     setQuery(next);
   };
 
-  const handleLoadBranded = () => {
-    setBrandedRequested(true);
-    const parsed = parseQuery(query);
-    fetchBranded(parsed.term, localResults.map((f) => f.id), searchIdRef.current);
-  };
+  const handleLoadBranded = () => { void sessionRef.current?.lookup(true); };
 
   const slotLabel = mealsLoaded ? labelFor(meal_slot, date) : '';
 
@@ -325,8 +321,7 @@ export default function FoodSearchScreen() {
 
   const showBrandedButton =
     !showSuggestions &&
-    !brandedRequested &&
-    localResults.length >= 8 &&
+    (!brandedRequested || remoteError) &&
     query.trim().length >= 3;
 
   const suggestionRows = useMemo<DisplayRow[]>(() => {
@@ -338,15 +333,13 @@ export default function FoodSearchScreen() {
   }, [recentFoods, frequentFoods]);
   const resultRows = useMemo<DisplayRow[]>(() => {
     const rows = foodRows('local', localResults);
-    if (!localResults.length && !localLoading) rows.push({ key: 'local:empty', type: 'status', status: 'local-empty' });
-    if (brandedRequested) {
-      rows.push({ key: 'branded:divider', type: 'divider' }, { key: 'branded:heading', type: 'heading', title: 'BRANDED' });
-      if (brandedLoading) rows.push({ key: 'branded:loading', type: 'status', status: 'branded-loading' });
-      else if (!brandedResults.length) rows.push({ key: 'branded:empty', type: 'status', status: 'branded-empty' });
-      rows.push(...foodRows('branded', brandedResults));
+    if (brandedLoading) rows.push({ key: 'branded:loading', type: 'status', status: 'branded-loading' });
+    if (brandedResults.length) {
+      rows.push({ key: 'branded:divider', type: 'divider' }, { key: 'branded:heading', type: 'heading', title: 'BRANDED' }, ...foodRows('branded', brandedResults));
     }
+    if (!rawLocal.length && !rawRemote.length && !localLoading && !brandedLoading) rows.push({ key: 'search:empty', type: 'status', status: 'local-empty' });
     return rows;
-  }, [localResults, localLoading, brandedRequested, brandedLoading, brandedResults]);
+  }, [localResults, localLoading, brandedLoading, brandedResults, rawLocal.length, rawRemote.length]);
   const renderRow = ({ item }: { item: DisplayRow }) => {
     if (item.type === 'food') return renderFood(item.food);
     if (item.type === 'heading') return <Text style={[styles.sectionTitle, { color: colors.icon }]}>{item.title}</Text>;
@@ -355,7 +348,8 @@ export default function FoodSearchScreen() {
     if (item.status === 'local-empty') return (
       <View style={styles.emptyState}>
         <Text style={[styles.emptyText, { color: colors.icon }]}>No results for &quot;{query}&quot;</Text>
-        <Text style={[styles.emptyHint, { color: colors.icon }]}>Try different words or check the spelling</Text>
+        <Text style={[styles.emptyHint, { color: colors.icon }]}>{remoteError ? 'Branded search is unavailable. Try again.' : 'Create a custom food or scan its barcode.'}</Text>
+        {Platform.OS !== 'web' && <TouchableOpacity accessibilityRole="button" onPress={() => router.replace({ pathname: '/barcode-scanner' as any, params: { meal_slot, date } })} style={styles.loadBrandedBtn}><Text style={[styles.loadBrandedText, { color: colors.tint }]}>Scan barcode</Text></TouchableOpacity>}
       </View>
     );
     return <Text style={[item.status === 'suggestions-empty' ? styles.emptyText : styles.emptyHint, { color: colors.icon }]}>
@@ -398,6 +392,8 @@ export default function FoodSearchScreen() {
             placeholderTextColor={colors.icon}
             value={query}
             onChangeText={handleQueryChange}
+            onSubmitEditing={handleLoadBranded}
+            accessibilityLabel="Search foods"
             autoFocus
             returnKeyType="search"
             clearButtonMode="while-editing"
@@ -445,7 +441,7 @@ export default function FoodSearchScreen() {
       {!showSuggestions && (
         <SortControl
           active={sortOption}
-          onSelect={setSortOption}
+          onSelect={option => { if (option === sortOption) return; scrollWhenSorted.current = true; sortGeneration.current++; setSortOption(option); }}
           colors={colors}
         />
       )}

@@ -23,7 +23,7 @@ jest.mock('@/lib/food-resolve', () => ({ ...jest.requireActual('@/lib/food-resol
 jest.mock('@/lib/food-service', () => ({
   searchLocal: jest.fn(), searchBranded: jest.fn(), sortFoodResults: jest.fn(), getFullBrandedFood: jest.fn(),
   shouldAutoFetchBranded: () => false,
-  parseQuery: (query: string) => ({ term: query.replace(/^2 /, ''), quantity: query.startsWith('2 ') ? 2 : null, unit: '' }),
+  parseQuery: (query: string) => ({ term: query.replace(/^2 /, ''), tokens: query.replace(/^2 /, '').trim().split(/\s+/).filter(Boolean), quantity: query.startsWith('2 ') ? 2 : null, unit: '' }),
 }));
 
 const mk = (i: number): Food => ({ id: `food-${i}`, name: `Food ${i}`, brand: null, serving_units: '100g', calories: 100, protein: 10, carbs: 12, fat: 3, source: 'usda', updated_at: 'x' } as Food);

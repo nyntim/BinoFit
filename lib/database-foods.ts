@@ -1,58 +1,31 @@
+import { indexFoodMetadata, queryTokens, rankFoods, type FoodMetadata } from '@/lib/food-search-relevance';
 import { NUTRIENT_IDS, normalizeNutrients } from '@/lib/nutrients';
 import * as Crypto from 'expo-crypto';
 import type { Food } from '@/lib/types';
 import { getDatabase } from '@/lib/database-connection';
 import { toIso, isRemoteNewer } from '@/lib/database-food-logs';
 
+/** Read on every search so custom edits and newly cached foods are visible. */
+export async function getFoodSearchMetadata(): Promise<FoodMetadata[]> {
+  const db = await getDatabase();
+  return (await db.getAllAsync<FoodMetadata>('SELECT id, name, brand, source FROM foods')).map(indexFoodMetadata);
+}
+
+export async function getFoodsByIds(ids: readonly string[]): Promise<Food[]> {
+  if (!ids.length) return [];
+  const db = await getDatabase();
+  return db.getAllAsync<Food>(`SELECT * FROM foods WHERE id IN (${ids.map(() => '?').join(', ')})`, [...ids]);
+}
+
 export async function searchFoods(query: string, limit = 50): Promise<Food[]> {
-  const db = await getDatabase();
-  const words = query.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
-
-  // Each word must appear in name or brand (AND between words, OR within each word across fields)
-  const wordConditions = words.map(() => `(name LIKE ? OR brand LIKE ?)`).join(' AND ');
-  const wordParams = words.flatMap((w) => [`%${w}%`, `%${w}%`]);
-
-  return db.getAllAsync<Food>(
-    `SELECT *, 
-       CASE
-         WHEN lower(name) = lower(?)           THEN 1
-         WHEN lower(name) LIKE lower(? || '%') THEN 2
-         ELSE                                       3
-       END as matchTier
-     FROM foods
-     WHERE ${wordConditions}
-     ORDER BY matchTier ASC, length(name) ASC
-     LIMIT ?`,
-    [...wordParams, query, query, limit]
-  );
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+  const winners = rankFoods(await getFoodSearchMetadata(), tokens).slice(0, limit);
+  const rows = new Map((await getFoodsByIds(winners.map(food => food.id))).map(food => [food.id, food]));
+  return winners.flatMap(food => rows.has(food.id) ? [rows.get(food.id)!] : []);
 }
-
-export async function searchFoodsByTokens(tokens: string[], limit = 50): Promise<Food[]> {
-  if (tokens.length === 0) return [];
-  const db = await getDatabase();
-  const wordConditions = tokens.map(() => `(name LIKE ? OR brand LIKE ?)`).join(' AND ');
-  const wordParams = tokens.flatMap((w) => [`%${w}%`, `%${w}%`]);
-
-  return db.getAllAsync<Food>(
-    `SELECT *, 3 as matchTier FROM foods
-     WHERE ${wordConditions}
-     ORDER BY length(name) ASC
-     LIMIT ?`,
-    [...wordParams, limit]
-  );
-}
-
-export async function searchFoodsBySingleToken(token: string, limit = 50): Promise<Food[]> {
-  const db = await getDatabase();
-  return db.getAllAsync<Food>(
-    `SELECT *, 4 as matchTier FROM foods
-     WHERE name LIKE ? OR brand LIKE ?
-     ORDER BY length(name) ASC
-     LIMIT ?`,
-    [`%${token}%`, `%${token}%`, limit]
-  );
-}
+export const searchFoodsByTokens = (tokens: string[], limit = 50) => searchFoods(tokens.join(' '), limit);
+export const searchFoodsBySingleToken = (token: string, limit = 50) => searchFoods(token, limit);
 
 export async function searchLiquids(query: string): Promise<Food[]> {
   const db = await getDatabase();

@@ -249,3 +249,21 @@ describe('checked additive migration', () => {
     await expect(database.getDatabase()).rejects.toThrow('disk failure');
   });
 });
+
+
+describe('food search metadata', () => {
+  it('sees custom edits on the next search and hydrates accepted rows by ID', async () => {
+    const custom = await database.addCustomFood(mk({ name: 'Peas' }));
+    expect((await database.searchFoods('pea')).map(food => food.id)).toEqual([custom.id]);
+    await database.updateCustomFood(custom.id, mk({ name: 'Apple' }));
+    expect(await database.searchFoods('pea')).toEqual([]);
+    expect(await database.getFoodSearchMetadata()).toEqual([expect.objectContaining({ id: custom.id, name: 'Apple' })]);
+    expect((await database.getFoodsByIds([custom.id]))[0].name).toBe('Apple');
+    expect(await database.getFoodsByIds([])).toEqual([]);
+  });
+  it('gates before the result limit so irrelevant short names cannot hide a winner', async () => {
+    for (let i = 0; i < 55; i++) await database.cacheRemoteFood(mk({ id: `${i}`, name: 'Chicken soup' }));
+    await database.cacheRemoteFood(mk({ id: 'winner', name: 'Chicken breast cooked' }));
+    expect((await database.searchFoods('chiken breast', 1)).map(food => food.id)).toEqual(['winner']);
+  });
+});
