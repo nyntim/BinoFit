@@ -106,7 +106,8 @@ create index if not exists idx_foods_user_id on public.foods (user_id);
 
 -- ─────────────────────────────────────────────────────────
 -- Public food catalog search (trigram index, popularity, ranked RPC)
--- Applied as migrations food_catalog_search and food_search_ranking* on 2026-10-23.
+-- Applied as migrations food_catalog_search, food_search_ranking* and
+-- search_foods_definer on 2026-10-23.
 -- ─────────────────────────────────────────────────────────
 create extension if not exists pg_trgm with schema extensions;
 
@@ -126,6 +127,9 @@ create policy "food_popularity: read"
 
 -- Ranked catalog search. Every word of 3+ characters must appear in name or brand.
 -- Score: exact name, whole-word prefix, whole-word contains, plus 0.6 * ln(1 + scans).
+-- Security definer: under RLS the trigram index can't be used (ilike is not leakproof,
+-- so the per-row live_account_required policy runs first over every row). The function
+-- applies the same rules itself: a live account, and public rows or the caller's own.
 create or replace function public.search_foods(
   q text,
   exclude_ids text[] default '{}',
@@ -137,7 +141,7 @@ returns table (
 )
 language plpgsql
 stable
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -148,7 +152,7 @@ declare
   stmt text;
   i integer;
 begin
-  if length(phrase) < 2 then
+  if length(phrase) < 2 or auth.uid() is null or not public.has_live_account() then
     return;
   end if;
   like_phrase := replace(replace(replace(phrase, '\', '\\'), '%', '\%'), '_', '\_');
@@ -163,7 +167,8 @@ begin
   stmt := 'select f.id, f.name, f.brand, f.serving_units, f.calories, f.protein, f.carbs, f.fat, f.source
            from public.foods f
            left join public.food_popularity p on p.food_id = f.id
-           where not (f.id = any($2))';
+           where (f.user_id is null or f.user_id = $5)
+             and not (f.id = any($2))';
   for i in 1 .. array_length(patterns, 1) loop
     stmt := stmt || format(' and (f.name || '' '' || coalesce(f.brand, '''')) ilike %L', patterns[i]);
   end loop;
@@ -178,7 +183,7 @@ begin
 
   return query execute stmt
     using phrase, coalesce(exclude_ids, '{}'::text[]), like_phrase,
-          least(greatest(coalesce(max_results, 20), 1), 50);
+          least(greatest(coalesce(max_results, 20), 1), 50), auth.uid()::text;
 end;
 $$;
 
@@ -781,9 +786,20 @@ create table if not exists public.account_deletion_receipts (
 alter table public.account_deletion_receipts enable row level security;
 revoke all on public.account_deletion_receipts from public, anon, authenticated;
 
+-- Writes take KEY SHARE on the caller's auth.users row so delete_own_account waits for
+-- them. PostgREST runs GET requests and STABLE RPCs in read-only transactions, where row
+-- locks fail (SQLSTATE 25006, HTTP 405), so reads only check that the account exists.
+-- Applied as migration live_account_read_only on 2026-10-23.
 create or replace function public.has_live_account()
-returns boolean language sql volatile security definer set search_path = ''
-as $$ select exists (select 1 from auth.users where id = auth.uid() for key share); $$;
+returns boolean language plpgsql volatile security definer set search_path = ''
+as $$
+begin
+  if pg_catalog.current_setting('transaction_read_only') = 'on' then
+    return exists (select 1 from auth.users where id = auth.uid());
+  end if;
+  return exists (select 1 from auth.users where id = auth.uid() for key share);
+end;
+$$;
 revoke all on function public.has_live_account() from public, anon;
 grant execute on function public.has_live_account() to authenticated;
 

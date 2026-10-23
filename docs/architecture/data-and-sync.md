@@ -50,7 +50,9 @@ Deleting a synced row never calls Supabase directly. `lib/tombstones.ts`:
 
 ## Public food catalog
 
-`public.foods` public rows (no `user_id`) are the Open Food Facts US subset (about 214k rows, built by `scripts/off-subset/`). `food_popularity` is server-only ranking data and is never synced. `search_foods` (`supabase/migrations/202610230000_*` and `202610230001_*`) is the read path.
+`public.foods` public rows (no `user_id`) are the Open Food Facts US subset (about 214k rows, built by `scripts/off-subset/`). `food_popularity` is server-only ranking data and is never synced. `search_foods` (`supabase/migrations/202610230000_*` to `202610230002_*`; `schema.sql` is the end state) is the read path. It is `SECURITY DEFINER` and applies the RLS rules itself (live account; public rows or the caller's own), because under RLS the non-leakproof `ilike` filter could not use the trigram index.
+
+`has_live_account()` (the restrictive `live_account_required` policy on every user table) takes `FOR KEY SHARE` on the caller's `auth.users` row only in read-write transactions, so `delete_own_account` waits for in-flight writes. PostgREST runs GET requests and `STABLE` RPCs read-only, where a row lock fails with HTTP 405, so reads only check that the account exists.
 
 ## Export
 
