@@ -33,6 +33,7 @@ import {
   type SortOption,
 } from '@/lib/food-service';
 import { foodSourceLabel } from '@/lib/food-source';
+import { needsRemoteDetails } from '@/lib/food-resolve';
 import type { Food } from '@/lib/types';
 import { SelectionBar } from '@/components/food-search/SelectionBar';
 import { SelectionCheck } from '@/components/food-search/SelectionCheck';
@@ -248,13 +249,7 @@ export default function FoodSearchScreen() {
     if (selecting) return;
     setSelecting(true);
     try {
-      if (
-        food.source === 'branded' ||
-        (!food.source?.startsWith('usda') &&
-          !food.source?.startsWith('custom') &&
-          food.source !== 'open_food_facts' &&
-          food.brand)
-      ) {
+      if (needsRemoteDetails(food)) {
         await getFullBrandedFood(food.id);
       }
       router.push({

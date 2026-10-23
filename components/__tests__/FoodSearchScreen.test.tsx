@@ -109,8 +109,8 @@ test('local loading, local empty and branded loading/empty remain separate statu
   expect(screen.getByText('No branded results found')).toBeTruthy();
 });
 
-test('local empty message remains with branded results; hydration disables rows and preserves parsed quantity', async () => {
-  const branded = { ...foods[0], source: 'branded' };
+test.each(['branded', 'open_food_facts'])('local empty message remains for %s; hydration disables rows and preserves parsed quantity', async (source) => {
+  const branded = { ...foods[0], source, detailsPending: true };
   (searchLocal as jest.Mock).mockResolvedValue([]); (searchBranded as jest.Mock).mockResolvedValue([branded]);
   let resolve!: () => void;
   (getFullBrandedFood as jest.Mock).mockReturnValue(new Promise<void>((r) => { resolve = r; }));

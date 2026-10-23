@@ -17,6 +17,7 @@ Device-only, in AsyncStorage (`lib/storage.ts`): appearance, weight unit, effort
 
 Settings is a compact directory with focused Profile, Nutrition, Training, Preferences, Notifications, Account, Integrations, Data and Privacy, About and Support destinations under `app/settings/`. The Nutrition and Training tab gears open the same settings routes. Forms save explicitly; simple preferences save immediately and show errors.
 
+- About credits Open Food Facts under the Open Database License (ODbL), with accessible source and license links, and USDA FoodData Central. Privacy Policy describes remote search and barcode lookups; Terms names both food sources.
 - `components/settings/UnitsSection.tsx` in Preferences: Metric or Imperial, including height.
 - `components/settings/TrainingSection.tsx` in Training: Effort per set None / RIR / RPE pill (`components/settings/PillSwitch.tsx`), Rest timer switch, Default sets.
 - Nutrition Settings (`components/settings/NutritionSection.tsx`) owns Daily Goals and Meals; Save always validates goals. Default for new food is on the Nutrition dashboard instead (see [nutrition.md](nutrition.md)).

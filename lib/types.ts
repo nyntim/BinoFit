@@ -12,6 +12,8 @@ export type Food = Partial<NutrientValues> & {
   source: string | null;
   updated_at: string;
   matchTier?: number;
+  /** Search-only row that needs a full catalog fetch. Never persisted. */
+  detailsPending?: boolean;
   /** GTIN (EAN-13 normalized) when the food came from a barcode scan. Device-only, not synced. */
   barcode?: string | null;
   synced_at?: string | null;

@@ -19,7 +19,7 @@ jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ lo
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#444444' }));
 jest.mock('@expo/vector-icons/MaterialIcons', () => 'MaterialIcons');
 jest.mock('@/lib/database', () => ({ getRecentFoods: jest.fn(), getFrequentFoods: jest.fn(), getFoodById: jest.fn(), cacheRemoteFood: jest.fn(), hasAnyMicros: () => true, addFoodLogsBatch: jest.fn() }));
-jest.mock('@/lib/food-resolve', () => ({ resolveLoggableFood: async (f: Food) => f }));
+jest.mock('@/lib/food-resolve', () => ({ ...jest.requireActual('@/lib/food-resolve'), resolveLoggableFood: async (f: Food) => f }));
 jest.mock('@/lib/food-service', () => ({
   searchLocal: jest.fn(), searchBranded: jest.fn(), sortFoodResults: jest.fn(), getFullBrandedFood: jest.fn(),
   shouldAutoFetchBranded: () => false,

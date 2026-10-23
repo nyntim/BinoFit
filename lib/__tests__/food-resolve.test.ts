@@ -15,6 +15,7 @@ beforeEach(() => {
 });
 
 test('needsRemoteDetails', () => {
+  expect(needsRemoteDetails(f({ source: 'open_food_facts', detailsPending: true }))).toBe(true);
   expect(needsRemoteDetails(f({ source: 'branded' }))).toBe(true);
   expect(needsRemoteDetails(f({ source: 'other', brand: 'B' }))).toBe(true);
   expect(needsRemoteDetails(f({ source: 'custom', brand: 'B' }))).toBe(false);
@@ -69,4 +70,13 @@ describe('usda, custom, off', () => {
     (getFoodById as jest.Mock).mockRejectedValue(new Error('boom'));
     expect(await resolveLoggableFood(f({ id: 'u' }))).toBeNull();
   });
+});
+
+test('batch resolution hydrates a pending OFF summary even without a brand', async () => {
+  const summary = f({ id: 'off:1', source: 'open_food_facts', detailsPending: true });
+  const full = { ...summary, detailsPending: false, fiber: 2 };
+  (getFoodById as jest.Mock).mockResolvedValue(null);
+  (getFullBrandedFood as jest.Mock).mockResolvedValue(full);
+  expect(await resolveLoggableFood(summary)).toBe(full);
+  expect(getFullBrandedFood).toHaveBeenCalledWith('off:1');
 });

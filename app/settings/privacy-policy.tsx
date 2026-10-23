@@ -8,6 +8,8 @@ export default function PrivacyPolicySettings() {
     <ThemedText>Food and weight logs, meals and training records are saved locally. Goals, profile and preferences are saved on this device too. Water logs, meal Eaten/Planned confirmations, quick-add drinks, display and training preferences, active workouts, drafts and the Spotify connection stay on this device.</ThemedText>
     <ThemedText accessibilityRole="header" type="defaultSemiBold">Cloud and accounts</ThemedText>
     <ThemedText>When available, cloud sync can back up food logs, custom foods, goals, profile, meals, weight history, finished workouts, custom exercises and routines. An anonymous session identifies this installation. Signing in provides an account for recovery on another device. Recent edits and deletions can remain unsynced; local records may differ from the cloud until sync succeeds.</ThemedText>
+    <ThemedText accessibilityRole="header" type="defaultSemiBold">Food data</ThemedText>
+    <ThemedText>Food data comes from USDA FoodData Central and Open Food Facts. Remote food searches send the search text to the cloud catalog. When a barcode is not saved locally, its number is sent to Open Food Facts to look up the product.</ThemedText>
     <ThemedText accessibilityRole="header" type="defaultSemiBold">Apple Health</ThemedText>
     <ThemedText>On supported iOS devices, optional Apple Health access reads weight, steps and active energy, and writes weight, nutrition and finished workouts. Read and write access are controlled separately in Apple Health and device Settings. Records already saved in Apple Health are managed there separately.</ThemedText>
     <ThemedText accessibilityRole="header" type="defaultSemiBold">Spotify</ThemedText>

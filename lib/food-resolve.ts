@@ -5,9 +5,10 @@ import { getUSDAFoodById } from '@/lib/foods-db';
 import { getFullBrandedFood } from '@/lib/food-service';
 import type { Food } from '@/lib/types';
 
-/** Remote branded rows need a full fetch before logging. */
+/** Search summaries need full details, regardless of their source. Includes legacy cached rows. */
 export function needsRemoteDetails(food: Food): boolean {
   return (
+    food.detailsPending === true ||
     food.source === 'branded' ||
     (!food.source?.startsWith('usda') &&
       !food.source?.startsWith('custom') &&

@@ -1,3 +1,4 @@
+import { foodSourceLabel } from '@/lib/food-source';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -410,7 +411,7 @@ export default function ServingPickerScreen() {
               <Text style={[styles.foodBrand, { color: colors.icon }]}>{food.brand}</Text>
             ) : (
               <Text style={[styles.foodBrand, { color: colors.icon }]}>
-                {food.source === 'usda' || food.source?.startsWith('usda') ? 'USDA · Generic' : food.source ?? 'Generic'}
+                {foodSourceLabel(food.source) ?? 'Generic'}
               </Text>
             )}
             {food.source === 'custom' ? (

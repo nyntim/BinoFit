@@ -188,7 +188,7 @@ export async function sortFoodResults(
 
 /**
  * Query Supabase for branded foods, excluding any IDs already in local results.
- * Calls the ranked `search_foods` RPC and background caches the partial results.
+ * Calls the ranked `search_foods` RPC. Only full profiles are cached.
  */
 export async function searchBranded(
   query: string,
@@ -206,23 +206,13 @@ export async function searchBranded(
 
     if (error || !data) return [];
 
-    const branded = data as Food[];
-
-    // Background caching of partial results to speed up future local searches
-    Promise.all(
-      branded.map((food) =>
-        cacheRemoteFood(
-          {
-            ...food,
-            source: 'branded',
-            updated_at: new Date().toISOString(),
-          },
-          { partial: true }
-        ).catch(() => {})
-      )
-    );
-
-    return branded.map((food) => ({ ...food, source: 'branded' }));
+    // Search rows omit nutrients. Keep their provenance separate from completeness,
+    // and cache only full rows so this runtime marker cannot be lost in storage.
+    return (data as Food[]).map((food) => ({
+      ...food,
+      source: food.source || 'open_food_facts',
+      detailsPending: true,
+    }));
   } catch {
     return []; // Silent failure
   }
@@ -252,6 +242,7 @@ export async function getFullBrandedFood(id: string): Promise<Food | null> {
 
     const fullFood: Food = {
       ...(data as Food),
+      detailsPending: false,
       ...normalizeNutrients(data),
       source: data.source || 'branded',
       updated_at: data.updated_at || new Date().toISOString(),

@@ -129,11 +129,11 @@ describe('branded nutrient profiles', () => {
     expect(supabase.select).toHaveBeenCalledWith('*');
   });
 
-  it('keeps search profiles partial and marks their cache writes accordingly', async () => {
-    const rows = [food('partial', 'Partial')];
+  it('retains provenance, marks summaries pending and caches no incomplete rows', async () => {
+    const rows = [{ ...food('partial', 'Partial'), source: 'open_food_facts' }, { ...food('other', 'Other'), source: 'usda' }, food('fallback', 'Fallback')];
     supabase.rpc.mockResolvedValueOnce({ data: rows, error: null });
-    expect(await searchBranded('Partial')).toEqual(rows.map((r: object) => ({ ...r, source: 'branded' })));
-    expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial', source: 'branded' }), { partial: true });
+    expect(await searchBranded('Partial')).toEqual(rows.map((r) => ({ ...r, source: r.source || 'open_food_facts', detailsPending: true })));
+    expect(db.cacheRemoteFood).not.toHaveBeenCalled();
   });
 
   it('calls the ranked search_foods RPC with the trimmed query, exclusions and limit 20', async () => {

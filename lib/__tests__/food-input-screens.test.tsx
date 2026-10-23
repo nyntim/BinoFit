@@ -270,3 +270,10 @@ test('edit shows Log with Save changes accessibility and preserves full serving 
   await fireEvent.press(screen.getByLabelText('Save changes'));
   await waitFor(() => expect(updateFoodLog).toHaveBeenCalledWith('log', 1.23456789, '100g', expect.any(String)));
 });
+
+test('unbranded OFF foods show a readable source in the serving picker', async () => {
+  (getFoodById as jest.Mock).mockResolvedValue({ ...mockFood, source: 'open_food_facts', brand: null });
+  await render(<ServingPickerScreen />);
+  expect(await screen.findByText('Open Food Facts')).toBeTruthy();
+  expect(screen.queryByText('open_food_facts')).toBeNull();
+});

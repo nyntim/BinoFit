@@ -28,12 +28,13 @@ Tapping the meal card opens its read-only nutrition summary, including empty mea
 
 ## Food search
 
-`lib/food-service.ts` searches SQLite first, falls back to a remote search (3 or more characters) and caches results locally.
+`lib/food-service.ts` searches SQLite first, falls back to a remote search (3 or more characters) and caches full profiles locally.
 
-- Remote search calls the ranked `search_foods` RPC (up to 20 rows) over the Open Food Facts US catalog. Ranking score: 5 for an exact name, 2 for a whole-word prefix, 1 for a whole-word match anywhere in the name, plus `0.6 * ln(1 + scans)` from `food_popularity`; ties go to the shorter name. Results are still tagged Branded.
+- Remote search calls the ranked `search_foods` RPC (up to 20 rows) over the Open Food Facts US catalog. Ranking score: 5 for an exact name, 2 for a whole-word prefix, 1 for a whole-word match anywhere in the name, plus `0.6 * ln(1 + scans)` from `food_popularity`; ties go to the shorter name. Results retain their source, with Open Food Facts as the catalog fallback.
 
-- Rows show calories in a right column and a neutral source tag from `lib/food-source.ts` (`foodSourceLabel`: USDA, Branded, Open Food Facts, Custom; `searchBranded` stamps `source: 'branded'`).
+- Rows show calories in a right column and a neutral source tag from `lib/food-source.ts` (`foodSourceLabel`: USDA, Branded, Open Food Facts, Custom). Unbranded serving-picker foods use the same readable source label.
 - `app/serving-picker.tsx` sets the amount, unit and time and logs or edits an entry. Its parts are in `components/serving-picker/` (form rows, nutrition ring, macro detail panel, targets, unit picker) and `hooks/useServingDayTotals.ts` (the day's other totals, goals and slot statuses).
+- Remote summaries carry a runtime-only `detailsPending` marker. `needsRemoteDetails` triggers the complete fetch for both single and batch selection independently of provenance. Partial search rows are not cached; complete fetched profiles are cached for offline use. Legacy Branded cache rows still request full details.
 - Selecting a food pushes `serving-picker` with `origin=search` so search state stays mounted: Back returns to it, Log calls `router.dismiss(2)`.
 - Multi-select collects several foods and opens `food-batch-review` to log them together.
 - A query or sort change scrolls results to the top; `hooks/useKeyboardHeight` pads lists on Android.
