@@ -73,6 +73,14 @@ describe('mapUSDARow (via getUSDAFoodById)', () => {
     mockFoodsDb({ ...baseRow });
     expect(await load().getUSDAFoodById('u1')).toMatchObject({ source: 'usda_sr_legacy', brand: null });
   });
+  it('keeps the row source for Foundation foods', async () => {
+    mockFoodsDb({ ...baseRow, source: 'usda_foundation' });
+    expect((await load().getUSDAFoodById('u1'))!.source).toBe('usda_foundation');
+  });
+  it('falls back to usda_sr_legacy when the row source is null', async () => {
+    mockFoodsDb({ ...baseRow, source: null });
+    expect((await load().getUSDAFoodById('u1'))!.source).toBe('usda_sr_legacy');
+  });
   it('returns null when the row is missing', async () => {
     mockFoodsDb(null);
     expect(await load().getUSDAFoodById('nope')).toBeNull();

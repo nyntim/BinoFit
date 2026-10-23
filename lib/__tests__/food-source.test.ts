@@ -3,6 +3,7 @@ import { foodSourceLabel } from '@/lib/food-source';
 test.each([
   ['usda', 'USDA'],
   ['usda_sr_legacy', 'USDA'],
+  ['usda_foundation', 'USDA'],
   ['branded', 'Branded'],
   ['open_food_facts', 'Open Food Facts'],
   ['custom', 'Custom'],

@@ -11,6 +11,7 @@ type USDARow = Partial<NutrientValues> & {
   name: string;
   serving_size: number | null;
   serving_unit: string | null;
+  source?: string | null;
   calories: number | null;
   protein: number | null;
   carbs: number | null;
@@ -59,7 +60,7 @@ function mapUSDARow(row: USDARow): Food {
     carbs: Math.round((row.carbs ?? 0) * scale * 10) / 10,
     fat: Math.round((row.fat ?? 0) * scale * 10) / 10,
     ...nutrients,
-    source: 'usda_sr_legacy',
+    source: row.source ?? 'usda_sr_legacy',
     updated_at: row.updated_at,
     matchTier: row.matchTier,
   };

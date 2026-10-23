@@ -1,10 +1,35 @@
 import { parse } from 'csv-parse/sync';
 import Database from 'better-sqlite3';
-import { readFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs';
 import { randomUUID } from 'crypto';
 
-// --- Config: point this at wherever your CSVs live ---
-const CSV_DIR = `${process.env.HOME}/Downloads/FoodData_Central_sr_legacy_food_csv_2018-04`;
+// --- Config: CSV folders come from the environment ---
+// SR_LEGACY_DIR: FoodData_Central_sr_legacy_food_csv_2018-04
+// FOUNDATION_DIR: FoodData_Central_foundation_food_csv_2026-04-30
+function requireDir(name) {
+  const dir = process.env[name];
+  if (!dir) {
+    console.error(`Missing env var ${name}. Set SR_LEGACY_DIR and FOUNDATION_DIR to the unzipped USDA CSV folders.`);
+    process.exit(1);
+  }
+  if (!existsSync(`${dir}/food.csv`)) {
+    console.error(`${name}=${dir} does not contain food.csv.`);
+    process.exit(1);
+  }
+  return dir;
+}
+const SR_LEGACY_DIR = requireDir('SR_LEGACY_DIR');
+const FOUNDATION_DIR = requireDir('FOUNDATION_DIR');
+
+const OUT_PATH = 'assets/data/foods.db';
+const TMP_PATH = 'assets/data/foods.db.tmp';
+
+// Fallback nutrient ids used by Foundation Foods when the primary id is missing.
+const FALLBACKS = {
+  calories: [2048, 2047], // Atwater specific, Atwater general
+  carbs: [1050], // carbohydrate, by summation
+  sugar: [1063], // sugars, total
+};
 
 const NUTRIENT_MAP = {
   1008: 'calories',
@@ -46,7 +71,17 @@ if (!existsSync('assets/data')) {
   mkdirSync('assets/data', { recursive: true });
 }
 
-const db = new Database('assets/data/foods.db');
+// Reuse existing ids so food logs that reference them keep resolving.
+const existingIds = new Map();
+if (existsSync(OUT_PATH)) {
+  const old = new Database(OUT_PATH, { readonly: true });
+  for (const r of old.prepare('SELECT fdc_id, id FROM foods').all()) existingIds.set(r.fdc_id, r.id);
+  old.close();
+  console.log(`Reusing ${existingIds.size} existing ids`);
+}
+
+rmSync(TMP_PATH, { force: true });
+const db = new Database(TMP_PATH);
 const now = new Date().toISOString();
 
 // --- Schema ---
@@ -101,51 +136,59 @@ db.exec(`
 `);
 
 // --- Load CSVs ---
-console.log('Loading CSVs...');
+const readCsv = (dir, file) =>
+  parse(readFileSync(`${dir}/${file}`), { columns: true, skip_empty_lines: true });
 
-const foods = parse(readFileSync(`${CSV_DIR}/food.csv`), {
-  columns: true, skip_empty_lines: true,
-});
+function loadSource(dir, fallbacks) {
+  console.log(`Loading ${dir}...`);
+  const foods = readCsv(dir, 'food.csv');
+  const foodNutrients = readCsv(dir, 'food_nutrient.csv');
+  const portions = readCsv(dir, 'food_portion.csv');
+  const categories = readCsv(dir, 'food_category.csv');
 
-const foodNutrients = parse(readFileSync(`${CSV_DIR}/food_nutrient.csv`), {
-  columns: true, skip_empty_lines: true,
-});
+  const categoryMap = {};
+  for (const row of categories) categoryMap[row.id] = row.description;
 
-const portions = parse(readFileSync(`${CSV_DIR}/food_portion.csv`), {
-  columns: true, skip_empty_lines: true,
-});
-
-const categories = parse(readFileSync(`${CSV_DIR}/food_category.csv`), {
-  columns: true, skip_empty_lines: true,
-});
-
-// --- Build lookup maps ---
-console.log('Building lookup maps...');
-
-// Category map: id -> description
-const categoryMap = {};
-for (const row of categories) {
-  categoryMap[row.id] = row.description;
+  // fdc_id -> { calories: x, protein: x, ... } via NUTRIENT_MAP
+  const nutrientsByFood = {};
+  // fdc_id -> { nutrient_id: amount } for the fallback ids only
+  const fallbackByFood = {};
+  const fallbackIds = new Set(Object.values(fallbacks).flat());
+  for (const row of foodNutrients) {
+    const id = parseInt(row.nutrient_id);
+    const col = NUTRIENT_MAP[id];
+    if (col) {
+      if (!nutrientsByFood[row.fdc_id]) nutrientsByFood[row.fdc_id] = {};
+      nutrientsByFood[row.fdc_id][col] = parseFloat(row.amount) ?? null;
+    }
+    if (fallbackIds.has(id)) {
+      if (!fallbackByFood[row.fdc_id]) fallbackByFood[row.fdc_id] = {};
+      fallbackByFood[row.fdc_id][id] = parseFloat(row.amount);
+    }
+  }
+  return { foods, nutrientsByFood, fallbackByFood, portions, categoryMap };
 }
 
-// Nutrient map: fdc_id -> { calories: x, protein: x, ... }
-const nutrientsByFood = {};
-for (const row of foodNutrients) {
-  const col = NUTRIENT_MAP[parseInt(row.nutrient_id)];
-  if (!col) continue;
-  if (!nutrientsByFood[row.fdc_id]) nutrientsByFood[row.fdc_id] = {};
-  nutrientsByFood[row.fdc_id][col] = parseFloat(row.amount) ?? null;
-}
+const sr = loadSource(SR_LEGACY_DIR, {});
+const ff = loadSource(FOUNDATION_DIR, FALLBACKS);
 
-// Portion map: fdc_id -> { serving_size, serving_unit }
-// Takes the first portion entry per food as the default serving
-const portionsByFood = {};
-for (const row of portions) {
-  if (portionsByFood[row.fdc_id]) continue;
-  portionsByFood[row.fdc_id] = {
+// SR Legacy: the first portion entry per food is the default serving.
+const srPortions = {};
+for (const row of sr.portions) {
+  if (srPortions[row.fdc_id]) continue;
+  srPortions[row.fdc_id] = {
     serving_size: parseFloat(row.gram_weight) || 100,
     serving_unit: row.portion_description || 'g',
   };
+}
+
+// Foundation: the first portion entry with a positive gram weight, else 100 g.
+const ffPortions = {};
+for (const row of ff.portions) {
+  if (ffPortions[row.fdc_id]) continue;
+  const grams = parseFloat(row.gram_weight);
+  if (!(grams > 0)) continue;
+  ffPortions[row.fdc_id] = { serving_size: grams, serving_unit: 'g' };
 }
 
 // --- Insert ---
@@ -173,61 +216,81 @@ const insert = db.prepare(`
   )
 `);
 
-const insertAll = db.transaction(() => {
-  let count = 0;
-  for (const food of foods) {
-    const n = nutrientsByFood[food.fdc_id] || {};
-    const p = portionsByFood[food.fdc_id] || { serving_size: 100, serving_unit: 'g' };
-    const category = categoryMap[food.food_category_id] || null;
+// Must match the nutrient column order of the INSERT statement above. (Not Object.values of
+// NUTRIENT_MAP: integer keys iterate in ascending numeric order.)
+const COLS = [
+  'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar',
+  'saturated_fat', 'trans_fat', 'polyunsat_fat', 'monounsat_fat',
+  'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e', 'vitamin_k',
+  'thiamin', 'riboflavin', 'niacin', 'b6', 'folate', 'b12', 'choline',
+  'calcium', 'iron', 'magnesium', 'phosphorus', 'potassium', 'sodium',
+  'zinc', 'copper', 'manganese', 'selenium',
+];
+if (COLS.length !== Object.keys(NUTRIENT_MAP).length) throw new Error('COLS out of step with NUTRIENT_MAP');
+function insertFood(food, n, p, category, source) {
+  insert.run(
+    existingIds.get(parseInt(food.fdc_id)) ?? randomUUID(),
+    parseInt(food.fdc_id),
+    food.description,
+    category,
+    p.serving_size,
+    p.serving_unit,
+    ...COLS.map((c) => n[c] ?? null),
+    source,
+    now
+  );
+}
 
-    insert.run(
-      randomUUID(),
-      parseInt(food.fdc_id),
-      food.description,
-      category,
-      p.serving_size,
-      p.serving_unit,
-      n.calories       ?? null,
-      n.protein        ?? null,
-      n.carbs          ?? null,
-      n.fat            ?? null,
-      n.fiber          ?? null,
-      n.sugar          ?? null,
-      n.saturated_fat  ?? null,
-      n.trans_fat      ?? null,
-      n.polyunsat_fat  ?? null,
-      n.monounsat_fat  ?? null,
-      n.vitamin_a      ?? null,
-      n.vitamin_c      ?? null,
-      n.vitamin_d      ?? null,
-      n.vitamin_e      ?? null,
-      n.vitamin_k      ?? null,
-      n.thiamin        ?? null,
-      n.riboflavin     ?? null,
-      n.niacin         ?? null,
-      n.b6             ?? null,
-      n.folate         ?? null,
-      n.b12            ?? null,
-      n.choline        ?? null,
-      n.calcium        ?? null,
-      n.iron           ?? null,
-      n.magnesium      ?? null,
-      n.phosphorus     ?? null,
-      n.potassium      ?? null,
-      n.sodium         ?? null,
-      n.zinc           ?? null,
-      n.copper         ?? null,
-      n.manganese      ?? null,
-      n.selenium       ?? null,
-      'usda_sr_legacy',
-      now
-    );
-    count++;
+const insertAll = db.transaction(() => {
+  const stats = { sr: 0, ffAdded: 0, skippedDuplicateName: 0, skippedNoCalories: 0 };
+
+  const srNames = new Set();
+  for (const food of sr.foods) {
+    const n = sr.nutrientsByFood[food.fdc_id] || {};
+    const p = srPortions[food.fdc_id] || { serving_size: 100, serving_unit: 'g' };
+    const category = sr.categoryMap[food.food_category_id] || null;
+    insertFood(food, n, p, category, 'usda_sr_legacy');
+    srNames.add(food.description.toLowerCase());
+    stats.sr++;
   }
-  return count;
+
+  for (const food of ff.foods) {
+    if (food.data_type !== 'foundation_food') continue;
+    const n = { ...(ff.nutrientsByFood[food.fdc_id] || {}) };
+    const fb = ff.fallbackByFood[food.fdc_id] || {};
+    for (const [col, ids] of Object.entries(FALLBACKS)) {
+      if (Number.isFinite(n[col])) continue;
+      const hit = ids.find((id) => Number.isFinite(fb[id]));
+      if (hit !== undefined) n[col] = fb[hit];
+    }
+    if (!Number.isFinite(n.calories)) {
+      stats.skippedNoCalories++;
+      continue;
+    }
+    if (srNames.has(food.description.toLowerCase())) {
+      stats.skippedDuplicateName++;
+      continue;
+    }
+    // Carbs are computed by difference, so some raw meats come out slightly negative: clamp to 0.
+    for (const c of COLS) n[c] = Number.isFinite(n[c]) ? Math.max(0, n[c]) : null;
+    const p = ffPortions[food.fdc_id] || { serving_size: 100, serving_unit: 'g' };
+    const category = ff.categoryMap[food.food_category_id] || null;
+    insertFood(food, n, p, category, 'usda_foundation');
+    stats.ffAdded++;
+  }
+  return stats;
 });
 
-const count = insertAll();
-
-console.log(`Done. Inserted ${count} foods into assets/data/foods.db`);
+const stats = insertAll();
 db.close();
+
+// Replace the asset only after a successful build.
+rmSync(OUT_PATH, { force: true });
+renameSync(TMP_PATH, OUT_PATH);
+
+console.log(`SR Legacy rows: ${stats.sr}`);
+console.log(`Foundation added: ${stats.ffAdded}`);
+console.log(
+  `Foundation skipped: ${stats.skippedDuplicateName} duplicate SR Legacy name, ${stats.skippedNoCalories} no calories`
+);
+console.log(`Done. Wrote ${OUT_PATH}`);

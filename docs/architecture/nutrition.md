@@ -51,7 +51,7 @@ Tapping the meal card opens its read-only nutrition summary, including empty mea
 
 - Food nutrients are flat nullable columns/properties per base serving: null is unknown, zero is known. There is no parallel JSON store.
 - Vitamins A/E/folate keep RAE / alpha-tocopherol / total-folate definitions; ambiguous source definitions stay unknown.
-- The bundled USDA asset supplies extended nutrients. OFF standardized mass fields convert grams once; the contributor `_unit` does not rescale those values.
+- The bundled USDA asset (`assets/data/foods.db`) holds SR Legacy (7,793 foods, `usda_sr_legacy`) and Foundation Foods (259, April 2026 release, `usda_foundation`; duplicates of SR Legacy names and foods without calories are skipped). `scripts/build-food-db.mjs` builds it from the unzipped CSV folders in `SR_LEGACY_DIR` and `FOUNDATION_DIR`, and reuses the existing `fdc_id` to `id` mapping so ids referenced by food logs stay stable across rebuilds. Both sources behave identically in the app (`startsWith('usda')`). It supplies extended nutrients. OFF standardized mass fields convert grams once; the contributor `_unit` does not rescale those values.
 - Joined date/range reads hydrate `FoodLogWithFood.food_nutrients` in one query. `sumNutrientTotals`, `slotNutrientTotals` and `sumEatenNutrientTotals` return per-id `{total, knownCount, missingCount}`; a null total means no known items. Scale by stored `serving_amount` exactly once, keep precision, exclude tombstones, and exclude planned slots from eaten day coverage. Coverage counts log items, including duplicates, and is independent of source accuracy.
 
 ## Custom foods
