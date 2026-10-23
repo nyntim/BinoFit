@@ -1,5 +1,7 @@
 import { parseBaseGrams } from '@/lib/serving-units';
-import { normalizeBarcode, mapOffProduct, buildServingUnits } from '@/lib/open-food-facts';
+import { normalizeBarcode, mapOffProduct, buildServingUnits, cleanServingSize } from '@/lib/open-food-facts';
+
+import parityFixtures from '@/test-utils/fixtures/off-serving-parity.json';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const map = (p: any, code = '0036000291452') => mapOffProduct(p, code, NOW);
@@ -269,5 +271,35 @@ describe('parseBaseGrams', () => {
     ['1 serving', null],
   ] as const)('%p -> %p', (units, expected) => {
     expect(parseBaseGrams(units)).toBe(expected);
+  });
+});
+
+
+describe('shared catalog serving parity', () => {
+  it.each(parityFixtures.labels)('$name label cleanup and serving-picker base', (fixture) => {
+    expect(cleanServingSize(fixture.serving_size ?? '')).toBe(fixture.normalized_label);
+    const units = buildServingUnits(fixture.serving_size, fixture.quantity, fixture.unit as 'g' | 'ml');
+    expect(units).toBe(fixture.serving_units);
+    expect(parseBaseGrams(units)).toBe(fixture.base_grams);
+  });
+
+  it.each(parityFixtures.mapping)('$name mapping', (fixture) => {
+    const result = map({
+      product_name: 'Fixture', serving_size: fixture.serving_size,
+      serving_quantity: fixture.quantity, serving_quantity_unit: fixture.unit,
+      nutriments: fixture.nutriments,
+    });
+    if (fixture.expected == null) {
+      expect(result.status).toBe('incomplete');
+    } else {
+      expect(result.status).toBe('found');
+      if (result.status === 'found') expect(result.food).toMatchObject(fixture.expected);
+    }
+  });
+
+  it.each([NaN, Infinity, -Infinity])('ignores nonfinite serving quantity %p', (quantity) => {
+    expect(foodOf({ product_name: 'Fixture', serving_quantity: quantity,
+      nutriments: { 'energy-kcal_100g': 100, proteins_serving: 999, sodium_serving: 1 },
+    })).toMatchObject({ serving_units: '100g', calories: 100, protein: 0, sodium: null });
   });
 });

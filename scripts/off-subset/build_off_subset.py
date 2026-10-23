@@ -4,8 +4,8 @@ Usage: python -I build_off_subset.py <us_raw.parquet> <out.parquet>
 
 us_raw.parquet is produced by stage.py from the OFF CSV export. Mapping mirrors
 mapOffProduct / normalizeBarcode / buildServingUnits in lib/open-food-facts.ts,
-except that servings over 2 kg fall back to per 100 g and serving labels are
-cleaned (USDA unit codes, bracketed notes, stray symbols, lowercase).
+including the inclusive 2000 g/ml serving cap and cleaned labels (USDA unit
+codes, bracketed notes, stray symbols, lowercase).
 
 Filters (agreed with the owner):
 - US products, any creator (USDA-sourced OFF entries included)
@@ -23,13 +23,6 @@ Filters (agreed with the owner):
 import math
 import re
 import sys
-
-import duckdb
-import pyarrow as pa
-import pyarrow.parquet as pq
-
-sys.stdout.reconfigure(encoding="utf-8")
-src, out = sys.argv[1], sys.argv[2]
 
 KJ_PER_KCAL = 4.184
 MAX_SERVING = 2000
@@ -97,7 +90,7 @@ MEASURE_RE = re.compile(r"\d+(?:[.,]\d+)?\s*(?:grams?|g|milliliters?|ml|cl|l|fl\
 def fmt_num(v):  # JS number to string for round1 values
     return str(int(v)) if v == int(v) else repr(v)
 
-# Label cleanup beyond mapOffProduct: USDA unit codes (ONZ = oz, OZA = fl oz),
+# Label cleanup shared with mapOffProduct: USDA unit codes (ONZ = oz, OZA = fl oz),
 # bracketed notes, stray symbols and mis-encoded characters, then lowercase.
 LABEL_FIXES = [
     (re.compile(r"\[[^\]]*\]?"), " "),
@@ -123,7 +116,7 @@ def build_serving_units(serving_size, quantity, unit):
     q = f"{fmt_num(round1(quantity))}{unit}"
     label = clean_serving_size(serving_size or "")
     label = re.sub(r"\([^)]*\)?", " ", label)
-    label = MEASURE_RE.sub(" ", label)
+    label = MEASURE_RE.sub(lambda match: "fl oz" if re.search(r"fl\.?\s*oz", match[0], re.I) else " ", label)
     label = re.sub(r"\s+", " ", label)
     label = re.sub(r"^[\s,;:/.)-]+|[\s,;:/(-]+$", "", label)
     return f"{label} ({q})" if label else q
@@ -205,56 +198,68 @@ def map_row(r):
 
 # ---------- map ----------
 
-cols = ["code", "product_name", "generic_name", "brands", "serving_size", "serving_quantity",
-        "unique_scans_n", "popularity_tags", "main_category", "last_modified_t", "creator",
-        "energy-kcal_100g", "energy-kj_100g", "energy_100g", "proteins_100g",
-        "carbohydrates_100g", "fat_100g", "salt_100g"] + [f"{b}_100g" for _, b, _ in NUTRIENTS]
-cols = list(dict.fromkeys(cols))
-mapped = []
-pf = pq.ParquetFile(src)
-for batch in pf.iter_batches(columns=cols, batch_size=50_000):
-    for r in batch.to_pylist():
-        m = map_row(r)
-        if m:
-            mapped.append(m)
-print("mapped:", len(mapped))
+def main():
+    import duckdb
+    import pyarrow as pa
+    import pyarrow.parquet as pq
 
-con = duckdb.connect()
-con.register("m", pa.Table.from_pylist(mapped))
-NON_LATIN = r"[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}\p{Cyrillic}\p{Arabic}\p{Hebrew}\p{Thai}\p{Greek}\p{Devanagari}\p{Armenian}\p{Georgian}]"
-# Per-serving values entered as per 100 g: a plain oil must be mostly fat, and a
-# protein bar or powder can't be under 5 g protein per 100 g.
-PURE_OIL = (r"regexp_matches(lower(trim(name)), '^((organic|pure|100%|extra|virgin|light|lighter|tasting|flavor|"
-            r"refined|unrefined|roasted|toasted|high|oleic|cold|pressed|expeller|premium|classic|spanish|italian|"
-            r"greek|california|blended|blend|of)[ ,-]*)*(olive|avocado|canola|vegetable|coconut|sesame|sunflower|"
-            r"peanut|grapeseed|safflower|corn|soybean|walnut|mct) oil$')")
-PROTEIN_SOLID = (r"(regexp_matches(lower(name), 'protein') and "
-                 r"regexp_matches(lower(name), '(^|[^a-z])(bars?|powder|isolate)([^a-z]|$)'))")
-con.execute(f"""
-create table f as
-with q as (
-  select *, 4*_pr100 + 4*_cb100 + 9*_ft100 as _atw from m
-  where _pr100 is not null and _cb100 is not null and _ft100 is not null
-    and _kcal100 <= 900 and _pr100 + _cb100 + _ft100 <= 105
-    and not regexp_matches(name, '{NON_LATIN}')
-),
-ok as (
-  select * from q
-  where not (_atw > 20 and abs(_kcal100 - _atw) / greatest(_kcal100, _atw) > 0.25)
-    and not ({PURE_OIL} and _ft100 < 80)
-    and not ({PROTEIN_SOLID} and _pr100 < 5)
-    and (_scans >= 1 or _popular_tag or (brand is not null and _has_serving and _has_cat))
-),
-by_id as (
-  select * from ok qualify row_number() over (partition by id order by _scans desc, _modified desc) = 1
-)
-select * from by_id
-qualify row_number() over (partition by lower(name), lower(coalesce(brand, '')) order by _scans desc, _modified desc) = 1
-""")
-print(con.sql("select count(*) total, count(*) filter (where _usda) usda from f"))
-keep = ("id, name, brand, serving_units, calories, protein, carbs, fat, source, "
-        + ", ".join(c for c, _, _ in NUTRIENTS))
-con.execute(f"""copy (select {keep}, _usda as from_usda, _scans as scans, _cat as category,
-  _kcal100 as kcal100, _pr100 as pr100, _cb100 as cb100, _ft100 as ft100, _atw as atw100 from f order by id) to '{out}.audit.parquet' (format parquet, compression zstd)""")
-con.execute(f"copy (select {keep} from f order by id) to '{out}' (format parquet, compression zstd)")
-print("wrote", out)
+    sys.stdout.reconfigure(encoding="utf-8")
+    src, out = sys.argv[1], sys.argv[2]
+
+    cols = ["code", "product_name", "generic_name", "brands", "serving_size", "serving_quantity",
+            "unique_scans_n", "popularity_tags", "main_category", "last_modified_t", "creator",
+            "energy-kcal_100g", "energy-kj_100g", "energy_100g", "proteins_100g",
+            "carbohydrates_100g", "fat_100g", "salt_100g"] + [f"{b}_100g" for _, b, _ in NUTRIENTS]
+    cols = list(dict.fromkeys(cols))
+    mapped = []
+    pf = pq.ParquetFile(src)
+    for batch in pf.iter_batches(columns=cols, batch_size=50_000):
+        for r in batch.to_pylist():
+            m = map_row(r)
+            if m:
+                mapped.append(m)
+    print("mapped:", len(mapped))
+
+    con = duckdb.connect()
+    con.register("m", pa.Table.from_pylist(mapped))
+    NON_LATIN = r"[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}\p{Cyrillic}\p{Arabic}\p{Hebrew}\p{Thai}\p{Greek}\p{Devanagari}\p{Armenian}\p{Georgian}]"
+    # Per-serving values entered as per 100 g: a plain oil must be mostly fat, and a
+    # protein bar or powder can't be under 5 g protein per 100 g.
+    PURE_OIL = (r"regexp_matches(lower(trim(name)), '^((organic|pure|100%|extra|virgin|light|lighter|tasting|flavor|"
+                r"refined|unrefined|roasted|toasted|high|oleic|cold|pressed|expeller|premium|classic|spanish|italian|"
+                r"greek|california|blended|blend|of)[ ,-]*)*(olive|avocado|canola|vegetable|coconut|sesame|sunflower|"
+                r"peanut|grapeseed|safflower|corn|soybean|walnut|mct) oil$')")
+    PROTEIN_SOLID = (r"(regexp_matches(lower(name), 'protein') and "
+                     r"regexp_matches(lower(name), '(^|[^a-z])(bars?|powder|isolate)([^a-z]|$)'))")
+    con.execute(f"""
+    create table f as
+    with q as (
+      select *, 4*_pr100 + 4*_cb100 + 9*_ft100 as _atw from m
+      where _pr100 is not null and _cb100 is not null and _ft100 is not null
+        and _kcal100 <= 900 and _pr100 + _cb100 + _ft100 <= 105
+        and not regexp_matches(name, '{NON_LATIN}')
+    ),
+    ok as (
+      select * from q
+      where not (_atw > 20 and abs(_kcal100 - _atw) / greatest(_kcal100, _atw) > 0.25)
+        and not ({PURE_OIL} and _ft100 < 80)
+        and not ({PROTEIN_SOLID} and _pr100 < 5)
+        and (_scans >= 1 or _popular_tag or (brand is not null and _has_serving and _has_cat))
+    ),
+    by_id as (
+      select * from ok qualify row_number() over (partition by id order by _scans desc, _modified desc) = 1
+    )
+    select * from by_id
+    qualify row_number() over (partition by lower(name), lower(coalesce(brand, '')) order by _scans desc, _modified desc) = 1
+    """)
+    print(con.sql("select count(*) total, count(*) filter (where _usda) usda from f"))
+    keep = ("id, name, brand, serving_units, calories, protein, carbs, fat, source, "
+            + ", ".join(c for c, _, _ in NUTRIENTS))
+    con.execute(f"""copy (select {keep}, _usda as from_usda, _scans as scans, _cat as category,
+      _kcal100 as kcal100, _pr100 as pr100, _cb100 as cb100, _ft100 as ft100, _atw as atw100 from f order by id) to '{out}.audit.parquet' (format parquet, compression zstd)""")
+    con.execute(f"copy (select {keep} from f order by id) to '{out}' (format parquet, compression zstd)")
+    print("wrote", out)
+
+
+if __name__ == "__main__":
+    main()

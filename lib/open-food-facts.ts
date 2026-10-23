@@ -9,6 +9,7 @@ const OFF_FIELDS =
 const OFF_CONTACT = 'tin025@ucsd.edu';
 const OFF_TIMEOUT_MS = 8000;
 const KJ_PER_KCAL = 4.184;
+const MAX_SERVING = 2000;
 
 export type OffResult =
   | { status: 'found'; food: Food }
@@ -88,6 +89,27 @@ const round1 = (v: number) => Math.round(v * 10) / 10;
 
 const MEASURE_RE = /\d+(?:[.,]\d+)?\s*(?:grams?|g|milliliters?|ml|cl|l|fl\.?\s*oz|oz)\b/gi;
 
+// Keep these ordered substitutions in sync with the catalog mapper and shared fixtures.
+const LABEL_FIXES: Array<[RegExp, string]> = [
+  [/\[[^\]]*\]?/g, ' '],
+  [/â‰ˆ|≈|~/g, ' about '],
+  [/â€\S?|Â/g, ' '],
+  [/\bONZA?\b/gi, 'oz'],
+  [/\bOZA\b/gi, 'fl oz'],
+  [/\bf\s+oz\b/gi, 'fl oz'],
+  [/\bPKG\b\.?/gi, 'package'],
+  [/\bEA\b/gi, 'each'],
+  [/\bCONT\b\.?/gi, 'container'],
+  [/[#|"=]/g, ' '],
+];
+
+export function cleanServingSize(servingSize: string): string {
+  for (const [pattern, replacement] of LABEL_FIXES) {
+    servingSize = servingSize.replace(pattern, replacement);
+  }
+  return servingSize.toLowerCase();
+}
+
 /**
  * Serving description in the form serving-picker understands. `quantity` is grams or ml
  * per serving; null means no usable serving info, so values stay per 100g.
@@ -99,11 +121,11 @@ export function buildServingUnits(
 ): string {
   if (quantity == null || quantity <= 0) return '100g';
   const q = `${round1(quantity)}${unit}`;
-  const label = (servingSize ?? '')
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(MEASURE_RE, ' ')
+  const label = cleanServingSize(servingSize ?? '')
+    .replace(/\([^)]*\)?/g, ' ')
+    .replace(MEASURE_RE, (measure) => /fl\.?\s*oz/i.test(measure) ? 'fl oz' : ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^[\s,;:/-]+|[\s,;:/-]+$/g, '');
+    .replace(/^[\s,;:/.)-]+|[\s,;:/(-]+$/g, '');
   return label ? `${label} (${q})` : q;
 }
 
@@ -124,7 +146,7 @@ export function mapOffProduct(
   const rawQty = toNum(product.serving_quantity);
   const rawUnit = toText(product.serving_quantity_unit)?.toLowerCase() ?? (/ml\b/i.test(servingSize ?? '') ? 'ml' : 'g');
   const unit: 'g' | 'ml' | null = rawUnit === 'g' ? 'g' : rawUnit === 'ml' ? 'ml' : null;
-  const quantity = rawQty != null && rawQty > 0 && unit ? rawQty : null;
+  const quantity = rawQty != null && rawQty > 0 && rawQty <= MAX_SERVING && unit ? rawQty : null;
 
   // Start from the _100g value scaled to one serving; use _serving only when _100g is missing.
   // `bases` are alternative keys with a divisor (kJ to kcal).

@@ -1,0 +1,875 @@
+{
+  "labels": [
+    {
+      "name": "mass ounce",
+      "serving_size": "4 ONZ (113 g)",
+      "quantity": 113,
+      "unit": "g",
+      "normalized_label": "4 oz (113 g)",
+      "serving_units": "113g",
+      "base_grams": 113
+    },
+    {
+      "name": "fluid ounce",
+      "serving_size": "8 OZA",
+      "quantity": 240,
+      "unit": "ml",
+      "normalized_label": "8 fl oz",
+      "serving_units": "fl oz (240ml)",
+      "base_grams": null
+    },
+    {
+      "name": "onza",
+      "serving_size": "4 ONZA",
+      "quantity": 113,
+      "unit": "g",
+      "normalized_label": "4 oz",
+      "serving_units": "113g",
+      "base_grams": 113
+    },
+    {
+      "name": "f oz",
+      "serving_size": "8 f oz",
+      "quantity": 240,
+      "unit": "ml",
+      "normalized_label": "8 fl oz",
+      "serving_units": "fl oz (240ml)",
+      "base_grams": null
+    },
+    {
+      "name": "dotted fluid ounce",
+      "serving_size": "8 fl. oz",
+      "quantity": 240,
+      "unit": "ml",
+      "normalized_label": "8 fl. oz",
+      "serving_units": "fl oz (240ml)",
+      "base_grams": null
+    },
+    {
+      "name": "package",
+      "serving_size": "1 PKG. (30 g)",
+      "quantity": 30,
+      "unit": "g",
+      "normalized_label": "1 package (30 g)",
+      "serving_units": "1 package (30g)",
+      "base_grams": 30
+    },
+    {
+      "name": "each",
+      "serving_size": "1 EA (40g)",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": "1 each (40g)",
+      "serving_units": "1 each (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "container",
+      "serving_size": "1 CONT. (250 ml)",
+      "quantity": 250,
+      "unit": "ml",
+      "normalized_label": "1 container (250 ml)",
+      "serving_units": "1 container (250ml)",
+      "base_grams": null
+    },
+    {
+      "name": "oreo note",
+      "serving_size": "2 COOKIES [OREO: original] (30 g)",
+      "quantity": 30,
+      "unit": "g",
+      "normalized_label": "2 cookies   (30 g)",
+      "serving_units": "2 cookies (30g)",
+      "base_grams": 30
+    },
+    {
+      "name": "unmatched bracket",
+      "serving_size": "2 COOKIES [OREO note",
+      "quantity": 30,
+      "unit": "g",
+      "normalized_label": "2 cookies  ",
+      "serving_units": "2 cookies (30g)",
+      "base_grams": 30
+    },
+    {
+      "name": "unmatched parenthesis",
+      "serving_size": "1 BAR (40g",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": "1 bar (40g",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "stray punctuation",
+      "serving_size": "#\"1 BAR\"|= (40 g)",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": "  1 bar    (40 g)",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "approximate",
+      "serving_size": "≈ 1 BAR",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": " about  1 bar",
+      "serving_units": "about 1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "mojibake approximate",
+      "serving_size": "â‰ˆ 1 BAR",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": " about  1 bar",
+      "serving_units": "about 1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "tilde",
+      "serving_size": "~ 1 BAR",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": " about  1 bar",
+      "serving_units": "about 1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "mojibake punctuation",
+      "serving_size": "Â1 BAR â€™",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": " 1 bar  ",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "whitespace",
+      "serving_size": "  1\tBAR\n (40g)  ",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": "  1\tbar\n (40g)  ",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "edge punctuation",
+      "serving_size": ".) / 1 BAR /-(",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": ".) / 1 bar /-(",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "bar",
+      "serving_size": "1 bar (40g)",
+      "quantity": 40,
+      "unit": "g",
+      "normalized_label": "1 bar (40g)",
+      "serving_units": "1 bar (40g)",
+      "base_grams": 40
+    },
+    {
+      "name": "cookies",
+      "serving_size": "2 cookies (30 g)",
+      "quantity": 30,
+      "unit": "g",
+      "normalized_label": "2 cookies (30 g)",
+      "serving_units": "2 cookies (30g)",
+      "base_grams": 30
+    },
+    {
+      "name": "grams",
+      "serving_size": "30 g",
+      "quantity": 30,
+      "unit": "g",
+      "normalized_label": "30 g",
+      "serving_units": "30g",
+      "base_grams": 30
+    },
+    {
+      "name": "milliliters",
+      "serving_size": "250 ml",
+      "quantity": 250,
+      "unit": "ml",
+      "normalized_label": "250 ml",
+      "serving_units": "250ml",
+      "base_grams": null
+    },
+    {
+      "name": "no label",
+      "serving_size": null,
+      "quantity": 28.5,
+      "unit": "g",
+      "normalized_label": "",
+      "serving_units": "28.5g",
+      "base_grams": 28.5
+    }
+  ],
+  "mapping": [
+    {
+      "name": "g quantity 45341",
+      "quantity": 45341,
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity '45341'",
+      "quantity": "45341",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity 2000",
+      "quantity": 2000,
+      "unit": "g",
+      "serving_size": "2000 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999,
+        "calcium_100g": 0.2
+      },
+      "expected": {
+        "serving_units": "2000g",
+        "calories": 2000,
+        "protein": 200,
+        "carbs": 400,
+        "fat": 60,
+        "sodium": 2000,
+        "fiber": 40,
+        "calcium": 4000
+      }
+    },
+    {
+      "name": "g quantity '2000'",
+      "quantity": "2000",
+      "unit": "g",
+      "serving_size": "2000 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999,
+        "calcium_100g": 0.2
+      },
+      "expected": {
+        "serving_units": "2000g",
+        "calories": 2000,
+        "protein": 200,
+        "carbs": 400,
+        "fat": 60,
+        "sodium": 2000,
+        "fiber": 40,
+        "calcium": 4000
+      }
+    },
+    {
+      "name": "g quantity 2000.1",
+      "quantity": 2000.1,
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity '2000,1'",
+      "quantity": "2000,1",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity None",
+      "quantity": null,
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity 0",
+      "quantity": 0,
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity -1",
+      "quantity": -1,
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity 'NaN'",
+      "quantity": "NaN",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity 'Infinity'",
+      "quantity": "Infinity",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "g quantity 'junk'",
+      "quantity": "junk",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 45341",
+      "quantity": 45341,
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity '45341'",
+      "quantity": "45341",
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 2000",
+      "quantity": 2000,
+      "unit": "ml",
+      "serving_size": "2000 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999,
+        "calcium_100g": 0.2
+      },
+      "expected": {
+        "serving_units": "2000ml",
+        "calories": 2000,
+        "protein": 200,
+        "carbs": 400,
+        "fat": 60,
+        "sodium": 2000,
+        "fiber": 40,
+        "calcium": 4000
+      }
+    },
+    {
+      "name": "ml quantity '2000'",
+      "quantity": "2000",
+      "unit": "ml",
+      "serving_size": "2000 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999,
+        "calcium_100g": 0.2
+      },
+      "expected": {
+        "serving_units": "2000ml",
+        "calories": 2000,
+        "protein": 200,
+        "carbs": 400,
+        "fat": 60,
+        "sodium": 2000,
+        "fiber": 40,
+        "calcium": 4000
+      }
+    },
+    {
+      "name": "ml quantity 2000.1",
+      "quantity": 2000.1,
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity '2000,1'",
+      "quantity": "2000,1",
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity None",
+      "quantity": null,
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 0",
+      "quantity": 0,
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity -1",
+      "quantity": -1,
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 'NaN'",
+      "quantity": "NaN",
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 'Infinity'",
+      "quantity": "Infinity",
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "ml quantity 'junk'",
+      "quantity": "junk",
+      "unit": "ml",
+      "serving_size": "45341 ml",
+      "nutriments": {
+        "energy-kcal_100g": 100,
+        "proteins_100g": 10,
+        "carbohydrates_100g": 20,
+        "fat_100g": 3,
+        "sodium_100g": 0.1,
+        "fiber_100g": 2,
+        "energy-kcal_serving": 999,
+        "proteins_serving": 999,
+        "calcium_serving": 999
+      },
+      "expected": {
+        "serving_units": "100g",
+        "calories": 100,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 100,
+        "fiber": 2,
+        "calcium": null
+      }
+    },
+    {
+      "name": "over limit serving energy only",
+      "quantity": "45341",
+      "unit": "g",
+      "serving_size": "45341 g",
+      "nutriments": {
+        "energy-kcal_serving": 999
+      },
+      "expected": null
+    }
+  ]
+}

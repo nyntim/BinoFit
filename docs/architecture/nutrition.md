@@ -43,6 +43,7 @@ Tapping the meal card opens its read-only nutrition summary, including empty mea
 `app/barcode-scanner.tsx` is a full-screen camera scanner (native only, opened from the food search scan button). It looks up via `lookupBarcode`, then replaces itself with `serving-picker`, or `custom-food` (prefilled, with the barcode) when not found.
 
 - `lib/open-food-facts.ts` (`normalizeBarcode`, `mapOffProduct`, `buildServingUnits`, `fetchOffProduct`; never throws, 8 s timeout) maps Open Food Facts products to `Food` rows (`id: off:{barcode}`, `source: 'open_food_facts'`).
+- Live barcode mapping and catalog import share an inclusive `0 < quantity <= 2000` g/ml serving cap and cleaned lowercase labels (USDA unit codes, bracketed notes, parentheses and stray punctuation). Fluid-ounce measures retain `fl oz`; mass-ounce measures are removed. Invalid or oversized servings use per-100g nutrition and `100g` units. Live mapping cannot use `_serving` fallback without a valid quantity, so missing per-100g energy makes oversized products incomplete. Shared fixtures in `test-utils/fixtures/off-serving-parity.json` verify both TypeScript and Python. Existing cached rows and historical logs are retained.
 - `lookupBarcode()` in `lib/food-service.ts` checks SQLite, then OFF, and caches found products. Not-found results and errors are never cached.
 
 ## Nutrients
