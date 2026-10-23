@@ -30,7 +30,7 @@ create table if not exists public.foods (
   protein        real,
   carbs          real,
   fat            real,
-  source         text not null,   -- 'usda' | 'branded' | 'custom'
+  source         text not null,   -- 'open_food_facts' | 'custom' ('branded' legacy, no longer stored)
   user_id        text,            -- null = public food; auth.uid()::text = custom food
   created_at     timestamptz default now(),
   updated_at     timestamptz default now(),
@@ -105,16 +105,85 @@ create index if not exists idx_foods_name on public.foods (name);
 create index if not exists idx_foods_user_id on public.foods (user_id);
 
 -- ─────────────────────────────────────────────────────────
--- Full-text and Fuzzy Search Indexes
+-- Public food catalog search (trigram index, popularity, ranked RPC)
+-- Applied as migrations food_catalog_search and food_search_ranking* on 2026-10-23.
 -- ─────────────────────────────────────────────────────────
-create extension if not exists pg_trgm;
+create extension if not exists pg_trgm with schema extensions;
 
--- Trigram index for fuzzy name matching (ilike %term%)
-create index if not exists idx_foods_name_trgm on public.foods using gin (name gin_trgm_ops);
-create index if not exists idx_foods_brand_trgm on public.foods using gin (brand gin_trgm_ops);
+-- One trigram index over name and brand; search_foods filters on this exact expression.
+create index if not exists idx_foods_search_trgm
+  on public.foods using gin ((name || ' ' || coalesce(brand, '')) extensions.gin_trgm_ops);
 
--- Full-text search index for token-based matching
-create index if not exists idx_foods_fts on public.foods using gin (to_tsvector('english', name || ' ' || coalesce(brand, '')));
+-- Server-only ranking signal (Open Food Facts unique scans). Not synced to devices.
+create table if not exists public.food_popularity (
+  food_id text primary key references public.foods (id) on delete cascade,
+  scans   integer not null default 0
+);
+alter table public.food_popularity enable row level security;
+drop policy if exists "food_popularity: read" on public.food_popularity;
+create policy "food_popularity: read"
+  on public.food_popularity for select to authenticated using (true);
+
+-- Ranked catalog search. Every word of 3+ characters must appear in name or brand.
+-- Score: exact name, whole-word prefix, whole-word contains, plus 0.6 * ln(1 + scans).
+create or replace function public.search_foods(
+  q text,
+  exclude_ids text[] default '{}',
+  max_results integer default 20
+)
+returns table (
+  id text, name text, brand text, serving_units text,
+  calories real, protein real, carbs real, fat real, source text
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  phrase text := lower(regexp_replace(trim(coalesce(q, '')), '\s+', ' ', 'g'));
+  like_phrase text;
+  words text[];
+  patterns text[];
+  stmt text;
+  i integer;
+begin
+  if length(phrase) < 2 then
+    return;
+  end if;
+  like_phrase := replace(replace(replace(phrase, '\', '\\'), '%', '\%'), '_', '\_');
+  select array_agg(w) into words
+  from (select distinct w from unnest(string_to_array(like_phrase, ' ')) as w
+        where length(replace(w, '\', '')) >= 3 limit 8) s;
+  if words is null then
+    return;
+  end if;
+  select array_agg('%' || w || '%') into patterns from unnest(words) as w;
+
+  stmt := 'select f.id, f.name, f.brand, f.serving_units, f.calories, f.protein, f.carbs, f.fat, f.source
+           from public.foods f
+           left join public.food_popularity p on p.food_id = f.id
+           where not (f.id = any($2))';
+  for i in 1 .. array_length(patterns, 1) loop
+    stmt := stmt || format(' and (f.name || '' '' || coalesce(f.brand, '''')) ilike %L', patterns[i]);
+  end loop;
+  stmt := stmt || ' order by
+             (case when lower(f.name) = $1 then 5
+                   when lower(f.name) like $3 || '' %'' then 2
+                   when lower(f.name) like ''% '' || $3 || '' %'' or lower(f.name) like ''% '' || $3 then 1
+                   else 0 end) + 0.6 * ln(1 + coalesce(p.scans, 0)) desc,
+             length(f.name) asc,
+             f.id
+           limit $4';
+
+  return query execute stmt
+    using phrase, coalesce(exclude_ids, '{}'::text[]), like_phrase,
+          least(greatest(coalesce(max_results, 20), 1), 50);
+end;
+$$;
+
+revoke all on function public.search_foods(text, text[], integer) from public, anon;
+grant execute on function public.search_foods(text, text[], integer) to authenticated;
 
 -- ─────────────────────────────────────────────────────────
 -- food_logs: synced from local SQLite

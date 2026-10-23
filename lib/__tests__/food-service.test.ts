@@ -131,14 +131,32 @@ describe('branded nutrient profiles', () => {
 
   it('keeps search profiles partial and marks their cache writes accordingly', async () => {
     const rows = [food('partial', 'Partial')];
-    const previousThen = supabase.then;
-    supabase.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows, error: null });
-    try {
-      expect(await searchBranded('Partial')).toEqual(rows.map((r: object) => ({ ...r, source: 'branded' })));
-      expect(supabase.select).toHaveBeenCalledWith('id, name, brand, calories, protein, carbs, fat, serving_units');
-      expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial', source: 'branded' }), { partial: true });
-    } finally {
-      supabase.then = previousThen;
-    }
+    supabase.rpc.mockResolvedValueOnce({ data: rows, error: null });
+    expect(await searchBranded('Partial')).toEqual(rows.map((r: object) => ({ ...r, source: 'branded' })));
+    expect(db.cacheRemoteFood).toHaveBeenCalledWith(expect.objectContaining({ id: 'partial', source: 'branded' }), { partial: true });
+  });
+
+  it('calls the ranked search_foods RPC with the trimmed query, exclusions and limit 20', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [], error: null });
+    await searchBranded('  oat milk ', ['off:1', 'off:2']);
+    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', {
+      q: 'oat milk', exclude_ids: ['off:1', 'off:2'], max_results: 20,
+    });
+  });
+
+  it('passes punctuation through unchanged', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: [], error: null });
+    await searchBranded("ben & jerry's, (pint)");
+    expect(supabase.rpc).toHaveBeenCalledWith('search_foods', expect.objectContaining({ q: "ben & jerry's, (pint)" }));
+  });
+
+  it('returns [] on RPC error, thrown errors and queries under 3 characters', async () => {
+    supabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
+    expect(await searchBranded('oats')).toEqual([]);
+    supabase.rpc.mockRejectedValueOnce(new Error('offline'));
+    expect(await searchBranded('oats')).toEqual([]);
+    supabase.rpc.mockClear();
+    expect(await searchBranded(' ab ')).toEqual([]);
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 });

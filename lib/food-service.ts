@@ -18,7 +18,7 @@ import type { Food } from '@/lib/types';
 import { normalizeNutrients } from '@/lib/nutrients';
 
 const MIN_BRANDED_QUERY_LENGTH = 3;
-const BRANDED_LIMIT = 8;
+const BRANDED_LIMIT = 20;
 const AUTO_FETCH_THRESHOLD = 8;
 const LOCAL_SEARCH_THRESHOLD = 20;
 
@@ -188,7 +188,7 @@ export async function sortFoodResults(
 
 /**
  * Query Supabase for branded foods, excluding any IDs already in local results.
- * Uses strict column selection to minimize egress and background caches results.
+ * Calls the ranked `search_foods` RPC and background caches the partial results.
  */
 export async function searchBranded(
   query: string,
@@ -198,25 +198,11 @@ export async function searchBranded(
   if (trimmed.length < MIN_BRANDED_QUERY_LENGTH) return [];
 
   try {
-    const words = trimmed.split(/\s+/).filter(Boolean);
-
-    let queryBuilder = supabase
-      // TODO: Change to 'branded_foods' when branded data is loaded
-      .from('foods')
-      .select('id, name, brand, calories, protein, carbs, fat, serving_units');
-
-    // Each word must appear in name OR brand (chained .or() = AND between words)
-    for (const word of words) {
-      queryBuilder = queryBuilder.or(`name.ilike.%${word}%,brand.ilike.%${word}%`);
-    }
-
-    queryBuilder = queryBuilder.limit(BRANDED_LIMIT);
-
-    if (excludeIds.length > 0) {
-      queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
-    }
-
-    const { data, error } = await queryBuilder;
+    const { data, error } = await supabase.rpc('search_foods', {
+      q: trimmed,
+      exclude_ids: excludeIds,
+      max_results: BRANDED_LIMIT,
+    });
 
     if (error || !data) return [];
 
@@ -257,7 +243,6 @@ export function shouldAutoFetchBranded(localCount: number): boolean {
 export async function getFullBrandedFood(id: string): Promise<Food | null> {
   try {
     const { data, error } = await supabase
-      // TODO: Change to 'branded_foods' when branded data is loaded
       .from('foods')
       .select('*')
       .eq('id', id)

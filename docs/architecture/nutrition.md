@@ -28,7 +28,9 @@ Tapping the meal card opens its read-only nutrition summary, including empty mea
 
 ## Food search
 
-`lib/food-service.ts` searches SQLite first, falls back to a Supabase remote query (4 or more characters) and caches results locally.
+`lib/food-service.ts` searches SQLite first, falls back to a remote search (3 or more characters) and caches results locally.
+
+- Remote search calls the ranked `search_foods` RPC (up to 20 rows) over the Open Food Facts US catalog. Ranking score: 5 for an exact name, 2 for a whole-word prefix, 1 for a whole-word match anywhere in the name, plus `0.6 * ln(1 + scans)` from `food_popularity`; ties go to the shorter name. Results are still tagged Branded.
 
 - Rows show calories in a right column and a neutral source tag from `lib/food-source.ts` (`foodSourceLabel`: USDA, Branded, Open Food Facts, Custom; `searchBranded` stamps `source: 'branded'`).
 - `app/serving-picker.tsx` sets the amount, unit and time and logs or edits an entry. Its parts are in `components/serving-picker/` (form rows, nutrition ring, macro detail panel, targets, unit picker) and `hooks/useServingDayTotals.ts` (the day's other totals, goals and slot statuses).

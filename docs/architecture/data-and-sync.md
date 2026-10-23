@@ -48,6 +48,10 @@ Deleting a synced row never calls Supabase directly. `lib/tombstones.ts`:
 - UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt` / `setLastSyncAt` in `lib/storage.ts`).
 - `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30 s / 1 m / 2 m / 5 m backoff while active and failing. Sync also runs on cold start.
 
+## Public food catalog
+
+`public.foods` public rows (no `user_id`) are the Open Food Facts US subset (about 214k rows, built by `scripts/off-subset/`). `food_popularity` is server-only ranking data and is never synced. `search_foods` (`supabase/migrations/202610230000_*` and `202610230001_*`) is the read path.
+
 ## Export
 
 `lib/export.ts` is pure CSV export: `rangeDates`, `buildExportRows`, `toCsv`, `exportFileName`. The file write and share is in `lib/export-file.ts` (`.web.ts` downloads).
