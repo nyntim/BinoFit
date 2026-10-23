@@ -1,3 +1,4 @@
+import type { Region } from '@/lib/workouts/exercise-catalog';
 import type { NutrientValues } from '@/lib/nutrients';
 
 export type Food = Partial<NutrientValues> & {
@@ -91,7 +92,11 @@ export type RestTimerState = {
   exerciseName?: string;
 };
 
+export type VolumeTargetRegion = Exclude<Region, 'All' | 'Cardio'>;
+export type WeeklyVolumeTargets = Partial<Record<VolumeTargetRegion, number>>;
+
 export type UserGoals = {
+  weekly_volume_targets?: WeeklyVolumeTargets;
   calorie_goal: number;
   protein_goal: number;
   carb_goal: number;
@@ -180,6 +185,7 @@ export type RemoteMealName = {
 };
 
 export type RemoteUserGoals = {
+  weekly_volume_targets?: WeeklyVolumeTargets | null;
   user_id: string;
   calorie_goal: number | null;
   protein_goal: number | null;

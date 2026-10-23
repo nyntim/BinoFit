@@ -1,0 +1,42 @@
+import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { useTrainingOverview } from '@/hooks/useTrainingOverview';
+import { getUserGoals } from '@/lib/storage';
+import { getDoneWorkoutsBetween } from '@/lib/workouts/history';
+let mockFocus: () => void;
+let mockNow = new Date(2026, 9, 25, 23, 59).getTime();
+jest.mock('expo-router', () => ({ useIsFocused: () => true, useFocusEffect: (fn: () => void) => { mockFocus = fn; jest.requireActual<typeof import('react')>('react').useEffect(fn, [fn]); } }));
+jest.mock('@/hooks/useNow', () => ({ useNow: () => mockNow }));
+jest.mock('@/hooks/usePreferences', () => ({ usePreferences: () => ({ weightUnit: 'kg' }) }));
+jest.mock('@/hooks/useActiveWorkout', () => ({ useActiveWorkout: () => ({ workout: null }) }));
+jest.mock('@/lib/storage', () => ({ getUserGoals: jest.fn() }));
+jest.mock('@/lib/workouts/history', () => ({ getDoneWorkoutsBetween: jest.fn(), getRecentDoneWorkouts: jest.fn(async () => []) }));
+beforeEach(() => {
+  jest.clearAllMocks(); jest.useFakeTimers();
+  mockNow = new Date(2026, 9, 25, 23, 59).getTime(); jest.setSystemTime(mockNow);
+  (getDoneWorkoutsBetween as jest.Mock).mockResolvedValue([]);
+  (getUserGoals as jest.Mock).mockResolvedValue({ weekly_volume_targets: { Chest: 12 } });
+});
+afterEach(() => jest.useRealTimers());
+test('focus refreshes goals and an old pending goal read cannot replace newer targets', async () => {
+  const { result } = await renderHook(() => useTrainingOverview());
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  expect(result.current.muscleSets).toEqual([{ region: 'Chest', sets: 0, target: 12, status: 'under' }]);
+  let release!: (goals: unknown) => void;
+  (getUserGoals as jest.Mock).mockReturnValueOnce(new Promise(resolve => { release = resolve; }));
+  await act(() => mockFocus());
+  (getUserGoals as jest.Mock).mockResolvedValue({ weekly_volume_targets: { Lats: 10 } });
+  await act(() => mockFocus());
+  await waitFor(() => expect(result.current.muscleSets[0].region).toBe('Lats'));
+  await act(() => release({ weekly_volume_targets: { Chest: 12 } }));
+  expect(result.current.muscleSets[0].region).toBe('Lats');
+});
+test('Monday rollover reloads goals and preserves targeted zero rows', async () => {
+  const { result, rerender } = await renderHook(() => useTrainingOverview());
+  await waitFor(() => expect(result.current.status).toBe('ready'));
+  expect(getDoneWorkoutsBetween).toHaveBeenCalledWith('2026-10-19', '2026-10-25');
+  mockNow = new Date(2026, 9, 26, 0, 1).getTime(); jest.setSystemTime(mockNow);
+  await rerender(undefined);
+  await waitFor(() => expect(getDoneWorkoutsBetween).toHaveBeenCalledWith('2026-10-26', '2026-11-01'));
+  expect(result.current.muscleSets[0]).toMatchObject({ region: 'Chest', sets: 0, target: 12 });
+  expect(getUserGoals).toHaveBeenCalledTimes(2);
+});

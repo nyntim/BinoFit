@@ -26,3 +26,7 @@ Settings is a compact directory with focused Profile, Nutrition, Training, Prefe
 ## Home routing
 
 Users always track nutrition and training. `lib/tracking-mode.ts` (pure): `isTabVisible(tab)` is always true; `homeRouteFor()` always returns `'/(tabs)'`. Every navigation to the app's home must use `homeRouteFor()`, never a literal tab path. `app/index.tsx` waits for onboarding and `loadPreferences` before routing. After sign-in, `hasRestoredData` decides between the tabs and the goals step (see [auth.md](auth.md)).
+
+## Weekly volume targets
+
+Training settings links to Weekly volume targets, also opened by the Training Sets card. This form saves explicitly, protects unsaved navigation, validates each region, and retains drafts after save errors. Optional recommended values are editable starting values and only fill blank fields. Targets belong to the synced goals record, not device preferences. Missing daily goals require setup in Nutrition settings before targets can be saved.

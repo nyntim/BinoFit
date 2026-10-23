@@ -57,3 +57,9 @@ Deleting a synced row never calls Supabase directly. `lib/tombstones.ts`:
 ## Export
 
 `lib/export.ts` is pure CSV export: `rangeDates`, `buildExportRows`, `toCsv`, `exportFileName`. The file write and share is in `lib/export-file.ts` (`.web.ts` downloads).
+
+## Weekly volume targets on goals
+
+`user_goals.weekly_volume_targets` is an optional local map of eligible muscle regions to integer weekly sets (1 through 40), backed by a non-null JSONB object with an empty-object default in Supabase. Legacy missing or malformed values normalize to an empty map. Nutrition-only saves preserve targets; explicit empty maps clear them. Target saves retain macros and clear sync acknowledgment. Goal read-modify-write operations are serialized, and acknowledgment checks the pushed `updated_at` version. Restore replaces the map, including clearing old account targets when a remote legacy record has no map; sign-out wipes the whole goals key. Account merge retains existing-account-wins semantics.
+
+Apply only `supabase/migrations/202610230003_weekly_volume_targets.sql` before shipping this client. The additive migration preserves existing goal values and timestamps and is safe to repeat. Do not rerun historical RLS phases from schema.sql. Verify the deployed column/default and own-account persistence and restore. Older clients omit this column on cloud upserts, preserving its server value, but cannot understand targets during offline local edits.

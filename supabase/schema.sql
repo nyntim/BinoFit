@@ -217,6 +217,7 @@ create table if not exists public.user_goals (
   protein_goal  real,
   carb_goal     real,
   fat_goal      real,
+  weekly_volume_targets jsonb not null default '{}'::jsonb,
   updated_at    timestamptz default now()
 );
 
@@ -884,3 +885,9 @@ end;
 $$;
 revoke all on function public.delete_own_account() from public, anon;
 grant execute on function public.delete_own_account() to authenticated;
+
+-- BEGIN weekly_volume_targets
+-- Optional weekly working-set targets. Safe for existing goals and repeated application.
+alter table public.user_goals
+  add column if not exists weekly_volume_targets jsonb not null default '{}'::jsonb;
+-- END weekly_volume_targets

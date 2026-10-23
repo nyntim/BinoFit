@@ -97,3 +97,7 @@ SQLite `routines` and `routine_exercises` (allow-listed in `lib/tombstones.ts`; 
 - Spotify playlist on workouts and Apple Health workout export: [integrations.md](integrations.md).
 - Training on the Progress tab: [progress.md](progress.md).
 - Effort, rest timer and default set preferences: [preferences.md](preferences.md).
+
+## Weekly volume targets
+
+Optional targets are edited at `/settings/weekly-volume-targets`, reached from Training settings or the Sets card. `lib/workouts/targets.ts` validates whole targets from 1 through 40 and merges them with the unchanged working-set counts. Blank or zero clears a target. The card shows under, met and over states, clamps target bar fills to 100%, and retains exact counts. Targeted regions remain visible at zero sets, including after Monday rollover. Count-only rows keep relative bars. Rows sort by descending count then region order; the card hides only when the merged list is empty. `useTrainingOverview` reloads goals on focus with the existing request-generation protection. Recommended values fill only blank draft fields for six regions and require Save.

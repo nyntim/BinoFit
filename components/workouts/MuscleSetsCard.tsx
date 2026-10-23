@@ -1,31 +1,37 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { formatMuscleSetCount, pairRows, type MuscleSetTotal } from '@/lib/workouts/summary';
+import { formatMuscleSetCount, pairRows } from '@/lib/workouts/summary';
 
-type Props = { rows: MuscleSetTotal[] };
+import type { VolumeTargetProgress } from '@/lib/workouts/targets';
 
-function Cell({ row, maxSets, text, track }: { row: MuscleSetTotal; maxSets: number; text: string; track: string }) {
+type Props = { rows: VolumeTargetProgress[]; onEditTargets: () => void };
+
+function Cell({ row, maxSets, text, track, success }: { row: VolumeTargetProgress; maxSets: number; text: string; track: string; success: string }) {
   const count = formatMuscleSetCount(row.sets);
-  const ratio = Math.min(Math.max(row.sets / maxSets, 0), 1);
+  const ratio = Math.min(Math.max(row.sets / (row.target ?? maxSets), 0), 1);
   return (
-    <View style={styles.cell} accessible accessibilityLabel={`${row.region}, ${count} sets`}>
+    <View style={styles.cell} accessible accessibilityLabel={row.target === null ? `${row.region}, ${count} sets` : `${row.region}, ${count} of ${row.target} sets, ${row.status === 'under' ? 'Under target' : row.status === 'met' ? 'Met' : 'Over target'}`}>
       <View style={styles.rowHeader}>
-        <Text style={[styles.region, { color: text }]} numberOfLines={1}>
+        <Text style={[styles.region, { color: text }]}>
           {row.region}
         </Text>
-        <Text style={[styles.count, { color: text }]}>{count}</Text>
+        <Text style={[styles.count, { color: text }]}>{row.target === null ? count : `${count} / ${row.target}`}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: track }]}>
-        <View style={[styles.fill, { backgroundColor: text, width: `${ratio * 100}%` as `${number}%` }]} />
+        <View testID={`volume-target-fill-${row.region}`} style={[styles.fill, { backgroundColor: row.status === 'met' ? success : text, width: `${ratio * 100}%` as `${number}%` }]} />
       </View>
+      {row.target !== null ? <Text style={[styles.status, { color: text }]}>{row.status === 'under' ? 'Under target' : row.status === 'met' ? 'Met' : 'Over target'}</Text> : null}
     </View>
   );
 }
 
-export function MuscleSetsCard({ rows }: Props) {
+export function MuscleSetsCard({ rows, onEditTargets }: Props) {
   const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const track = useThemeColor({}, 'track');
+  const success = useThemeColor({}, 'success');
+  const tint = useThemeColor({}, 'tint');
+  const { fontScale } = useWindowDimensions();
 
   if (rows.length === 0) return null;
 
@@ -33,14 +39,14 @@ export function MuscleSetsCard({ rows }: Props) {
 
   return (
     <View style={[styles.card, { backgroundColor: card }]}>
-      <Text style={[styles.title, { color: text }]} accessibilityRole="header">
+      <View style={styles.rowHeader}><Text style={[styles.title, { color: text }]} accessibilityRole="header">
         Sets
-      </Text>
+      </Text><Pressable accessibilityRole="button" accessibilityLabel="Edit weekly volume targets" onPress={onEditTargets} style={styles.edit}><Text style={{ color: tint }}>Edit targets</Text></Pressable></View>
       <View style={styles.rows}>
-        {pairRows(rows).map(([left, right]) => (
+        {(fontScale > 1.3 ? rows.map(row => [row, null] as [VolumeTargetProgress, null]) : pairRows(rows)).map(([left, right]) => (
           <View key={left.region} style={styles.line}>
-            <Cell row={left} maxSets={maxSets} text={text} track={track} />
-            {right ? <Cell row={right} maxSets={maxSets} text={text} track={track} /> : <View style={styles.cell} />}
+            <Cell row={left} maxSets={maxSets} text={text} track={track} success={success} />
+            {right ? <Cell row={right} maxSets={maxSets} text={text} track={track} success={success} /> : fontScale > 1.3 ? null : <View style={styles.cell} />}
           </View>
         ))}
       </View>
@@ -50,6 +56,8 @@ export function MuscleSetsCard({ rows }: Props) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 18, padding: 20, gap: 14 },
+  status: { fontSize: 12 },
+  edit: { minHeight: 44, justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '600' },
   rows: { gap: 12 },
   line: { flexDirection: 'row', gap: 16 },

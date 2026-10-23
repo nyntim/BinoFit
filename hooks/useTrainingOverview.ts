@@ -1,3 +1,5 @@
+import { getUserGoals } from '@/lib/storage';
+import { volumeTargetProgress, type VolumeTargetProgress } from '@/lib/workouts/targets';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
@@ -10,7 +12,6 @@ import {
   summarizeWeek,
   summarizeWorkout,
   weekRange,
-  type MuscleSetTotal,
 } from '@/lib/workouts/summary';
 import type { WeekSummary, WorkoutSummary } from '@/lib/types';
 
@@ -20,7 +21,7 @@ export type TrainingOverview = {
   status: 'loading' | 'ready' | 'error';
   week: WeekSummary;
   weekLabel: string;
-  muscleSets: MuscleSetTotal[];
+  muscleSets: VolumeTargetProgress[];
   recent: WorkoutSummary[];
   reload: () => void;
 };
@@ -43,14 +44,14 @@ export function useTrainingOverview(): TrainingOverview {
   const reload = useCallback(() => {
     const request = ++requestRef.current;
     const range = weekRange(new Date());
-    Promise.all([getDoneWorkoutsBetween(range.start, range.end), getRecentDoneWorkouts(RECENT_COUNT)])
-      .then(([weekWorkouts, recent]) => {
+    Promise.all([getDoneWorkoutsBetween(range.start, range.end), getRecentDoneWorkouts(RECENT_COUNT), getUserGoals()])
+      .then(([weekWorkouts, recent, goals]) => {
         if (request !== requestRef.current) return;
         setState({
           status: 'ready',
           week: summarizeWeek(weekWorkouts),
           weekLabel: formatWeekRange(range),
-          muscleSets: setsPerMuscle(weekWorkouts),
+          muscleSets: volumeTargetProgress(setsPerMuscle(weekWorkouts), goals?.weekly_volume_targets),
           recent: recent.map((w) => summarizeWorkout(w, weightUnit)),
         });
       })

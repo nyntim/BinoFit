@@ -36,6 +36,7 @@ These are the visual reference for building, not code to copy. Each `.dc.html` f
 | `Builder.dc.html` | Exercise builder, every step; the script holds the step rules (which steps show per equipment, validation, Skip vs Next, name suggestions) | `/workout/new-exercise` | C6 |
 | `BuilderReview.dc.html` | Builder review card | `/workout/new-exercise` (last step) | C6 |
 | `LogPast.dc.html` | Log past workout, including cardio pace | `/workout/log` | C7 |
+| `WeeklyVolumeTargets.dc.html` | Target editor and Sets card under/met/over/zero states in light and dark | `/settings/weekly-volume-targets`, `/(tabs)/training` | #112 |
 | `Main.dc.html` | Training tab | `/(tabs)/training` | C8 |
 | `Session.dc.html` | Live session: set rows, Previous column, rest banner, setup notes, per side | `/workout/session` | C9, C10 |
 | `SessionBar.dc.html` | Minimized session bar above the tab bar | `ActiveWorkoutBar` | C9 |

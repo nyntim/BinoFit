@@ -1,3 +1,5 @@
+import { normalizeVolumeTargets } from '@/lib/workouts/targets';
+import type { WeeklyVolumeTargets } from '@/lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveDefaultSetCount } from '@/lib/workouts/prefill';
 import type {
@@ -49,20 +51,42 @@ export async function resetOnboarding(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.ONBOARDING_COMPLETE);
 }
 
+// All goal read-modify-write operations share a queue, including sync acknowledgments.
+let goalWrites: Promise<unknown> = Promise.resolve();
+function withGoalWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = goalWrites.then(operation);
+  goalWrites = result.catch(() => {});
+  return result;
+}
+function nextGoalTimestamp(previous?: string): string {
+  return new Date(Math.max(Date.now(), (Date.parse(previous ?? '') || 0) + 1)).toISOString();
+}
 export async function getUserGoals(): Promise<StoredUserGoals | null> {
   const val = await AsyncStorage.getItem(KEYS.USER_GOALS);
-  return val ? (JSON.parse(val) as StoredUserGoals) : null;
+  if (!val) return null;
+  const goals = JSON.parse(val) as StoredUserGoals;
+  return { ...goals, weekly_volume_targets: normalizeVolumeTargets(goals.weekly_volume_targets) };
 }
-
-export async function saveUserGoals(goals: Omit<UserGoals, 'updated_at'>): Promise<void> {
-  const data: StoredUserGoals = { ...goals, updated_at: new Date().toISOString(), synced_at: undefined };
-  await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify(data));
+export function saveUserGoals(goals: Omit<UserGoals, 'updated_at'>): Promise<void> {
+  return withGoalWrite(async () => {
+    const existing = await getUserGoals();
+    const data: StoredUserGoals = { ...goals, weekly_volume_targets: normalizeVolumeTargets(goals.weekly_volume_targets === undefined ? existing?.weekly_volume_targets : goals.weekly_volume_targets), updated_at: nextGoalTimestamp(existing?.updated_at) };
+    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify(data));
+  });
 }
-
-export async function markGoalsSynced(ts: string): Promise<void> {
-  const existing = await getUserGoals();
-  if (!existing) return;
-  await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...existing, synced_at: ts }));
+export function saveWeeklyVolumeTargets(targets: WeeklyVolumeTargets): Promise<void> {
+  return withGoalWrite(async () => {
+    const existing = await getUserGoals();
+    if (!existing || ![existing.calorie_goal, existing.protein_goal, existing.carb_goal, existing.fat_goal].every(Number.isFinite)) throw new Error('Set up your daily goals in Nutrition settings first.');
+    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...existing, weekly_volume_targets: normalizeVolumeTargets(targets), updated_at: nextGoalTimestamp(existing.updated_at), synced_at: undefined }));
+  });
+}
+export function markGoalsSynced(ts: string, pushedUpdatedAt: string): Promise<void> {
+  return withGoalWrite(async () => {
+    const existing = await getUserGoals();
+    if (!existing || existing.updated_at !== pushedUpdatedAt) return;
+    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...existing, synced_at: ts }));
+  });
 }
 
 export async function getUserProfile(): Promise<StoredUserProfile | null> {
@@ -254,10 +278,11 @@ export async function setSyncedUid(uid: string): Promise<void> {
 
 /** Clears the synced flag on goals and profile so the next sync pushes them again. */
 export async function clearGoalsProfileSyncFlags(): Promise<void> {
-  const [goals, profile] = await Promise.all([getUserGoals(), getUserProfile()]);
-  if (goals?.synced_at) {
-    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...goals, synced_at: undefined }));
-  }
+  await withGoalWrite(async () => {
+    const goals = await getUserGoals();
+    if (goals?.synced_at) await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify({ ...goals, synced_at: undefined }));
+  });
+  const profile = await getUserProfile();
   if (profile?.synced_at) {
     await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify({ ...profile, synced_at: undefined }));
   }
@@ -270,24 +295,27 @@ export async function clearPendingMergeTicket(): Promise<void> {
 const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const;
 
 /** Replaces local goals with the account's. Returns false (and writes nothing) if the row is incomplete. */
-export async function applyRemoteGoals(remote: RemoteUserGoals): Promise<boolean> {
-  const { calorie_goal, protein_goal, carb_goal, fat_goal } = remote;
-  if (
-    calorie_goal == null || protein_goal == null || carb_goal == null || fat_goal == null
-  ) {
-    return false;
-  }
-  const now = new Date().toISOString();
-  const data: StoredUserGoals = {
-    calorie_goal,
-    protein_goal,
-    carb_goal,
-    fat_goal,
-    updated_at: remote.updated_at ? new Date(remote.updated_at).toISOString() : now,
-    synced_at: now,
-  };
-  await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify(data));
-  return true;
+export function applyRemoteGoals(remote: RemoteUserGoals): Promise<boolean> {
+  return withGoalWrite(async () => {
+    const { calorie_goal, protein_goal, carb_goal, fat_goal } = remote;
+    if (
+      calorie_goal == null || protein_goal == null || carb_goal == null || fat_goal == null
+    ) {
+      return false;
+    }
+    const now = new Date().toISOString();
+    const data: StoredUserGoals = {
+      weekly_volume_targets: normalizeVolumeTargets(remote.weekly_volume_targets),
+      calorie_goal,
+      protein_goal,
+      carb_goal,
+      fat_goal,
+      updated_at: remote.updated_at ? new Date(remote.updated_at).toISOString() : now,
+      synced_at: now,
+    };
+    await AsyncStorage.setItem(KEYS.USER_GOALS, JSON.stringify(data));
+    return true;
+  });
 }
 
 /** Replaces the local profile with the account's. */
@@ -312,7 +340,7 @@ export async function applyRemoteProfile(remote: RemoteUserProfile): Promise<voi
  * id, the legacy-claimed flag, the default log status, weight unit, effort per set, effort scale, rest timer switch and default set count preferences.
  */
 export async function clearUserStorage(): Promise<void> {
-  await AsyncStorage.multiRemove([
+  await withGoalWrite(() => AsyncStorage.multiRemove([
     KEYS.USER_GOALS,
     KEYS.USER_PROFILE,
     KEYS.ONBOARDING_COMPLETE,
@@ -322,7 +350,7 @@ export async function clearUserStorage(): Promise<void> {
     KEYS.RESTORE_PENDING,
     KEYS.SYNCED_UID,
     KEYS.ACTIVE_REST_TIMER,
-  ]);
+  ]));
 }
 
 export type AppearancePreference = 'system' | 'light' | 'dark';

@@ -1,3 +1,4 @@
+import { normalizeVolumeTargets } from '@/lib/workouts/targets';
 import { normalizeNutrients } from '@/lib/nutrients';
 import { supabase } from '@/lib/supabase';
 import { getSessionUserId, initAuth, reconcileSyncedUid, retryPendingMergeTicket } from '@/lib/auth';
@@ -314,13 +315,14 @@ async function syncUserGoals(userId: string): Promise<void> {
       protein_goal: goals.protein_goal,
       carb_goal: goals.carb_goal,
       fat_goal: goals.fat_goal,
+      weekly_volume_targets: normalizeVolumeTargets(goals.weekly_volume_targets),
       updated_at: goals.updated_at,
     },
     { onConflict: 'user_id' }
   );
 
   if (error) throw error;
-  await markGoalsSynced(new Date().toISOString());
+  await markGoalsSynced(new Date().toISOString(), goals.updated_at);
 }
 
 async function syncUserProfile(userId: string): Promise<void> {

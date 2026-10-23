@@ -111,3 +111,49 @@ describe('pending wipe, restore pending and synced uid', () => {
     expect(await s.getSyncedUid()).toBe('u1');
   });
 });
+
+describe('weekly volume targets', () => {
+  const { saveUserGoals, saveWeeklyVolumeTargets, markGoalsSynced } = require('@/lib/storage');
+  it('reads legacy goals without migration and preserves targets on nutrition saves', async () => {
+    await AsyncStorage.setItem('user_goals', JSON.stringify(goals));
+    expect((await getUserGoals())?.weekly_volume_targets).toEqual({});
+    await saveWeeklyVolumeTargets({ Chest: 12 });
+    expect(await getUserGoals()).toMatchObject({ calorie_goal: 2100, weekly_volume_targets: { Chest: 12 } });
+    await saveUserGoals({ calorie_goal: 2200, protein_goal: 150, carb_goal: 200, fat_goal: 70 });
+    expect(await getUserGoals()).toMatchObject({ calorie_goal: 2200, weekly_volume_targets: { Chest: 12 } });
+    await saveUserGoals({ ...goals, weekly_volume_targets: {} });
+    expect((await getUserGoals())?.weekly_volume_targets).toEqual({});
+  });
+  it('does not acknowledge a newer edit during sync, including same millisecond writes', async () => {
+    await applyRemoteGoals(goals);
+    await saveWeeklyVolumeTargets({ Chest: 12 });
+    const pushed = (await getUserGoals())!;
+    await saveWeeklyVolumeTargets({ Chest: 14 });
+    await markGoalsSynced('synced', pushed.updated_at);
+    expect(await getUserGoals()).toMatchObject({ weekly_volume_targets: { Chest: 14 } });
+    expect((await getUserGoals())?.synced_at).toBeUndefined();
+    await markGoalsSynced('synced', (await getUserGoals())!.updated_at);
+    expect((await getUserGoals())?.synced_at).toBe('synced');
+  });
+  it('serializes simultaneous nutrition and target writes without losing either', async () => {
+    await applyRemoteGoals(goals);
+    await Promise.all([saveWeeklyVolumeTargets({ Quads: 10 }), saveUserGoals({ calorie_goal: 2300, protein_goal: 140, carb_goal: 220, fat_goal: 70 })]);
+    expect(await getUserGoals()).toMatchObject({ calorie_goal: 2300, weekly_volume_targets: { Quads: 10 } });
+  });
+  it('restores targets, replaces old account targets when absent and wipes them', async () => {
+    await applyRemoteGoals({ ...goals, weekly_volume_targets: { Chest: 12 } });
+    expect((await getUserGoals())?.weekly_volume_targets).toEqual({ Chest: 12 });
+    await applyRemoteGoals(goals);
+    expect((await getUserGoals())?.weekly_volume_targets).toEqual({});
+    await saveWeeklyVolumeTargets({ Quads: 10 });
+    await clearUserStorage();
+    expect(await getUserGoals()).toBeNull();
+  });
+  it('refuses missing or corrupt nutrition goals without creating data', async () => {
+    await expect(saveWeeklyVolumeTargets({ Chest: 12 })).rejects.toThrow('Nutrition settings');
+    expect(await getUserGoals()).toBeNull();
+    await AsyncStorage.setItem('user_goals', '{}');
+    await expect(saveWeeklyVolumeTargets({ Chest: 12 })).rejects.toThrow();
+    expect(await AsyncStorage.getItem('user_goals')).toBe('{}');
+  });
+});

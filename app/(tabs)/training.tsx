@@ -113,7 +113,7 @@ export default function TrainingScreen() {
 
         <WeekSummaryCard week={overview.week} weekLabel={overview.weekLabel} unit={weightUnit} />
 
-        {overview.muscleSets.length > 0 ? <MuscleSetsCard rows={overview.muscleSets} /> : null}
+        {overview.muscleSets.length > 0 ? <MuscleSetsCard rows={overview.muscleSets} onEditTargets={() => router.push('/settings/weekly-volume-targets')} /> : null}
 
         <View style={[styles.section, { backgroundColor: card }]}>
           <View style={styles.sectionHeader}>
