@@ -1,4 +1,4 @@
-import { computeStreaks } from '@/lib/streak';
+import { computeStreaks, currentStreakDates } from '@/lib/streak';
 
 describe('computeStreaks', () => {
   it('empty list gives zero streaks', () => {
@@ -47,5 +47,46 @@ describe('computeStreaks', () => {
   it('days across a DST change stay consecutive', () => {
     const r = computeStreaks(['2026-03-07', '2026-03-08', '2026-03-09'], '2026-03-09');
     expect(r.longestStreak).toBe(3);
+  });
+});
+
+describe('currentStreakDates', () => {
+  const today = '2026-10-17';
+
+  it('today logged gives a run ending today', () => {
+    expect(currentStreakDates(['2026-10-15', '2026-10-16', '2026-10-17'], today)).toEqual([
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17',
+    ]);
+  });
+
+  it('today unlogged and yesterday logged gives a run ending yesterday', () => {
+    expect(currentStreakDates(['2026-10-15', '2026-10-16'], today)).toEqual(['2026-10-15', '2026-10-16']);
+  });
+
+  it('neither logged gives an empty run', () => {
+    expect(currentStreakDates(['2026-10-10', '2026-10-11'], today)).toEqual([]);
+  });
+
+  it('ignores duplicates and future dates', () => {
+    expect(
+      currentStreakDates(['2026-10-17', '2026-10-17', '2026-10-16', '2026-10-18', '2026-10-19'], today)
+    ).toEqual(['2026-10-16', '2026-10-17']);
+  });
+
+  it('length always equals computeStreaks currentStreak', () => {
+    const table: string[][] = [
+      [],
+      ['2026-10-17'],
+      ['2026-10-16'],
+      ['2026-10-14', '2026-10-16', '2026-10-17'],
+      ['2026-09-30', '2026-10-01', '2026-10-16'],
+      ['2026-10-15', '2026-10-16', '2026-10-18'],
+      ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-17', '2026-10-17'],
+    ];
+    for (const dates of table) {
+      expect(currentStreakDates(dates, today)).toHaveLength(computeStreaks(dates, today).currentStreak);
+    }
   });
 });

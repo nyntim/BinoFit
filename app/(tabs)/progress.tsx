@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { useRouter } from 'expo-router';
@@ -11,18 +11,24 @@ import { RangeChips } from '@/components/progress/RangeChips';
 import { RecentRecordsCard } from '@/components/progress/RecentRecordsCard';
 import { WeightCard } from '@/components/progress/WeightCard';
 import { WorkoutsChart } from '@/components/progress/WorkoutsChart';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useProgress } from '@/hooks/useProgress';
 import type { ProgressRange } from '@/lib/progress';
+import { homeRouteFor } from '@/lib/tracking-mode';
+
+// Decorative bar heights (percent) for the first-run preview; not data
+const PREVIEW_BARS = [45, 70, 55, 85, 60, 75, 50];
 
 export default function ProgressScreen() {
   const tabBarInset = useTabBarInset();
   const nativeTabInsets = useTabBarInsetMode() === 'automatic';
   const router = useRouter();
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
-  const icon = useThemeColor({}, 'icon');
+  const track = useThemeColor({}, 'track');
   const [range, setRange] = useState<ProgressRange>('7d');
   const [showWeight, setShowWeight] = useState(false);
   const progress = useProgress(range);
@@ -33,17 +39,34 @@ export default function ProgressScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 32 + tabBarInset }]} contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined} scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
+        <ThemedText type="largeTitle" accessibilityRole="header">
           Progress
-        </Text>
+        </ThemedText>
         {progress.nothingEver && !progress.loading ? (
-          <View style={styles.firstRun}>
-            <IconSymbol name="chart.bar.fill" size={32} color={icon} />
-            <Text style={[styles.firstRunTitle, { color: text }]}>Nothing logged yet</Text>
-            <Text style={[styles.firstRunBody, { color: icon }]}>
-              Calorie, macro, weight and workout trends show here after your first log.
-            </Text>
-          </View>
+          <>
+            <EmptyState
+              variant="card"
+              title="Your trends start here"
+              body="Log a few days of food or a workout and this page fills in. Weekly patterns show after 7 days."
+              actions={
+                <>
+                  <Button size="lg" variant="primary" label="Log food" onPress={() => router.navigate(homeRouteFor())} />
+                  <Button size="lg" variant="secondary" label="Start a workout" onPress={() => router.push('/workout/session')} />
+                </>
+              }
+            />
+            <Card style={styles.preview} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <ThemedText type="label" style={styles.previewLabel}>
+                Calories, daily average
+              </ThemedText>
+              <View style={styles.previewBars}>
+                {PREVIEW_BARS.map((h, i) => (
+                  <View key={i} style={[styles.previewBar, { height: `${h}%`, backgroundColor: track }]} />
+                ))}
+              </View>
+              <ThemedText type="caption">No average yet</ThemedText>
+            </Card>
+          </>
         ) : (
           <>
             <RangeChips value={range} onChange={setRange} />
@@ -62,8 +85,17 @@ export default function ProgressScreen() {
               weeklyRateKg={progress.weeklyRateKg}
             />
             <AveragesCard avg={progress.summary.avg} goals={progress.goals} />
-            <WeightCard range={range} today={progress.today} />
+            <ConsistencyCard
+              summary={progress.summary}
+              streaks={progress.streaks}
+              loggedDates={progress.loggedDates}
+              trainedDates={progress.trainedDates}
+              today={progress.today}
+              rangeStart={progress.bounds.start}
+              onDayPress={openDay}
+            />
             <ExpenditureCard />
+            <WeightCard range={range} today={progress.today} />
             <WorkoutsChart
               key={`workouts-${range}`}
               range={progress.loadedRange ?? range}
@@ -76,14 +108,6 @@ export default function ProgressScreen() {
               records={progress.records}
               onPressRecord={(id) => router.push({ pathname: '/workout/[id]', params: { id } })}
             />
-            <ConsistencyCard
-              summary={progress.summary}
-              streaks={progress.streaks}
-              loggedDates={progress.loggedDates}
-              trainedDates={progress.trainedDates}
-              today={progress.today}
-              onDayPress={openDay}
-            />
           </>
         )}
       </ScrollView>
@@ -93,9 +117,9 @@ export default function ProgressScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 32, gap: 14, flexGrow: 1 },
-  title: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  firstRun: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 24 },
-  firstRunTitle: { fontSize: 17, fontWeight: '600', lineHeight: 22, textAlign: 'center' },
-  firstRunBody: { fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: 14, flexGrow: 1 },
+  preview: { opacity: 0.55, gap: 10 },
+  previewLabel: { fontWeight: '600' },
+  previewBars: { height: 80, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  previewBar: { flex: 1, borderRadius: 4 },
 });

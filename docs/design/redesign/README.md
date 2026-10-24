@@ -88,10 +88,10 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 | Board | Canvas page | Route or component | Build directions | Status |
 |---|---|---|---|---|
-| `PrgMain` | Progress | `app/(tabs)/progress.tsx` and `components/progress/*` | [progress.md#prgmain-progress-full-scroll](progress.md#prgmain-progress-full-scroll) | Restyle |
-| `PrgEmpty` | Progress | `app/(tabs)/progress.tsx` first-run state | [progress.md#prgempty-nothing-logged-yet](progress.md#prgempty-nothing-logged-yet) | Restyle |
-| `PrgWeightSheet` | Progress | `components/progress/WeightEntrySheet.tsx` | [progress.md#prgweightsheet-log-weight](progress.md#prgweightsheet-log-weight) | Restyle + small new |
-| `PrgWeightEdit` | Progress | `WeightEntrySheet` edit mode | [progress.md#prgweightedit-edit-weight-entry](progress.md#prgweightedit-edit-weight-entry) | Restyle |
+| `PrgMain` | Progress | `app/(tabs)/progress.tsx` and `components/progress/*` | [progress.md#prgmain-progress-full-scroll](progress.md#prgmain-progress-full-scroll) | Built |
+| `PrgEmpty` | Progress | `app/(tabs)/progress.tsx` first-run state | [progress.md#prgempty-nothing-logged-yet](progress.md#prgempty-nothing-logged-yet) | Built |
+| `PrgWeightSheet` | Progress | `components/progress/WeightEntrySheet.tsx` | [progress.md#prgweightsheet-log-weight](progress.md#prgweightsheet-log-weight) | Built |
+| `PrgWeightEdit` | Progress | `WeightEntrySheet` edit mode | [progress.md#prgweightedit-edit-weight-entry](progress.md#prgweightedit-edit-weight-entry) | Built |
 
 ### Settings
 

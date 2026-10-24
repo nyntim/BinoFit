@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { formatWeight, formatWeightWithUnit, kgToLb } from '@/lib/units';
 import { formatWeeklyRate, weightChartDomain, type TrendPoint } from '@/lib/weight-trend';
 import type { WeightUnit } from '@/lib/types';
 
-const PLOT_HEIGHT = 140;
+const PLOT_HEIGHT = 96;
 const TOP_RULE_Y = 8;
-const BOTTOM_RULE_Y = 132;
+const BOTTOM_RULE_Y = 88;
 const USABLE_BAND = BOTTOM_RULE_Y - TOP_RULE_Y;
 
 type Props = {
@@ -36,7 +37,7 @@ export function WeightChart({ points, rangeStart, rangeEnd, unit, weeklyRateKg }
   if (points.length < 2) {
     return (
       <View style={[styles.emptyBox, { backgroundColor: cardSecondary }]}>
-        <Text style={[styles.emptyText, { color: icon }]}>The chart starts at 2 entries.</Text>
+        <ThemedText type="label" style={styles.emptyText}>The chart starts at 2 entries.</ThemedText>
       </View>
     );
   }
@@ -46,7 +47,7 @@ export function WeightChart({ points, rangeStart, rangeEnd, unit, weeklyRateKg }
   if (inRange.length === 0) {
     return (
       <View style={[styles.emptyBox, { backgroundColor: cardSecondary }]}>
-        <Text style={[styles.emptyText, { color: icon }]}>No weight in this range.</Text>
+        <ThemedText type="label" style={styles.emptyText}>No weight in this range.</ThemedText>
       </View>
     );
   }
@@ -95,26 +96,6 @@ export function WeightChart({ points, rangeStart, rangeEnd, unit, weeklyRateKg }
 
   return (
     <View style={styles.container}>
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.manualDot, { backgroundColor: icon }]} />
-          <Text style={[styles.legendText, { color: icon }]}>Manual</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View
-            style={[
-              styles.healthDot,
-              { backgroundColor: cardBackground, borderColor: icon },
-            ]}
-          />
-          <Text style={[styles.legendText, { color: icon }]}>Apple Health</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.trendSwatch, { backgroundColor: tint }]} />
-          <Text style={[styles.legendText, { color: icon }]}>Trend</Text>
-        </View>
-      </View>
-
       <View style={styles.plotBlock}>
         <View
           style={styles.plot}
@@ -152,7 +133,7 @@ export function WeightChart({ points, rangeStart, rangeEnd, unit, weeklyRateKg }
                   points={polylinePoints}
                   fill="none"
                   stroke={tint}
-                  strokeWidth={2}
+                  strokeWidth={3}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -173,13 +154,33 @@ export function WeightChart({ points, rangeStart, rangeEnd, unit, weeklyRateKg }
         </View>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: icon }]}>
-            {format(startDate, 'MMM d')}
-          </Text>
-          <Text style={[styles.footerText, { color: icon }]}>
+          <ThemedText type="caption" style={styles.footerText}>
+            {format(startDate, 'd MMM')}
+          </ThemedText>
+          <ThemedText type="caption" style={styles.footerText}>
             {`High ${formatWeight(highKg, unit)} · Low ${formatWeight(lowKg, unit)}`}
-          </Text>
-          <Text style={[styles.footerText, { color: icon }]}>Today</Text>
+          </ThemedText>
+          <ThemedText type="caption" style={styles.footerText}>Today</ThemedText>
+        </View>
+      </View>
+
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.manualDot, { backgroundColor: icon }]} />
+          <ThemedText type="caption">Logged</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View
+            style={[
+              styles.healthDot,
+              { backgroundColor: cardBackground, borderColor: icon },
+            ]}
+          />
+          <ThemedText type="caption">Apple Health</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.trendSwatch, { backgroundColor: tint }]} />
+          <ThemedText type="caption">Trend</ThemedText>
         </View>
       </View>
     </View>
@@ -194,17 +195,12 @@ const styles = StyleSheet.create({
   emptyBox: {
     marginTop: 12,
     minHeight: 96,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
-  emptyText: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  emptyText: { textAlign: 'center' },
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -231,10 +227,6 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
   },
-  legendText: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
   plotBlock: {
     gap: 8,
   },
@@ -248,9 +240,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  footerText: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontVariant: ['tabular-nums'],
-  },
+  footerText: { fontVariant: ['tabular-nums'] },
 });

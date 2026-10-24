@@ -1,16 +1,12 @@
 import { useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Line, Path, Polyline } from 'react-native-svg';
 import { format, parseISO } from 'date-fns';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { ProgressCardHeader } from '@/components/progress/ProgressCardHeader';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import {
@@ -27,6 +23,8 @@ import type { WeightUnit } from '@/lib/types';
 
 const CHART_HEIGHT = 160;
 const EMPTY_BAR = 3;
+const TODAY_OPACITY = 0.5;
+const STUB_OPACITY = 0.35;
 const GUTTER_WIDTH = 48;
 
 type Props = {
@@ -53,12 +51,12 @@ function rangePhrase(range: ProgressRange, rangeStart: string): string {
   if (range === '7d') return 'the last 7 days';
   if (range === '30d') return 'the last 30 days';
   if (range === '90d') return 'the last 90 days';
-  return `since ${format(parseISO(rangeStart), 'MMM d')}`;
+  return `since ${format(parseISO(rangeStart), 'd MMM')}`;
 }
 
 function selectionLabel(b: Bucket): string {
-  if (b.unit === 'day') return b.isCurrent ? 'Today so far' : format(parseISO(b.key), 'EEE, MMM d');
-  if (b.unit === 'week') return b.isCurrent ? 'This week so far' : `Week of ${format(parseISO(b.key), 'MMM d')}`;
+  if (b.unit === 'day') return b.isCurrent ? 'Today so far' : format(parseISO(b.key), 'EEE, d MMM');
+  if (b.unit === 'week') return b.isCurrent ? 'This week so far' : `Week of ${format(parseISO(b.key), 'd MMM')}`;
   const month = format(parseISO(b.key), 'MMMM');
   return b.isCurrent ? `${month} (so far)` : month;
 }
@@ -66,7 +64,7 @@ function selectionLabel(b: Bucket): string {
 function barAria(b: Bucket, weightKg: number | null, weightUnit: WeightUnit): string {
   const base =
     b.unit === 'day'
-      ? `${b.isCurrent ? 'Today' : format(parseISO(b.key), 'EEE MMM d')}, ${
+      ? `${b.isCurrent ? 'Today' : format(parseISO(b.key), 'EEE d MMM')}, ${
           b.hasData ? `${fmt(b.calories)} cal` : 'nothing logged'
         }`
       : `${selectionLabel(b)}, ${
@@ -79,6 +77,20 @@ function barAria(b: Bucket, weightKg: number | null, weightUnit: WeightUnit): st
 function barLabel(b: Bucket): string {
   if (b.unit === 'day') return b.isCurrent ? 'Today' : format(parseISO(b.key), 'EEE');
   return format(parseISO(b.key), 'MMM');
+}
+
+function chartSummary(
+  unit: BucketUnit,
+  range: ProgressRange,
+  rangeStart: string,
+  avg: number | null,
+  goal: number | null
+): string {
+  const noun = unit === 'day' ? 'Daily' : unit === 'week' ? 'Weekly' : 'Monthly';
+  const base = `${noun} calories ${range === 'all' ? '' : 'for '}${rangePhrase(range, rangeStart)}`;
+  if (avg == null) return `${base}, no average yet`;
+  const against = goal != null ? ` against a ${fmt(goal)} goal` : '';
+  return `${base}, average ${fmt(avg)}${against}`;
 }
 
 function barPath(x: number, width: number, height: number, radius: number): string {
@@ -108,14 +120,12 @@ export function CalorieTrendChart({
   trend = [],
   weeklyRateKg = null,
 }: Props) {
-  const card = useThemeColor({}, 'cardBackground');
-  const background = useThemeColor({}, 'background');
+  const cardBackground = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const track = useThemeColor({}, 'track');
+  const chartBar = useThemeColor({}, 'chartBar');
   const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
   const { weightUnit } = usePreferences();
 
   const [width, setWidth] = useState(0);
@@ -149,17 +159,11 @@ export function CalorieTrendChart({
   const showGoal = goal != null && hasAverage;
   const phrase = rangePhrase(range, rangeStart);
   const barWidth = n > 0 && width > 0 ? (width - gap * (n - 1)) / n : 0;
+  const goalY = goal != null ? CHART_HEIGHT - (goal / scale) * CHART_HEIGHT : 0;
 
   const perBarLabels = n <= 8 && (range === '7d' || unit === 'month');
   const lastTick = unit === 'day' ? 'Today' : unit === 'week' ? 'This week' : 'This month';
-  const ticks =
-    n > 0
-      ? [
-          format(parseISO(rangeStart), 'MMM d'),
-          format(parseISO(buckets[Math.floor((n - 1) / 2)].start), 'MMM d'),
-          lastTick,
-        ]
-      : [];
+  const ticks = n > 0 ? [format(parseISO(rangeStart), 'd MMM'), lastTick] : [];
 
   const select = (b: Bucket) => {
     setSelectedKey(b.key);
@@ -167,140 +171,148 @@ export function CalorieTrendChart({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: card }]}>
-      <View style={styles.head}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-            Calories
-          </Text>
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: icon }]}>Weight</Text>
-            <Switch
-              value={showWeight}
-              onValueChange={onToggleWeight}
-              trackColor={{ false: icon, true: tint }}
-              thumbColor={background}
-              ios_backgroundColor={icon}
-              accessibilityLabel="Show weight trend"
-            />
-          </View>
-        </View>
-        {hasAverage ? (
-          <>
-            <View style={styles.avgRow}>
-              <Text style={[styles.avg, { color: text }]}>{fmt(summary.avg!.calories)}</Text>
-              <Text style={[styles.small, { color: icon }]}>cal avg per day</Text>
-            </View>
-            <Text style={[styles.caption, { color: icon }]}>
-              {`${summary.averagedDays} logged ${summary.averagedDays === 1 ? 'day' : 'days'} ${
-                range === 'all' ? phrase : `in ${phrase}`
-              }, today excluded`}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.avg, { color: icon }]}>No average yet</Text>
-            <Text style={[styles.caption, { color: icon }]}>
-              {`No meals logged ${range === 'all' ? phrase : `in ${phrase}`}, today excluded`}
-            </Text>
-          </>
-        )}
-      </View>
-
-      {showGoal && (
-        <View style={styles.legend}>
-          <View style={[styles.legendLine, { borderTopColor: icon }]} />
-          <Text style={[styles.small, { color: icon }]}>{`Goal ${fmt(goal!)} cal`}</Text>
-        </View>
-      )}
+    <Card style={styles.card}>
+      <ProgressCardHeader
+        label="Calories, daily average"
+        value={
+          hasAverage ? (
+            <ThemedText type="hero" style={styles.avg}>
+              {fmt(summary.avg!.calories)}
+            </ThemedText>
+          ) : (
+            <ThemedText type="stat" style={{ color: icon }}>
+              No average yet
+            </ThemedText>
+          )
+        }
+        valueAccessibilityLabel={
+          hasAverage ? `${fmt(summary.avg!.calories)} calories a day on average` : undefined
+        }
+        trailing={
+          <Chip
+            size="sm"
+            role="checkbox"
+            label="+ Weight"
+            selected={showWeight}
+            onPress={() => onToggleWeight?.(!showWeight)}
+            accessibilityLabel="Show weight trend"
+          />
+        }
+      />
 
       {hasWeightLine && (
         <View style={styles.weightLegendBlock}>
           <View style={styles.legend}>
             <View style={[styles.weightSwatch, { backgroundColor: text }]} />
-            <Text style={[styles.small, { color: icon }]}>{`Weight, ${weightUnit}`}</Text>
+            <ThemedText type="caption">{`Weight, ${weightUnit}`}</ThemedText>
           </View>
           {weeklyRateKg != null && (
-            <Text style={[styles.rateCaption, { color: icon }]}>
+            <ThemedText type="caption" style={styles.tabular}>
               {formatWeeklyRate(weeklyRateKg, weightUnit)}
-            </Text>
+            </ThemedText>
           )}
         </View>
       )}
 
       {needsMoreWeightPoints && (
-        <Text style={[styles.caption, { color: icon }]}>
-          The weight line needs 2 trend points.
-        </Text>
+        <ThemedText type="caption">The weight line needs 2 trend points.</ThemedText>
       )}
 
       <View style={styles.plotRow}>
         {hasWeightLine && (
           <View style={styles.leftGutter}>
-            <Text style={[styles.gutterTick, { color: icon }]}>{fmt(scale)}</Text>
-            <Text style={[styles.gutterTick, { color: icon }]}>0</Text>
+            <ThemedText type="caption" style={styles.tabular}>{fmt(scale)}</ThemedText>
+            <ThemedText type="caption" style={styles.tabular}>0</ThemedText>
           </View>
         )}
 
         <View style={styles.chartBlock}>
           <View style={styles.chart} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
-            {width > 0 && n > 0 && (
-              <Svg width={width} height={CHART_HEIGHT} accessible={false} importantForAccessibility="no-hide-descendants">
-                {buckets.map((b, i) => {
-                  const x = i * (barWidth + gap);
-                  const h = b.hasData ? Math.max(EMPTY_BAR, (b.calories / scale) * CHART_HEIGHT) : EMPTY_BAR;
-                  const isSelected = i === selectedIndex;
-                  if (!b.hasData) {
-                    return <Path key={b.key} d={barPath(x, barWidth, h, 1)} fill={isSelected ? tint : track} />;
-                  }
-                  return (
-                    <Path
-                      key={b.key}
-                      d={barPath(x, barWidth, h, radius)}
-                      fill={isSelected ? tint : icon}
-                      fillOpacity={isSelected ? 1 : 0.55}
-                    />
-                  );
-                })}
-                {goal != null && (
-                  <Line
-                    x1={0}
-                    x2={width}
-                    y1={CHART_HEIGHT - (goal / scale) * CHART_HEIGHT}
-                    y2={CHART_HEIGHT - (goal / scale) * CHART_HEIGHT}
-                    stroke={icon}
-                    strokeWidth={1.5}
-                    strokeDasharray="4 4"
-                  />
-                )}
-                {hasWeightLine &&
-                  domain != null &&
-                  segments
-                    .filter((seg) => seg.length >= 2)
-                    .map((seg) => {
-                      const points = seg
-                        .map(
-                          (pt) =>
-                            `${pt.index * (barWidth + gap) + barWidth / 2},${weightY(
-                              pt.kg,
-                              domain,
-                              CHART_HEIGHT
-                            )}`
-                        )
-                        .join(' ');
+            {n > 0 && (
+              <View
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={chartSummary(unit, range, rangeStart, summary.avg?.calories ?? null, goal)}
+                pointerEvents="none"
+              >
+                {width > 0 && (
+                <Svg width={width} height={CHART_HEIGHT} importantForAccessibility="no-hide-descendants">
+                  {buckets.map((b, i) => {
+                    const x = i * (barWidth + gap);
+                    const h = b.hasData ? Math.max(EMPTY_BAR, (b.calories / scale) * CHART_HEIGHT) : EMPTY_BAR;
+                    const isSelected = i === selectedIndex;
+                    if (!b.hasData) {
                       return (
-                        <Polyline
-                          key={seg[0].index}
-                          points={points}
-                          fill="none"
-                          stroke={text}
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        <Path
+                          key={b.key}
+                          d={barPath(x, barWidth, h, 1)}
+                          fill={isSelected ? tint : chartBar}
+                          fillOpacity={isSelected ? 1 : STUB_OPACITY}
                         />
                       );
-                    })}
-              </Svg>
+                    }
+                    const isToday = b.unit === 'day' && b.isCurrent;
+                    return (
+                      <Path
+                        key={b.key}
+                        d={barPath(x, barWidth, h, radius)}
+                        fill={isSelected ? tint : chartBar}
+                        fillOpacity={isToday && !isSelected ? TODAY_OPACITY : 1}
+                      />
+                    );
+                  })}
+                  {goal != null && (
+                    <Line
+                      x1={0}
+                      x2={width}
+                      y1={goalY}
+                      y2={goalY}
+                      stroke={icon}
+                      strokeOpacity={0.6}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                    />
+                  )}
+                  {hasWeightLine &&
+                    domain != null &&
+                    segments
+                      .filter((seg) => seg.length >= 2)
+                      .map((seg) => {
+                        const points = seg
+                          .map(
+                            (pt) =>
+                              `${pt.index * (barWidth + gap) + barWidth / 2},${weightY(
+                                pt.kg,
+                                domain,
+                                CHART_HEIGHT
+                              )}`
+                          )
+                          .join(' ');
+                        return (
+                          <Polyline
+                            key={seg[0].index}
+                            points={points}
+                            fill="none"
+                            stroke={text}
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        );
+                      })}
+                </Svg>
+                )}
+              </View>
+            )}
+            {showGoal && (
+              <View
+                style={[styles.goalLabel, { top: Math.max(0, goalY - 18), backgroundColor: cardBackground }]}
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <ThemedText type="caption" style={styles.tabular}>{`Goal ${fmt(goal!)}`}</ThemedText>
+              </View>
             )}
             <View style={[styles.touchRow, { gap }]}>
               {buckets.map((b, i) => (
@@ -319,21 +331,22 @@ export function CalorieTrendChart({
           {perBarLabels ? (
             <View style={[styles.labelRow, { gap }]}>
               {buckets.map((b, i) => (
-                <Text
+                <ThemedText
                   key={b.key}
+                  type="caption"
                   numberOfLines={1}
                   style={[styles.axisLabel, { color: i === selectedIndex ? text : icon }]}
                 >
                   {barLabel(b)}
-                </Text>
+                </ThemedText>
               ))}
             </View>
           ) : (
             <View style={styles.tickRow}>
               {ticks.map((t, i) => (
-                <Text key={i} style={[styles.axisTick, { color: icon }]}>
+                <ThemedText key={i} type="caption">
                   {t}
-                </Text>
+                </ThemedText>
               ))}
             </View>
           )}
@@ -341,72 +354,59 @@ export function CalorieTrendChart({
 
         {hasWeightLine && domain != null && (
           <View style={styles.rightGutter}>
-            <Text style={[styles.gutterTick, styles.rightGutterTick, { color: text }]}>
+            <ThemedText type="caption" style={[styles.tabular, styles.rightTick, { color: text }]}>
               {formatWeight(domain.max, weightUnit)}
-            </Text>
-            <Text style={[styles.gutterTick, styles.rightGutterTick, { color: text }]}>
+            </ThemedText>
+            <ThemedText type="caption" style={[styles.tabular, styles.rightTick, { color: text }]}>
               {formatWeight(domain.min, weightUnit)}
-            </Text>
+            </ThemedText>
           </View>
         )}
       </View>
 
+      <ThemedText type="caption">
+        {hasAverage
+          ? `${summary.averagedDays} logged ${summary.averagedDays === 1 ? 'day' : 'days'} ${
+              range === 'all' ? phrase : `in ${phrase}`
+            }, today excluded`
+          : `No meals logged ${range === 'all' ? phrase : `in ${phrase}`}, today excluded`}
+      </ThemedText>
+
       {showFooter && (
         <View style={[styles.footer, { borderTopColor: separator }]}>
           <View style={styles.footerText}>
-            <Text style={[styles.footerLabel, { color: icon }]}>{selectionLabel(selected)}</Text>
-            <Text style={[styles.footerValue, { color: text }]}>
+            <ThemedText type="label" style={{ color: icon }}>{selectionLabel(selected)}</ThemedText>
+            <ThemedText type="stat" style={styles.footerValue}>
               {selected.hasData
                 ? `${fmt(selected.calories)} cal${selected.unit === 'day' ? '' : ' avg'}`
                 : 'Nothing logged'}
-            </Text>
+            </ThemedText>
             {selectedWeightKg != null && (
-              <Text style={[styles.footerValue, { color: text }]}>
+              <ThemedText type="body" style={styles.tabular}>
                 {formatWeightWithUnit(selectedWeightKg, weightUnit)}
-              </Text>
+              </ThemedText>
             )}
           </View>
           {selected.unit === 'day' && (
-            <TouchableOpacity
-              style={[styles.viewDay, { borderColor: fieldBorder }]}
-              onPress={() => onOpenDay(selected.key)}
-              accessibilityRole="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              label="View day"
               accessibilityLabel={`View day, ${selectionLabel(selected)}`}
-            >
-              <Text style={[styles.viewDayText, { color: tint }]}>View day</Text>
-              <MaterialIcons name="chevron-right" size={18} color={tint} />
-            </TouchableOpacity>
+              onPress={() => onOpenDay(selected.key)}
+            />
           )}
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 20, gap: 16 },
-  head: { gap: 4 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  title: { fontSize: 17, fontWeight: '600', lineHeight: 22 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 44,
-  },
-  toggleLabel: { fontSize: 13, fontWeight: '500' },
-  avgRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  avg: { fontSize: 22, fontWeight: '700', lineHeight: 26, fontVariant: ['tabular-nums'] },
-  small: { fontSize: 12 },
-  caption: { fontSize: 12, lineHeight: 17 },
-  rateCaption: { fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
+  card: { gap: 14 },
+  avg: { fontSize: 34, lineHeight: 40 },
+  tabular: { fontVariant: ['tabular-nums'] },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendLine: { width: 18, borderTopWidth: 1.5, borderStyle: 'dashed' },
   weightLegendBlock: { gap: 4 },
   weightSwatch: { width: 18, height: 2, borderRadius: 1 },
   plotRow: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -423,18 +423,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingLeft: 6,
   },
-  gutterTick: { fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
-  rightGutterTick: { textAlign: 'right' },
+  rightTick: { textAlign: 'right' },
   chartBlock: { flex: 1, gap: 8 },
   chart: { height: CHART_HEIGHT },
+  goalLabel: { position: 'absolute', right: 0, paddingHorizontal: 4, borderRadius: 4 },
   touchRow: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, flexDirection: 'row' },
   touchColumn: { flex: 1 },
   labelRow: { flexDirection: 'row' },
-  axisLabel: { flex: 1, textAlign: 'center', fontSize: 12 },
+  axisLabel: { flex: 1, textAlign: 'center' },
   tickRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  axisTick: { fontSize: 12 },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
@@ -442,17 +442,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   footerText: { gap: 2, flexShrink: 1 },
-  footerLabel: { fontSize: 13, fontWeight: '500' },
-  footerValue: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  viewDay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minHeight: 44,
-    paddingLeft: 12,
-    paddingRight: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-  },
-  viewDayText: { fontSize: 15, fontWeight: '600' },
+  footerValue: { fontSize: 18, lineHeight: 22 },
 });

@@ -18,14 +18,24 @@ export function computeStreaks(dates: string[], today: string): Streaks {
     longestStreak = Math.max(longestStreak, run);
   }
 
-  const logged = new Set(sorted);
+  return { currentStreak: currentRun(sorted, today).length, longestStreak };
+}
+
+/** The run behind the current streak, oldest first. Shared so the count and the dates cannot drift. */
+function currentRun(sortedUnique: string[], today: string): string[] {
+  const logged = new Set(sortedUnique);
   const yesterday = format(addDays(parseISO(today), -1), 'yyyy-MM-dd');
   let cursor = logged.has(today) ? parseISO(today) : logged.has(yesterday) ? parseISO(yesterday) : null;
-  let currentStreak = 0;
+  const run: string[] = [];
   while (cursor && logged.has(format(cursor, 'yyyy-MM-dd'))) {
-    currentStreak++;
+    run.push(format(cursor, 'yyyy-MM-dd'));
     cursor = addDays(cursor, -1);
   }
+  return run.reverse();
+}
 
-  return { currentStreak, longestStreak };
+/** The dates of the current streak (same run `computeStreaks` counts), oldest first. */
+export function currentStreakDates(dates: string[], today: string): string[] {
+  const sorted = [...new Set(dates)].filter((d) => d <= today).sort();
+  return currentRun(sorted, today);
 }

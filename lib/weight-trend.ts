@@ -117,6 +117,25 @@ export function formatWeeklyRate(kgPerWeek: number, unit: WeightUnit): string {
 }
 
 /**
+ * Smoothed change between the first and last trend points dated in [start, end].
+ * `days` is the calendar span between those two points. Null under 2 points.
+ */
+export function trendChange(
+  points: TrendPoint[],
+  start: string,
+  end: string
+): { changeKg: number; days: number } | null {
+  const inRange = points.filter((p) => p.date >= start && p.date <= end);
+  if (inRange.length < 2) return null;
+  const first = inRange[0];
+  const last = inRange[inRange.length - 1];
+  return {
+    changeKg: last.trend_kg - first.trend_kg,
+    days: differenceInCalendarDays(parseISO(last.date), parseISO(first.date)),
+  };
+}
+
+/**
  * Vertical domain for display-unit values.
  * Empty -> { min: 0, max: 1 }; otherwise width is at least 0.5 centered on the mid-point.
  */

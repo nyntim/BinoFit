@@ -4,6 +4,7 @@ import {
   bucketSpine,
   buildDailyTotals,
   chartScale,
+  consistencyDays,
   enumerateDates,
   rangeBounds,
   summarize,
@@ -362,5 +363,60 @@ describe('chartScale', () => {
   it('never goes below 100', () => {
     expect(chartScale([0, 0], null)).toBe(100);
     expect(chartScale([], null)).toBe(100);
+  });
+});
+
+describe('consistencyDays', () => {
+  const today = '2026-10-17';
+
+  it('7D gives 7 cells ending today with isToday only on the last', () => {
+    const { cells, capped } = consistencyDays({ loggedDates: [], streakDates: [], today, rangeStart: '2026-10-11' });
+    expect(cells).toHaveLength(7);
+    expect(cells[6].date).toBe(today);
+    expect(cells.filter((c) => c.isToday)).toHaveLength(1);
+    expect(cells[6].isToday).toBe(true);
+    expect(capped).toBe(false);
+  });
+
+  it('30D gives 30 cells', () => {
+    const { cells } = consistencyDays({ loggedDates: [], streakDates: [], today, rangeStart: '2026-09-18' });
+    expect(cells).toHaveLength(30);
+  });
+
+  it('All with a first log 200 days ago is capped at 90 cells', () => {
+    const { cells, capped } = consistencyDays({ loggedDates: [], streakDates: [], today, rangeStart: '2026-03-31' });
+    expect(cells).toHaveLength(90);
+    expect(capped).toBe(true);
+  });
+
+  it('All with 12 days of history gives 12 cells, uncapped', () => {
+    const { cells, capped } = consistencyDays({ loggedDates: [], streakDates: [], today, rangeStart: '2026-10-06' });
+    expect(cells).toHaveLength(12);
+    expect(capped).toBe(false);
+  });
+
+  it('streak cells match streakDates and are always logged', () => {
+    const { cells } = consistencyDays({
+      loggedDates: ['2026-10-12', '2026-10-15', '2026-10-16', '2026-10-17'],
+      streakDates: ['2026-10-15', '2026-10-16', '2026-10-17'],
+      today,
+      rangeStart: '2026-10-11',
+    });
+    expect(cells.filter((c) => c.streak).map((c) => c.date)).toEqual(['2026-10-15', '2026-10-16', '2026-10-17']);
+    expect(cells.filter((c) => c.logged).map((c) => c.date)).toEqual([
+      '2026-10-12',
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17',
+    ]);
+    for (const c of cells) if (c.streak) expect(c.logged).toBe(true);
+  });
+
+  it('crosses a month boundary and a DST change without gaps or duplicates', () => {
+    for (const t of ['2026-11-04', '2026-03-12', '2026-10-17']) {
+      const { cells } = consistencyDays({ loggedDates: [], streakDates: [], today: t, rangeStart: '2025-01-01', maxDays: 30 });
+      expect(cells.map((c) => c.date)).toEqual(enumerateDates(cells[0].date, t));
+      expect(new Set(cells.map((c) => c.date)).size).toBe(30);
+    }
   });
 });

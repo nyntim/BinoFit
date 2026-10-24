@@ -1,4 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { ProgressCardHeader } from '@/components/progress/ProgressCardHeader';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/Card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { formatShortDate } from '@/lib/workouts/format';
@@ -14,77 +18,72 @@ type Props = {
 };
 
 export function RecentRecordsCard({ records, onPressRecord }: Props) {
-  const card = useThemeColor({}, 'cardBackground');
-  const text = useThemeColor({}, 'text');
-  const icon = useThemeColor({}, 'icon');
+  const ember = useThemeColor({}, 'ember');
   const separator = useThemeColor({}, 'separator');
   const { weightUnit } = usePreferences();
 
   return (
-    <View style={[styles.card, { backgroundColor: card }]}>
-      <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-        Recent records
-      </Text>
+    <Card padding="none" style={styles.card}>
+      <View style={styles.header}>
+        <ProgressCardHeader label="Recent records" />
+      </View>
       {records.length === 0 ? (
-        <Text style={[styles.empty, { color: icon }]}>No records yet.</Text>
+        <ThemedText type="caption" style={styles.empty}>
+          No records yet.
+        </ThemedText>
       ) : (
-        <View>
-          {records.map((r, i) => {
-            const last = i === records.length - 1;
-            const kindLabel = recordKindLabel(r.kind);
-            const valueLabel = formatRecordValue(r, weightUnit);
-            const dateLabel = formatShortDate(r.date);
-            return (
-              <Pressable
-                key={`${r.exerciseId}:${r.kind}`}
-                onPress={() => onPressRecord(r.workoutId)}
-                accessibilityRole="button"
-                accessibilityLabel={[r.exerciseName, kindLabel, valueLabel, dateLabel].join(', ')}
-                style={({ pressed }) => [
-                  styles.row,
-                  pressed && { opacity: 0.85 },
-                  !last && {
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: separator,
-                  },
-                ]}
-              >
-                <View style={styles.main}>
-                  <Text style={[styles.name, { color: text }]} numberOfLines={1}>
-                    {r.exerciseName}
-                  </Text>
-                  <Text style={[styles.kind, { color: icon }]} numberOfLines={1}>
-                    {kindLabel}
-                  </Text>
-                </View>
-                <View style={styles.side}>
-                  <Text style={[styles.value, { color: text }]}>{valueLabel}</Text>
-                  <Text style={[styles.date, { color: icon }]}>{dateLabel}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+        records.map((r) => {
+          const kindLabel = recordKindLabel(r.kind);
+          const valueLabel = formatRecordValue(r, weightUnit);
+          const dateLabel = formatShortDate(r.date);
+          return (
+            <Pressable
+              key={`${r.exerciseId}:${r.kind}`}
+              onPress={() => onPressRecord(r.workoutId)}
+              accessibilityRole="button"
+              accessibilityLabel={[r.exerciseName, kindLabel, valueLabel, dateLabel].join(', ')}
+              style={({ pressed }) => [
+                styles.row,
+                { borderTopColor: separator },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                <IconSymbol name="star.fill" size={16} color={ember} />
+              </View>
+              <View style={styles.main}>
+                <ThemedText type="body" style={styles.name} numberOfLines={1}>
+                  {r.exerciseName}
+                </ThemedText>
+                <ThemedText type="caption" numberOfLines={1}>
+                  {`${kindLabel} · ${dateLabel}`}
+                </ThemedText>
+              </View>
+              <ThemedText type="body" style={styles.value}>
+                {valueLabel}
+              </ThemedText>
+            </Pressable>
+          );
+        })
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 20, gap: 16 },
-  title: { fontSize: 17, fontWeight: '600', lineHeight: 22 },
-  empty: { fontSize: 12, lineHeight: 17 },
+  card: { overflow: 'hidden' },
+  header: { paddingTop: 16, paddingHorizontal: 18, paddingBottom: 6 },
+  empty: { paddingHorizontal: 18, paddingBottom: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingVertical: 12,
-    minHeight: 44,
+    gap: 12,
+    minHeight: 56,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  main: { flex: 1, minWidth: 0, gap: 2 },
-  name: { fontSize: 15 },
-  kind: { fontSize: 12 },
-  side: { alignItems: 'flex-end', gap: 2, flexShrink: 0, maxWidth: '45%' },
-  value: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  date: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  main: { flex: 1, minWidth: 0 },
+  name: { fontWeight: '600' },
+  value: { fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 0, maxWidth: '40%', textAlign: 'right' },
 });

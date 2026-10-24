@@ -68,6 +68,34 @@ export function enumerateDates(start: string, end: string): string[] {
   return out;
 }
 
+export type ConsistencyCell = { date: string; logged: boolean; streak: boolean; isToday: boolean };
+
+/**
+ * Day cells for the Consistency grid, oldest first, from the later of `rangeStart` and
+ * `maxDays - 1` days before today, through today. `capped` is true when the range was longer.
+ */
+export function consistencyDays(params: {
+  loggedDates: string[];
+  streakDates: string[];
+  today: string;
+  rangeStart: string;
+  maxDays?: number;
+}): { cells: ConsistencyCell[]; capped: boolean } {
+  const { loggedDates, streakDates, today, rangeStart, maxDays = 90 } = params;
+  const floor = format(addDays(parseISO(today), -(maxDays - 1)), DATE_FMT);
+  const capped = rangeStart < floor;
+  const start = capped ? floor : rangeStart;
+  const logged = new Set(loggedDates);
+  const streak = new Set(streakDates);
+  const cells = enumerateDates(start, today).map((date) => ({
+    date,
+    logged: logged.has(date) || streak.has(date),
+    streak: streak.has(date),
+    isToday: date === today,
+  }));
+  return { cells, capped };
+}
+
 /** Rolling window ending today. `all` starts at the first logged date. */
 export function rangeBounds(
   range: ProgressRange,

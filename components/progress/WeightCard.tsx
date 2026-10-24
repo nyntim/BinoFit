@@ -1,20 +1,27 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { format, isToday, parseISO } from 'date-fns';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { isToday, parseISO } from 'date-fns';
+import { ProgressCardHeader } from '@/components/progress/ProgressCardHeader';
 import { WeightChart } from '@/components/progress/WeightChart';
 import { WeightEntrySheet } from '@/components/progress/WeightEntrySheet';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useWeightEntries } from '@/hooks/useWeightEntries';
 import type { ProgressRange } from '@/lib/progress';
-import { formatWeightWithUnit } from '@/lib/units';
+import { formatWeight, formatWeightWithUnit } from '@/lib/units';
 import { formatWeightChange } from '@/lib/weight';
 import {
   formatWeeklyRate,
+  trendChange,
   trendWeights,
   weeklyRate,
   weightRangeBounds,
 } from '@/lib/weight-trend';
+import { formatShortDate } from '@/lib/workouts/format';
 import type { WeightEntry } from '@/lib/types';
 
 const RECENT_DAYS = 5;
@@ -25,18 +32,17 @@ type Props = {
 };
 
 function dayLabel(date: string): string {
-  const d = parseISO(date);
-  return isToday(d) ? 'Today' : format(d, 'EEE d MMM');
+  return isToday(parseISO(date)) ? 'Today' : formatShortDate(date);
 }
 
-/** Latest weight, change since the previous day logged, trend chart, and the last few days. */
+function sourceLabel(entry: WeightEntry): string {
+  return entry.source === 'healthkit' ? 'Apple Health' : 'Logged';
+}
+
+/** Trend value, range change, trend chart and the last few weigh-ins. */
 export function WeightCard({ range, today }: Props) {
-  const card = useThemeColor({}, 'cardBackground');
-  const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
-  const background = useThemeColor({}, 'background');
-  const border = useThemeColor({}, 'fieldBorder');
+  const separator = useThemeColor({}, 'separator');
   const { weightUnit: unit } = usePreferences();
   const { days, status, reload } = useWeightEntries();
 
@@ -52,7 +58,6 @@ export function WeightCard({ range, today }: Props) {
   const closeSheet = () => setSheet((s) => ({ ...s, open: false }));
 
   const latest = days[0] ?? null;
-  const previous = days[1] ?? null;
 
   const trend = trendWeights(days);
   const trendUpToToday = trend.filter((p) => p.date <= today);
@@ -60,88 +65,70 @@ export function WeightCard({ range, today }: Props) {
   const rateKg = weeklyRate(trend, today);
   const earliestWeighIn = trend[0]?.date ?? null;
   const bounds = weightRangeBounds(range, today, earliestWeighIn);
+  const change = trendChange(trend, bounds.start, bounds.end);
   const recentDays = days.slice(0, RECENT_DAYS);
 
+  const trendKg = latestTrend?.trend_kg ?? latest?.weight_kg ?? null;
+  const changeText = change
+    ? `${formatWeightChange(change.changeKg, 0, unit)} in ${change.days} ${change.days === 1 ? 'day' : 'days'}`
+    : null;
+
+  const changeLabel = change
+    ? `${Number(formatWeight(Math.abs(change.changeKg), unit)) === 0 ? '' : change.changeKg < 0 ? 'minus ' : 'plus '}${formatWeight(Math.abs(change.changeKg), unit)} ${unit} in ${change.days} ${change.days === 1 ? 'day' : 'days'}`
+    : undefined;
+
+  const logButton = (
+    <Button variant="soft" label="Log weight" fullWidth onPress={openNew} />
+  );
+
   return (
-    <View style={[styles.card, { backgroundColor: card }]}>
-      <View style={styles.header}>
-        <Text style={[styles.heading, { color: text }]} accessibilityRole="header">
-          Weight
-        </Text>
-        {latest && (
-          <TouchableOpacity
-            style={styles.textButton}
-            onPress={openNew}
-            accessibilityRole="button"
-            accessibilityLabel="Log weight"
-          >
-            <Text style={[styles.textButtonLabel, { color: tint }]}>Log weight</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <Card style={styles.card}>
+      <ProgressCardHeader
+        label="Weight trend"
+        value={
+          status === 'ready' && trendKg !== null ? (
+            <ThemedText type="stat" style={styles.value}>
+              {formatWeight(trendKg, unit)}
+              <ThemedText type="body" style={{ color: icon }}>{` ${unit}`}</ThemedText>
+            </ThemedText>
+          ) : undefined
+        }
+        valueAccessibilityLabel={
+          status === 'ready' && trendKg !== null
+            ? `Weight trend ${formatWeightWithUnit(trendKg, unit)}`
+            : undefined
+        }
+        caption={status === 'ready' && rateKg !== null ? formatWeeklyRate(rateKg, unit) : undefined}
+        trailing={
+          status === 'ready' && changeText ? (
+            <Chip
+              size="sm"
+              label={changeText}
+              accessibilityLabel={changeLabel}
+            />
+          ) : undefined
+        }
+      />
 
       {status === 'loading' && <ActivityIndicator color={icon} style={styles.loading} />}
 
       {status === 'error' && (
         <View style={styles.message}>
-          <Text style={[styles.body, { color: text }]}>Couldn&apos;t load weight.</Text>
-          <TouchableOpacity
-            style={styles.textButton}
-            onPress={reload}
-            accessibilityRole="button"
-            accessibilityLabel="Retry"
-          >
-            <Text style={[styles.textButtonLabel, { color: tint }]}>Retry</Text>
-          </TouchableOpacity>
+          <ThemedText type="body">Couldn&apos;t load weight.</ThemedText>
+          <Button variant="ghost" size="sm" label="Retry" onPress={reload} />
         </View>
       )}
 
       {status === 'ready' && !latest && (
         <View style={styles.message}>
-          <Text style={[styles.body, { color: text }]}>No weight logged yet.</Text>
-          <Text style={[styles.caption, { color: icon }]}>Weight you log appears here.</Text>
-          <TouchableOpacity
-            style={[styles.primary, { backgroundColor: tint }]}
-            onPress={openNew}
-            accessibilityRole="button"
-            accessibilityLabel="Log weight"
-          >
-            <Text style={[styles.primaryText, { color: background }]}>Log weight</Text>
-          </TouchableOpacity>
+          <ThemedText type="body">No weight logged yet.</ThemedText>
+          <ThemedText type="caption">Weight you log appears here.</ThemedText>
+          {logButton}
         </View>
       )}
 
       {status === 'ready' && latest && (
         <>
-          <TouchableOpacity
-            onPress={() => openEdit(latest)}
-            accessibilityRole="button"
-            accessibilityLabel={`${dayLabel(latest.date)}, ${formatWeightWithUnit(latest.weight_kg, unit)}. Edit`}
-          >
-            <Text style={[styles.value, { color: text }]}>
-              {formatWeightWithUnit(latest.weight_kg, unit)}
-            </Text>
-            <Text style={[styles.caption, { color: icon }]}>{dayLabel(latest.date)}</Text>
-          </TouchableOpacity>
-          {previous && (
-            <Text style={[styles.caption, { color: icon }]}>
-              {formatWeightChange(latest.weight_kg, previous.weight_kg, unit)} since{' '}
-              {format(parseISO(previous.date), 'd MMM')}
-            </Text>
-          )}
-          {trendUpToToday.length >= 2 && latestTrend && (
-            <>
-              <Text style={[styles.caption, { color: icon }]}>
-                {`Trend ${formatWeightWithUnit(latestTrend.trend_kg, unit)}`}
-              </Text>
-              {rateKg !== null && (
-                <Text style={[styles.caption, { color: icon }]}>
-                  {formatWeeklyRate(rateKg, unit)}
-                </Text>
-              )}
-            </>
-          )}
-
           <WeightChart
             points={trend}
             rangeStart={bounds.start}
@@ -150,30 +137,36 @@ export function WeightCard({ range, today }: Props) {
             weeklyRateKg={rateKg}
           />
 
-          {recentDays.length > 1 && (
-            <View style={styles.list}>
-              {recentDays.slice(1).map((entry, i) => (
-                <TouchableOpacity
-                  key={entry.id}
-                  style={[
-                    styles.row,
-                    i > 0 && {
-                      borderTopWidth: StyleSheet.hairlineWidth,
-                      borderTopColor: border,
-                    },
-                  ]}
-                  onPress={() => openEdit(entry)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${dayLabel(entry.date)}, ${formatWeightWithUnit(entry.weight_kg, unit)}. Edit`}
-                >
-                  <Text style={[styles.rowDate, { color: icon }]}>{dayLabel(entry.date)}</Text>
-                  <Text style={[styles.rowValue, { color: text }]}>
-                    {formatWeightWithUnit(entry.weight_kg, unit)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {logButton}
+
+          <View>
+            {recentDays.map((entry, i) => (
+              <Pressable
+                key={entry.id}
+                style={({ pressed }) => [
+                  styles.row,
+                  i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separator },
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => openEdit(entry)}
+                accessibilityRole="button"
+                accessibilityLabel={`${dayLabel(entry.date)}, ${formatWeightWithUnit(entry.weight_kg, unit)}, ${sourceLabel(entry)}. Edit`}
+              >
+                <View style={styles.rowMain}>
+                  <ThemedText type="body" style={styles.rowDate}>
+                    {dayLabel(entry.date)}
+                  </ThemedText>
+                  <ThemedText type="caption">{sourceLabel(entry)}</ThemedText>
+                </View>
+                <View style={styles.rowValue}>
+                  <ThemedText type="stat" style={styles.rowNumber}>
+                    {formatWeight(entry.weight_kg, unit)}
+                  </ThemedText>
+                  <ThemedText type="caption">{unit}</ThemedText>
+                </View>
+              </Pressable>
+            ))}
+          </View>
         </>
       )}
 
@@ -183,45 +176,26 @@ export function WeightCard({ range, today }: Props) {
         onClose={closeSheet}
         onChanged={reload}
       />
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 20 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heading: { fontSize: 17, fontWeight: '600' },
-  textButton: {
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  textButtonLabel: { fontSize: 15, fontWeight: '600' },
+  card: { gap: 14 },
+  value: { fontSize: 30, lineHeight: 34 },
   loading: { paddingVertical: 24 },
-  message: { gap: 4, paddingTop: 4 },
-  body: { fontSize: 15 },
-  caption: { fontSize: 13, lineHeight: 18, fontVariant: ['tabular-nums'] },
-  primary: {
-    minHeight: 48,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  primaryText: { fontSize: 17, fontWeight: '600' },
-  value: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  list: { marginTop: 12 },
+  message: { gap: 8 },
   row: {
-    minHeight: 44,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 8,
   },
-  rowDate: { fontSize: 13 },
-  rowValue: { fontSize: 15, fontWeight: '400', fontVariant: ['tabular-nums'] },
+  pressed: { opacity: 0.85 },
+  rowMain: { flexShrink: 1 },
+  rowDate: { fontWeight: '600' },
+  rowValue: { flexDirection: 'row', alignItems: 'baseline', gap: 4, flexShrink: 0 },
+  rowNumber: { fontSize: 18, lineHeight: 22 },
 });

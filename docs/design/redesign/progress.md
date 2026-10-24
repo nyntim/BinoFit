@@ -2,7 +2,7 @@
 
 Canvas page: **Progress**. Board sources: `boards/Prg*.dc.html`. Read [foundations.md](foundations.md) first. Behavior reference: `docs/architecture/progress.md`, `docs/architecture/weight.md`, ADRs [0009](../../decisions/0009-weight-log.md), [0012](../../decisions/0012-progress-charts.md), [0013](../../decisions/0013-progress-counting-rules.md).
 
-Rules that do not change: computation stays in pure modules (`lib/progress.ts`, `lib/streak.ts`, `lib/weight-chart.ts`, `lib/workouts/progress.ts`, `lib/calorie-weight.ts`); hooks only fetch; hand-rolled SVG charts; weeks start Monday; averages exclude today.
+Rules that do not change: computation stays in pure modules (`lib/progress.ts`, `lib/streak.ts`, `lib/workouts/progress.ts`, `lib/calorie-weight.ts`); hooks only fetch; hand-rolled SVG charts; weeks start Monday; averages exclude today.
 
 ## PrgMain: Progress (full scroll)
 
@@ -38,3 +38,10 @@ Rules that do not change: computation stays in pure modules (`lib/progress.ts`, 
 - **Component:** the edit mode of `WeightEntrySheet` opened from a weight entry (entries list on the weight card or a weight entries screen).
 - **Layout:** behind the sheet, the entries list (date, source Logged / Apple Health, value with unit); sheet: Cancel / date / Save, large editable value with tint underline and "unit · logged at time", Delete entry (`danger` on `dangerSoft`), caption "Your profile weight follows the latest entry." Board is in dark mode to show the dark sheet.
 - **Behavior:** delete uses the standard destructive confirmation and tombstones (`lib/tombstones.ts`).
+
+## Built notes
+
+- The entries list lives on the weight card (up to 5 recent days with their source); there is no separate Weight screen.
+- The Consistency card keeps the month calendar (browsing, day taps, trained dots) under the new day grid and tiles (ADR 0012).
+- Not built, left for the owner: the weight sheet's Time row, the ±0.1 buttons and the "Last entry" line.
+- The Health notice heart is `tint`, not protein red (DESIGN invariant 3).

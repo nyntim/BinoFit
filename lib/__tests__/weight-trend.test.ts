@@ -1,11 +1,14 @@
 import {
   formatWeeklyRate,
+  trendChange,
   trendWeights,
   weeklyRate,
   weightChartDomain,
   weightRangeBounds,
   type TrendInput,
+  type TrendPoint,
 } from '@/lib/weight-trend';
+import { formatWeightChange } from '@/lib/weight';
 
 const entry = (
   id: string,
@@ -263,5 +266,46 @@ describe('weightRangeBounds', () => {
       start: '2026-03-01',
       end: '2026-03-01',
     });
+  });
+});
+
+describe('trendChange', () => {
+  const pt = (date: string, trend_kg: number, weight_kg = trend_kg + 5): TrendPoint => ({
+    date,
+    weight_kg,
+    trend_kg,
+    source: 'manual',
+  });
+
+  it('is null with 0 or 1 in-range points', () => {
+    expect(trendChange([], '2026-10-01', '2026-10-31')).toBeNull();
+    expect(trendChange([pt('2026-10-05', 80)], '2026-10-01', '2026-10-31')).toBeNull();
+    expect(trendChange([pt('2026-09-05', 80), pt('2026-10-05', 79)], '2026-10-01', '2026-10-31')).toBeNull();
+  });
+
+  it('uses trend_kg, not weight_kg', () => {
+    const r = trendChange([pt('2026-10-01', 80, 90), pt('2026-10-08', 79, 70)], '2026-10-01', '2026-10-31');
+    expect(r?.changeKg).toBeCloseTo(-1);
+  });
+
+  it('ignores points outside the range', () => {
+    const r = trendChange(
+      [pt('2026-09-01', 90), pt('2026-10-03', 80), pt('2026-10-10', 79), pt('2026-11-20', 60)],
+      '2026-10-01',
+      '2026-10-31'
+    );
+    expect(r?.changeKg).toBeCloseTo(-1);
+  });
+
+  it('days is the span between the first and last in-range points', () => {
+    const r = trendChange([pt('2026-10-03', 80), pt('2026-10-10', 79)], '2026-09-01', '2026-10-31');
+    expect(r?.days).toBe(7);
+  });
+
+  it('formats through formatWeightChange with a minus sign and a zero case', () => {
+    const down = trendChange([pt('2026-10-03', 80), pt('2026-10-10', 79)], '2026-10-01', '2026-10-31')!;
+    expect(formatWeightChange(80 + down.changeKg, 80, 'lb')).toBe('−2.2 lb');
+    const flat = trendChange([pt('2026-10-03', 80), pt('2026-10-10', 80.001)], '2026-10-01', '2026-10-31')!;
+    expect(formatWeightChange(80 + flat.changeKg, 80, 'lb')).toBe('0 lb');
   });
 });

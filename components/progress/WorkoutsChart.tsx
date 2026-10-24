@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { format, parseISO } from 'date-fns';
+import { ProgressCardHeader } from '@/components/progress/ProgressCardHeader';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/Card';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { chartScale, type BucketUnit, type ProgressRange } from '@/lib/progress';
@@ -22,14 +19,15 @@ import {
 import { formatDurationShort, formatVolume } from '@/lib/workouts/summary';
 import type { WeightUnit } from '@/lib/types';
 
-const CHART_HEIGHT = 160;
+const CHART_HEIGHT = 100;
+const STUB_OPACITY = 0.35;
 const EMPTY_BAR = 3;
 
 type WorkoutMetric = 'sessions' | 'volume';
 
-const METRICS: { id: WorkoutMetric; label: string }[] = [
-  { id: 'sessions', label: 'Sessions' },
-  { id: 'volume', label: 'Volume' },
+const METRICS: { value: WorkoutMetric; label: string }[] = [
+  { value: 'sessions', label: 'Sessions' },
+  { value: 'volume', label: 'Volume' },
 ];
 
 type Props = {
@@ -45,19 +43,20 @@ function rangePhrase(range: ProgressRange, rangeStart: string): string {
   if (range === '7d') return 'the last 7 days';
   if (range === '30d') return 'the last 30 days';
   if (range === '90d') return 'the last 90 days';
-  return `since ${format(parseISO(rangeStart), 'MMM d')}`;
+  return `since ${format(parseISO(rangeStart), 'd MMM')}`;
 }
 
 function selectionLabel(b: TrainingBucket): string {
-  if (b.unit === 'day') return b.isCurrent ? 'Today so far' : format(parseISO(b.key), 'EEE, MMM d');
+  if (b.unit === 'day') return b.isCurrent ? 'Today so far' : format(parseISO(b.key), 'EEE, d MMM');
   if (b.unit === 'week')
-    return b.isCurrent ? 'This week so far' : `Week of ${format(parseISO(b.key), 'MMM d')}`;
+    return b.isCurrent ? 'This week so far' : `Week of ${format(parseISO(b.key), 'd MMM')}`;
   const month = format(parseISO(b.key), 'MMMM');
   return b.isCurrent ? `${month} (so far)` : month;
 }
 
 function barLabel(b: TrainingBucket): string {
   if (b.unit === 'day') return b.isCurrent ? 'Today' : format(parseISO(b.key), 'EEE');
+  if (b.unit === 'week') return format(parseISO(b.key), 'd MMM');
   return format(parseISO(b.key), 'MMM');
 }
 
@@ -66,7 +65,7 @@ function barAria(b: TrainingBucket, metric: WorkoutMetric, weightUnit: WeightUni
     b.unit === 'day'
       ? b.isCurrent
         ? 'Today'
-        : format(parseISO(b.key), 'EEE MMM d')
+        : format(parseISO(b.key), 'EEE d MMM')
       : selectionLabel(b);
   if (!b.hasData) return `${name}, nothing trained`;
   if (metric === 'sessions') {
@@ -85,6 +84,25 @@ function footerValue(b: TrainingBucket, metric: WorkoutMetric, weightUnit: Weigh
   return `${formatVolume(b.volumeKg, weightUnit)} ${weightUnit}`;
 }
 
+function chartSummary(
+  buckets: TrainingBucket[],
+  unit: BucketUnit,
+  metric: WorkoutMetric,
+  weightUnit: WeightUnit
+): string {
+  const per = unit === 'day' ? 'day' : unit === 'week' ? 'week' : 'month';
+  const values = buckets.map((b) => {
+    if (metric === 'sessions') return String(b.sessions);
+    return b.volumeKg > 0 ? formatVolume(b.volumeKg, weightUnit) : '0';
+  });
+  const last = buckets[buckets.length - 1];
+  const noun = metric === 'sessions' ? `Sessions per ${per}` : `Volume per ${per}, ${weightUnit}`;
+  if (values.length === 0) return noun;
+  const tail = last?.isCurrent ? `${values[values.length - 1]} so far` : values[values.length - 1];
+  if (values.length === 1) return `${noun}: ${tail}`;
+  return `${noun}: ${values.slice(0, -1).join(', ')}, and ${tail}`;
+}
+
 function barPath(x: number, width: number, height: number, radius: number): string {
   const r = Math.min(radius, width / 2, height);
   const top = CHART_HEIGHT - height;
@@ -100,14 +118,11 @@ function barPath(x: number, width: number, height: number, radius: number): stri
 }
 
 export function WorkoutsChart({ range, unit, buckets, averages, rangeStart }: Props) {
-  const card = useThemeColor({}, 'cardBackground');
   const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const track = useThemeColor({}, 'track');
+  const chartBar = useThemeColor({}, 'chartBar');
   const separator = useThemeColor({}, 'separator');
-  const secondary = useThemeColor({}, 'cardSecondary');
-  const background = useThemeColor({}, 'background');
   const { weightUnit } = usePreferences();
 
   const [width, setWidth] = useState(0);
@@ -116,7 +131,7 @@ export function WorkoutsChart({ range, unit, buckets, averages, rangeStart }: Pr
 
   const n = buckets.length;
   const gap = n <= 8 ? 10 : n <= 14 ? 6 : 3;
-  const radius = n > 14 ? 2 : 4;
+  const radius = n <= 8 ? 8 : n > 14 ? 2 : 4;
 
   const displayValues =
     metric === 'sessions'
@@ -136,114 +151,99 @@ export function WorkoutsChart({ range, unit, buckets, averages, rangeStart }: Pr
   const phrase = rangePhrase(range, rangeStart);
   const barWidth = n > 0 && width > 0 ? (width - gap * (n - 1)) / n : 0;
 
-  const perBarLabels = n <= 8 && (range === '7d' || unit === 'month');
+  const perBarLabels = n <= 8;
   const lastTick = unit === 'day' ? 'Today' : unit === 'week' ? 'This week' : 'This month';
-  const ticks =
-    n > 0
-      ? [
-          format(parseISO(rangeStart), 'MMM d'),
-          format(parseISO(buckets[Math.floor((n - 1) / 2)].start), 'MMM d'),
-          lastTick,
-        ]
-      : [];
+  const ticks = n > 0 ? [format(parseISO(rangeStart), 'd MMM'), lastTick] : [];
 
   return (
-    <View style={[styles.card, { backgroundColor: card }]}>
-      <View style={styles.headTop}>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          Workouts
-        </Text>
-        <View
-          style={styles.toggleRow}
-          accessibilityRole="radiogroup"
-          accessibilityLabel="Workout metric"
-        >
-          {METRICS.map((m) => {
-            const active = m.id === metric;
-            return (
-              <TouchableOpacity
-                key={m.id}
-                style={[styles.toggleChip, { backgroundColor: active ? tint : secondary }]}
-                onPress={() => setMetric(m.id)}
-                hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active, checked: active }}
-                accessibilityLabel={m.label}
-              >
-                <Text style={[styles.toggleLabel, { color: active ? background : text }]}>
-                  {m.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+    <Card style={styles.card}>
+      <ProgressCardHeader
+        label="Training"
+        trailing={
+          <SegmentedControl
+            style={styles.segmented}
+            options={METRICS}
+            value={metric}
+            onChange={setMetric}
+            accessibilityLabel="Training metric"
+          />
+        }
+      />
 
-      <View style={styles.head}>
-        {hasWorkouts ? (
-          <>
-            <View style={styles.avgRow}>
-              <Text style={[styles.avg, { color: text }]}>
+      {hasWorkouts ? (
+        <View style={styles.head}>
+          <View style={styles.stats}>
+            <View style={styles.stat}>
+              <ThemedText type="stat" style={styles.statValue}>
                 {formatSessionsPerWeek(averages.sessionsPerWeek)}
-              </Text>
-              <Text style={[styles.small, { color: icon }]}>per week</Text>
+              </ThemedText>
+              <ThemedText type="caption">sessions a week</ThemedText>
             </View>
-            <Text style={[styles.subAvg, { color: text }]}>
-              {`${formatDurationShort(averages.averageDurationSeconds)} average`}
-            </Text>
-            <Text style={[styles.caption, { color: icon }]}>
-              {`${averages.sessions} ${averages.sessions === 1 ? 'session' : 'sessions'} ${
-                range === 'all' ? phrase : `in ${phrase}`
-              }`}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.avg, { color: icon }]}>No workouts yet</Text>
-            <Text style={[styles.caption, { color: icon }]}>
-              {`No workouts ${range === 'all' ? phrase : `in ${phrase}`}.`}
-            </Text>
-          </>
-        )}
-      </View>
+            <View style={styles.stat}>
+              <ThemedText type="stat" style={styles.statValue}>
+                {formatDurationShort(averages.averageDurationSeconds)}
+              </ThemedText>
+              <ThemedText type="caption">average session</ThemedText>
+            </View>
+          </View>
+          <ThemedText type="caption">
+            {`${averages.sessions} ${averages.sessions === 1 ? 'session' : 'sessions'} ${
+              range === 'all' ? phrase : `in ${phrase}`
+            }`}
+          </ThemedText>
+        </View>
+      ) : (
+        <View style={styles.head}>
+          <ThemedText type="stat" style={{ color: icon }}>
+            No workouts yet
+          </ThemedText>
+          <ThemedText type="caption">
+            {`No workouts ${range === 'all' ? phrase : `in ${phrase}`}.`}
+          </ThemedText>
+        </View>
+      )}
 
       <View style={styles.chartBlock}>
         <View
           style={styles.chart}
           onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
         >
-          {width > 0 && n > 0 && (
-            <Svg
-              width={width}
-              height={CHART_HEIGHT}
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
+          {n > 0 && (
+            <View
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={chartSummary(buckets, unit, metric, weightUnit)}
+              pointerEvents="none"
             >
-              {buckets.map((b, i) => {
-                const x = i * (barWidth + gap);
-                const val = displayValues[i] ?? 0;
-                const filled = metric === 'sessions' ? b.hasData : b.volumeKg > 0;
-                const h = filled ? Math.max(EMPTY_BAR, (val / scale) * CHART_HEIGHT) : EMPTY_BAR;
-                const isSelected = i === selectedIndex;
-                if (!filled) {
-                  return (
-                    <Path
-                      key={b.key}
-                      d={barPath(x, barWidth, h, 1)}
-                      fill={isSelected ? tint : track}
-                    />
-                  );
-                }
-                return (
-                  <Path
-                    key={b.key}
-                    d={barPath(x, barWidth, h, radius)}
-                    fill={isSelected ? tint : icon}
-                    fillOpacity={isSelected ? 1 : 0.55}
-                  />
-                );
-              })}
-            </Svg>
+              {width > 0 && (
+                <Svg width={width} height={CHART_HEIGHT} importantForAccessibility="no-hide-descendants">
+                  {buckets.map((b, i) => {
+                    const x = i * (barWidth + gap);
+                    const val = displayValues[i] ?? 0;
+                    const filled = metric === 'sessions' ? b.hasData : b.volumeKg > 0;
+                    const h = filled ? Math.max(EMPTY_BAR, (val / scale) * CHART_HEIGHT) : EMPTY_BAR;
+                    const isSelected = i === selectedIndex;
+                    if (!filled) {
+                      return (
+                        <Path
+                          key={b.key}
+                          d={barPath(x, barWidth, h, 1)}
+                          fill={isSelected ? tint : chartBar}
+                          fillOpacity={isSelected ? 1 : STUB_OPACITY}
+                        />
+                      );
+                    }
+                    return (
+                      <Path
+                        key={b.key}
+                        d={barPath(x, barWidth, h, radius)}
+                        fill={isSelected ? tint : chartBar}
+                      />
+                    );
+                  })}
+                </Svg>
+              )}
+            </View>
           )}
           <View style={[styles.touchRow, { gap }]}>
             {buckets.map((b) => (
@@ -262,21 +262,22 @@ export function WorkoutsChart({ range, unit, buckets, averages, rangeStart }: Pr
         {perBarLabels ? (
           <View style={[styles.labelRow, { gap }]}>
             {buckets.map((b, i) => (
-              <Text
+              <ThemedText
                 key={b.key}
+                type="caption"
                 numberOfLines={1}
                 style={[styles.axisLabel, { color: i === selectedIndex ? text : icon }]}
               >
                 {barLabel(b)}
-              </Text>
+              </ThemedText>
             ))}
           </View>
         ) : (
           <View style={styles.tickRow}>
             {ticks.map((t, i) => (
-              <Text key={i} style={[styles.axisTick, { color: icon }]}>
+              <ThemedText key={i} type="caption">
                 {t}
-              </Text>
+              </ThemedText>
             ))}
           </View>
         )}
@@ -285,49 +286,33 @@ export function WorkoutsChart({ range, unit, buckets, averages, rangeStart }: Pr
       {showFooter && (
         <View style={[styles.footer, { borderTopColor: separator }]}>
           <View style={styles.footerText}>
-            <Text style={[styles.footerLabel, { color: icon }]}>{selectionLabel(selected)}</Text>
-            <Text style={[styles.footerValue, { color: text }]}>
+            <ThemedText type="label" style={{ color: icon }}>
+              {selectionLabel(selected)}
+            </ThemedText>
+            <ThemedText type="stat" style={styles.footerValue}>
               {footerValue(selected, metric, weightUnit)}
-            </Text>
+            </ThemedText>
           </View>
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 20, gap: 16 },
-  headTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  title: { fontSize: 17, fontWeight: '600', lineHeight: 22 },
-  toggleRow: { flexDirection: 'row', gap: 6 },
-  toggleChip: {
-    minHeight: 34,
-    paddingHorizontal: 12,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toggleLabel: { fontSize: 13, fontWeight: '500' },
-  head: { gap: 4 },
-  avgRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  avg: { fontSize: 22, fontWeight: '700', lineHeight: 26, fontVariant: ['tabular-nums'] },
-  subAvg: { fontSize: 13, fontWeight: '500', lineHeight: 18, fontVariant: ['tabular-nums'] },
-  small: { fontSize: 12 },
-  caption: { fontSize: 12, lineHeight: 17 },
+  card: { gap: 14 },
+  segmented: { width: 168 },
+  head: { gap: 8 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  stat: { gap: 0 },
+  statValue: { fontSize: 26, lineHeight: 30 },
   chartBlock: { gap: 8 },
   chart: { height: CHART_HEIGHT },
   touchRow: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, flexDirection: 'row' },
   touchColumn: { flex: 1 },
   labelRow: { flexDirection: 'row' },
-  axisLabel: { flex: 1, textAlign: 'center', fontSize: 12 },
+  axisLabel: { flex: 1, textAlign: 'center' },
   tickRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  axisTick: { fontSize: 12 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,6 +322,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   footerText: { gap: 2, flexShrink: 1 },
-  footerLabel: { fontSize: 13, fontWeight: '500' },
-  footerValue: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  footerValue: { fontSize: 18, lineHeight: 22 },
 });
