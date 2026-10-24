@@ -1,7 +1,11 @@
-import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Switch, View } from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { ListGroup, ListRow } from '@/components/ui/ListGroup';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Stepper } from '@/components/ui/Stepper';
+import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
-import { PillSwitch } from '@/components/settings/PillSwitch';
 import {
   getPreferences,
   setDefaultSetCount,
@@ -18,125 +22,70 @@ const SCALES: { value: EffortMode; label: string }[] = [
   { value: 'rpe', label: 'RPE' },
 ];
 
+const EFFORT_CAPTIONS: Record<EffortMode, string> = {
+  none: 'Turn it on to add an effort column to each set.',
+  rir: 'Adds a reps-in-reserve column to each set. Switching keeps the values you logged.',
+  rpe: 'Adds a rate of perceived exertion column to each set. Switching keeps the values you logged.',
+};
+
 export function TrainingSection() {
   const { showEffort, effortMetric, restTimerEnabled, defaultSetCount } = usePreferences();
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const card = useThemeColor({}, 'cardBackground');
-  const subtle = useThemeColor({}, 'cardSecondary');
   const tint = useThemeColor({}, 'tint');
-  const background = useThemeColor({}, 'background');
+  const mode: EffortMode = showEffort ? effortMetric : 'none';
 
   return (
-    <View style={styles.section}>
-      <View style={[styles.row, styles.stacked, { backgroundColor: card }]}>
-        <View style={styles.info}>
-          <Text style={[styles.label, { color: text }]}>Effort per set</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>Adds an effort column to each set.</Text>
-        </View>
-        <PillSwitch
-          value={showEffort ? effortMetric : 'none'}
+    <View style={{ gap: 12 }}>
+      <Card style={{ gap: 12 }}>
+        <ThemedText type="title">Effort per set</ThemedText>
+        <SegmentedControl
+          value={mode}
           options={SCALES}
-          onChange={(mode) => { void setEffortMode(mode).catch(() => undefined); }}
+          onChange={(next) => { void setEffortMode(next).catch(() => undefined); }}
           accessibilityLabel="Effort per set"
         />
-      </View>
+        <ThemedText type="caption">{EFFORT_CAPTIONS[mode]}</ThemedText>
+      </Card>
 
-      <View style={[styles.row, { backgroundColor: card }]}>
-        <View style={styles.info}>
-          <Text style={[styles.label, { color: text }]}>Rest timer</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>
-            Counts down after each completed set and notifies you when rest is over.
-          </Text>
-        </View>
-        <Switch
-          value={restTimerEnabled}
-          onValueChange={(v) => {
-            void setRestTimerEnabled(v)
-              .then(() => (v ? undefined : stopRestTimer()))
-              .catch(() => undefined);
-          }}
-          trackColor={{ false: muted, true: tint }}
-          thumbColor={background}
-          ios_backgroundColor={muted}
-          accessibilityLabel="Rest timer"
+      <ListGroup>
+        <ListRow
+          title="Rest timer"
+          subtitle="Counts down after each completed set and lets you know when rest is over."
+          trailing={
+            <Switch
+              value={restTimerEnabled}
+              onValueChange={(v) => {
+                void setRestTimerEnabled(v)
+                  .then(() => (v ? undefined : stopRestTimer()))
+                  .catch(() => undefined);
+              }}
+              trackColor={{ true: tint }}
+              accessibilityLabel="Rest timer"
+            />
+          }
         />
-      </View>
-
-      <View style={[styles.row, { backgroundColor: card }]}>
-        <View style={styles.info}>
-          <Text style={[styles.label, { color: text }]}>Default sets</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>
-            Added when an exercise has no previous sets.
-          </Text>
-        </View>
-        <View style={[styles.stepper, { backgroundColor: subtle }]}>
-          <TouchableOpacity
-            style={styles.stepperButton}
-            onPress={() => {
-              const current = getPreferences().defaultSetCount;
-              if (current > MIN_DEFAULT_SET_COUNT) void setDefaultSetCount(current - 1).catch(() => undefined);
-            }}
-            disabled={defaultSetCount <= MIN_DEFAULT_SET_COUNT}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Fewer default sets"
-            accessibilityState={{ disabled: defaultSetCount <= MIN_DEFAULT_SET_COUNT }}
-          >
-            <Text style={[styles.stepperSymbol, { color: muted }]}>−</Text>
-          </TouchableOpacity>
-          <Text
-            style={[styles.stepperValue, { color: text }]}
-            accessibilityLabel={`Default sets, ${defaultSetCount}`}
-          >
-            {defaultSetCount}
-          </Text>
-          <TouchableOpacity
-            style={styles.stepperButton}
-            onPress={() => {
-              const current = getPreferences().defaultSetCount;
-              if (current < MAX_DEFAULT_SET_COUNT) void setDefaultSetCount(current + 1).catch(() => undefined);
-            }}
-            disabled={defaultSetCount >= MAX_DEFAULT_SET_COUNT}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="More default sets"
-            accessibilityState={{ disabled: defaultSetCount >= MAX_DEFAULT_SET_COUNT }}
-          >
-            <Text style={[styles.stepperSymbol, { color: muted }]}>+</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        <ListRow
+          title="Default sets"
+          subtitle="Added when an exercise has no previous sets."
+          trailing={
+            <Stepper
+              value={defaultSetCount}
+              valueLabel={`Default sets, ${defaultSetCount}`}
+              decrementLabel="Fewer default sets"
+              incrementLabel="More default sets"
+              decrementDisabled={defaultSetCount <= MIN_DEFAULT_SET_COUNT}
+              incrementDisabled={defaultSetCount >= MAX_DEFAULT_SET_COUNT}
+              onDecrement={() => {
+                const current = getPreferences().defaultSetCount;
+                if (current > MIN_DEFAULT_SET_COUNT) void setDefaultSetCount(current - 1).catch(() => undefined);
+              }}
+              onIncrement={() => {
+                const current = getPreferences().defaultSetCount;
+                if (current < MAX_DEFAULT_SET_COUNT) void setDefaultSetCount(current + 1).catch(() => undefined);
+              }}
+            />
+          }
+        />
+      </ListGroup>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  section: { marginBottom: 28 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  stacked: { flexDirection: 'column', alignItems: 'flex-start', gap: 12 },
-  info: { flex: 1, marginRight: 16 },
-  label: { fontSize: 16, fontWeight: '500' },
-  subtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    padding: 3,
-  },
-  stepperButton: {
-    minHeight: 44,
-    minWidth: 44,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperSymbol: { fontSize: 20, fontWeight: '600', lineHeight: 22 },
-  stepperValue: { fontSize: 16, fontWeight: '600', minWidth: 28, textAlign: 'center' },
-});

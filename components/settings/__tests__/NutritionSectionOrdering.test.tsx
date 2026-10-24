@@ -16,7 +16,7 @@ test('typing, blur and reverting do not save before an explicit save', async () 
   await render(<NutritionSection ref={ref} onManageReminders={() => {}} />);
   await screen.findByDisplayValue('2000');
   await fireEvent.changeText(screen.getByLabelText('Calories'), '2200');
-  fireEvent(screen.getByLabelText('Calories'), 'blur');
+  await fireEvent(screen.getByLabelText('Calories'), 'blur');
   await act(async () => { await Promise.resolve(); });
   expect(saveUserGoals).not.toHaveBeenCalled();
   await fireEvent.changeText(screen.getByLabelText('Calories'), '2000');

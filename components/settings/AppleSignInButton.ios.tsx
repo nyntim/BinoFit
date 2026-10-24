@@ -29,7 +29,7 @@ export function AppleSignInButton({ onPress, disabled, type = 'signIn' }: Props)
             ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
             : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
         }
-        cornerRadius={18}
+        cornerRadius={16}
         style={styles.button}
         onPress={onPress}
       />
@@ -38,6 +38,6 @@ export function AppleSignInButton({ onPress, disabled, type = 'signIn' }: Props)
 }
 
 const styles = StyleSheet.create({
-  button: { height: 48, width: '100%' },
+  button: { height: 52, width: '100%' },
   disabled: { opacity: 0.5 },
 });

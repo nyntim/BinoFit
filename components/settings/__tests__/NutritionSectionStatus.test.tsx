@@ -32,7 +32,7 @@ test('goals load independently of food status and the moved control is absent', 
   expect(screen.queryByText('Default for new food')).toBeNull();
   expect(screen.queryByRole('radio')).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Calories'), '2100');
-  await fireEvent.press(screen.getByText('Save'));
+  await fireEvent.press(screen.getByText('Save goals'));
   await waitFor(() => expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ calorie_goal: 2100 })));
   expect(mockDefault).not.toHaveBeenCalled();
 });

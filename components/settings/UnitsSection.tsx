@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { PillSwitch } from '@/components/settings/PillSwitch';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { View } from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { ThemedText } from '@/components/themed-text';
 import { usePreferences } from '@/hooks/usePreferences';
 import { setWeightUnit } from '@/lib/app-preferences';
 import type { WeightUnit } from '@/lib/types';
@@ -10,39 +11,22 @@ const UNITS: { value: WeightUnit; label: string }[] = [
   { value: 'lb', label: 'Imperial' },
 ];
 
+/** "Units" label and card; the caller places it in a page's content stack. */
 export function UnitsSection() {
   const { weightUnit } = usePreferences();
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const card = useThemeColor({}, 'cardBackground');
 
   return (
-    <View style={styles.section}>
-      <View style={[styles.row, { backgroundColor: card }]}>
-        <View style={styles.info}>
-          <Text style={[styles.label, { color: text }]}>Units</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>
-            Metric: kg, km, cm. Imperial: lb, mi, ft and in.
-          </Text>
-        </View>
-        <PillSwitch
+    <View style={{ gap: 8 }}>
+      <ThemedText type="section" accessibilityRole="header">Units</ThemedText>
+      <Card style={{ gap: 12 }}>
+        <SegmentedControl
           value={weightUnit}
           options={UNITS}
-          onChange={(unit) => {
-            void setWeightUnit(unit).catch(() => undefined);
-          }}
+          onChange={(unit) => { void setWeightUnit(unit).catch(() => undefined); }}
           accessibilityLabel="Units"
         />
-      </View>
-
+        <ThemedText type="caption">Imperial shows lb, mi, ft and in. Metric shows kg, km and cm. Your data is the same either way.</ThemedText>
+      </Card>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  section: { marginBottom: 28 },
-  row: { gap: 12, alignItems: 'flex-start', padding: 16, borderRadius: 12, marginTop: 8 },
-  info: { flex: 1, marginRight: 16 },
-  label: { fontSize: 16, fontWeight: '500' },
-  subtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-});

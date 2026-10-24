@@ -8,32 +8,41 @@ import DataPrivacySettings from '@/app/settings/data-privacy';
 import AboutSettings from '@/app/settings/about';
 import SupportSettings from '@/app/settings/support';
 import { getReminderPermission } from '@/lib/notification-permissions';
-import { getMealDefinitions } from '@/lib/database';
+import { getMealDefinitions, getMealNames } from '@/lib/database';
 import { requestReminderPermission, restoreMealReminders } from '@/lib/reminders';
 import { resetOnboarding } from '@/lib/storage';
 import { settingsDestination } from '@/lib/settings-destinations';
+import { isSyncConfigured } from '@/lib/sync-status';
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/components/settings/SettingsPage', () => ({
   SettingsPage: ({ title, children }: { title: string; children: React.ReactNode }) => { const { View, Text } = jest.requireActual('react-native'); return <View><Text>{title}</Text>{children}</View>; },
-  SettingsRow: jest.requireActual('@/components/settings/SettingsRow').SettingsRow,
 }));
 jest.mock('@/components/settings/ExportDataSheet', () => ({ ExportDataSheet: () => null }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: (fn: () => void) => { const React = jest.requireActual('react'); React.useEffect(fn, [fn]); } }));
 jest.mock('@/lib/notification-permissions', () => ({ getReminderPermission: jest.fn(), canDeliverReminders: (v: string) => v === 'granted' || v === 'provisional' }));
-jest.mock('@/lib/database', () => ({ getMealDefinitions: jest.fn() }));
+jest.mock('@/lib/database', () => ({ getMealDefinitions: jest.fn(), getMealNames: jest.fn() }));
+jest.mock('@/hooks/usePreferences', () => ({ usePreferences: () => ({ restTimerEnabled: true }) }));
+jest.mock('@/lib/sync-status', () => ({ isSyncConfigured: jest.fn(() => true) }));
+jest.mock('@/lib/auth', () => ({ countUnsynced: jest.fn(async () => 3) }));
 jest.mock('@/lib/reminders', () => ({ requestReminderPermission: jest.fn(), restoreMealReminders: jest.fn() }));
 jest.mock('@/lib/storage', () => ({ resetOnboarding: jest.fn(async () => {}) }));
 jest.mock('@/lib/settings-destinations', () => ({ ...jest.requireActual('@/lib/settings-destinations'), settingsDestination: jest.fn(() => null) }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { nativeAppVersion: '2.0', nativeBuildVersion: '42' } }));
-beforeEach(() => { jest.clearAllMocks(); (settingsDestination as jest.Mock).mockReturnValue(null); jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() }); (getReminderPermission as jest.Mock).mockResolvedValue('denied'); (getMealDefinitions as jest.Mock).mockResolvedValue([{ reminder_time: '08:00' }, { reminder_time: null }]); });
-it('shows configured reminder count when blocked, opens system settings and refreshes on foreground', async () => {
+const meals = [{ id: 'm1', position: 0, reminder_time: '08:00', calorie_target: null }, { id: 'm2', position: 1, reminder_time: null, calorie_target: null }];
+const names = [{ meal_id: 'm1', name: 'Breakfast', effective_from: '0000-01-01' }, { meal_id: 'm2', name: 'Lunch', effective_from: '0000-01-01' }];
+beforeEach(() => { jest.clearAllMocks(); (isSyncConfigured as jest.Mock).mockReturnValue(true); (settingsDestination as jest.Mock).mockReturnValue(null); jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() }); (getReminderPermission as jest.Mock).mockResolvedValue('denied'); (getMealDefinitions as jest.Mock).mockResolvedValue(meals); (getMealNames as jest.Mock).mockResolvedValue(names); });
+it('lists each meal reminder when blocked, opens system settings and refreshes on foreground', async () => {
   let foreground!: (state: AppStateStatus) => void;
   const subscription = jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => { foreground = listener; return { remove: jest.fn() }; });
   const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
   await render(<NotificationsSettings />);
-  await screen.findByText('1 configured');
+  await screen.findByText('Breakfast');
+  expect(screen.getByText(new Date(2000, 0, 1, 8, 0).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))).toBeTruthy();
+  expect(screen.getByText('Lunch')).toBeTruthy();
+  expect(screen.getByText('Off')).toBeTruthy();
   expect(screen.getByText('Blocked in system settings')).toBeTruthy();
-  await fireEvent.press(screen.getByText('Open system settings'));
+  expect(screen.getByText('Configured reminders cannot be delivered until notifications are allowed.')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Open system settings'));
   expect(open).toHaveBeenCalled();
   await fireEvent.press(screen.getByText('Manage meal reminders'));
   expect(router.push).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { manageMeals: '1' } });
@@ -55,10 +64,10 @@ it('restarts only onboarding after confirmation and names preservation explicitl
 });
 it('shows runtime version/build and routes both legal destinations internally', async () => {
   await render(<AboutSettings />);
-  expect(screen.getByText('2.0')).toBeTruthy(); expect(screen.getByText('42')).toBeTruthy();
-  await fireEvent.press(screen.getByText('Privacy Policy'));
+  expect(screen.getByText('Version 2.0 · Build 42')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Privacy policy'));
   expect(router.push).toHaveBeenLastCalledWith('/settings/privacy-policy');
-  await fireEvent.press(screen.getByText('Terms of Service'));
+  await fireEvent.press(screen.getByText('Terms of service'));
   expect(router.push).toHaveBeenLastCalledWith('/settings/terms');
 });
 it('opens configured support destination, reports open failure and attaches no diagnostics', async () => {
@@ -77,11 +86,10 @@ it('disables Allow during a request and refreshes status after the shared reques
   let finish!: (allowed: boolean) => void;
   (requestReminderPermission as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
   await render(<NotificationsSettings />);
-  await fireEvent.press(await screen.findByText('Allow notifications'));
-  await fireEvent.press(screen.getByText('Allow notifications'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Allow notifications' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Allow notifications' }));
   expect(requestReminderPermission).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole('button', { name: /Allow notifications/ }).props.accessibilityState.disabled).toBe(true);
-  expect(screen.getByLabelText('Requesting notification permission').props.accessibilityState.busy).toBe(true);
+  expect(screen.getByRole('button', { name: 'Allow notifications' }).props.accessibilityState).toMatchObject({ disabled: true, busy: true });
   (getReminderPermission as jest.Mock).mockResolvedValue('granted');
   await act(async () => { finish(true); });
   await screen.findByText('Allowed');
@@ -95,11 +103,11 @@ it('shows request failures and clears a reminder-read failure after a successful
   (requestReminderPermission as jest.Mock).mockResolvedValueOnce(false);
   await render(<NotificationsSettings />);
   await screen.findByText('Could not read meal reminders. Return here to retry.');
-  await fireEvent.press(screen.getByText('Allow notifications'));
+  await fireEvent.press(screen.getByRole('button', { name: 'Allow notifications' }));
   await screen.findByText('Could not enable notifications. Try again or check your device Settings.');
   await act(async () => foreground('active'));
   await waitFor(() => expect(screen.queryByText('Could not read meal reminders. Return here to retry.')).toBeNull());
-  expect(screen.getByText('1 configured')).toBeTruthy();
+  expect(screen.getByText('Breakfast')).toBeTruthy();
   subscription.mockRestore();
 });
 
@@ -110,7 +118,7 @@ it('shows native platform build metadata when the legacy top-level build is abse
   Constants.platform = { ios: { buildNumber: '123' } } as typeof Constants.platform;
   try {
     await render(<AboutSettings />);
-    expect(screen.getByText('123')).toBeTruthy();
+    expect(screen.getByText(/Build 123$/)).toBeTruthy();
   } finally {
     Constants.nativeBuildVersion = priorBuild;
     Constants.platform = priorPlatform;
@@ -124,9 +132,9 @@ it('routes unconfigured report and feedback internally', async () => {
   await fireEvent.press(screen.getByText('Send feedback'));
   expect(router.push).toHaveBeenLastCalledWith('/settings/feedback');
 });
-it('Data and Privacy uses the same internal privacy destination as About', async () => {
+it('Data and privacy uses the same internal privacy destination as About', async () => {
   await render(<DataPrivacySettings />);
-  await fireEvent.press(screen.getByText('Privacy Policy'));
+  await fireEvent.press(screen.getByText('Privacy policy'));
   expect(router.push).toHaveBeenLastCalledWith('/settings/privacy-policy');
 });
 
@@ -135,8 +143,21 @@ it('opens an approved configured external link instead of the internal page', as
   const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
   try {
     await render(<AboutSettings />);
-    await fireEvent.press(screen.getByText('Privacy Policy'));
+    await fireEvent.press(screen.getByText('Privacy policy'));
     expect(open).toHaveBeenCalledWith('https://example.com/privacy');
     expect(router.push).not.toHaveBeenCalled();
   } finally { open.mockRestore(); }
+});
+
+it('Data and privacy lists what is backed up, what stays on the phone and the unsynced count', async () => {
+  await render(<DataPrivacySettings />);
+  expect(screen.getByLabelText('Weight history, backed up')).toBeTruthy();
+  expect(screen.getByLabelText('Water logs, quick-add drinks and meal confirmations, this phone only')).toBeTruthy();
+  expect(await screen.findByText('3')).toBeTruthy();
+});
+it('Data and privacy reports backed-up rows as not in this build when sync is unavailable', async () => {
+  (isSyncConfigured as jest.Mock).mockReturnValue(false);
+  await render(<DataPrivacySettings />);
+  expect(screen.getByLabelText('Weight history, not in this build')).toBeTruthy();
+  expect(screen.getByLabelText('Preferences, active workouts, drafts and Spotify, this phone only')).toBeTruthy();
 });

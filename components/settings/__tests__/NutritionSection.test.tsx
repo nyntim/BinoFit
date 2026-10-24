@@ -47,3 +47,55 @@ test('an invalid field prevents every goal write and keeps the draft', async () 
   expect(mockSave).toHaveBeenCalledWith({ calorie_goal: 2200, protein_goal: 160, carb_goal: 200, fat_goal: 65 });
   expect(syncToSupabase).toHaveBeenCalledTimes(1);
 });
+
+test('an invalid field shows its inline error and clears when fixed', async () => {
+  await render(<NutritionSection onManageReminders={() => {}} />);
+  await screen.findByDisplayValue('2000');
+  await fireEvent.changeText(screen.getByLabelText('Protein (g)'), '25o');
+  expect(screen.getByText('Enter a whole number, like 250.')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '');
+  expect(screen.getByText('Enter a whole number, like 2000.')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Protein (g)'), '250');
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '2000');
+  expect(screen.queryByText(/Enter a whole number/)).toBeNull();
+});
+
+test('onFormStateChange reports the invalid field count', async () => {
+  const onState = jest.fn();
+  await render(<NutritionSection onManageReminders={() => {}} onFormStateChange={onState} />);
+  await screen.findByDisplayValue('2000');
+  expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ invalidCount: 0, dirty: false }));
+  await fireEvent.changeText(screen.getByLabelText('Protein (g)'), 'x');
+  await fireEvent.changeText(screen.getByLabelText('Fat (g)'), '');
+  expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ invalidCount: 2, dirty: true }));
+});
+
+test('the energy split describes only valid macros', async () => {
+  await render(<NutritionSection onManageReminders={() => {}} />);
+  await screen.findByDisplayValue('2000');
+  expect(screen.getByLabelText('Energy split: Protein 30%, Carbs 40%, Fat 29% of calories')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Carbs (g)'), 'abc');
+  expect(screen.getByLabelText('Energy split: Protein 30%, Fat 29% of calories')).toBeTruthy();
+});
+
+test('inline actions save goals, and actions none leaves saving to the caller', async () => {
+  const view = await render(<NutritionSection onManageReminders={() => {}} />);
+  await screen.findByDisplayValue('2000');
+  expect(screen.getByRole('button', { name: 'Save goals' })).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Calories'), '');
+  expect(screen.getByRole('button', { name: 'Save goals', disabled: true })).toBeTruthy();
+  await view.unmount();
+  await render(<NutritionSection actions="none" onManageReminders={() => {}} />);
+  await screen.findByDisplayValue('2000');
+  expect(screen.queryByText('Save goals')).toBeNull();
+});
+
+test('meal rows list each meal above the manage row', async () => {
+  const manage = jest.fn();
+  await render(<NutritionSection onManageReminders={manage} mealRows={[{ id: 'a', name: 'Breakfast', detail: '7:30 AM · 500 cal' }]} />);
+  await screen.findByDisplayValue('2000');
+  expect(screen.getByText('Breakfast')).toBeTruthy();
+  expect(screen.getByText('7:30 AM · 500 cal')).toBeTruthy();
+  await fireEvent.press(screen.getByText('Manage meals and reminders'));
+  expect(manage).toHaveBeenCalledTimes(1);
+});

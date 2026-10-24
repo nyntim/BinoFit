@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { SettingsPage } from '@/components/settings/SettingsPage';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { ListGroup, ListRow } from '@/components/ui/ListGroup';
+import { TextField } from '@/components/ui/TextField';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getUserProfile, saveUserProfile } from '@/lib/storage';
 import { getLatestWeightEntry, saveWeightEntry } from '@/lib/weight';
-import { ACTIVITY_OPTIONS, profileDraft, validateProfileDraft, type ProfileDraft } from '@/lib/profile-settings';
+import { ACTIVITY_DESCRIPTIONS, ACTIVITY_LABELS, ACTIVITY_OPTIONS, profileDraft, validateProfileDraft, type ProfileDraft } from '@/lib/profile-settings';
 import { syncToSupabase } from '@/lib/sync';
 export default function ProfileSettings() {
   const { weightUnit } = usePreferences();
@@ -20,7 +25,7 @@ export default function ProfileSettings() {
   const saving = useRef(false);
   const [saved, setSaved] = useState(false);
   const navigation = useNavigation();
-  const text = useThemeColor({}, 'text'); const card = useThemeColor({}, 'cardBackground'); const tint = useThemeColor({}, 'tint'); const danger = useThemeColor({}, 'danger');
+  const tint = useThemeColor({}, 'tint'); const danger = useThemeColor({}, 'danger');
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(baseline);
   usePreventRemove((dirty || busy) && !saved, ({ data }) => {
     if (saving.current) return;
@@ -47,6 +52,25 @@ export default function ProfileSettings() {
     } catch { setError('Couldn’t save profile. Your changes are still here. Try again.'); }
     finally { saving.current = false; setBusy(false); }
   }
-  function field(key: 'weight' | 'height' | 'feet' | 'inches', label: string) { return <View style={{ gap: 6 }}><Text style={{ color: text }}>{label}</Text><TextInput accessibilityLabel={label} value={draft?.[key] ?? ''} editable={!busy} keyboardType="decimal-pad" onChangeText={value => setDraft(current => current ? { ...current, [key]: value } : current)} style={{ minHeight: 44, padding: 12, borderRadius: 8, color: text, backgroundColor: card, fontSize: 15 }} /></View>; }
-  return <SettingsPage title="Profile">{draft ? <>{field('weight', `Weight (${unit})`)}{unit === 'kg' ? field('height', 'Height (cm)') : <>{field('feet', 'Height (feet)')}{field('inches', 'Height (inches)')}</>}<Text style={{ color: text }}>Activity level</Text><View accessibilityRole="radiogroup" accessibilityLabel="Activity level" style={{ gap: 8 }}>{ACTIVITY_OPTIONS.map(activity => <Pressable key={activity} disabled={busy} accessibilityRole="radio" accessibilityState={{ selected: draft.activity === activity }} onPress={() => setDraft({ ...draft, activity })} style={{ minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: card }}><Text style={{ color: draft.activity === activity ? tint : text }}>{activity === 'very_active' ? 'Very active' : activity.charAt(0).toUpperCase() + activity.slice(1)}{draft.activity === activity ? ' · Selected' : ''}</Text></Pressable>)}</View><Pressable disabled={busy} accessibilityRole="button" onPress={() => { void save(); }} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: tint }}>{busy ? 'Saving…' : 'Save'}</Text></Pressable><Pressable disabled={busy} accessibilityRole="button" onPress={() => router.back()} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: tint }}>Cancel</Text></Pressable></> : <Pressable onPress={load} style={{ minHeight: 44 }}><Text style={{ color: tint }}>{error ? 'Retry loading profile' : 'Loading profile…'}</Text></Pressable>}{error ? <Text accessibilityRole="alert" style={{ color: danger }}>{error}</Text> : null}</SettingsPage>;
+  function field(key: 'weight' | 'height' | 'feet' | 'inches', label: string, suffix: string) { return <TextField size="mini" suffix={suffix} accessibilityLabel={label} value={draft?.[key] ?? ''} editable={!busy} keyboardType="decimal-pad" onChangeText={value => setDraft(current => current ? { ...current, [key]: value } : current)} />; }
+  const heightFields = unit === 'kg' ? field('height', 'Height (cm)', 'cm') : <>{field('feet', 'Height (feet)', 'ft')}{field('inches', 'Height (inches)', 'in')}</>;
+  const saveButton = draft ? <Button variant="ghost" size="sm" label={busy ? 'Saving…' : 'Save'} disabled={busy} onPress={() => { void save(); }} /> : null;
+  return <SettingsPage title="Profile" trailing={saveButton}>{draft ? <>
+    <ThemedText type="section" accessibilityRole="header">Body</ThemedText>
+    <ListGroup>
+      <ListRow title="Weight" trailing={<View style={styles.fields}>{field('weight', `Weight (${unit})`, unit)}</View>} />
+      <ListRow title="Height" trailing={<View style={styles.fields}>{heightFields}</View>} />
+    </ListGroup>
+    <ThemedText type="caption" style={styles.caption}>Weight comes from your latest entry. Changing it here logs today&apos;s weight.</ThemedText>
+    <ThemedText type="section" accessibilityRole="header">Activity level</ThemedText>
+    <View accessibilityRole="radiogroup" accessibilityLabel="Activity level">
+      <ListGroup>
+        {ACTIVITY_OPTIONS.map(activity => {
+          const selected = draft.activity === activity;
+          return <ListRow key={activity} title={ACTIVITY_LABELS[activity]} subtitle={ACTIVITY_DESCRIPTIONS[activity]} chevron={false} disabled={busy} accessibilityRole="radio" accessibilityState={{ selected, checked: selected }} onPress={() => setDraft({ ...draft, activity })} trailing={selected ? <IconSymbol name="checkmark" size={18} color={tint} /> : undefined} />;
+        })}
+      </ListGroup>
+    </View>
+  </> : error ? <Button variant="soft" label="Retry loading profile" onPress={load} /> : <ThemedText type="body">Loading profile…</ThemedText>}{error ? <Text accessibilityRole="alert" style={{ color: danger }}>{error}</Text> : null}</SettingsPage>;
 }
+const styles = StyleSheet.create({ fields: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, flexShrink: 1 }, caption: { paddingHorizontal: 4 } });

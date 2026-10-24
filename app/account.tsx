@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -23,15 +23,17 @@ export default function AccountScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
       <Stack.Screen options={{ gestureEnabled: !busy }} />
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.close}
+        <Pressable
+          style={({ pressed }) => [styles.close, pressed && styles.pressed]}
           onPress={() => router.back()}
           disabled={busy}
+          hitSlop={8}
           accessibilityRole="button"
+          accessibilityLabel="Close"
           accessibilityState={{ disabled: busy }}
         >
           <Text style={[styles.closeText, { color: tint }]}>Close</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <AuthForm initialMode={initialMode} context="settings" onRoute={applyAuthRoute} onBusyChange={setBusy} />
     </SafeAreaView>
@@ -40,7 +42,8 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  close: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'flex-end' },
+  header: { paddingHorizontal: 16, minHeight: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  close: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'flex-start' },
   closeText: { fontSize: 17 },
+  pressed: { opacity: 0.6 },
 });

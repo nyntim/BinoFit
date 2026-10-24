@@ -222,8 +222,10 @@ Shared primitives live in `components/ui/` and map one to one to the classes in 
 | `EmptyState` | Dinosaur, title (header), body, actions; card or plain |
 | `CelebrationBanner` | Ember icon, title, body, optional Dismiss; announced; static with Reduce Motion |
 
-Older components now built on them: `SettingsRow` (a single `ListRow` on a list surface), `PillSwitch` and `RangeChips` (`SegmentedControl`), `ChipToggle` (`Chip`), `MacroBar` (label and grams over a `ProgressBar` on `track`).
+Older components now built on them: `PillSwitch` and `RangeChips` (`SegmentedControl`), `ChipToggle` (`Chip`), `MacroBar` (label and grams over a `ProgressBar` on `track`).
 
+- **Settings pages:** `SettingsPage` is the push page for every Settings screen: a back row named for the previous screen ("Back to Training"), a large title, scrolling content on a 16 gutter with 12 gaps, an optional trailing action and an optional `StickyFooter`. Lists are `ListGroup`; grouped values are `Card`s.
+- **Appearance preview tiles:** Preferences reads `Colors.light` and `Colors.dark` directly so each tile shows the other theme. This is the one sanctioned direct read of `Colors`.
 - **Calorie ring:** single tint stroke on a track, rounded `hero` number in the middle, a text summary for screen readers ("1,640 of 2,200 calories").
 - **Native controls:** React Native `Switch` with `trackColor={{ true: tint }}`; platform date and time pickers.
 - **Sheets and modals:** native presentation; bottom sheets use `SheetHeader` on `sheetBackground`; `fullScreenModal` screens pad with safe-area insets (see `CLAUDE.md`).

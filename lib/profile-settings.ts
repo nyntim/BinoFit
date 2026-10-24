@@ -26,3 +26,13 @@ export function validateProfileDraft(draft: ProfileDraft, base: ProfileDraft, un
   if (draft.activity != null && !ACTIVITY_OPTIONS.includes(draft.activity)) throw new Error('Choose a valid activity level.');
   return { weightKg, weightChanged, heightCm, heightChanged, activity: draft.activity };
 }
+
+type ActivityLevel = (typeof ACTIVITY_OPTIONS)[number];
+export const ACTIVITY_LABELS: Record<ActivityLevel, string> = { sedentary: 'Sedentary', light: 'Light', moderate: 'Moderate', active: 'Active', very_active: 'Very active' };
+export const ACTIVITY_DESCRIPTIONS: Record<ActivityLevel, string> = {
+  sedentary: 'Desk job, little exercise',
+  light: '1 to 2 workouts a week',
+  moderate: '3 to 4 workouts a week',
+  active: '5 or more workouts a week',
+  very_active: 'Physical job plus training',
+};

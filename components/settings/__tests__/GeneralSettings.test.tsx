@@ -15,7 +15,8 @@ const originalSetItem = (AsyncStorage.setItem as jest.Mock).getMockImplementatio
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/context/TabBarInsetContext', () => ({ useTabBarInset: () => 0, useTabBarInsetMode: () => 'manual' }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useFocusEffect: (callback: () => void) => { jest.requireActual<typeof import('react')>('react').useEffect(callback, [callback]); } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() }, useNavigation: () => ({}), useFocusEffect: (callback: () => void) => { jest.requireActual<typeof import('react')>('react').useEffect(callback, [callback]); } }));
+jest.mock('@/hooks/useSpotifyConnection', () => ({ useSpotifyConnection: () => ({ status: 'unconfigured' }) }));
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ status: 'anonymous', email: null }) }));
 const mockSyncState = { status: 'idle', isOffline: false, lastSuccessAt: null };
 jest.mock('@/hooks/useSyncStatus', () => ({ useSyncStatus: () => ({ state: mockSyncState }) }));
@@ -27,10 +28,12 @@ beforeEach(async () => { jest.clearAllMocks(); mockSyncState.status = 'idle'; mo
 test('Settings directory has all ten focused destinations and truthful summaries', async () => {
   await render(<SettingsScreen />); await screen.findByText('154.32 lb');
   for (const heading of ['You', 'App', 'Account and data', 'Help']) expect(screen.getByRole('header', { name: heading })).toBeTruthy();
-  const destinations = ['Profile', 'Nutrition', 'Training', 'Preferences', 'Notifications', 'Account', 'Integrations', 'Data and Privacy', 'About', 'Support'];
-  for (const label of destinations) { await fireEvent.press(screen.getByText(label)); expect(router.push).toHaveBeenLastCalledWith(`/settings/${label === 'Data and Privacy' ? 'data-privacy' : label.toLowerCase()}`); }
+  const destinations = ['Profile', 'Nutrition', 'Training', 'Preferences', 'Notifications', 'Account', 'Integrations', 'Data and privacy', 'About', 'Support'];
+  for (const label of destinations) { await fireEvent.press(screen.getByText(label)); expect(router.push).toHaveBeenLastCalledWith(`/settings/${label === 'Data and privacy' ? 'data-privacy' : label.toLowerCase()}`); }
   expect(screen.queryAllByRole('textbox')).toHaveLength(0);
-  expect(screen.getByText('Guest account')).toBeTruthy();
+  expect(screen.getByText('Not signed in')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /^Account, Not signed in, / })).toBeTruthy();
+  expect(screen.getByText('Not connected')).toBeTruthy();
 });
 test('Preferences persists units without changing stored measurements and forces appearance', async () => {
   const before = await AsyncStorage.getItem('user_profile');
@@ -87,10 +90,10 @@ test('rapid default-set increments accumulate while persistence is pending', asy
   } finally { spy.mockRestore(); (AsyncStorage.setItem as jest.Mock).mockImplementation(originalSetItem); }
 });
 
-test('directory reports blocked configured reminders and never-synced cloud without prompting', async () => {
+test('directory reports blocked reminders and never-synced backup without prompting', async () => {
   await render(<SettingsScreen />);
-  await screen.findByText('Blocked · 1 configured');
-  await screen.findByText('Cloud never synced');
+  await screen.findByText('Blocked');
+  await screen.findByText('Not backed up yet');
   expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
 });
 test('directory retains the actual historical cloud success and distinguishes missing reminder data', async () => {
@@ -98,11 +101,11 @@ test('directory retains the actual historical cloud success and distinguishes mi
   (getMealDefinitions as jest.Mock).mockRejectedValueOnce(new Error('read'));
   (getReminderPermission as jest.Mock).mockResolvedValueOnce('provisional');
   await render(<SettingsScreen />);
-  await screen.findByText('Quiet delivery · Reminder count unknown');
-  expect(await screen.findByText(/^Cloud synced /)).toBeTruthy();
+  await screen.findByText('Reminders unknown');
+  expect(await screen.findByText(/^Backed up /)).toBeTruthy();
   expect(await getLastSyncAt()).toBe('2026-10-21T12:00:00Z');
 });
-test.each([['syncing', false, 'Cloud syncing…'], ['failed', false, 'Cloud sync failed'], ['idle', true, 'Cloud offline']])('directory exposes current cloud %s state', async (status, offline, label) => {
+test.each([['syncing', false, 'Backing up…'], ['failed', false, 'Backup failed'], ['idle', true, 'Offline. Backup resumes when you reconnect.']])('directory exposes current backup %s state', async (status, offline, label) => {
   mockSyncState.status = status as string; mockSyncState.isOffline = offline as boolean;
   await render(<SettingsScreen />);
   expect(screen.getByText(label as string)).toBeTruthy();

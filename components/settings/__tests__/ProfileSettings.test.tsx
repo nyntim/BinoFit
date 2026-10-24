@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 jest.mock('expo-router', () => ({ router: { back: jest.fn() }, useNavigation: () => ({ dispatch: jest.fn() }) }));
 const mockGuard = jest.fn();
 jest.mock('expo-router/react-navigation', () => ({ usePreventRemove: (...args: unknown[]) => mockGuard(...args) }));
-jest.mock('@/components/settings/SettingsPage', () => ({ SettingsPage: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+jest.mock('@/components/settings/SettingsPage', () => ({ SettingsPage: ({ children, trailing }: { children: React.ReactNode; trailing?: React.ReactNode }) => <>{trailing}{children}</> }));
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/hooks/usePreferences', () => ({ usePreferences: () => ({ weightUnit: 'lb' }) }));
 jest.mock('@/lib/storage', () => ({ getUserProfile: jest.fn(), saveUserProfile: jest.fn() }));

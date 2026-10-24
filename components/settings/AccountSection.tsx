@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
+import { SyncStatusPanel } from '@/components/settings/SyncStatusPanel';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ListGroup, ListRow } from '@/components/ui/ListGroup';
+import { Fonts } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/hooks/useAuth';
 import { isSyncConfigured } from '@/lib/sync-status';
@@ -49,12 +55,9 @@ export function busyLabel(mode: Mode, progress: RestoreProgress | null): string 
 /** Settings section for signing up, signing in and out, and changing the account password. */
 export function AccountSection({ showTitle = true }: { showTitle?: boolean } = {}) {
   const { status, email, method } = useAuth();
-  const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const danger = useThemeColor({}, 'danger');
-  const card = useThemeColor({}, 'cardBackground');
-  const onTint = useThemeColor({}, 'background');
+  const tintSoft = useThemeColor({}, 'tintSoft');
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [progress, setProgress] = useState<RestoreProgress | null>(null);
@@ -92,17 +95,17 @@ export function AccountSection({ showTitle = true }: { showTitle?: boolean } = {
 
   const devIssue = __DEV__ ? getLastAuthIssue() : null;
   const devRow = __DEV__ ? (
-    <View style={[styles.row, { backgroundColor: card }]}>
+    <Card padding="compact">
       <Text style={[styles.rowText, { color: icon }]} selectable>
         {`Auth: last error · ${devIssue ? `${devIssue.step}: ${devIssue.summary}` : 'none'}`}
       </Text>
-    </View>
+    </Card>
   ) : null;
 
   if (!isSyncConfigured() && !pendingDeletion) {
     return devRow ? (
       <View style={styles.section}>
-        {showTitle && <Text style={[styles.sectionTitle, { color: text }]}>Account</Text>}
+        {showTitle && <ThemedText type="title" accessibilityRole="header">Account</ThemedText>}
         {devRow}
       </View>
     ) : null;
@@ -221,92 +224,69 @@ export function AccountSection({ showTitle = true }: { showTitle?: boolean } = {
     ], { cancelable: false });
   }
 
+  const initial = (email?.trim().charAt(0) || 'B').toUpperCase();
+  const methodLabel = method === 'apple' ? 'Signed in with Apple' : method === 'email' ? 'Signed in with email' : 'Signed in';
+
   return (
     <View style={styles.section}>
-      {showTitle && <Text style={[styles.sectionTitle, { color: text }]}>Account</Text>}
+      {showTitle && <ThemedText type="title" accessibilityRole="header">Account</ThemedText>}
 
       {pendingDeletion ? (
-        <View style={[styles.row, { backgroundColor: card }]}>
-          <Text style={[styles.hint, { color: text }]}>{pendingDeletion === 'confirmed' ? 'Cloud deletion is confirmed. Finish removing data from this device.' : 'Deletion has not been confirmed. Device data is kept and cloud sync is paused.'}</Text>
-          <TouchableOpacity style={styles.ghostBtn} accessibilityRole="button" disabled={busy} onPress={() => { void finishPendingDeletion(); }}>
-            <Text style={[styles.retryText, { color: tint }]}>Finish deletion</Text>
-          </TouchableOpacity>
-          {pendingDeletion === 'requested' && <TouchableOpacity style={styles.ghostBtn} accessibilityRole="button" disabled={busy} onPress={handleDeviceOnlyRemoval}>
-            <Text style={[styles.retryText, { color: tint }]}>Remove device data only</Text>
-          </TouchableOpacity>}
-        </View>
+        <Card style={styles.card}>
+          <ThemedText type="body">{pendingDeletion === 'confirmed' ? 'Cloud deletion is confirmed. Finish removing data from this device.' : 'Deletion has not been confirmed. Device data is kept and cloud sync is paused.'}</ThemedText>
+          <Button variant="danger" label="Finish deletion" disabled={busy} onPress={() => { void finishPendingDeletion(); }} />
+          {pendingDeletion === 'requested' && <Button variant="danger" label="Remove device data only" disabled={busy} onPress={handleDeviceOnlyRemoval} />}
+        </Card>
       ) : status === 'signedIn' ? (
         <>
-          <View style={[styles.row, { backgroundColor: card }]}>
-            <Text style={[styles.rowText, { color: text }]}>
-              {signedInLabel(method, email)}
-            </Text>
-          </View>
-          {method === 'email' && (
-            <TouchableOpacity
-              style={[styles.row, styles.actionRow, { backgroundColor: card }]}
-              onPress={() => openAccount('changePassword')}
-              disabled={busy}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.rowText, { color: tint }]}>Change password</Text>
-            </TouchableOpacity>
-          )}
-          {restorePending && (
-            <View style={[styles.row, styles.restoreRow, { backgroundColor: card }]}>
-              <Text style={[styles.rowText, styles.restoreText, { color: text }]}>
-                Your data has not been restored.
-              </Text>
-              <TouchableOpacity
-                style={styles.retry}
-                onPress={handleRetry}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.retryText, { color: tint }]}>Restore data</Text>
-              </TouchableOpacity>
+          <Card style={styles.card}>
+            <View style={styles.identity}>
+              <View style={[styles.avatar, { backgroundColor: tintSoft }]} accessible={false} importantForAccessibility="no-hide-descendants">
+                <Text style={[styles.initial, { color: tint }]}>{initial}</Text>
+              </View>
+              <View style={styles.identityCopy}>
+                <ThemedText type="title">{email ?? 'Signed in'}</ThemedText>
+                <ThemedText type="caption">{methodLabel}</ThemedText>
+              </View>
             </View>
-          )}
-          <TouchableOpacity
-            style={[styles.signOutBtn, { backgroundColor: card }]}
-            onPress={handleSignOut}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.signOutText, { color: danger }]}>Sign Out</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.row, { backgroundColor: card }]} disabled={busy || !deletionAvailable} onPress={handleDelete} accessibilityRole="button" accessibilityState={{ disabled: busy || !deletionAvailable }}>
-            <Text style={[styles.rowText, { color: deletionAvailable ? tint : icon }]}>Delete account</Text>
-            {!deletionAvailable && <Text style={[styles.hint, { color: icon }]}>Deletion is unavailable until the server capability is verified. Connect and retry.</Text>}
-          </TouchableOpacity>
+            <SyncStatusPanel />
+          </Card>
+          <ListGroup>
+            {restorePending && (
+              <ListRow
+                title="Your data has not been restored."
+                trailing={<Button variant="soft" size="sm" label="Restore data" disabled={busy} onPress={handleRetry} />}
+              />
+            )}
+            {method === 'email' && <ListRow title="Change password" disabled={busy} onPress={() => openAccount('changePassword')} />}
+            <ListRow title="Sign out" chevron={false} disabled={busy} onPress={handleSignOut} />
+          </ListGroup>
+          <ThemedText type="caption" style={styles.caption}>Signing out removes your log from this phone. Your backup stays in your account.</ThemedText>
+          <ThemedText type="section" accessibilityRole="header">Delete</ThemedText>
+          <ListGroup>
+            <ListRow
+              title="Delete account and backup"
+              subtitle={deletionAvailable ? undefined : 'Deletion is unavailable until the server capability is verified. Connect and retry.'}
+              destructive
+              chevron={false}
+              disabled={busy || !deletionAvailable}
+              onPress={handleDelete}
+            />
+          </ListGroup>
+          <ThemedText type="caption" style={styles.caption}>Deleting is permanent. Export your data first from Data and privacy.</ThemedText>
         </>
       ) : (
-        <>
-          <Text style={[styles.hint, { color: icon }]}>
+        <Card style={styles.card}>
+          <ThemedText type="title">Not signed in</ThemedText>
+          <ThemedText type="body" style={{ color: icon }}>
             Sign in to back up your log and restore it on a new phone.
-          </Text>
+          </ThemedText>
           {APPLE_SIGN_IN_SUPPORTED && (
-            <View style={styles.apple}>
-              <AppleSignInButton type="signIn" onPress={handleSignIn} disabled={busy} />
-            </View>
+            <AppleSignInButton type="signIn" onPress={handleSignIn} disabled={busy} />
           )}
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: tint }]}
-            onPress={() => openAccount('signUp')}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.actionBtnText, { color: onTint }]}>Sign up with email</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.ghostBtn}
-            onPress={() => openAccount('signIn')}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.retryText, { color: tint }]}>Sign in</Text>
-          </TouchableOpacity>
-        </>
+          <Button size="lg" label="Sign up with email" disabled={busy} onPress={() => openAccount('signUp')} />
+          <Button variant="ghost" label="Sign in" fullWidth disabled={busy} onPress={() => openAccount('signIn')} />
+        </Card>
       )}
 
       {busy && mode && (
@@ -326,22 +306,14 @@ export function AccountSection({ showTitle = true }: { showTitle?: boolean } = {
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  hint: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
-  row: { borderRadius: 12, padding: 16, marginBottom: 8 },
+  section: { gap: 12 },
+  card: { gap: 12 },
+  caption: { paddingHorizontal: 4 },
   rowText: { fontSize: 15 },
-  restoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  restoreText: { flex: 1 },
-  apple: { marginBottom: 8 },
-  actionRow: { minHeight: 44, justifyContent: 'center' },
-  actionBtn: { minHeight: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  actionBtnText: { fontSize: 17, fontWeight: '600' },
-  ghostBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  signOutBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: 44 },
-  signOutText: { fontSize: 17, fontWeight: '600' },
-  status: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  identityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  initial: { fontFamily: Fonts.rounded, fontSize: 18, fontWeight: '800' },
+  status: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   statusText: { fontSize: 13, lineHeight: 18, flexShrink: 1 },
-  retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  retryText: { fontSize: 17, fontWeight: '600' },
 });

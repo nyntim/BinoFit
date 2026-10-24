@@ -97,21 +97,21 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 | Board | Canvas page | Route or component | Build directions | Status |
 |---|---|---|---|---|
-| `SetIndex` | Settings | `app/(tabs)/settings.tsx` | [settings.md#setindex-settings](settings.md#setindex-settings) | Restyle + small new |
-| `SetProfile` | Settings | `app/settings/profile.tsx` | [settings.md#setprofile-profile](settings.md#setprofile-profile) | Restyle |
-| `SetNutrition` | Settings | `app/settings/nutrition.tsx`, `NutritionSection` | [settings.md#setnutrition-nutrition-settings](settings.md#setnutrition-nutrition-settings) | Restyle |
-| `SetTraining` | Settings | `app/settings/training.tsx`, `TrainingSection` | [settings.md#settraining-training-settings](settings.md#settraining-training-settings) | Restyle |
-| `SetTargets` | Settings | `app/settings/weekly-volume-targets.tsx` | [settings.md#settargets-weekly-volume-targets](settings.md#settargets-weekly-volume-targets) | Restyle |
-| `SetPreferences` | Settings | `app/settings/preferences.tsx` | [settings.md#setpreferences-preferences](settings.md#setpreferences-preferences) | Restyle |
-| `SetNotifications` | Settings | `app/settings/notifications.tsx` | [settings.md#setnotifications-notifications](settings.md#setnotifications-notifications) | Restyle |
-| `SetAccount` | Settings | `app/settings/account.tsx`, `AccountSection` | [settings.md#setaccount-account](settings.md#setaccount-account) | Restyle |
-| `SetSignIn` | Settings | `app/account.tsx`, `AuthForm` | [settings.md#setsignin-sign-in](settings.md#setsignin-sign-in) | Restyle |
-| `SetIntegrations` | Settings | `app/settings/integrations.tsx` | [settings.md#setintegrations-integrations](settings.md#setintegrations-integrations) | Restyle |
-| `SetData` | Settings | `app/settings/data-privacy.tsx` | [settings.md#setdata-data-and-privacy](settings.md#setdata-data-and-privacy) | Restyle |
-| `SetAbout` | Settings | `app/settings/about.tsx` | [settings.md#setabout-about](settings.md#setabout-about) | Restyle |
-| `SetSupport` | Settings | `app/settings/support.tsx` | [settings.md#setsupport--setfeedback-support-send-feedback-report-a-problem](settings.md#setsupport--setfeedback-support-send-feedback-report-a-problem) | Restyle |
-| `SetFeedback` | Settings | `app/settings/feedback.tsx`, `report-problem.tsx`, `SupportComposer` | same section | Restyle |
-| `SetLegal` | Settings | `app/settings/privacy-policy.tsx`, `terms.tsx` | [settings.md#setlegal-privacy-policy-and-terms](settings.md#setlegal-privacy-policy-and-terms) | Restyle |
+| `SetIndex` | Settings | `app/(tabs)/settings.tsx` | [settings.md#setindex-settings](settings.md#setindex-settings) | Built |
+| `SetProfile` | Settings | `app/settings/profile.tsx` | [settings.md#setprofile-profile](settings.md#setprofile-profile) | Built |
+| `SetNutrition` | Settings | `app/settings/nutrition.tsx`, `NutritionSection` | [settings.md#setnutrition-nutrition-settings](settings.md#setnutrition-nutrition-settings) | Built |
+| `SetTraining` | Settings | `app/settings/training.tsx`, `TrainingSection` | [settings.md#settraining-training-settings](settings.md#settraining-training-settings) | Built |
+| `SetTargets` | Settings | `app/settings/weekly-volume-targets.tsx` | [settings.md#settargets-weekly-volume-targets](settings.md#settargets-weekly-volume-targets) | Built |
+| `SetPreferences` | Settings | `app/settings/preferences.tsx` | [settings.md#setpreferences-preferences](settings.md#setpreferences-preferences) | Built |
+| `SetNotifications` | Settings | `app/settings/notifications.tsx` | [settings.md#setnotifications-notifications](settings.md#setnotifications-notifications) | Built |
+| `SetAccount` | Settings | `app/settings/account.tsx`, `AccountSection` | [settings.md#setaccount-account](settings.md#setaccount-account) | Built |
+| `SetSignIn` | Settings | `app/account.tsx`, `AuthForm` | [settings.md#setsignin-sign-in](settings.md#setsignin-sign-in) | Built (chrome); AuthForm content by onboarding |
+| `SetIntegrations` | Settings | `app/settings/integrations.tsx` | [settings.md#setintegrations-integrations](settings.md#setintegrations-integrations) | Built |
+| `SetData` | Settings | `app/settings/data-privacy.tsx` | [settings.md#setdata-data-and-privacy](settings.md#setdata-data-and-privacy) | Built |
+| `SetAbout` | Settings | `app/settings/about.tsx` | [settings.md#setabout-about](settings.md#setabout-about) | Built |
+| `SetSupport` | Settings | `app/settings/support.tsx` | [settings.md#setsupport--setfeedback-support-send-feedback-report-a-problem](settings.md#setsupport--setfeedback-support-send-feedback-report-a-problem) | Built |
+| `SetFeedback` | Settings | `app/settings/feedback.tsx`, `report-problem.tsx`, `SupportComposer` | same section | Built |
+| `SetLegal` | Settings | `app/settings/privacy-policy.tsx`, `terms.tsx` | [settings.md#setlegal-privacy-policy-and-terms](settings.md#setlegal-privacy-policy-and-terms) | Built |
 
 ### Direction boards (reference only)
 

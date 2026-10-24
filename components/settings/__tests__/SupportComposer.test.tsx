@@ -13,7 +13,6 @@ jest.mock('expo-constants', () => ({ __esModule: true, default: { nativeAppVersi
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/components/settings/SettingsPage', () => ({
   SettingsPage: ({ title, children }: { title: string; children: React.ReactNode }) => { const { View, Text } = jest.requireActual('react-native'); return <View><Text>{title}</Text>{children}</View>; },
-  SettingsRow: jest.requireActual('@/components/settings/SettingsRow').SettingsRow,
 }));
 beforeEach(() => { jest.clearAllMocks(); });
 afterEach(() => { jest.restoreAllMocks(); });
@@ -21,7 +20,7 @@ it('empty or whitespace-only messages cannot share and do not guard removal', as
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
   await render(<SupportComposer category="report" />);
   await fireEvent.press(screen.getByRole('button', { name: 'Share report', disabled: true }));
-  await fireEvent.changeText(screen.getByLabelText('Message (required)'), ' \n ');
+  await fireEvent.changeText(screen.getByLabelText('Your message (required)'), ' \n ');
   expect(screen.getByRole('button', { name: 'Share report', disabled: true })).toBeTruthy();
   expect(mockGuard.mock.calls.at(-1)?.[0]).toBe(false);
   expect(share).not.toHaveBeenCalled();
@@ -31,7 +30,7 @@ it('empty or whitespace-only messages cannot share and do not guard removal', as
 it.each([Share.dismissedAction, Share.sharedAction])('preserves draft after share result %s without delivery claims', async action => {
   const share = jest.spyOn(Share, 'share').mockResolvedValue({ action });
   await render(<SupportComposer category="feedback" />);
-  await fireEvent.changeText(screen.getByLabelText('Message (required)'), 'Clearer labels');
+  await fireEvent.changeText(screen.getByLabelText('Your message (required)'), 'Clearer labels');
   await fireEvent.press(screen.getByRole('button', { name: 'Share feedback' }));
   await waitFor(() => expect(share).toHaveBeenCalledWith({ message: 'BinoFit feedback\n\nClearer labels\n\nApp version: 2.3\nBuild: 21' }));
   expect(screen.getByDisplayValue('Clearer labels')).toBeTruthy();
@@ -43,11 +42,11 @@ it('disables duplicate share actions while pending and preserves a failed draft 
   let reject!: (error: Error) => void;
   const share = jest.spyOn(Share, 'share').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; })).mockResolvedValue({ action: Share.sharedAction });
   await render(<SupportComposer category="report" />);
-  await fireEvent.changeText(screen.getByLabelText('Message (required)'), 'Scan fails');
+  await fireEvent.changeText(screen.getByLabelText('Your message (required)'), 'Scan fails');
   await fireEvent.press(screen.getByRole('button', { name: 'Share report' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Share report', disabled: true }));
   expect(share).toHaveBeenCalledTimes(1);
-  expect(screen.getByLabelText('Message (required)').props.editable).toBe(false);
+  expect(screen.getByLabelText('Your message (required)').props.editable).toBe(false);
   await act(async () => { reject(new Error('unavailable')); });
   await screen.findByText('Could not open sharing. Your draft is still here. Try again.');
   expect(screen.getByDisplayValue('Scan fails')).toBeTruthy();
@@ -58,7 +57,7 @@ it('disables duplicate share actions while pending and preserves a failed draft 
 it('guards dirty removal, keeps editing and dispatches the original discard action', async () => {
   const alert = jest.spyOn(Alert, 'alert');
   await render(<SupportComposer category="report" />);
-  await fireEvent.changeText(screen.getByLabelText('Message (required)'), 'Unfinished report');
+  await fireEvent.changeText(screen.getByLabelText('Your message (required)'), 'Unfinished report');
   await fireEvent.press(screen.getByText('Cancel'));
   expect(router.back).toHaveBeenCalledTimes(1);
   const action = { type: 'GO_BACK' };

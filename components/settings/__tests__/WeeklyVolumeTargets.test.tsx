@@ -5,16 +5,21 @@ import WeeklyVolumeTargets from '@/app/settings/weekly-volume-targets';
 import { getUserGoals, saveWeeklyVolumeTargets } from '@/lib/storage';
 import { router } from 'expo-router';
 import { syncToSupabase } from '@/lib/sync';
+import { getDoneWorkoutsBetween } from '@/lib/workouts/history';
+import { setsPerMuscle } from '@/lib/workouts/summary';
 const mockDispatch = jest.fn();
 const mockGuard = jest.fn();
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() }, useNavigation: () => ({ dispatch: mockDispatch }) }));
 jest.mock('expo-router/react-navigation', () => ({ usePreventRemove: (...args: unknown[]) => mockGuard(...args) }));
-jest.mock('@/components/settings/SettingsPage', () => ({ SettingsPage: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+jest.mock('@/components/settings/SettingsPage', () => ({ SettingsPage: ({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) => <>{children}{footer}</> }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('@/lib/workouts/history', () => ({ getDoneWorkoutsBetween: jest.fn() }));
+jest.mock('@/lib/workouts/summary', () => ({ weekRange: () => ({ start: '2026-10-19', end: '2026-10-25' }), setsPerMuscle: jest.fn() }));
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
 jest.mock('@/lib/storage', () => ({ getUserGoals: jest.fn(), saveWeeklyVolumeTargets: jest.fn() }));
 jest.mock('@/lib/sync', () => ({ syncToSupabase: jest.fn() }));
 const goals = { calorie_goal: 2000, protein_goal: 150, carb_goal: 200, fat_goal: 65, weekly_volume_targets: { Chest: 12 } };
-beforeEach(() => { jest.clearAllMocks(); (getUserGoals as jest.Mock).mockResolvedValue(goals); (saveWeeklyVolumeTargets as jest.Mock).mockResolvedValue(undefined); });
+beforeEach(() => { jest.clearAllMocks(); (getUserGoals as jest.Mock).mockResolvedValue(goals); (saveWeeklyVolumeTargets as jest.Mock).mockResolvedValue(undefined); (getDoneWorkoutsBetween as jest.Mock).mockResolvedValue([]); (setsPerMuscle as jest.Mock).mockReturnValue([{ region: 'Chest', sets: 7 }]); });
 test('recommended fills blanks, preserves edits and waits for Save', async () => {
   await render(<WeeklyVolumeTargets />); await screen.findByDisplayValue('12');
   await fireEvent.changeText(screen.getByLabelText('Lats weekly sets'), '8');
@@ -32,8 +37,9 @@ test('invalid fields prevent saves, zero clears and failures keep draft and guar
   (saveWeeklyVolumeTargets as jest.Mock).mockRejectedValueOnce(new Error('disk'));
   await render(<WeeklyVolumeTargets />); await screen.findByDisplayValue('12');
   await fireEvent.changeText(screen.getByLabelText('Chest weekly sets'), '1.2');
-  await fireEvent.press(screen.getByText('Save'));
-  await screen.findByText('Chest: Enter a whole number from 1 to 40, or leave blank to clear.');
+  await screen.findByText('Enter 1 to 40 sets.');
+  expect(screen.getByText('Fix 1 field to save')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Save', disabled: true })).toBeTruthy();
   expect(saveWeeklyVolumeTargets).not.toHaveBeenCalled();
   await fireEvent.changeText(screen.getByLabelText('Chest weekly sets'), '0');
   await fireEvent.press(screen.getByText('Save'));
@@ -60,4 +66,16 @@ test('back navigation requires discard confirmation while dirty', async () => {
   const buttons = alert.mock.calls.at(-1)![2]!;
   buttons.find(button => button.text === 'Discard')!.onPress!();
   expect(mockDispatch).toHaveBeenCalledWith('back'); alert.mockRestore();
+});
+test('shows this week\u2019s working sets per region', async () => {
+  await render(<WeeklyVolumeTargets />); await screen.findByDisplayValue('12');
+  expect(await screen.findByLabelText('7 sets this week')).toBeTruthy();
+  expect(screen.getAllByLabelText('0 sets this week').length).toBeGreaterThan(0);
+});
+test('a failed week read shows a dash and the form still saves', async () => {
+  (getDoneWorkoutsBetween as jest.Mock).mockRejectedValue(new Error('disk'));
+  await render(<WeeklyVolumeTargets />); await screen.findByDisplayValue('12');
+  expect((await screen.findAllByLabelText('Sets this week unavailable')).length).toBeGreaterThan(0);
+  await fireEvent.press(screen.getByText('Save'));
+  await waitFor(() => expect(saveWeeklyVolumeTargets).toHaveBeenCalledWith({ Chest: 12 }));
 });

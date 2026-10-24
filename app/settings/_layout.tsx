@@ -1,4 +1,6 @@
 import { Stack } from 'expo-router';
+import { SETTINGS_SCREEN_TITLES } from '@/lib/settings-screens';
+
 export default function SettingsLayout() {
-  return <Stack screenOptions={{ headerShown: false }}>{['profile', 'nutrition', 'training', 'weekly-volume-targets', 'preferences', 'notifications', 'account', 'integrations', 'data-privacy', 'about', 'support', 'privacy-policy', 'terms', 'report-problem', 'feedback'].map(name => <Stack.Screen key={name} name={name} options={{ title: ({ 'weekly-volume-targets': 'Weekly volume targets', 'data-privacy': 'Data and Privacy', 'privacy-policy': 'Privacy Policy', terms: 'Terms of Service', 'report-problem': 'Report a problem', feedback: 'Send feedback' } as Record<string, string>)[name] ?? name.charAt(0).toUpperCase() + name.slice(1) }} />)}</Stack>;
+  return <Stack screenOptions={{ headerShown: false }}>{Object.entries(SETTINGS_SCREEN_TITLES).map(([name, title]) => <Stack.Screen key={name} name={name} options={{ title }} />)}</Stack>;
 }

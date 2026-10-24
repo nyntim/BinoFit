@@ -45,7 +45,7 @@ Deleting a synced row never calls Supabase directly. `lib/tombstones.ts`:
 
 `lib/sync-status.ts` is a pub/sub store (`status`, `lastSuccessAt`, `failingSince`, `isOffline`) fed by `syncToSupabase()`, which throws per step on Supabase `{ error }`, runs every step (`allSettled`), and coalesces calls made mid-sync into one extra pass. `deriveIndicator` hides failures for a 30 s grace period.
 
-- UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), Settings "Last synced" row (`getLastSyncAt` / `setLastSyncAt` in `lib/storage.ts`).
+- UI: `useSyncStatus`, `components/SyncIndicator.tsx` (dashboard pill, tap retries), the Settings account card and the Account backup panel (`hooks/useBackupStatus.ts` over `describeBackup` in `lib/settings-summaries.ts`, reading `getLastSyncAt` / `setLastSyncAt` in `lib/storage.ts`).
 - `useSyncAutoRetry` (mounted in `app/_layout.tsx`) tracks NetInfo, syncs on reconnect, and retries with 30 s / 1 m / 2 m / 5 m backoff while active and failing. Sync also runs on cold start.
 
 ## Public food catalog
