@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { volumeTargetProgress } from '@/lib/workouts/targets';
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'gray' }));
@@ -9,13 +9,15 @@ test('renders zero counts, exact over-target counts, status and an accessible ed
   expect(screen.getByLabelText('Chest, 14 of 12 sets, Over target')).toBeTruthy();
   expect(screen.getByLabelText('Lats, 10 of 10 sets, Met')).toBeTruthy();
   expect(screen.getByLabelText('Quads, 0 of 10 sets, Under target')).toBeTruthy();
-  expect(screen.getByText('14 / 12')).toBeTruthy();
-  expect(screen.getByTestId('volume-target-fill-Chest')).toHaveStyle({ width: '100%' });
-  expect(screen.getByTestId('volume-target-fill-Quads')).toHaveStyle({ width: '0%' });
+  const chest = screen.getByLabelText('Chest, 14 of 12 sets, Over target');
+  expect(within(chest).getByText('14')).toBeTruthy();
+  expect(within(chest).getByText('/12')).toBeTruthy();
+  expect(within(chest).getByTestId('progress-fill', { hidden: true })).toHaveStyle({ width: '100%' });
+  expect(within(screen.getByLabelText('Quads, 0 of 10 sets, Under target')).getByTestId('progress-fill', { hidden: true })).toHaveStyle({ width: '0%' });
   await fireEvent.press(screen.getByRole('button', { name: 'Edit weekly volume targets' }));
   expect(edit).toHaveBeenCalled();
 });
 test('hides an entirely empty card', async () => {
   await render(<MuscleSetsCard rows={[]} onEditTargets={jest.fn()} />);
-  expect(screen.queryByText('Sets')).toBeNull();
+  expect(screen.queryByText('Sets this week')).toBeNull();
 });

@@ -56,7 +56,7 @@ export function formatVolume(kg: number, unit: WeightUnit): string {
 }
 
 /** Stored duration, else started/ended, else 0. */
-function workoutSeconds(w: WorkoutWithExercises): number {
+export function workoutSeconds(w: WorkoutWithExercises): number {
   if (w.duration_seconds != null) {
     return Number.isFinite(w.duration_seconds) ? Math.max(0, w.duration_seconds) : 0;
   }
@@ -208,3 +208,76 @@ export function formatMuscleSetCount(sets: number): string {
   return Number.isInteger(sets) && sets >= 0 ? String(sets) : '0';
 }
 
+
+export type WeekDay = {
+  /** yyyy-MM-dd */
+  date: string;
+  /** "M", "T", "W", "T", "F", "S", "S" */
+  letter: string;
+  state: 'done' | 'running' | 'rest';
+  today: boolean;
+};
+
+const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/** The seven days of `range` (Monday first). Done wins over running; running only applies to `today`. */
+export function weekActivity(range: WeekRange, doneDates: string[], today: string, running: boolean): WeekDay[] {
+  const done = new Set(doneDates);
+  const monday = parseISO(range.start);
+  return WEEKDAY_LETTERS.map((letter, i) => {
+    const date = format(addDays(monday, i), 'yyyy-MM-dd');
+    const isToday = date === today;
+    const state: WeekDay['state'] = done.has(date) ? 'done' : running && isToday ? 'running' : 'rest';
+    return { date, letter, state, today: isToday };
+  });
+}
+
+/** Spoken summary of the strip: "Trained Monday and Wednesday, workout in progress today". */
+export function weekActivityLabel(days: WeekDay[]): string {
+  const names = days.filter((d) => d.state === 'done').map((d) => format(parseISO(d.date), 'EEEE'));
+  const running = days.some((d) => d.state === 'running');
+  let trained = '';
+  if (names.length === 1) trained = `Trained ${names[0]}`;
+  else if (names.length > 1) trained = `Trained ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  if (trained && running) return `${trained}, workout in progress today`;
+  if (trained) return trained;
+  return running ? 'Workout in progress today' : 'No workouts yet this week';
+}
+
+/** The summary subtitle without its leading date ("Thu 16 Oct · Deadlift" becomes "Deadlift"). */
+export function subtitleWithoutDate(summary: Pick<WorkoutSummary, 'date' | 'subtitle'>): string {
+  const date = formatShortDate(summary.date);
+  if (summary.subtitle === date) return '';
+  const prefix = `${date} · `;
+  return summary.subtitle.startsWith(prefix) ? summary.subtitle.slice(prefix.length) : summary.subtitle;
+}
+
+/** Totals for the finished workout stats: volume (kg), all sets, warm-up sets and seconds. */
+export function workoutStats(w: WorkoutWithExercises): {
+  volumeKg: number;
+  sets: number;
+  warmups: number;
+  durationSeconds: number;
+} {
+  let sets = 0;
+  let warmups = 0;
+  for (const e of w.exercises ?? []) {
+    for (const s of e.sets) {
+      sets += 1;
+      if (s.set_type === 'warmup') warmups += 1;
+    }
+  }
+  return { volumeKg: workoutVolumeKg(w), sets, warmups, durationSeconds: workoutSeconds(w) };
+}
+
+/** "Fri 23 Oct · 5:12 PM · 58 min"; the start and duration are left out when unknown. */
+export function formatWorkoutMeta(w: WorkoutWithExercises): string {
+  const parts = [formatShortDate(w.date)];
+  if (w.started_at) {
+    const start = new Date(w.started_at);
+    if (!Number.isNaN(start.getTime())) parts.push(format(start, 'h:mm a'));
+  }
+  const seconds = workoutSeconds(w);
+  if (seconds > 0) parts.push(formatDurationShort(seconds));
+  return parts.join(' · ');
+}

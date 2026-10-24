@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns';
-import { formatWeight } from '@/lib/units';
-import type { Exercise, Workout, WeightUnit } from '@/lib/types';
+import { formatWeight, formatWeightWithUnit } from '@/lib/units';
+import type { Exercise, ExerciseLogType, Workout, WorkoutSet, WeightUnit } from '@/lib/types';
+import { formatPreviousSet } from '@/lib/workouts/prefill';
 
 /** The workout's name, or "Workout · Tue 14 Oct" (from its date) when the name is blank. */
 export function workoutDisplayName(workout: Pick<Workout, 'name' | 'date'>): string {
@@ -66,4 +67,25 @@ export function setupDetailLine(
     parts.push('Weight stack');
   }
   return parts.length ? parts.join(' · ') : null;
+}
+
+/**
+ * A logged set for the finished-workout view: "165 lb × 8", "BW × 12", "+10 kg × 8". Other log
+ * types read as in the Previous column. Null when the set holds nothing to show.
+ */
+export function formatSetValue(
+  set: Pick<WorkoutSet, 'weight_kg' | 'reps' | 'duration_seconds' | 'distance_m'> | null | undefined,
+  logType: ExerciseLogType,
+  perSide: boolean,
+  unit: WeightUnit
+): string | null {
+  if (!set) return null;
+  if (logType === 'weight_reps') {
+    if (set.weight_kg === null || set.reps === null || set.reps === undefined) return null;
+    return `${formatWeightWithUnit(set.weight_kg, unit)} × ${set.reps}${perSide ? '/side' : ''}`;
+  }
+  if (logType === 'bodyweight_reps' && set.reps !== null && set.reps !== undefined && set.weight_kg && set.weight_kg > 0) {
+    return `+${formatWeightWithUnit(set.weight_kg, unit)} × ${set.reps}${perSide ? '/side' : ''}`;
+  }
+  return formatPreviousSet(set, logType, perSide, unit);
 }

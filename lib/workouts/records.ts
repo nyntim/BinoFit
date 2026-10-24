@@ -3,7 +3,7 @@
 import { formatWeightWithUnit } from '@/lib/units';
 import { formatVolume } from '@/lib/workouts/summary';
 import { setVolumeKg } from '@/lib/workouts/volume';
-import type { ExerciseLogType, SetType, WeightUnit, WorkoutSet } from '@/lib/types';
+import type { ExerciseLogType, SetType, WeightUnit, WorkoutExerciseWithSets, WorkoutSet, WorkoutWithExercises } from '@/lib/types';
 
 export type RecordKind = 'weight' | 'e1rm' | 'volume' | 'reps';
 
@@ -284,4 +284,94 @@ export function recentRecordHits(sets: RecordSet[], limit: number): RecordHit[] 
   if (!(limit > 0)) return [];
   const hits = collectRecordHits(sets);
   return hits.reverse().slice(0, Math.floor(limit));
+}
+
+/** The exercise's sets as record sets, or null unless it is a weight_reps exercise. `at` is the workout's start. */
+export function exerciseRecordSets(ex: WorkoutExerciseWithSets, at: string): RecordSet[] | null {
+  const logType = ex.exercise?.log_type ?? null;
+  if (logType !== 'weight_reps') return null;
+  const perSide = !!ex.exercise?.per_side;
+  return ex.sets.map((set) => recordSetFromWorkoutSet({ set, exerciseId: ex.exercise_id, at, logType, perSide }));
+}
+
+export type ExerciseRecordResult = {
+  /** Best values this workout set above the history before it (null per kind when not beaten). */
+  beaten: RecordValues;
+  /** Record kinds per set id, only for sets that beat the prior history. */
+  setKinds: Map<string, RecordKind[]>;
+};
+
+/**
+ * Records set by each weight_reps exercise of the workout against `priors` (history before it).
+ * Keyed by workout_exercise id. Empty while `priors` is null (still loading).
+ */
+export function workoutRecords(
+  workout: WorkoutWithExercises,
+  priors: Map<string, RecordValues> | null
+): Map<string, ExerciseRecordResult> {
+  const out = new Map<string, ExerciseRecordResult>();
+  if (priors === null) return out;
+  const at = workout.started_at ?? workout.created_at;
+  for (const ex of workout.exercises ?? []) {
+    const recordSets = exerciseRecordSets(ex, at);
+    if (recordSets === null) continue;
+    const prior = priors.get(ex.exercise_id) ?? EMPTY_RECORDS;
+    const setKinds = new Map<string, RecordKind[]>();
+    recordSets.forEach((rs) => {
+      const kinds = newRecordsFor(rs, prior);
+      if (kinds.length > 0) setKinds.set(rs.setId, kinds);
+    });
+    out.set(ex.id, { beaten: bestNewRecords(recordSets, prior), setKinds });
+  }
+  return out;
+}
+
+/** True when any record metric was beaten. */
+export function hasBeaten(values: RecordValues): boolean {
+  return values.weightKg !== null || values.e1rmKg !== null || values.volumeKg !== null || values.reps !== null;
+}
+
+/** Number of exercises that set at least one record (not the number of record kinds). */
+export function countRecordExercises(
+  workout: WorkoutWithExercises,
+  priors: Map<string, RecordValues> | null
+): number {
+  let n = 0;
+  for (const result of workoutRecords(workout, priors).values()) if (hasBeaten(result.beaten)) n += 1;
+  return n;
+}
+
+/** "1 record" / "3 records"; null for zero. */
+export function formatRecordCount(count: number): string | null {
+  if (!(count > 0)) return null;
+  return count === 1 ? '1 record' : `${count} records`;
+}
+
+/** The note under a record set: "Heaviest 75 kg", "Est. 1RM 128 lb", "Best set 1,200 kg", "Most reps 12". */
+export function formatSetRecordNote(
+  kind: RecordKind,
+  set: Pick<WorkoutSet, 'weight_kg' | 'reps'>,
+  unit: WeightUnit,
+  perSide: boolean
+): string | null {
+  const side = perSide ? '/side' : '';
+  const weightKg = set.weight_kg ?? 0;
+  const reps = set.reps ?? 0;
+  switch (kind) {
+    case 'weight':
+      return `Heaviest ${formatWeightWithUnit(weightKg, unit)}${side}`;
+    case 'e1rm': {
+      const e1rm = estimatedOneRepMax(weightKg, reps);
+      return e1rm === null ? null : `Est. 1RM ${formatWeightWithUnit(e1rm, unit)}${side}`;
+    }
+    case 'volume': {
+      const volume = setVolumeKg(
+        { weight_kg: weightKg, reps, set_type: 'normal' },
+        { log_type: 'weight_reps', per_side: perSide ? 1 : 0 }
+      );
+      return `Best set ${formatVolume(volume, unit)} ${unit}`;
+    }
+    case 'reps':
+      return `Most reps ${reps}${side}`;
+  }
 }

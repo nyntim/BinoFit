@@ -14,14 +14,18 @@ type Props = {
   onCommit: (text: string) => void;
   accessibilityLabel: string;
   keyboardType?: KeyboardTypeOptions;
+  /** `open` sits on a nested fill, `active` (on the tinted row of the set being worked) on a card fill, `done` has no fill. */
+  tone?: 'open' | 'active' | 'done';
+  /** Draws the 2 pt tint border (the weight cell of the active set). Focus does the same. */
+  highlighted?: boolean;
 };
 
 /**
- * A 36pt number cell. Typing commits after a 300 ms pause and on blur; while focused the cell keeps
+ * A 36 pt number cell. Typing commits after a 300 ms pause and on blur; while focused the cell keeps
  * what was typed, and on blur it shows the stored value again (so "2730" becomes "27:30" and an
  * invalid entry reverts).
  */
-export function NumericCell({ value, placeholder, onCommit, accessibilityLabel, keyboardType = 'decimal-pad' }: Props) {
+export function NumericCell({ value, placeholder, onCommit, accessibilityLabel, keyboardType = 'decimal-pad', tone = 'open', highlighted = false }: Props) {
   const [text, setText] = useState(value);
   const [focused, setFocused] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,8 +107,8 @@ export function NumericCell({ value, placeholder, onCommit, accessibilityLabel, 
         styles.cell,
         {
           color: textColor,
-          backgroundColor: focused ? card : subtle,
-          borderColor: focused ? tint : 'transparent',
+          backgroundColor: focused || tone === 'active' ? card : tone === 'done' ? 'transparent' : subtle,
+          borderColor: focused || highlighted ? tint : 'transparent',
         },
       ]}
     />
@@ -114,11 +118,12 @@ export function NumericCell({ value, placeholder, onCommit, accessibilityLabel, 
 const styles = StyleSheet.create({
   cell: {
     height: 36,
-    borderWidth: 1.5,
-    borderRadius: 8,
+    borderWidth: 2,
+    borderRadius: 10,
     paddingHorizontal: 4,
     paddingVertical: 0,
     fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },

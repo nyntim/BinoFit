@@ -2,7 +2,7 @@
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { syncToSupabase } from '@/lib/sync';
-import { saveWorkoutAsRoutine } from '@/lib/workouts/routines';
+import { saveWorkoutAsRoutine, startLiveFromRoutine } from '@/lib/workouts/routines';
 import type { RoutineWithExercises } from '@/lib/types';
 
 /**
@@ -27,5 +27,31 @@ export async function saveAsRoutineWithFeedback(
     ]);
   } catch {
     Alert.alert('Couldn’t save the routine.', 'Try again.');
+  }
+}
+
+/**
+ * Starts a live workout from the routine and opens the session, with the Alerts for an empty
+ * routine, a workout already in progress and failures. Never throws.
+ */
+export async function startRoutineWithFeedback(routineId: string): Promise<'started' | 'not-started'> {
+  try {
+    const result = await startLiveFromRoutine(routineId, new Date());
+    if (result === 'empty') {
+      Alert.alert('Add an exercise first.');
+      return 'not-started';
+    }
+    if (result === 'active') {
+      Alert.alert('A workout is already in progress.', undefined, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Resume', onPress: () => router.push('/workout/session') },
+      ]);
+      return 'not-started';
+    }
+    router.push('/workout/session');
+    return 'started';
+  } catch {
+    Alert.alert('Couldn’t start the workout.', 'Try again.');
+    return 'not-started';
   }
 }

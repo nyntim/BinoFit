@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { Tag } from '@/components/ui/Tag';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 type Props = {
@@ -9,27 +12,35 @@ type Props = {
   setupNotes?: string | null;
   /** "Rest 2:00"; omit when the rest is not shown (logging afterward). */
   restLabel?: string | null;
+  /** Neutral tag beside the name for non-strength log types ("Cardio", "Time"). */
+  tag?: string | null;
   onOptions?: () => void;
   children: ReactNode;
 };
 
-/** A card for one exercise: title, optional rest label and options button, setup notes, then the set table. */
-export function ExerciseBlock({ title, setupNotes, restLabel, onOptions, children }: Props) {
-  const card = useThemeColor({}, 'cardBackground');
-  const tint = useThemeColor({}, 'tint');
+/**
+ * A card for one exercise: name, optional tag, rest label and options button, setup notes, then the
+ * set table. The card has no horizontal padding so a set row can tint edge to edge.
+ */
+export function ExerciseBlock({ title, setupNotes, restLabel, tag, onOptions, children }: Props) {
   const muted = useThemeColor({}, 'icon');
 
   return (
-    <View style={[styles.block, { backgroundColor: card }]}>
+    <Card padding="none" style={styles.block}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: tint }]} accessibilityRole="header">
-          {title}
-        </Text>
-        {restLabel ? <Text style={[styles.rest, { color: muted }]}>{restLabel}</Text> : null}
+        <View style={styles.titles}>
+          <View style={styles.nameRow}>
+            <ThemedText type="title" style={styles.title} accessibilityRole="header">
+              {title}
+            </ThemedText>
+            {tag ? <Tag label={tag} /> : null}
+          </View>
+          {setupNotes ? <ThemedText type="caption">{setupNotes}</ThemedText> : null}
+        </View>
+        {restLabel ? <ThemedText type="caption" style={styles.rest}>{restLabel}</ThemedText> : null}
         {onOptions ? (
           <Pressable
             onPress={onOptions}
-            hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel={`Options for ${title}`}
             style={styles.options}
@@ -38,17 +49,17 @@ export function ExerciseBlock({ title, setupNotes, restLabel, onOptions, childre
           </Pressable>
         ) : null}
       </View>
-      {setupNotes ? <Text style={[styles.notes, { color: muted }]}>{setupNotes}</Text> : null}
       {children}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  block: { borderRadius: 18, padding: 16, gap: 6 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 17, fontWeight: '600' },
-  rest: { fontSize: 12, fontVariant: ['tabular-nums'] },
-  options: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  notes: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
+  block: { paddingTop: 14, paddingBottom: 6, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 18, paddingRight: 8, paddingBottom: 8 },
+  titles: { flex: 1, minWidth: 0, gap: 4 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  title: { flexShrink: 1 },
+  rest: { fontVariant: ['tabular-nums'] },
+  options: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SheetHeader } from '@/components/ui/SheetHeader';
 import { WorkoutEditorBody } from '@/components/workouts/WorkoutEditor';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
@@ -18,11 +21,6 @@ export default function LogPastWorkoutScreen() {
   const editor = useWorkoutEditor(draftId, 'manual');
 
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
-  const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
 
   const openDraft = useCallback(() => {
     if (requestedId) return;
@@ -92,24 +90,26 @@ export default function LogPastWorkoutScreen() {
   let body: React.ReactNode = null;
   if (initFailed || editor.status === 'error' || editor.status === 'missing') {
     body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t open this workout.</Text>
-        <Pressable
-          onPress={() => {
-            if (!requestedId && (initFailed || editor.status === 'missing')) {
-              setInitFailed(false);
-              setDraftId(undefined);
-              openDraft();
-            } else {
-              void editor.reload();
-            }
-          }}
-          accessibilityRole="button"
-          style={[styles.retry, { borderColor: fieldBorder }]}
-        >
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t open this workout."
+        style={styles.message}
+        actions={
+          <Button
+            variant="secondary"
+            label="Retry"
+            onPress={() => {
+              if (!requestedId && (initFailed || editor.status === 'missing')) {
+                setInitFailed(false);
+                setDraftId(undefined);
+                openDraft();
+              } else {
+                void editor.reload();
+              }
+            }}
+          />
+        }
+      />
     );
   } else if (editor.status === 'ready' && editor.workout) {
     body = <WorkoutEditorBody editor={editor} mode="manual" onAddExercises={onAddExercises} />;
@@ -117,28 +117,11 @@ export default function LogPastWorkoutScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
-        <Pressable
-          onPress={onCancel}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          style={[styles.headerSide, styles.left]}
-        >
-          <Text style={[styles.headerButton, { color: tint }]}>Cancel</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header" numberOfLines={1}>
-          Log past workout
-        </Text>
-        <Pressable
-          onPress={onSave}
-          disabled={editor.status !== 'ready' || busy}
-          accessibilityRole="button"
-          accessibilityLabel="Save"
-          style={[styles.headerSide, styles.right, (editor.status !== 'ready' || busy) && { opacity: 0.5 }]}
-        >
-          <Text style={[styles.headerButton, styles.save, { color: tint }]}>Save</Text>
-        </Pressable>
-      </View>
+      <SheetHeader
+        title="Log past workout"
+        onCancel={onCancel}
+        action={{ label: 'Save', onPress: () => void onSave(), disabled: editor.status !== 'ready' || busy }}
+      />
       {body}
     </SafeAreaView>
   );
@@ -146,28 +129,5 @@ export default function LogPastWorkoutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerSide: { width: 80, minHeight: 44, justifyContent: 'center' },
-  left: { alignItems: 'flex-start' },
-  right: { alignItems: 'flex-end' },
-  headerButton: { fontSize: 17 },
-  save: { fontWeight: '600' },
-  title: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
-  message: { padding: 16, gap: 16 },
-  messageText: { fontSize: 15 },
-  retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  retryText: { fontSize: 17, fontWeight: '600' },
+  message: { padding: 16 },
 });

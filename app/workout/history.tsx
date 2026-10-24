@@ -2,8 +2,12 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
+import { WorkoutNavBar } from '@/components/workouts/WorkoutNavBar';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWorkoutHistory } from '@/hooks/useWorkoutHistory';
@@ -14,59 +18,56 @@ import { groupByMonth } from '@/lib/workouts/summary';
 /** All finished workouts, newest first, grouped by month. */
 export default function WorkoutHistoryScreen() {
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const card = useThemeColor({}, 'cardBackground');
 
   const history = useWorkoutHistory();
   const [optionsFor, setOptionsFor] = useState<WorkoutSummary | null>(null);
-  const sections = useMemo(
-    () => groupByMonth(history.items).map((g) => ({ key: g.key, title: g.label, data: g.items })),
-    [history.items]
-  );
+  // One item per month so each month draws as a single card; a month's count shows once it is complete
+  const sections = useMemo(() => {
+    const groups = groupByMonth(history.items);
+    return groups.map((g, i) => ({
+      key: g.key,
+      title: g.label,
+      count: g.items.length,
+      complete: i < groups.length - 1 || !history.hasMore,
+      data: [g.items],
+    }));
+  }, [history.items, history.hasMore]);
 
   let empty: React.ReactNode = null;
   if (history.status === 'loading') {
     empty = <ActivityIndicator style={styles.message} color={muted} />;
   } else if (history.status === 'error') {
     empty = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t load workouts.</Text>
-        <Pressable onPress={history.reload} accessibilityRole="button" accessibilityLabel="Retry" style={({ pressed }) => [styles.retry, pressed && { opacity: 0.85 }]}>
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t load workouts."
+        style={styles.message}
+        actions={<Button variant="secondary" label="Retry" onPress={history.reload} />}
+      />
     );
   } else {
     empty = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: text }]}>No workouts yet.</Text>
-        <Text style={[styles.messageBody, { color: muted }]}>Start one from the Training tab or log a past workout.</Text>
-      </View>
+      <EmptyState
+        title="No workouts yet."
+        body="Start one from the Training tab or log a past workout."
+        style={styles.message}
+      />
     );
   }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.iconButton}
-        >
-          <IconSymbol name="chevron.left" size={22} color={tint} />
-        </Pressable>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          All workouts
-        </Text>
-      </View>
+      <WorkoutNavBar label="Training" onBack={() => router.back()} />
       <SectionList
         sections={sections}
-        keyExtractor={(w) => w.id}
+        keyExtractor={(rows) => rows[0].date.slice(0, 7)}
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <ThemedText type="largeTitle" accessibilityRole="header" style={styles.largeTitle}>All workouts</ThemedText>
+        }
         ListEmptyComponent={empty}
         onEndReached={history.loadMore}
         onEndReachedThreshold={0.5}
@@ -85,26 +86,28 @@ export default function WorkoutHistoryScreen() {
           ) : null
         }
         renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionLabel, { color: muted }]} accessibilityRole="header">
-            {section.title}
-          </Text>
-        )}
-        renderItem={({ item, index, section }) => (
-          <View
-            style={[
-              styles.rowWrap,
-              { backgroundColor: card },
-              index === 0 && styles.rowFirst,
-              index === section.data.length - 1 && styles.rowLast,
-            ]}
-          >
-            <WorkoutHistoryRow
-              summary={item}
-              last={index === section.data.length - 1}
-              onPress={() => router.push({ pathname: '/workout/[id]', params: { id: item.id } })}
-              onLongPress={() => setOptionsFor(item)}
-            />
+          <View style={styles.sectionHeader}>
+            <ThemedText type="section" accessibilityRole="header" style={styles.sectionLabel}>{section.title}</ThemedText>
+            {section.complete ? (
+              <ThemedText type="caption">{section.count} {section.count === 1 ? 'workout' : 'workouts'}</ThemedText>
+            ) : null}
           </View>
+        )}
+        renderItem={({ item: rows }) => (
+          <Card padding="none">
+            {rows.map((row, index) => (
+              <WorkoutHistoryRow
+                key={row.id}
+                summary={row}
+                inset
+                dateBlock
+                last={index === rows.length - 1}
+                recordCount={history.recordCounts.get(row.id)}
+                onPress={() => router.push({ pathname: '/workout/[id]', params: { id: row.id } })}
+                onLongPress={() => setOptionsFor(row)}
+              />
+            ))}
+          </Card>
         )}
       />
       <OptionsSheet
@@ -134,17 +137,11 @@ export default function WorkoutHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 8, paddingTop: 4 },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, fontSize: 22, fontWeight: '700' },
   list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
-  sectionLabel: { fontSize: 13, fontWeight: '500', paddingTop: 20, paddingBottom: 8 },
-  rowWrap: { paddingHorizontal: 20 },
-  rowFirst: { borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 4 },
-  rowLast: { borderBottomLeftRadius: 18, borderBottomRightRadius: 18, paddingBottom: 4 },
-  message: { paddingTop: 48, alignItems: 'center', gap: 4 },
-  messageText: { fontSize: 15 },
-  messageBody: { fontSize: 12 },
+  largeTitle: { paddingTop: 4, paddingBottom: 4 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 18, paddingBottom: 8, paddingHorizontal: 4 },
+  sectionLabel: { paddingHorizontal: 0 },
+  message: { paddingTop: 32 },
   retry: { minHeight: 44, justifyContent: 'center' },
   retryText: { fontSize: 15, fontWeight: '500' },
   footer: { paddingVertical: 16 },

@@ -411,3 +411,18 @@ test('Finish never fills historical blank effort or completes unticked sets', as
   expect(kept).toMatchObject({ rpe: null, rir: null, completed_at: iso(at(11)) });
   expect(mem.raw.prepare('SELECT * FROM workout_sets WHERE id = ?').get(sets[1].id)).toBeUndefined();
 });
+
+describe('staleMessage', () => {
+  const base: any = { name: 'Push day', started_at: new Date(2026, 0, 5, 10, 0).toISOString(), created_at: new Date(2026, 0, 5, 10, 0).toISOString() };
+  const at = (h: number, m = 0) => new Date(2026, 0, 5, h, m);
+  it('floors the hours, with the last set time in 12-hour form', () => {
+    expect(session.staleMessage(base, at(17, 59), at(18, 12))).toBe('Push day has been open for 7 hours. Your last set was at 6:12 PM.');
+  });
+  it('uses the singular for one hour and a minimum of one', () => {
+    expect(session.staleMessage(base, at(11, 30), null)).toBe('Push day has been open for 1 hour. No sets ticked yet.');
+    expect(session.staleMessage(base, at(10, 5), null)).toBe('Push day has been open for 1 hour. No sets ticked yet.');
+  });
+  it('names an unnamed workout "This workout"', () => {
+    expect(session.staleMessage({ ...base, name: '  ' }, at(16), null)).toMatch(/^This workout has been open for 6 hours\./);
+  });
+});

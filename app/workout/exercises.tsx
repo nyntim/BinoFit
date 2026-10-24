@@ -1,10 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconTile } from '@/components/ui/IconTile';
+import { ListGroup } from '@/components/ui/ListGroup';
+import { SearchField } from '@/components/ui/SearchField';
+import { SheetHeader } from '@/components/ui/SheetHeader';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ChipToggle } from '@/components/workouts/ChipToggle';
 import { ExerciseRow } from '@/components/workouts/ExerciseRow';
+import { NavIconButton, WorkoutNavBar } from '@/components/workouts/WorkoutNavBar';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
 import { syncToSupabase } from '@/lib/sync';
@@ -36,12 +45,8 @@ export default function ExerciseLibraryScreen() {
   const [adding, setAdding] = useState(false);
 
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const card = useThemeColor({}, 'cardBackground');
-  const subtle = useThemeColor({}, 'cardSecondary');
   const tint = useThemeColor({}, 'tint');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
+  const onTint = useThemeColor({}, 'onTint');
 
   const results = useMemo(() => filterExercises(exercises, { query, region, brand, aliases: SEED_ALIASES }),
     [exercises, query, region, brand]);
@@ -87,150 +92,141 @@ export default function ExerciseLibraryScreen() {
 
   const renderSection = (title: string, list: Exercise[]) => (
     <View style={styles.section}>
-      <Text style={[styles.sectionLabel, { color: muted }]} accessibilityRole="header">
-        {title.toUpperCase()}
-      </Text>
-      <View style={[styles.card, { backgroundColor: card }]}>
-        {list.map((e, i) => (
+      <ThemedText type="section" accessibilityRole="header">{title}</ThemedText>
+      <ListGroup>
+        {list.map((e) => (
           <ExerciseRow
             key={e.id}
             title={exerciseDisplayName(e)}
             subtitle={exerciseSubtitle(e)}
             tag={EQUIPMENT_LABELS[e.equipment]}
-            last={i === list.length - 1}
+            custom={e.source === 'custom'}
             onPress={pick || e.source === 'custom' ? () => onPressExercise(e) : undefined}
           />
         ))}
-      </View>
+      </ListGroup>
     </View>
+  );
+
+  const createCard = (
+    <Pressable
+      onPress={() => openBuilder(trimmed)}
+      accessibilityRole="button"
+      accessibilityLabel={`Create “${trimmed}”`}
+    >
+      <Card padding="compact" style={styles.createCard}>
+        <IconTile icon="plus" size={40} />
+        <View style={styles.createText}>
+          <ThemedText type="body" style={[styles.createTitle, { color: tint }]}>{`Create “${trimmed}”`}</ThemedText>
+          <ThemedText type="caption">Add the machine, its brand and your seat settings</ThemedText>
+        </View>
+      </Card>
+    </Pressable>
   );
 
   let body: React.ReactNode;
   if (status === 'error') {
     body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t load exercises.</Text>
-        <Pressable
-          onPress={reload}
-          accessibilityRole="button"
-          style={[styles.retry, { borderColor: fieldBorder }]}
-        >
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t load exercises."
+        actions={<Button variant="secondary" label="Retry" onPress={reload} />}
+      />
     );
   } else if (status === 'loading') {
     body = null;
   } else if (results.length === 0 && trimmed) {
     body = (
       <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>{`No exercises match “${trimmed}”.`}</Text>
-        <Pressable
-          onPress={() => openBuilder(trimmed)}
-          accessibilityRole="button"
-          style={[styles.createCard, { backgroundColor: card }]}
-        >
-          <View style={[styles.plusBox, { backgroundColor: tint }]}>
-            <IconSymbol name="plus" size={22} color={background} />
-          </View>
-          <View style={styles.createText}>
-            <Text style={[styles.createTitle, { color: text }]}>{`Create “${trimmed}”`}</Text>
-            <Text style={[styles.createSub, { color: muted }]}>
-              Add the machine, its brand and your seat settings
-            </Text>
-          </View>
-        </Pressable>
+        <ThemedText type="body">{`No exercises match “${trimmed}”.`}</ThemedText>
+        {createCard}
       </View>
     );
   } else if (results.length === 0) {
     body = (
       <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>
+        <ThemedText type="body">
           {brand ? `No ${brand} machines in this group.` : 'No exercises in this group.'}
-        </Text>
+        </ThemedText>
       </View>
     );
   } else {
     body = (
       <>
-        {yours.length > 0 && renderSection('Your exercises', yours)}
-        {all.length > 0 && renderSection('All exercises', all)}
+        {yours.length > 0 && renderSection('Yours', yours)}
+        {all.length > 0 && renderSection(region === 'All' ? 'All exercises' : region, all)}
       </>
     );
   }
 
+  const showPromo = !pick && status === 'ready' && !(results.length === 0 && trimmed);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.iconButton}
-        >
-          <IconSymbol name="chevron.left" size={22} color={tint} />
-        </Pressable>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          Exercises
-        </Text>
-        <Pressable
-          onPress={() => openBuilder()}
-          accessibilityRole="button"
-          accessibilityLabel="New exercise"
-          style={[styles.newButton, { backgroundColor: tint }]}
-        >
-          <Text style={[styles.newButtonText, { color: background }]}>+ New exercise</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.filters}>
-        <View style={[styles.search, { backgroundColor: subtle }]}>
-          <IconSymbol name="magnifyingglass" size={18} color={muted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search exercises"
-            placeholderTextColor={muted}
-            selectionColor={tint}
-            accessibilityLabel="Search exercises"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            style={[styles.searchInput, { color: text }]}
-          />
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.chips}
-          accessibilityRole="radiogroup"
-          accessibilityLabel="Muscle group"
-        >
-          {REGIONS.map((r) => (
-            <ChipToggle key={r} label={r} role="radio" size="compact" selected={region === r} onPress={() => setRegion(r)} />
-          ))}
-        </ScrollView>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.chips}
-          accessibilityRole="radiogroup"
-          accessibilityLabel="Brand"
-        >
-          <ChipToggle label="All brands" role="radio" size="compact" selected={brand === null} onPress={() => setBrand(null)} />
-          {COMMON_MACHINE_BRANDS.map((b) => (
-            <ChipToggle key={b} label={b} role="radio" size="compact" selected={brand === b} onPress={() => setBrand(b)} />
-          ))}
-        </ScrollView>
-      </View>
+      {pick ? (
+        <SheetHeader title="Add exercises" onCancel={() => router.back()} />
+      ) : (
+        <WorkoutNavBar
+          label="Training"
+          onBack={() => router.back()}
+          trailing={<NavIconButton icon="plus" label="New exercise" tone="tint" onPress={() => openBuilder()} />}
+        />
+      )}
 
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {pick ? null : <ThemedText type="largeTitle" accessibilityRole="header">Exercises</ThemedText>}
+        <View style={[styles.filters, { backgroundColor: background }]}>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search exercises"
+            accessibilityLabel="Search exercises"
+            autoFocus={pick}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.chips}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Muscle group"
+          >
+            {REGIONS.map((r) => (
+              <ChipToggle key={r} label={r} role="radio" selected={region === r} onPress={() => setRegion(r)} />
+            ))}
+          </ScrollView>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.chips}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Brand"
+          >
+            <ChipToggle label="All brands" role="radio" size="compact" tone="ink" selected={brand === null} onPress={() => setBrand(null)} />
+            {COMMON_MACHINE_BRANDS.map((b) => (
+              <ChipToggle key={b} label={b} role="radio" size="compact" selected={brand === b} onPress={() => setBrand(b)} />
+            ))}
+          </ScrollView>
+        </View>
+
+        {showPromo ? (
+          <Pressable onPress={() => openBuilder()} accessibilityRole="button" accessibilityLabel="New exercise">
+            <Card tone="tint" padding="compact" style={styles.createCard}>
+              <View style={[styles.promoTile, { backgroundColor: tint }]} accessible={false} importantForAccessibility="no-hide-descendants">
+                <IconSymbol name="plus" size={22} color={onTint} />
+              </View>
+              <View style={styles.createText}>
+                <ThemedText type="body" style={styles.createTitle}>New exercise</ThemedText>
+                <ThemedText type="caption">Add the machine, its brand and your seat settings</ThemedText>
+              </View>
+            </Card>
+          </Pressable>
+        ) : null}
         {body}
       </ScrollView>
     </SafeAreaView>
@@ -239,46 +235,13 @@ export default function ExerciseLibraryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 8, paddingTop: 4 },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, fontSize: 22, fontWeight: '700' },
-  newButton: {
-    minHeight: 44,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newButtonText: { fontSize: 15, fontWeight: '600' },
-  filters: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 44,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  filters: { gap: 10, paddingVertical: 4 },
   chips: { gap: 8, paddingRight: 16 },
-  content: { padding: 16, gap: 10, paddingBottom: 40 },
-  section: { gap: 10 },
-  sectionLabel: { fontSize: 12, fontWeight: '500', letterSpacing: 0.4, paddingHorizontal: 4 },
-  card: { borderRadius: 18, paddingVertical: 4, paddingHorizontal: 16 },
-  message: { paddingVertical: 8, gap: 16 },
-  messageText: { fontSize: 15 },
-  retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  retryText: { fontSize: 17, fontWeight: '600' },
-  createCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 16 },
-  plusBox: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: 16, gap: 14, paddingBottom: 40 },
+  section: { gap: 8 },
+  message: { gap: 16 },
+  createCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  promoTile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   createText: { flex: 1, gap: 2 },
-  createTitle: { fontSize: 17, fontWeight: '600' },
-  createSub: { fontSize: 13 },
+  createTitle: { fontWeight: '600' },
 });

@@ -1,21 +1,28 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ListGroup } from '@/components/ui/ListGroup';
 import { AddExercisesButton } from '@/components/workouts/AddExercisesButton';
 import { BuilderInput } from '@/components/workouts/BuilderInput';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
+import { NavIconButton, WorkoutNavBar } from '@/components/workouts/WorkoutNavBar';
 import { RestPickerSheet } from '@/components/workouts/RestPickerSheet';
 import {
   ROUTINE_EXERCISE_ROW_HEIGHT,
   RoutineExerciseRow,
 } from '@/components/workouts/RoutineExerciseRow';
+import { Fonts } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useShadow } from '@/hooks/useShadow';
 import { syncToSupabase } from '@/lib/sync';
 import type { RoutineWithExercises } from '@/lib/types';
 import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
+import { startRoutineWithFeedback } from '@/lib/workouts/routine-flow';
 import { clampSetCount, routineDisplayName } from '@/lib/workouts/routine-plan';
 import {
   deleteRoutine,
@@ -24,7 +31,6 @@ import {
   renameRoutine,
   reorderRoutineExercises,
   startDraftFromRoutine,
-  startLiveFromRoutine,
   updateRoutineExerciseRest,
   updateRoutineExerciseSetCount,
 } from '@/lib/workouts/routines';
@@ -45,12 +51,11 @@ export default function RoutineScreen() {
   const requestRef = useRef(0);
 
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
   const card = useThemeColor({}, 'cardBackground');
   const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
+  const floating = useShadow('floating');
+  const insets = useSafeAreaInsets();
 
   const reload = useCallback(() => {
     if (!id) {
@@ -209,21 +214,7 @@ export default function RoutineScreen() {
     }
     setStarting(true);
     try {
-      const result = await startLiveFromRoutine(id, new Date());
-      if (result === 'empty') {
-        Alert.alert('Add an exercise first.');
-        return;
-      }
-      if (result === 'active') {
-        Alert.alert('A workout is already in progress.', undefined, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Resume', onPress: () => router.push('/workout/session') },
-        ]);
-        return;
-      }
-      router.push('/workout/session');
-    } catch {
-      Alert.alert('Couldn’t start the workout.', 'Try again.');
+      await startRoutineWithFeedback(id);
     } finally {
       setStarting(false);
     }
@@ -256,24 +247,17 @@ export default function RoutineScreen() {
     : undefined;
 
   let body: React.ReactNode = null;
+  let footer: React.ReactNode = null;
   if (status === 'missing' || !id) {
-    body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>This routine was deleted.</Text>
-      </View>
-    );
+    body = <EmptyState image={false} title="This routine was deleted." style={styles.message} />;
   } else if (status === 'error') {
     body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t load this routine.</Text>
-        <Pressable
-          onPress={reload}
-          accessibilityRole="button"
-          style={[styles.retry, { borderColor: fieldBorder }]}
-        >
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t load this routine."
+        style={styles.message}
+        actions={<Button variant="secondary" label="Retry" onPress={reload} />}
+      />
     );
   } else if (status === 'ready' && routine) {
     const items = routine.exercises.map((ex) => ({
@@ -289,8 +273,8 @@ export default function RoutineScreen() {
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
       >
-        <View style={[styles.metaCard, { backgroundColor: card }]}>
-          <Text style={[styles.fieldLabel, { color: muted }]}>Name</Text>
+        <View style={styles.nameBlock}>
+          <ThemedText type="label" style={{ color: muted }}>Name</ThemedText>
           <BuilderInput
             value={nameText ?? routine.name}
             placeholder="Routine"
@@ -305,89 +289,65 @@ export default function RoutineScreen() {
           />
         </View>
 
+        <ThemedText type="section" accessibilityRole="header">Exercises</ThemedText>
+
         {items.length > 0 ? (
-          <ReorderableList
-            items={items}
-            itemHeight={ROUTINE_EXERCISE_ROW_HEIGHT}
-            gap={12}
-            iconColor={muted}
-            onReorder={(orderedIds) => {
-              void onReorder(orderedIds);
-            }}
-            onDragActiveChange={setScrollLocked}
-            renderItem={(item, handle) => (
-              <RoutineExerciseRow
-                item={item}
-                dragHandle={handle}
-                onChangeSetCount={(n) => {
-                  void onChangeSetCount(item.id, n);
-                }}
-                onPressRest={() => setRestTargetId(item.id)}
-                onRemove={() => confirmRemoveExercise(item.id)}
-              />
-            )}
-          />
+          <ListGroup>
+            <ReorderableList
+              items={items}
+              itemHeight={ROUTINE_EXERCISE_ROW_HEIGHT}
+              gap={0}
+              iconColor={muted}
+              onReorder={(orderedIds) => {
+                void onReorder(orderedIds);
+              }}
+              onDragActiveChange={setScrollLocked}
+              renderItem={(item, handle) => (
+                <RoutineExerciseRow
+                  item={item}
+                  dragHandle={handle}
+                  last={item.id === items[items.length - 1].id}
+                  onChangeSetCount={(n) => {
+                    void onChangeSetCount(item.id, n);
+                  }}
+                  onPressRest={() => setRestTargetId(item.id)}
+                  onRemove={() => confirmRemoveExercise(item.id)}
+                />
+              )}
+            />
+          </ListGroup>
         ) : null}
 
         <AddExercisesButton onPress={() => void onAddExercises()} />
-
-        <View style={styles.footer}>
-          <Pressable
-            onPress={() => void onStartLive()}
-            disabled={starting}
-            accessibilityRole="button"
-            accessibilityLabel="Start workout"
-            style={({ pressed }) => [
-              styles.primary,
-              { backgroundColor: tint },
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.primaryLabel, { color: background }]}>Start workout</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => void onStartDraft()}
-            disabled={starting}
-            accessibilityRole="button"
-            accessibilityLabel="Log past workout"
-            style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}
-          >
-            <Text style={[styles.textButtonLabel, { color: tint }]}>Log past workout</Text>
-          </Pressable>
-        </View>
       </ScrollView>
+    );
+    // A footer with stacked full-width actions (StickyFooter lays out a message and one action in a row)
+    footer = (
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: card, borderTopColor: separator, boxShadow: floating, paddingBottom: 12 + insets.bottom },
+        ]}
+      >
+        <Button size="lg" label="Start workout" disabled={starting} onPress={() => void onStartLive()} />
+        <Button variant="ghost" label="Log past workout" fullWidth disabled={starting} onPress={() => void onStartDraft()} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
-        <Pressable
-          onPress={() => {
-            void commitName().then(() => router.back());
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.iconButton}
-        >
-          <IconSymbol name="chevron.left" size={22} color={tint} />
-        </Pressable>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          Routine
-        </Text>
-        <Pressable
-          onPress={() => setMenuOpen(true)}
-          disabled={status !== 'ready'}
-          accessibilityRole="button"
-          accessibilityLabel="More options"
-          style={[styles.iconButton, status !== 'ready' && { opacity: 0.5 }]}
-        >
-          <IconSymbol name="ellipsis" size={22} color={tint} />
-        </Pressable>
-      </View>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: background }]}>
+      <WorkoutNavBar
+        label="Training"
+        title="Routine"
+        onBack={() => {
+          void commitName().then(() => router.back());
+        }}
+        trailing={<NavIconButton icon="ellipsis" label="More options" disabled={status !== 'ready'} onPress={() => setMenuOpen(true)} />}
+      />
 
       {body}
+      {footer}
 
       <OptionsSheet
         visible={menuOpen}
@@ -409,53 +369,17 @@ export default function RoutineScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pressed: { opacity: 0.85 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
-  message: { padding: 16, gap: 16 },
-  messageText: { fontSize: 15 },
-  retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  retryText: { fontSize: 17, fontWeight: '600' },
-  content: { padding: 16, gap: 12, paddingBottom: 40 },
-  metaCard: { borderRadius: 18, padding: 16, gap: 4 },
-  fieldLabel: { fontSize: 13, fontWeight: '500' },
+  message: { padding: 16 },
+  content: { padding: 16, gap: 12, paddingBottom: 24 },
+  nameBlock: { gap: 6 },
   nameInput: {
-    height: 44,
-    minHeight: 44,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 15,
+    height: 56,
+    minHeight: 56,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontFamily: Fonts.rounded,
+    fontSize: 24,
+    fontWeight: '800',
   },
-  footer: { marginTop: 8, gap: 8, alignItems: 'center' },
-  primary: {
-    alignSelf: 'stretch',
-    minHeight: 50,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryLabel: { fontSize: 17, fontWeight: '600' },
-  textButton: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textButtonLabel: { fontSize: 15, fontWeight: '600' },
+  footer: { paddingTop: 12, paddingHorizontal: 16, gap: 8, borderTopWidth: StyleSheet.hairlineWidth },
 });

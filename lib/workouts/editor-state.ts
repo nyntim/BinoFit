@@ -88,6 +88,23 @@ export const SET_TYPE_LABELS: Record<SetType, string> = {
   failure: 'Failure',
 };
 
+/** One line under each set type in the set type sheet. */
+export const SET_TYPE_DESCRIPTIONS: Record<SetType, string> = {
+  normal: 'A working set, counted in volume',
+  warmup: 'Not counted in volume or records',
+  drop: 'Lighter weight straight after',
+  failure: 'Taken to failure',
+};
+
+/** The label the set at `index` would show if it were a normal set (the Normal row's number). */
+export function badgeIfNormal(sets: Pick<WorkoutSet, 'set_type'>[], index: number): string {
+  let n = 0;
+  sets.forEach((s, i) => {
+    if (i < index && s.set_type !== 'warmup' && s.set_type !== 'drop' && s.set_type !== 'failure') n += 1;
+  });
+  return String(n + 1);
+}
+
 /** Badges for a list of sets: W warm-up, D drop, F failure; normal sets are numbered 1, 2, 3 skipping the others. */
 export function setBadges(sets: Pick<WorkoutSet, 'set_type'>[]): SetBadge[] {
   let n = 0;
@@ -302,4 +319,42 @@ export function applySchedule(current: ScheduleFields, change: ScheduleChange, n
     patch.ended_at = new Date(new Date(startedAt).getTime() + duration * 1000).toISOString();
   }
   return patch;
+}
+
+// ── Live session focus ─────────────────────────────────────────
+
+/** Ticked and total sets; tolerates a workout without exercises loaded. */
+export function setProgress(w: { exercises?: { sets?: Pick<WorkoutSet, 'completed_at'>[] }[] } | null | undefined): {
+  done: number;
+  total: number;
+} {
+  let done = 0;
+  let total = 0;
+  for (const e of w?.exercises ?? []) {
+    for (const s of e.sets ?? []) {
+      total += 1;
+      if (s.completed_at) done += 1;
+    }
+  }
+  return { done, total };
+}
+
+export type LiveFocus = {
+  currentExerciseId: string | null;
+  activeSetId: string | null;
+  /** Later exercises with no ticked set (shown collapsed). */
+  upcomingIds: Set<string>;
+};
+
+/** The exercise being worked (first with an unticked set), its next set, and the exercises still to come. */
+export function liveFocus(w: WorkoutWithExercises): LiveFocus {
+  const exercises = w.exercises ?? [];
+  const currentIndex = exercises.findIndex((e) => e.sets.some((s) => !s.completed_at));
+  if (currentIndex < 0) return { currentExerciseId: null, activeSetId: null, upcomingIds: new Set() };
+  const current = exercises[currentIndex];
+  const active = current.sets.find((s) => !s.completed_at);
+  const upcomingIds = new Set(
+    exercises.slice(currentIndex + 1).filter((e) => !e.sets.some((s) => s.completed_at)).map((e) => e.id)
+  );
+  return { currentExerciseId: current.id, activeSetId: active?.id ?? null, upcomingIds };
 }

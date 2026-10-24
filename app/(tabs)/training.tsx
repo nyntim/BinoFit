@@ -1,45 +1,61 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { format } from 'date-fns';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { ReorderableList } from '@/components/dashboard/ReorderableList';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { IconTile } from '@/components/ui/IconTile';
+import { ListGroup, ListRow } from '@/components/ui/ListGroup';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { elapsedSeconds } from '@/components/workouts/ActiveWorkoutBar';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
 import { MuscleSetsCard } from '@/components/workouts/MuscleSetsCard';
 import { WeekSummaryCard } from '@/components/workouts/WeekSummaryCard';
 import { WorkoutHistoryRow } from '@/components/workouts/WorkoutHistoryRow';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
+import { useNow } from '@/hooks/useNow';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useRoutines } from '@/hooks/useRoutines';
 import { useTrainingOverview } from '@/hooks/useTrainingOverview';
 import { syncToSupabase } from '@/lib/sync';
 import type { WorkoutSummary } from '@/lib/types';
-import { saveAsRoutineWithFeedback } from '@/lib/workouts/routine-flow';
+import { formatDuration } from '@/lib/units';
+import { workoutDisplayName } from '@/lib/workouts/format';
+import { saveAsRoutineWithFeedback, startRoutineWithFeedback } from '@/lib/workouts/routine-flow';
 import { routineDisplayName, routineSubtitle } from '@/lib/workouts/routine-plan';
 import { createRoutine, reorderRoutines } from '@/lib/workouts/routines';
+import { weekActivity, weekRange } from '@/lib/workouts/summary';
 
-const ROUTINE_ROW_HEIGHT = 56;
+const ROUTINE_ROW_HEIGHT = 64;
 
 export default function TrainingScreen() {
   const tabBarInset = useTabBarInset();
   const nativeTabInsets = useTabBarInsetMode() === 'automatic';
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const card = useThemeColor({}, 'cardBackground');
+  const onTint = useThemeColor({}, 'onTint');
+  const nested = useThemeColor({}, 'cardSecondary');
   const separator = useThemeColor({}, 'separator');
 
   const { weightUnit } = usePreferences();
   const { workout: active, loaded: activeLoaded } = useActiveWorkout();
+  const focused = useIsFocused();
+  const now = useNow(1000, focused && !!active);
+  // Minute clock for the week strip so today rolls over while the tab stays open
+  const minuteNow = useNow(60_000, focused);
   const overview = useTrainingOverview();
   const routines = useRoutines();
   const [optionsFor, setOptionsFor] = useState<WorkoutSummary | null>(null);
   const [reordering, setReordering] = useState(false);
   const [scrollLocked, setScrollLocked] = useState(false);
   const [creatingRoutine, setCreatingRoutine] = useState(false);
+  const [startingRoutine, setStartingRoutine] = useState<string | null>(null);
 
   const isReordering = reordering && routines.routines.length >= 2;
 
@@ -54,6 +70,16 @@ export default function TrainingScreen() {
       Alert.alert('Couldn’t create the routine.', 'Try again.');
     } finally {
       setCreatingRoutine(false);
+    }
+  };
+
+  const onStartRoutine = async (routineId: string) => {
+    if (startingRoutine) return;
+    setStartingRoutine(routineId);
+    try {
+      await startRoutineWithFeedback(routineId);
+    } finally {
+      setStartingRoutine(null);
     }
   };
 
@@ -74,122 +100,98 @@ export default function TrainingScreen() {
     }
   };
 
-  const link = (label: string, path: '/workout/exercises' | '/workout/log', last?: boolean) => (
+  const today = new Date(minuteNow);
+  const days = weekActivity(weekRange(today), overview.doneDates, format(today, 'yyyy-MM-dd'), !!active);
+
+  const cardHeader = (title: string, actions: React.ReactNode) => (
+    <View style={styles.cardHeader}>
+      <ThemedText type="title" accessibilityRole="header">{title}</ThemedText>
+      <View style={styles.headerActions}>{actions}</View>
+    </View>
+  );
+  const headerLink = (label: string, onPress: () => void, disabled?: boolean) => (
     <Pressable
-      onPress={() => router.push(path)}
+      onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.link,
-        pressed && styles.pressed,
-        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separator },
-      ]}
+      hitSlop={{ left: 4, right: 4 }}
+      style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
     >
-      <Text style={[styles.linkLabel, { color: text }]}>{label}</Text>
-      <IconSymbol name="chevron.right" size={16} color={muted} />
+      <ThemedText type="label" style={[styles.sectionLink, { color: tint }]}>{label}</ThemedText>
     </Pressable>
   );
+  const emptyBlock = (title: string, body?: string, retry?: () => void) => (
+    <View style={styles.empty}>
+      <ThemedText type="body">{title}</ThemedText>
+      {body ? <ThemedText type="caption">{body}</ThemedText> : null}
+      {retry ? (
+        <Pressable onPress={retry} accessibilityRole="button" accessibilityLabel="Retry" style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
+          <ThemedText type="label" style={[styles.sectionLink, { color: tint }]}>Retry</ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
+  let primary: React.ReactNode;
+  if (!activeLoaded) {
+    primary = <View style={styles.primaryPlaceholder} />;
+  } else if (active) {
+    const name = workoutDisplayName(active);
+    const elapsed = formatDuration(elapsedSeconds(active.started_at ?? null, now));
+    const progress = overview.activeProgress;
+    const progressText = progress && progress.total > 0 ? `${progress.done} of ${progress.total} sets` : null;
+    primary = (
+      <Pressable
+        onPress={() => router.push('/workout/session')}
+        accessibilityRole="button"
+        accessibilityLabel={`Resume workout. ${name}, ${elapsed}${progressText ? `, ${progressText}` : ''}`}
+        style={({ pressed }) => [styles.progressCard, { backgroundColor: tint }, pressed && styles.pressed]}
+      >
+        <View style={styles.progressCopy}>
+          <ThemedText type="label" style={[styles.progressEyebrow, { color: onTint }]}>In progress</ThemedText>
+          <ThemedText type="title" style={[styles.progressName, { color: onTint }]} numberOfLines={2}>{name}</ThemedText>
+          <ThemedText type="label" style={[styles.progressMeta, { color: onTint }]}>{progressText ? `${elapsed} · ${progressText}` : elapsed}</ThemedText>
+        </View>
+        {/* Visual only: the card is the one button */}
+        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Button variant="inverse" label="Resume" />
+        </View>
+      </Pressable>
+    );
+  } else {
+    primary = <Button size="lg" label="Start empty workout" onPress={() => router.push('/workout/session')} />;
+  }
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: background }]}>
       <ScrollView scrollEnabled={!scrollLocked} contentContainerStyle={[styles.content, { paddingBottom: 24 + tabBarInset }]} contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined} scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}>
         <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: text }]} accessibilityRole="header">Training</Text>
-          <Pressable onPress={() => router.push('/settings/training')} accessibilityRole="button" accessibilityLabel="Training settings" style={({ pressed }) => [styles.gearButton, pressed && { backgroundColor: card }]}>
-            <IconSymbol name="gear" size={21} color={muted} />
+          <ThemedText type="largeTitle" accessibilityRole="header">Training</ThemedText>
+          <Pressable
+            onPress={() => router.push('/settings/training')}
+            accessibilityRole="button"
+            accessibilityLabel="Training settings"
+            style={({ pressed }) => [styles.gearButton, { backgroundColor: nested }, pressed && styles.pressed]}
+          >
+            <IconSymbol name="gear" size={20} color={muted} />
           </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => router.push('/workout/session')}
-          accessibilityRole="button"
-          disabled={!activeLoaded}
-          style={({ pressed }) => [styles.primary, { backgroundColor: tint }, pressed && styles.pressed]}
-        >
-          <Text style={[styles.primaryLabel, { color: background }]}>
-            {!activeLoaded ? ' ' : active ? 'Resume workout' : 'Start empty workout'}
-          </Text>
-        </Pressable>
+        {primary}
 
-        <WeekSummaryCard week={overview.week} weekLabel={overview.weekLabel} unit={weightUnit} />
+        <WeekSummaryCard week={overview.week} weekLabel={overview.weekLabel} unit={weightUnit} days={days} />
 
         {overview.muscleSets.length > 0 ? <MuscleSetsCard rows={overview.muscleSets} onEditTargets={() => router.push('/settings/weekly-volume-targets')} /> : null}
 
-        <View style={[styles.section, { backgroundColor: card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: text }]} accessibilityRole="header">
-              History
-            </Text>
-            {overview.recent.length > 0 ? (
-              <Pressable
-                onPress={() => router.push('/workout/history')}
-                accessibilityRole="button"
-                accessibilityLabel="All workouts"
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Text style={[styles.sectionLink, { color: tint }]}>All workouts</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {overview.recent.length > 0 ? (
-            overview.recent.map((w, i) => (
-              <WorkoutHistoryRow
-                key={w.id}
-                summary={w}
-                last={i === overview.recent.length - 1}
-                onPress={() => router.push({ pathname: '/workout/[id]', params: { id: w.id } })}
-                onLongPress={() => setOptionsFor(w)}
-              />
-            ))
-          ) : overview.status === 'error' ? (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyTitle, { color: text }]}>Couldn’t load workouts.</Text>
-              <Pressable onPress={overview.reload} accessibilityRole="button" accessibilityLabel="Retry" style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
-                <Text style={[styles.sectionLink, { color: tint }]}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : overview.status === 'ready' ? (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyTitle, { color: text }]}>No workouts yet.</Text>
-              <Text style={[styles.emptyBody, { color: muted }]}>Start one above or log a past workout.</Text>
-            </View>
-          ) : (
-            <View style={styles.empty} />
+        <Card padding="none">
+          {cardHeader(
+            'Routines',
+            <>
+              {routines.routines.length >= 2 ? headerLink(isReordering ? 'Done' : 'Reorder', () => setReordering((v) => !v)) : null}
+              {headerLink('New routine', () => void onNewRoutine(), creatingRoutine)}
+            </>
           )}
-        </View>
-
-        <View style={[styles.section, { backgroundColor: card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: text }]} accessibilityRole="header">
-              Routines
-            </Text>
-            <View style={styles.headerActions}>
-              {routines.routines.length >= 2 ? (
-                <Pressable
-                  onPress={() => setReordering((v) => !v)}
-                  accessibilityRole="button"
-                  accessibilityLabel={isReordering ? 'Done' : 'Reorder'}
-                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                  style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
-                >
-                  <Text style={[styles.sectionLink, { color: tint }]}>
-                    {isReordering ? 'Done' : 'Reorder'}
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={() => void onNewRoutine()}
-                disabled={creatingRoutine}
-                accessibilityRole="button"
-                accessibilityLabel="New routine"
-                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
-              >
-                <Text style={[styles.sectionLink, { color: tint }]}>New routine</Text>
-              </Pressable>
-            </View>
-          </View>
           {routines.routines.length > 0 ? (
             isReordering ? (
               <ReorderableList
@@ -200,86 +202,79 @@ export default function TrainingScreen() {
                 onReorder={(ids) => void onReorderRoutines(ids)}
                 onDragActiveChange={setScrollLocked}
                 renderItem={(r, handle) => (
-                  <View
-                    style={[
-                      styles.routineRow,
-                      styles.routineReorderRow,
-                      { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separator },
-                    ]}
-                  >
+                  <View style={[styles.routineRow, styles.routineReorderRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separator }]}>
                     {handle}
                     <View style={styles.routineMain}>
-                      <Text style={[styles.routineTitle, { color: text }]} numberOfLines={1}>
-                        {routineDisplayName(r)}
-                      </Text>
-                      <Text style={[styles.routineSubtitle, { color: muted }]} numberOfLines={1}>
-                        {routineSubtitle(r)}
-                      </Text>
+                      <ThemedText type="body" style={styles.semibold} numberOfLines={1}>{routineDisplayName(r)}</ThemedText>
+                      <ThemedText type="caption" numberOfLines={1}>{routineSubtitle(r)}</ThemedText>
                     </View>
                   </View>
                 )}
               />
             ) : (
-              routines.routines.map((r, i) => {
+              routines.routines.map((r) => {
                 const title = routineDisplayName(r);
                 const subtitle = routineSubtitle(r);
-                const last = i === routines.routines.length - 1;
                 return (
-                  <Pressable
-                    key={r.id}
-                    onPress={() => router.push({ pathname: '/workout/routine', params: { id: r.id } })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${title}. ${subtitle}`}
-                    style={({ pressed }) => [
-                      styles.routineRow,
-                      pressed && styles.pressed,
-                      !last && {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: separator,
-                      },
-                    ]}
-                  >
-                    <View style={styles.routineMain}>
-                      <Text style={[styles.routineTitle, { color: text }]} numberOfLines={1}>
-                        {title}
-                      </Text>
-                      <Text style={[styles.routineSubtitle, { color: muted }]} numberOfLines={1}>
-                        {subtitle}
-                      </Text>
-                    </View>
-                    <IconSymbol name="chevron.right" size={16} color={muted} />
-                  </Pressable>
+                  <View key={r.id} style={[styles.routineRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separator }]}>
+                    <Pressable
+                      onPress={() => router.push({ pathname: '/workout/routine', params: { id: r.id } })}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${title}. ${subtitle}`}
+                      style={({ pressed }) => [styles.routineMain, styles.routineTap, pressed && styles.pressed]}
+                    >
+                      <ThemedText type="body" style={styles.semibold} numberOfLines={1}>{title}</ThemedText>
+                      <ThemedText type="caption" numberOfLines={1}>{subtitle}</ThemedText>
+                    </Pressable>
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      label="Start"
+                      accessibilityLabel={`Start ${title}`}
+                      disabled={startingRoutine !== null}
+                      onPress={() => void onStartRoutine(r.id)}
+                    />
+                  </View>
                 );
               })
             )
           ) : routines.status === 'error' ? (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyTitle, { color: text }]}>Couldn’t load routines.</Text>
-              <Pressable
-                onPress={routines.reload}
-                accessibilityRole="button"
-                accessibilityLabel="Retry"
-                style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
-              >
-                <Text style={[styles.sectionLink, { color: tint }]}>Retry</Text>
-              </Pressable>
-            </View>
+            emptyBlock('Couldn’t load routines.', undefined, routines.reload)
           ) : routines.status === 'ready' ? (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyTitle, { color: text }]}>No routines yet.</Text>
-              <Text style={[styles.emptyBody, { color: muted }]}>
-                Save a workout, or create one.
-              </Text>
-            </View>
+            emptyBlock('No routines yet.', 'Save a workout, or create one.')
           ) : (
             <View style={styles.empty} />
           )}
-        </View>
+        </Card>
 
-        <View style={[styles.links, { backgroundColor: card }]}>
-          {link('Exercises', '/workout/exercises')}
-          {link('Log past workout', '/workout/log', true)}
-        </View>
+        <Card padding="none">
+          {cardHeader('History', overview.recent.length > 0 ? headerLink('All workouts', () => router.push('/workout/history')) : null)}
+          {overview.recent.length > 0 ? (
+            overview.recent.map((w) => (
+              <View key={w.id} style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separator }}>
+                <WorkoutHistoryRow
+                  summary={w}
+                  inset
+                  last
+                  recordCount={overview.recordCounts.get(w.id)}
+                  onPress={() => router.push({ pathname: '/workout/[id]', params: { id: w.id } })}
+                  onLongPress={() => setOptionsFor(w)}
+                />
+              </View>
+            ))
+          ) : overview.status === 'error' ? (
+            emptyBlock('Couldn’t load workouts.', undefined, overview.reload)
+          ) : overview.status === 'ready' ? (
+            emptyBlock('No workouts yet.', 'Start one above or log a past workout.')
+          ) : (
+            <View style={styles.empty} />
+          )}
+        </Card>
+
+        <ListGroup>
+          <ListRow title="Exercises" leading={<IconTile icon="dumbbell.fill" />} onPress={() => router.push('/workout/exercises')} />
+          <ListRow title="Log past workout" leading={<IconTile icon="clock.arrow.circlepath" />} onPress={() => router.push('/workout/log')} />
+        </ListGroup>
       </ScrollView>
       <OptionsSheet
         visible={!!optionsFor}
@@ -309,44 +304,24 @@ export default function TrainingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pressed: { opacity: 0.85 },
-  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 20 },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, gap: 14 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  gearButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  title: { fontSize: 34, fontWeight: '700', lineHeight: 37, letterSpacing: -0.5 },
-  primary: { minHeight: 50, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' },
-  primaryLabel: { fontSize: 17, fontWeight: '600' },
-  section: { borderRadius: 18, paddingHorizontal: 20, paddingVertical: 8 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-    minHeight: 44,
-  },
-  sectionTitle: { fontSize: 17, fontWeight: '600' },
-  sectionLink: { fontSize: 13, fontWeight: '500' },
-  empty: { paddingVertical: 12, gap: 2 },
-  emptyTitle: { fontSize: 15 },
-  emptyBody: { fontSize: 12 },
-  retry: { minHeight: 44, justifyContent: 'center' },
-  links: { borderRadius: 18, paddingHorizontal: 20 },
-  link: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  linkLabel: { fontSize: 15 },
+  gearButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  primaryPlaceholder: { minHeight: 52 },
+  progressCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, paddingVertical: 16, paddingLeft: 20, paddingRight: 16 },
+  progressCopy: { flex: 1, minWidth: 0, gap: 2 },
+  progressEyebrow: { fontWeight: '600', opacity: 0.8 },
+  progressName: { fontSize: 20, fontWeight: '700' },
+  progressMeta: { opacity: 0.85, fontVariant: ['tabular-nums'] },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 52, paddingHorizontal: 18, paddingTop: 4 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   headerAction: { minHeight: 44, justifyContent: 'center' },
-  routineRow: {
-    minHeight: 44,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  routineReorderRow: {
-    height: ROUTINE_ROW_HEIGHT,
-    paddingVertical: 0,
-  },
+  sectionLink: { fontWeight: '600' },
+  empty: { paddingHorizontal: 18, paddingBottom: 16, gap: 2 },
+  retry: { minHeight: 44, justifyContent: 'center' },
+  routineRow: { minHeight: 64, paddingVertical: 8, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  routineReorderRow: { height: ROUTINE_ROW_HEIGHT, paddingVertical: 0 },
   routineMain: { flex: 1, minWidth: 0, gap: 2 },
-  routineTitle: { fontSize: 15 },
-  routineSubtitle: { fontSize: 12 },
+  routineTap: { minHeight: 48, justifyContent: 'center' },
+  semibold: { fontWeight: '600' },
 });

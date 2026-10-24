@@ -9,6 +9,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { IconTile } from '@/components/ui/IconTile';
+import { ListGroup } from '@/components/ui/ListGroup';
+import { SheetHeader } from '@/components/ui/SheetHeader';
+import { Tag } from '@/components/ui/Tag';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
@@ -16,7 +25,7 @@ import { BuilderInput } from '@/components/workouts/BuilderInput';
 import { ChipToggle } from '@/components/workouts/ChipToggle';
 import { OptionCard } from '@/components/workouts/OptionCard';
 import { ReviewRow } from '@/components/workouts/ReviewRow';
-import { StepProgress } from '@/components/workouts/StepProgress';
+import { StepBar, StepCaption } from '@/components/workouts/StepProgress';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useExercises } from '@/hooks/useExercises';
 import { useKeyboardOverlap } from '@/hooks/useKeyboardOverlap';
@@ -44,6 +53,7 @@ import {
   draftToExerciseInput,
   emptyDraft,
   exerciseToDraft,
+  hasBrandStep,
   isPlateLoaded,
   isStepValid,
   nameSuggestions,
@@ -64,9 +74,19 @@ import { SEED_EXERCISES } from '@/lib/workouts/exercise-seed';
 import { workoutDisplayName } from '@/lib/workouts/format';
 import { routineDisplayName } from '@/lib/workouts/routine-plan';
 import { addExerciseToRoutine, getRoutine } from '@/lib/workouts/routines';
-import type { Exercise } from '@/lib/types';
+import type { Equipment, Exercise } from '@/lib/types';
 
 type Saved = { name: string; summary: string; notes: string; addedTo: string | null };
+
+const EQUIPMENT_ICONS: Record<Equipment, IconSymbolName> = {
+  machine: 'square.grid.2x2',
+  cable: 'figure.strengthtraining.traditional',
+  barbell: 'scalemass',
+  dumbbell: 'dumbbell.fill',
+  bodyweight: 'figure.walk',
+  cardio_machine: 'figure.run',
+  other: 'square.grid.2x2',
+};
 
 export default function NewExerciseScreen() {
   const params = useLocalSearchParams<{ id?: string; name?: string; workoutId?: string; routineId?: string }>();
@@ -129,9 +149,7 @@ export default function NewExerciseScreen() {
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
-  const card = useThemeColor({}, 'cardBackground');
   const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
   const tint = useThemeColor({}, 'tint');
 
   const steps = builderSteps(draft);
@@ -271,22 +289,16 @@ export default function NewExerciseScreen() {
     return (
       <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
         <View style={styles.savedBody}>
-          <Text style={[styles.label, { color: muted }]}>SAVED TO YOUR EXERCISES</Text>
-          <View style={[styles.savedCard, { backgroundColor: card }]}>
-            <Text style={[styles.question, { color: text }]}>{saved.name}</Text>
+          <ThemedText type="section">Saved to your exercises</ThemedText>
+          <Card style={styles.savedCard}>
+            <ThemedText type="heading" style={styles.savedName}>{saved.name}</ThemedText>
             <Text style={[styles.meta, { color: muted }]}>{saved.summary}</Text>
             {saved.notes ? <Text style={[styles.meta, { color: muted }]}>{saved.notes}</Text> : null}
-          </View>
+          </Card>
           {saved.addedTo ? <Text style={[styles.hint, { color: muted }]}>{`Added to ${saved.addedTo}.`}</Text> : null}
         </View>
         <View style={[styles.footer, footerLift]}>
-          <Pressable
-            onPress={onDone}
-            accessibilityRole="button"
-            style={[styles.primary, styles.primaryGrow, { backgroundColor: tint }]}
-          >
-            <Text style={[styles.primaryText, { color: background }]}>Done</Text>
-          </Pressable>
+          <Button size="lg" label="Done" onPress={onDone} style={styles.primaryGrow} />
         </View>
       </View>
     );
@@ -295,16 +307,7 @@ export default function NewExerciseScreen() {
   if (loadState !== 'ready') {
     return (
       <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel"
-            style={styles.headerSide}
-          >
-            <Text style={[styles.headerButton, { color: tint }]}>Cancel</Text>
-          </Pressable>
-        </View>
+        <SheetHeader title="" onCancel={() => router.back()} />
         {loadState === 'missing' ? (
           <Text style={[styles.hint, styles.padded, { color: muted }]}>Couldn’t find this exercise.</Text>
         ) : null}
@@ -320,7 +323,7 @@ export default function NewExerciseScreen() {
 
   const questionFor = (id: BuilderStepId) =>
     ({
-      equipment: 'What equipment does it use?',
+      equipment: 'What equipment is it?',
       brand: 'Which brand is it?',
       loading: 'How is it loaded?',
       name: 'What’s the exercise called?',
@@ -330,28 +333,43 @@ export default function NewExerciseScreen() {
       review: '',
     })[id];
 
+  const helperFor = (id: BuilderStepId): string | null =>
+    ({
+      equipment: 'This decides the next questions, like brand and how it loads.',
+      brand: 'Optional. It goes in the name so you can tell machines apart.',
+      muscles: `${draftDisplayName(draft)}. Pick at least one main muscle, then any helpers.`,
+      notes: 'Optional. Shown under the exercise every time you log it.',
+    } as Partial<Record<BuilderStepId, string>>)[id] ?? null;
+
   let body: React.ReactNode = null;
   switch (step) {
-    case 'equipment':
+    case 'equipment': {
+      const pairs: Equipment[][] = [];
+      for (let i = 0; i < EQUIPMENT_OPTIONS.length; i += 2) pairs.push(EQUIPMENT_OPTIONS.slice(i, i + 2));
       body = (
-        <View style={styles.stack} accessibilityRole="radiogroup">
-          {EQUIPMENT_OPTIONS.map((eq) => (
-            <OptionCard
-              key={eq}
-              label={EQUIPMENT_LABELS[eq]}
-              selected={draft.equipment === eq}
-              onPress={() => setDraft((d) => applyEquipment(d, eq))}
-            />
+        <View style={styles.grid} accessibilityRole="radiogroup" accessibilityLabel="Equipment">
+          {pairs.map((pair) => (
+            <View key={pair[0]} style={styles.gridRow}>
+              {pair.map((eq) => (
+                <OptionCard
+                  key={eq}
+                  layout="tile"
+                  icon={EQUIPMENT_ICONS[eq]}
+                  label={EQUIPMENT_LABELS[eq]}
+                  selected={draft.equipment === eq}
+                  onPress={() => setDraft((d) => applyEquipment(d, eq))}
+                />
+              ))}
+              {pair.length === 1 ? <View style={styles.gridSpacer} /> : null}
+            </View>
           ))}
         </View>
       );
       break;
+    }
     case 'brand':
       body = (
         <>
-          <Text style={[styles.hint, { color: muted }]}>
-            Optional. It goes in the name so you can tell machines apart.
-          </Text>
           <BuilderInput
             value={draft.brand}
             onChangeText={(brand) => patch({ brand })}
@@ -362,7 +380,7 @@ export default function NewExerciseScreen() {
           />
           {chips.used.length > 0 && (
             <>
-              <Text style={[styles.label, { color: muted }]}>BRANDS YOU’VE USED</Text>
+              <ThemedText type="section">Brands you’ve used</ThemedText>
               <View style={styles.chips}>
                 {chips.used.map((b) => (
                   <ChipToggle
@@ -375,7 +393,7 @@ export default function NewExerciseScreen() {
               </View>
             </>
           )}
-          <Text style={[styles.label, { color: muted }]}>COMMON BRANDS</Text>
+          <ThemedText type="section">Common brands</ThemedText>
           <View style={styles.chips}>
             {chips.common.map((b) => (
               <ChipToggle
@@ -408,7 +426,7 @@ export default function NewExerciseScreen() {
           </View>
           {isPlate && (
             <View style={styles.sled}>
-              <Text style={[styles.label, { color: muted }]}>STARTING WEIGHT (SLED), OPTIONAL</Text>
+              <ThemedText type="section">Starting weight (sled), optional</ThemedText>
               <View style={styles.sledRow}>
                 <BuilderInput
                   value={draft.sled}
@@ -442,23 +460,15 @@ export default function NewExerciseScreen() {
           />
           {showSuggestions && (
             <>
-              <Text style={[styles.label, { color: muted }]}>
-                SIMILAR BUILT-IN EXERCISES · TAP TO COPY
-              </Text>
-              <View style={[styles.suggestCard, { backgroundColor: card }]}>
-                {suggestions.map((s, i) => (
+              <ThemedText type="section">Similar built-in exercises · tap to copy</ThemedText>
+              <ListGroup>
+                {suggestions.map((s) => (
                   <Pressable
                     key={s.id}
                     onPress={() => setDraft((d) => applySuggestion(d, s))}
                     accessibilityRole="button"
                     accessibilityLabel={`${s.name}. Use name, muscles and logging`}
-                    style={[
-                      styles.suggestRow,
-                      i < suggestions.length - 1 && {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: separator,
-                      },
-                    ]}
+                    style={styles.suggestRow}
                   >
                     <Text style={[styles.suggestName, { color: text }]}>{s.name}</Text>
                     <Text style={[styles.suggestMuscles, { color: muted }]}>
@@ -466,7 +476,7 @@ export default function NewExerciseScreen() {
                     </Text>
                   </Pressable>
                 ))}
-              </View>
+              </ListGroup>
             </>
           )}
           {draft.copiedFrom ? (
@@ -480,8 +490,9 @@ export default function NewExerciseScreen() {
               accessibilityRole="switch"
               accessibilityLabel="Per side / unilateral"
               accessibilityState={{ checked: draft.perSide }}
-              style={[styles.switchRow, { backgroundColor: card }]}
+              style={styles.switchPress}
             >
+              <Card padding="compact" style={styles.switchRow}>
               <View style={styles.switchText}>
                 <Text style={[styles.optionTitle, { color: text }]}>Per side / unilateral</Text>
                 <Text style={[styles.meta, { color: muted }]}>One arm or leg at a time; reps are per side</Text>
@@ -495,6 +506,7 @@ export default function NewExerciseScreen() {
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               />
+              </Card>
             </Pressable>
           )}
         </>
@@ -503,7 +515,7 @@ export default function NewExerciseScreen() {
     case 'muscles':
       body = (
         <>
-          <Text style={[styles.label, { color: muted }]}>PRIMARY · AT LEAST ONE</Text>
+          <ThemedText type="section">Main muscles</ThemedText>
           <View style={styles.chips}>
             {MUSCLE_GROUPS.map((m) => (
               <ChipToggle
@@ -514,12 +526,13 @@ export default function NewExerciseScreen() {
               />
             ))}
           </View>
-          <Text style={[styles.label, styles.labelGap, { color: muted }]}>SECONDARY · OPTIONAL</Text>
+          <ThemedText type="section" style={styles.labelGap}>Also works (optional)</ThemedText>
           <View style={styles.chips}>
             {MUSCLE_GROUPS.map((m) => (
               <ChipToggle
                 key={m}
                 label={MUSCLE_LABELS[m]}
+                tone="soft"
                 selected={draft.secondary.includes(m)}
                 onPress={() => setDraft((d) => toggleMuscle(d, 'secondary', m))}
               />
@@ -548,9 +561,6 @@ export default function NewExerciseScreen() {
     case 'notes':
       body = (
         <>
-          <Text style={[styles.hint, { color: muted }]}>
-            Optional. Shown under the exercise every time you log it.
-          </Text>
           <BuilderInput
             value={draft.notes}
             onChangeText={(notes) => patch({ notes })}
@@ -565,38 +575,53 @@ export default function NewExerciseScreen() {
       break;
     case 'review': {
       const rows = reviewRows(draft, weightUnit);
+      const nameRow = rows.find((r) => r.step === 'name' && r.label === 'Name');
+      const muscleRow = rows.find((r) => r.step === 'muscles');
+      const rest = rows.filter((r) => r !== nameRow && r !== muscleRow);
+      const brand = hasBrandStep(draft.equipment) ? draft.brand.trim() : '';
       body = (
         <>
-          <View style={styles.reviewHead}>
-            <Text style={[styles.label, { color: muted }]}>YOUR EXERCISE</Text>
-            <Text style={[styles.question, { color: text }]}>{draftDisplayName(draft)}</Text>
-            <Text style={[styles.meta, { color: muted }]}>
-              {`${draft.equipment ? EQUIPMENT_LABELS[draft.equipment] : ''} · tap any line to change it`}
-            </Text>
-          </View>
-          <View style={[styles.reviewCard, { backgroundColor: card }]}>
-            {rows.map((r, i) => (
-              <ReviewRow
-                key={r.step}
-                label={r.label}
-                value={r.value}
-                last={i === rows.length - 1}
-                onPress={() => goTo(r.step)}
-              />
+          <Card style={styles.reviewCard}>
+            <Pressable
+              onPress={() => goTo('name')}
+              accessibilityRole="button"
+              accessibilityLabel={`Name: ${nameRow?.value ?? ''}. Change`}
+              style={styles.reviewHead}
+            >
+              <IconTile icon={draft.equipment ? EQUIPMENT_ICONS[draft.equipment] : 'dumbbell.fill'} size={52} />
+              <View style={styles.reviewTitles}>
+                <ThemedText type="heading" style={styles.reviewName}>{draft.name.trim() || 'Untitled'}</ThemedText>
+                {brand ? <ThemedText type="label" style={{ color: muted }}>{brand}</ThemedText> : null}
+              </View>
+              {draft.equipment ? <Tag label={EQUIPMENT_LABELS[draft.equipment]} tone="tint" /> : null}
+            </Pressable>
+            <Pressable
+              onPress={() => goTo('muscles')}
+              accessibilityRole="button"
+              accessibilityLabel={`Muscles: ${muscleRow?.value ?? ''}. Change`}
+              style={styles.chips}
+            >
+              {draft.primary.map((m) => (
+                <Chip key={`p-${m}`} size="sm" selected label={MUSCLE_LABELS[m]} />
+              ))}
+              {draft.secondary.map((m) => (
+                <Chip key={`s-${m}`} size="sm" label={MUSCLE_LABELS[m]} />
+              ))}
+            </Pressable>
+          </Card>
+
+          <ListGroup>
+            {rest.map((r) => (
+              <ReviewRow key={`${r.step}-${r.label}`} label={r.label} value={r.value} onPress={() => goTo(r.step)} />
             ))}
-          </View>
+          </ListGroup>
+          <ThemedText type="caption" style={styles.reviewCaption}>
+            Tap any line to change it. Setup notes show under the name in every workout.
+          </ThemedText>
           {isPlate && (
             <Text style={[styles.note, { color: muted }]}>Volume counts the plates you log, not the sled.</Text>
           )}
-          {editing && (
-            <Pressable
-              onPress={confirmDelete}
-              accessibilityRole="button"
-              style={[styles.ghost, styles.deleteButton, { borderColor: fieldBorder }]}
-            >
-              <Text style={[styles.ghostText, { color: tint }]}>Delete exercise</Text>
-            </Pressable>
-          )}
+          {editing && <Button variant="danger" size="lg" label="Delete exercise" onPress={confirmDelete} />}
         </>
       );
       break;
@@ -604,6 +629,8 @@ export default function NewExerciseScreen() {
   }
 
   const label = primaryLabel(draft, step, editing);
+
+  const helper = helperFor(step);
 
   return (
     <View ref={rootRef} style={[rootStyle, { backgroundColor: background }]}>
@@ -616,14 +643,14 @@ export default function NewExerciseScreen() {
         >
           <Text style={[styles.headerButton, { color: tint }]}>Cancel</Text>
         </Pressable>
-        <Text style={[styles.headerTitle, { color: text }]} accessibilityRole="header">
-          {editing ? 'Edit exercise' : 'New exercise'}
-        </Text>
+        <View style={styles.headerCenter}>
+          <StepCaption step={index + 1} total={steps.length} review={step === 'review'} />
+        </View>
         <View style={styles.headerSide} />
       </View>
+      <StepBar step={index + 1} total={steps.length} />
 
       <View style={styles.flex}>
-        <StepProgress step={index + 1} total={steps.length} />
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.body}
@@ -631,32 +658,19 @@ export default function NewExerciseScreen() {
           keyboardDismissMode="on-drag"
         >
           {step !== 'review' && (
-            <Text style={[styles.question, { color: text }]} accessibilityRole="header">
-              {questionFor(step)}
-            </Text>
+            <View style={styles.headings}>
+              <ThemedText type="heading" accessibilityRole="header">{questionFor(step)}</ThemedText>
+              {helper ? <ThemedText type="body" style={{ color: muted }}>{helper}</ThemedText> : null}
+            </View>
           )}
           {body}
         </ScrollView>
 
         <View style={[styles.footer, styles.footerRule, footerLift, { borderTopColor: separator }]}>
           {index > 0 && (
-            <Pressable
-              onPress={() => setStepId(steps[index - 1])}
-              accessibilityRole="button"
-              style={[styles.ghost, { borderColor: fieldBorder }]}
-            >
-              <Text style={[styles.ghostText, { color: tint }]}>Back</Text>
-            </Pressable>
+            <Button variant="secondary" size="lg" label="Back" fullWidth={false} style={styles.backButton} onPress={() => setStepId(steps[index - 1])} />
           )}
-          <Pressable
-            onPress={onNext}
-            disabled={!valid || saving}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !valid || saving }}
-            style={[styles.primary, styles.primaryGrow, { backgroundColor: tint, opacity: !valid || saving ? 0.5 : 1 }]}
-          >
-            <Text style={[styles.primaryText, { color: background }]}>{label}</Text>
-          </Pressable>
+          <Button size="lg" label={label} disabled={!valid || saving} onPress={onNext} style={styles.primaryGrow} />
         </View>
       </View>
     </View>
@@ -669,61 +683,49 @@ const styles = StyleSheet.create({
   padded: { padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
   headerSide: { width: 80, minHeight: 44, justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center' },
   headerButton: { fontSize: 17 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
-  body: { padding: 16, gap: 16 },
-  question: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
+  headings: { gap: 6 },
+  body: { padding: 16, paddingTop: 22, gap: 16 },
   hint: { fontSize: 15, lineHeight: 22 },
-  label: { fontSize: 12, fontWeight: '500', letterSpacing: 0.4 },
   labelGap: { marginTop: 8 },
   meta: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
   note: { fontSize: 13, lineHeight: 18 },
   stack: { gap: 8 },
+  grid: { gap: 10 },
+  gridRow: { flexDirection: 'row', gap: 10 },
+  gridSpacer: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sled: { gap: 6 },
   sledRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sledInput: { width: 120, fontVariant: ['tabular-nums'] },
   unit: { fontSize: 17 },
-  suggestCard: { borderRadius: 18, paddingHorizontal: 16 },
   suggestRow: {
-    minHeight: 44,
+    minHeight: 52,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   suggestName: { fontSize: 15, flexShrink: 1 },
   suggestMuscles: { fontSize: 12 },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+  switchPress: { alignSelf: 'stretch' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchText: { flex: 1, gap: 2 },
   optionTitle: { fontSize: 17, fontWeight: '600' },
   notes: { height: 120, paddingTop: 12 },
-  reviewHead: { gap: 4 },
-  reviewCard: { borderRadius: 18, paddingHorizontal: 16 },
+  reviewCard: { gap: 12, padding: 20 },
+  reviewHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reviewTitles: { flex: 1, minWidth: 0, gap: 4 },
+  reviewName: { fontSize: 22, lineHeight: 27 },
+  reviewCaption: { paddingHorizontal: 4 },
   footer: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12 },
   footerRule: { borderTopWidth: StyleSheet.hairlineWidth },
-  primary: { minHeight: 48, borderRadius: 18, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 110 },
   primaryGrow: { flex: 1 },
-  primaryText: { fontSize: 17, fontWeight: '600' },
-  ghost: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghostText: { fontSize: 17, fontWeight: '600' },
-  deleteButton: { alignSelf: 'flex-start' },
   savedBody: { flex: 1, padding: 16, gap: 16, justifyContent: 'center' },
-  savedCard: { borderRadius: 18, padding: 20, gap: 6 },
+  savedCard: { gap: 6 },
+  savedName: { fontSize: 24, lineHeight: 29 },
 });

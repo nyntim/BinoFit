@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { NowPlayingLine } from '@/components/workouts/NowPlayingLine';
 import { useSpotifyNowPlaying } from '@/hooks/useSpotifyNowPlaying';
@@ -16,6 +19,8 @@ import { elapsedSeconds } from '@/components/workouts/ActiveWorkoutBar';
 import { getPreferences } from '@/lib/app-preferences';
 import { formatDuration } from '@/lib/units';
 import { refreshActiveWorkout } from '@/lib/workouts/active-workout-store';
+import { setProgress } from '@/lib/workouts/editor-state';
+import { markJustFinished } from '@/lib/workouts/finish-celebration';
 import { confirmAndDiscard, confirmAndFinish, type FlowResult } from '@/lib/workouts/finish-flow';
 import { workoutDisplayName } from '@/lib/workouts/format';
 import { restSecondsForTick } from '@/lib/workouts/rest-timer';
@@ -68,10 +73,7 @@ export default function SessionScreen() {
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
-  const onTint = useThemeColor({}, 'background');
-  const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
+  const nested = useThemeColor({}, 'cardSecondary');
 
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -135,6 +137,7 @@ export default function SessionScreen() {
       await editor.flush();
       const result = await flow();
       if (result === 'finished') {
+        markJustFinished(id);
         router.replace({ pathname: '/workout/[id]', params: { id } });
         return;
       }
@@ -179,24 +182,29 @@ export default function SessionScreen() {
   const shown = editor.workout ?? active;
   const title = shown ? workoutDisplayName(shown) : 'Workout';
   const elapsed = formatDuration(elapsedSeconds(shown?.started_at ?? null, now));
+  const progress = setProgress(editor.workout);
+  const subtitle = progress.total > 0 ? `${elapsed} · ${progress.done} of ${progress.total} sets` : elapsed;
+  const finishDisabled = !id || busy || editor.status !== 'ready';
 
   let body: React.ReactNode = null;
   if (startFailed || editor.status === 'error' || editor.status === 'missing') {
     body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t open the workout.</Text>
-        <Pressable
-          onPress={() => {
-            if (startFailed) start();
-            else if (editor.status === 'missing') void refreshActiveWorkout();
-            else void editor.reload();
-          }}
-          accessibilityRole="button"
-          style={[styles.retry, { borderColor: fieldBorder }]}
-        >
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t open the workout."
+        style={styles.message}
+        actions={
+          <Button
+            variant="secondary"
+            label="Retry"
+            onPress={() => {
+              if (startFailed) start();
+              else if (editor.status === 'missing') void refreshActiveWorkout();
+              else void editor.reload();
+            }}
+          />
+        }
+      />
     );
   } else if (editor.status === 'ready' && editor.workout) {
     body = (
@@ -207,16 +215,15 @@ export default function SessionScreen() {
         onToggled={onToggled}
         onAddExercises={onAddExercises}
         footer={
-          <Pressable
-            onPress={onDiscard}
-            disabled={busy}
-            accessibilityRole="button"
+          <Button
+            variant="danger"
+            size="lg"
+            fullWidth={false}
+            label="Discard"
             accessibilityLabel="Discard workout"
-            accessibilityState={{ disabled: busy }}
-            style={styles.discard}
-          >
-            <Text style={[styles.discardText, { color: muted }]}>Discard workout</Text>
-          </Pressable>
+            disabled={busy}
+            onPress={onDiscard}
+          />
         }
       />
     );
@@ -235,38 +242,32 @@ export default function SessionScreen() {
         },
       ]}
     >
-      <View style={[styles.header, { borderBottomColor: separator }]}>
-        <Pressable
-          onPress={() => void minimize()}
-          accessibilityRole="button"
-          accessibilityLabel="Minimize workout"
-          style={styles.iconButton}
-        >
-          <IconSymbol name="chevron.down" size={26} color={text} />
-        </Pressable>
-        <View style={styles.titles}>
-          <Text style={[styles.title, { color: text }]} numberOfLines={1} accessibilityRole="header">
-            {title}
-          </Text>
-          <Text style={[styles.elapsed, { color: muted }]}>{elapsed} elapsed</Text>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => void minimize()}
+            accessibilityRole="button"
+            accessibilityLabel="Minimize workout"
+            style={[styles.iconButton, { backgroundColor: nested }]}
+          >
+            <IconSymbol name="chevron.down" size={22} color={text} />
+          </Pressable>
+          <View style={styles.titles}>
+            <ThemedText type="title" numberOfLines={1} accessibilityRole="header">
+              {title}
+            </ThemedText>
+            <ThemedText type="label" style={[styles.subtitle, { color: muted }]}>{subtitle}</ThemedText>
+          </View>
+          <Button
+            label="Finish"
+            accessibilityLabel="Finish workout"
+            disabled={finishDisabled}
+            onPress={onFinish}
+          />
         </View>
-        <Pressable
-          onPress={onFinish}
-          disabled={!id || busy || editor.status !== 'ready'}
-          accessibilityRole="button"
-          accessibilityLabel="Finish workout"
-          accessibilityState={{ disabled: !id || busy || editor.status !== 'ready' }}
-          style={[
-            styles.finish,
-            { backgroundColor: tint },
-            (!id || busy || editor.status !== 'ready') && { opacity: 0.5 },
-          ]}
-        >
-          <Text style={[styles.finishText, { color: onTint }]}>Finish</Text>
-        </Pressable>
+        {nowPlaying && keyboardHeight === 0 && !keyboardOpen ? <NowPlayingLine nowPlaying={nowPlaying} /> : null}
+        <RestBanner />
       </View>
-      {nowPlaying && keyboardHeight === 0 && !keyboardOpen ? <NowPlayingLine nowPlaying={nowPlaying} /> : null}
-      <RestBanner />
       {body}
     </View>
   );
@@ -274,38 +275,10 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingLeft: 4,
-    paddingRight: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 10 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   titles: { flex: 1, minWidth: 0 },
-  title: { fontSize: 17, fontWeight: '600' },
-  elapsed: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  finish: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  finishText: { fontSize: 15, fontWeight: '600' },
-  discard: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  discardText: { fontSize: 15, fontWeight: '500' },
-  message: { padding: 16, gap: 16 },
-  messageText: { fontSize: 15 },
-  retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  retryText: { fontSize: 17, fontWeight: '600' },
+  subtitle: { fontVariant: ['tabular-nums'] },
+  message: { padding: 16 },
 });

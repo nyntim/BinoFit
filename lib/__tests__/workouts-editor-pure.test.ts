@@ -8,9 +8,9 @@ import {
 } from '@/lib/workouts/prefill';
 import { setVolumeKg, workoutVolumeKg } from '@/lib/workouts/volume';
 import { endFromDuration, isSetFilled, planSave, tickPatch } from '@/lib/workouts/completion';
-import { applySchedule, cellPatch, cellText, editorReducer, setBadges, setColumns } from '@/lib/workouts/editor-state';
+import { applySchedule, badgeIfNormal, cellPatch, cellText, editorReducer, liveFocus, SET_TYPE_DESCRIPTIONS, setBadges, setColumns, setProgress } from '@/lib/workouts/editor-state';
 import { createWriteQueue } from '@/lib/workouts/write-queue';
-import { formatHoursMinutes, formatShortDate, parseClockDigits } from '@/lib/workouts/format';
+import { formatHoursMinutes, formatSetValue, formatShortDate, parseClockDigits } from '@/lib/workouts/format';
 
 const set = (o: any = {}): any => ({
   id: 's', workout_exercise_id: 'we1', position: 0, set_type: 'normal', weight_kg: null, reps: null,
@@ -424,5 +424,70 @@ describe('effort at a new completion', () => {
     expect(plan.tickSetIds).toEqual(['new']);
     expect(plan.effortPatches).toEqual({ new: { rir: 0 } });
     expect(plan.deleteSetIds).toEqual(['empty']);
+  });
+});
+
+describe('setProgress', () => {
+  it('counts ticked and total sets and tolerates missing exercises', () => {
+    expect(setProgress({} as any)).toEqual({ done: 0, total: 0 });
+    expect(setProgress(null)).toEqual({ done: 0, total: 0 });
+    const w: any = { exercises: [{ sets: [set({ completed_at: 'x' }), set()] }, { sets: [set({ completed_at: 'y' })] }] };
+    expect(setProgress(w)).toEqual({ done: 2, total: 3 });
+  });
+});
+
+describe('liveFocus', () => {
+  const ex = (id: string, ticks: boolean[]): any => ({
+    id,
+    sets: ticks.map((t, i) => set({ id: `${id}-${i}`, completed_at: t ? 'x' : null })),
+  });
+  it('is all null when every set is done', () => {
+    const f = liveFocus({ exercises: [ex('a', [true, true])] } as any);
+    expect(f.currentExerciseId).toBeNull();
+    expect(f.activeSetId).toBeNull();
+    expect(f.upcomingIds.size).toBe(0);
+  });
+  it('picks the first exercise with an unticked set and its first unticked set', () => {
+    const f = liveFocus({ exercises: [ex('a', [true, true]), ex('b', [true, false, false]), ex('c', [false, false])] } as any);
+    expect(f.currentExerciseId).toBe('b');
+    expect(f.activeSetId).toBe('b-1');
+    expect([...f.upcomingIds]).toEqual(['c']);
+  });
+  it('does not mark later exercises with a tick as upcoming', () => {
+    const f = liveFocus({ exercises: [ex('a', [false]), ex('b', [true, false]), ex('c', [false])] } as any);
+    expect(f.currentExerciseId).toBe('a');
+    expect([...f.upcomingIds]).toEqual(['c']);
+  });
+  it('tolerates a workout without exercises', () => {
+    expect(liveFocus({} as any).currentExerciseId).toBeNull();
+  });
+});
+
+describe('badgeIfNormal and set type descriptions', () => {
+  it('numbers around warmups, drops and failures', () => {
+    const sets = [{ set_type: 'warmup' }, { set_type: 'normal' }, { set_type: 'drop' }, { set_type: 'normal' }] as any[];
+    expect(badgeIfNormal(sets, 0)).toBe('1');
+    expect(badgeIfNormal(sets, 2)).toBe('2');
+    expect(badgeIfNormal(sets, 3)).toBe('2');
+  });
+  it('describes every set type', () => {
+    expect(Object.keys(SET_TYPE_DESCRIPTIONS).sort()).toEqual(['drop', 'failure', 'normal', 'warmup']);
+    expect(SET_TYPE_DESCRIPTIONS.warmup).toBe('Not counted in volume or records');
+  });
+});
+
+describe('formatSetValue', () => {
+  it('reads weight x reps with the unit', () => {
+    expect(formatSetValue(set({ weight_kg: 75, reps: 8 }), 'weight_reps', false, 'kg')).toBe('75 kg × 8');
+    expect(formatSetValue(set({ weight_kg: 30, reps: 10 }), 'weight_reps', true, 'kg')).toBe('30 kg × 10/side');
+  });
+  it('reads bodyweight sets', () => {
+    expect(formatSetValue(set({ weight_kg: null, reps: 12 }), 'bodyweight_reps', false, 'kg')).toBe('BW × 12');
+    expect(formatSetValue(set({ weight_kg: 10, reps: 8 }), 'bodyweight_reps', false, 'kg')).toBe('+10 kg × 8');
+  });
+  it('falls back to the previous format and is null when empty', () => {
+    expect(formatSetValue(set({ duration_seconds: 90 }), 'duration', false, 'kg')).toBe('1:30');
+    expect(formatSetValue(set(), 'weight_reps', false, 'kg')).toBeNull();
+    expect(formatSetValue(null, 'weight_reps', false, 'kg')).toBeNull();
   });
 });

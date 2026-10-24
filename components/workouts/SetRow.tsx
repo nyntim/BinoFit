@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { NumericCell } from '@/components/workouts/NumericCell';
 import { columnStyle } from '@/components/workouts/SetTableHeader';
@@ -29,6 +30,8 @@ type Props = {
   onPressBadge: () => void;
   /** Present when the table has a Done column. */
   onToggleDone?: () => void;
+  /** The set being worked in the live session: tinted row, tint-bordered cells. */
+  active?: boolean;
 };
 
 const CELL_KEYBOARD: Record<CellKey, 'decimal-pad' | 'number-pad'> = {
@@ -70,16 +73,19 @@ export function SetRow({
   onChangeCell,
   onPressBadge,
   onToggleDone,
+  active = false,
 }: Props) {
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const background = useThemeColor({}, 'background');
+  const onTint = useThemeColor({}, 'onTint');
+  const tintSoft = useThemeColor({}, 'tintSoft');
+  const ember = useThemeColor({}, 'ember');
   const fieldBorder = useThemeColor({}, 'fieldBorder');
   const done = !!set.completed_at;
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, active && { backgroundColor: tintSoft }]}>
       {columns.map((c) => {
         const style = columnStyle(c);
         switch (c.key) {
@@ -92,41 +98,39 @@ export function SetRow({
                 accessibilityLabel={`${badge.accessibilityLabel}${personalRecord ? ', personal record' : ''}. Change type or delete`}
                 style={[styles.badge, style]}
               >
-                <Text maxFontSizeMultiplier={1.3} style={[styles.badgeText, { color: badge.special ? muted : text }]}>{badge.label}</Text>
+                <ThemedText type="body" maxFontSizeMultiplier={1.3} style={[styles.badgeText, { color: badge.special ? muted : text }]}>{badge.label}</ThemedText>
                 {personalRecord ? (
-                  <Text maxFontSizeMultiplier={1.3} style={[styles.prTag, { color: muted }]}>
-                    PR
-                  </Text>
+                  <View testID="record-star" accessible={false} importantForAccessibility="no-hide-descendants">
+                    <IconSymbol name="star.fill" size={12} color={ember} />
+                  </View>
                 ) : null}
               </Pressable>
             );
           case 'previous':
             return (
-              <Text key={c.key} numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.previous, style, { color: muted }]}>
+              <ThemedText type="label" key={c.key} numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.previous, style, { color: muted }]}>
                 {previousText ?? '-'}
-              </Text>
+              </ThemedText>
             );
           case 'pace':
             return (
-              <Text key={c.key} numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.pace, style, { color: text }]}>
+              <ThemedText type="stat" key={c.key} numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.pace, style, { color: text }]}>
                 {paceText(set, unit)}
-              </Text>
+              </ThemedText>
             );
           case 'done':
             return (
-              <View key={c.key} style={[styles.doneWrap, style]}>
+              <View key={c.key} style={style}>
                 <Pressable
                   onPress={onToggleDone}
-                  hitSlop={4}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: done }}
                   accessibilityLabel={done ? `${badge.accessibilityLabel} done` : `Complete ${badge.accessibilityLabel.toLowerCase()}`}
-                  style={[
-                    styles.check,
-                    done ? { backgroundColor: tint, borderColor: tint } : { borderColor: fieldBorder },
-                  ]}
+                  style={styles.doneWrap}
                 >
-                  {done ? <IconSymbol name="checkmark" size={18} color={background} /> : null}
+                  <View style={[styles.check, done ? { backgroundColor: tint, borderColor: tint } : { borderColor: fieldBorder }]}>
+                    {done ? <IconSymbol name="checkmark" size={16} color={onTint} /> : null}
+                  </View>
                 </Pressable>
               </View>
             );
@@ -139,6 +143,8 @@ export function SetRow({
                   placeholder={previousSet ? cellText(previousSet, key, unit) : undefined}
                   keyboardType={CELL_KEYBOARD[key]}
                   accessibilityLabel={`${badge.accessibilityLabel} ${cellLabel(c, unit)}`}
+                  tone={done ? 'done' : active ? 'active' : 'open'}
+                  highlighted={active && !done && key === 'weight'}
                   onCommit={(t) => onChangeCell(key, t)}
                 />
               </View>
@@ -151,18 +157,17 @@ export function SetRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
-  badge: { height: 44, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  prTag: { fontSize: 12, fontWeight: '500', lineHeight: 13 },
-  previous: { fontSize: 13, fontVariant: ['tabular-nums'] },
-  pace: { fontSize: 15, fontWeight: '600', textAlign: 'right', fontVariant: ['tabular-nums'] },
-  doneWrap: { alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, paddingLeft: 18, paddingRight: 10 },
+  badge: { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  badgeText: { fontWeight: '700', fontVariant: ['tabular-nums'] },
+  previous: { fontVariant: ['tabular-nums'] },
+  pace: { fontSize: 17, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  doneWrap: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   check: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -5,7 +5,10 @@ import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
 import { useNow } from '@/hooks/useNow';
 import { usePreferences } from '@/hooks/usePreferences';
+import { getWorkoutWithExercises } from '@/lib/workouts/db';
+import { setProgress } from '@/lib/workouts/editor-state';
 import { getDoneWorkoutsBetween, getRecentDoneWorkouts } from '@/lib/workouts/history';
+import { getWorkoutRecordCounts } from '@/lib/workouts/record-history';
 import {
   formatWeekRange,
   setsPerMuscle,
@@ -23,6 +26,12 @@ export type TrainingOverview = {
   weekLabel: string;
   muscleSets: VolumeTargetProgress[];
   recent: WorkoutSummary[];
+  /** Dates (yyyy-MM-dd) of this week's finished workouts, for the week strip. */
+  doneDates: string[];
+  /** Exercises that set a record per recent workout id (workouts with none are absent). */
+  recordCounts: Map<string, number>;
+  /** Ticked and total sets of the active workout; null without one or while unknown. */
+  activeProgress: { done: number; total: number } | null;
   reload: () => void;
 };
 
@@ -38,8 +47,14 @@ export function useTrainingOverview(): TrainingOverview {
     weekLabel: formatWeekRange(weekRange(new Date())),
     muscleSets: [],
     recent: [],
+    doneDates: [],
+    recordCounts: new Map(),
+    activeProgress: null,
   });
   const requestRef = useRef(0);
+  const activeId = active?.id ?? null;
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const reload = useCallback(() => {
     const request = ++requestRef.current;
@@ -47,13 +62,30 @@ export function useTrainingOverview(): TrainingOverview {
     Promise.all([getDoneWorkoutsBetween(range.start, range.end), getRecentDoneWorkouts(RECENT_COUNT), getUserGoals()])
       .then(([weekWorkouts, recent, goals]) => {
         if (request !== requestRef.current) return;
-        setState({
+        // Ready first; the extras merge in when they arrive and never block or fail the tab
+        const currentActive = activeIdRef.current;
+        setState((s) => ({
           status: 'ready',
           week: summarizeWeek(weekWorkouts),
           weekLabel: formatWeekRange(range),
           muscleSets: volumeTargetProgress(setsPerMuscle(weekWorkouts), goals?.weekly_volume_targets),
           recent: recent.map((w) => summarizeWorkout(w, weightUnit)),
-        });
+          doneDates: weekWorkouts.map((w) => w.date),
+          recordCounts: s.recordCounts,
+          activeProgress: currentActive ? s.activeProgress : null,
+        }));
+        getWorkoutRecordCounts(recent)
+          .then((recordCounts) => {
+            if (request === requestRef.current) setState((s) => ({ ...s, recordCounts }));
+          })
+          .catch(() => {});
+        if (currentActive) {
+          getWorkoutWithExercises(currentActive)
+            .then((w) => {
+              if (request === requestRef.current) setState((s) => ({ ...s, activeProgress: w ? setProgress(w) : null }));
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {
         if (request !== requestRef.current) return;
@@ -65,7 +97,6 @@ export function useTrainingOverview(): TrainingOverview {
   // Ticks while the tab is focused so the week rolls over at midnight on Sunday.
   const now = useNow(60_000, useIsFocused());
   // Reload when the active workout or the current week changes (not on mount: focus did that).
-  const activeId = active?.id ?? null;
   const thisWeek = weekRange(new Date(now));
   const weekStart = thisWeek.start;
   const lastKey = useRef(`${activeId}|${weekStart}`);

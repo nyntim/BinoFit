@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { format } from 'date-fns';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
-import { BuilderInput } from '@/components/workouts/BuilderInput';
+import { Card } from '@/components/ui/Card';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { Workout } from '@/lib/types';
@@ -23,7 +23,9 @@ type Props = {
 /** Name and, optionally, date / start / duration of a workout. */
 export function WorkoutMetaCard({ workout, showSchedule, namePlaceholder, onChangeName, onChangeSchedule }: Props) {
   const colors = useThemeColors();
-  const card = useThemeColor({}, 'cardBackground');
+  const separator = useThemeColor({}, 'separator');
+  const tint = useThemeColor({}, 'tint');
+  const tintSoft = useThemeColor({}, 'tintSoft');
   const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [nameText, setNameText] = useState<string | null>(null);
   const [durationText, setDurationText] = useState<string | null>(null);
@@ -60,67 +62,76 @@ export function WorkoutMetaCard({ workout, showSchedule, namePlaceholder, onChan
   })();
   const durationDisplay = workout.duration_seconds ? formatHoursMinutes(workout.duration_seconds) : '';
 
-  const fieldStyle = [styles.input, styles.pressField, { backgroundColor: colors.cardSecondary, color: colors.text }];
+  const pill = [styles.pill, { backgroundColor: tintSoft }];
+  const rowStyle = [styles.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separator }];
 
   return (
-    <View style={[styles.card, { backgroundColor: card }]}>
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: colors.icon }]}>Name</Text>
-        <BuilderInput
+    <Card padding="none">
+      <View style={styles.row}>
+        <Text style={[styles.label, { color: colors.icon }]} accessible={false}>Name</Text>
+        <TextInput
           value={nameText ?? workout.name ?? ''}
           placeholder={namePlaceholder}
+          placeholderTextColor={colors.icon}
+          selectionColor={tint}
           accessibilityLabel="Workout name"
           returnKeyType="done"
           maxFontSizeMultiplier={1.3}
           onChangeText={setNameText}
           onBlur={commitName}
-          style={styles.input}
+          style={[styles.nameInput, { color: colors.text }]}
         />
       </View>
 
       {showSchedule ? (
-        <View style={styles.schedule}>
-          <View style={[styles.field, styles.third]}>
-            <Text style={[styles.label, { color: colors.icon }]}>Date</Text>
-            <Pressable
-              onPress={() => setPicker('date')}
-              accessibilityRole="button"
-              accessibilityLabel={`Date, ${formatShortDate(workout.date)}`}
-              style={[fieldStyle, styles.press]}
-            >
-              <Text style={[styles.value, { color: colors.text }]} numberOfLines={1}>
-                {formatShortDate(workout.date)}
-              </Text>
-            </Pressable>
+        <>
+          <View style={rowStyle}>
+            <Text style={[styles.label, { color: colors.icon }]} accessible={false}>Date</Text>
+            <View style={styles.end}>
+              <Pressable
+                onPress={() => setPicker('date')}
+                accessibilityRole="button"
+                accessibilityLabel={`Date, ${formatShortDate(workout.date)}`}
+                hitSlop={{ top: 4, bottom: 4 }}
+                style={pill}
+              >
+                <Text style={[styles.pillText, { color: tint }]} numberOfLines={1}>{formatShortDate(workout.date)}</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={[styles.field, styles.third]}>
-            <Text style={[styles.label, { color: colors.icon }]}>Start</Text>
-            <Pressable
-              onPress={() => setPicker('time')}
-              accessibilityRole="button"
-              accessibilityLabel={`Start time, ${startValid ? format(startValid, 'h:mm a') : 'not set'}`}
-              style={[fieldStyle, styles.press]}
-            >
-              <Text style={[styles.value, { color: colors.text }]} numberOfLines={1}>
-                {startValid ? format(startValid, 'h:mm a') : '--'}
-              </Text>
-            </Pressable>
+          <View style={rowStyle}>
+            <Text style={[styles.label, { color: colors.icon }]} accessible={false}>Start</Text>
+            <View style={styles.end}>
+              <Pressable
+                onPress={() => setPicker('time')}
+                accessibilityRole="button"
+                accessibilityLabel={`Start time, ${startValid ? format(startValid, 'h:mm a') : 'not set'}`}
+                hitSlop={{ top: 4, bottom: 4 }}
+                style={pill}
+              >
+                <Text style={[styles.pillText, { color: tint }]} numberOfLines={1}>{startValid ? format(startValid, 'h:mm a') : '--'}</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={[styles.field, styles.third]}>
-            <Text style={[styles.label, { color: colors.icon }]}>Duration</Text>
-            <BuilderInput
-              value={durationText ?? durationDisplay}
-              placeholder="0:00"
-              maxFontSizeMultiplier={1.3}
-              keyboardType="number-pad"
-              accessibilityLabel="Duration in hours and minutes"
-              selectTextOnFocus
-              onChangeText={setDurationText}
-              onBlur={commitDuration}
-              style={styles.input}
-            />
+          <View style={rowStyle}>
+            <Text style={[styles.label, { color: colors.icon }]} accessible={false}>Duration</Text>
+            <View style={styles.end}>
+              <TextInput
+                value={durationText ?? durationDisplay}
+                placeholder="0:00"
+                placeholderTextColor={colors.icon}
+                selectionColor={tint}
+                maxFontSizeMultiplier={1.3}
+                keyboardType="number-pad"
+                accessibilityLabel="Duration in hours and minutes"
+                selectTextOnFocus
+                onChangeText={setDurationText}
+                onBlur={commitDuration}
+                style={[...pill, styles.durationInput, { color: tint }]}
+              />
+            </View>
           </View>
-        </View>
+        </>
       ) : null}
 
       {showSchedule ? (
@@ -135,25 +146,16 @@ export function WorkoutMetaCard({ workout, showSchedule, namePlaceholder, onChan
           onChange={(d) => onChangeSchedule(picker === 'date' ? { date: d } : { time: d })}
         />
       ) : null}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 18, padding: 16, gap: 12 },
-  field: { gap: 4 },
-  label: { fontSize: 13, fontWeight: '500' },
-  schedule: { flexDirection: 'row', gap: 8 },
-  third: { flex: 1, minWidth: 0 },
-  input: {
-    height: 44,
-    minHeight: 44,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-  },
-  press: { justifyContent: 'center' },
-  pressField: { borderWidth: 1.5, borderColor: 'transparent' },
-  value: { fontSize: 15, fontVariant: ['tabular-nums'] },
+  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 4 },
+  label: { width: 84, fontSize: 15 },
+  nameInput: { flex: 1, minWidth: 0, minHeight: 44, fontSize: 15, fontWeight: '600' },
+  end: { flex: 1, alignItems: 'flex-end' },
+  pill: { minHeight: 36, minWidth: 64, paddingHorizontal: 14, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  pillText: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  durationInput: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'], textAlign: 'center', paddingVertical: 0 },
 });

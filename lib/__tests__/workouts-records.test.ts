@@ -1,5 +1,10 @@
 import {
   bestNewRecords,
+  countRecordExercises,
+  formatRecordCount,
+  formatSetRecordNote,
+  hasBeaten,
+  workoutRecords,
   collectRecordHits,
   computeRecords,
   EMPTY_RECORDS,
@@ -12,7 +17,7 @@ import {
   recordValues,
   type RecordSet,
 } from '@/lib/workouts/records';
-import type { WorkoutSet } from '@/lib/types';
+import type { WorkoutSet, WorkoutWithExercises } from '@/lib/types';
 
 function makeSet(overrides: Partial<RecordSet> = {}): RecordSet {
   return {
@@ -309,5 +314,97 @@ describe('collectRecordHits and recentRecordHits', () => {
     expect(newest[0].kind).toBe('reps');
     expect(recentRecordHits([a, b], 0)).toEqual([]);
     expect(recentRecordHits([a, b], -3)).toEqual([]);
+  });
+});
+
+function wset(over: Partial<WorkoutSet> = {}): WorkoutSet {
+  return {
+    id: 's1', workout_id: 'w1', workout_exercise_id: 'we1', position: 0, set_type: 'normal',
+    weight_kg: 100, reps: 5, duration_seconds: null, distance_m: null, rpe: null, rir: null,
+    completed_at: '2026-01-02T10:05:00.000Z', ...over,
+  } as WorkoutSet;
+}
+function workoutOf(exercises: { id: string; exerciseId: string; logType?: string; perSide?: boolean; sets: WorkoutSet[] }[]): WorkoutWithExercises {
+  return {
+    id: 'w1', started_at: '2026-01-02T10:00:00.000Z', created_at: '2026-01-02T10:00:00.000Z',
+    exercises: exercises.map((e) => ({
+      id: e.id, exercise_id: e.exerciseId, exercise_name: e.exerciseId,
+      exercise: { log_type: e.logType ?? 'weight_reps', per_side: e.perSide ? 1 : 0 },
+      sets: e.sets,
+    })),
+  } as unknown as WorkoutWithExercises;
+}
+
+describe('workoutRecords', () => {
+  const prior = new Map([['bench', { weightKg: 90, e1rmKg: 100, volumeKg: 450, reps: 5 }]]);
+
+  it('is empty while priors are loading', () => {
+    expect(workoutRecords(workoutOf([{ id: 'we1', exerciseId: 'bench', sets: [wset()] }]), null).size).toBe(0);
+  });
+
+  it('flags ticked working sets that beat the prior and ignores warmups and unticked sets', () => {
+    const w = workoutOf([
+      {
+        id: 'we1', exerciseId: 'bench',
+        sets: [
+          wset({ id: 'a', weight_kg: 100, reps: 5 }),
+          wset({ id: 'warm', set_type: 'warmup', weight_kg: 200, reps: 5 }),
+          wset({ id: 'open', weight_kg: 200, reps: 5, completed_at: null }),
+        ],
+      },
+    ]);
+    const res = workoutRecords(w, prior).get('we1')!;
+    expect([...res.setKinds.keys()]).toEqual(['a']);
+    expect(res.setKinds.get('a')).toContain('weight');
+    expect(res.beaten.weightKg).toBe(100);
+  });
+
+  it('uses per-side volume and skips non weight_reps exercises', () => {
+    const w = workoutOf([
+      { id: 'we1', exerciseId: 'row', perSide: true, sets: [wset({ id: 'r', weight_kg: 20, reps: 10 })] },
+      { id: 'we2', exerciseId: 'pull', logType: 'bodyweight_reps', sets: [wset({ id: 'p' })] },
+    ]);
+    const res = workoutRecords(w, new Map());
+    expect(res.has('we2')).toBe(false);
+    expect(res.get('we1')!.beaten.volumeKg).toBe(400);
+  });
+
+  it('counts exercises, not kinds', () => {
+    const w = workoutOf([
+      { id: 'we1', exerciseId: 'bench', sets: [wset({ id: 'a', weight_kg: 120, reps: 8 })] },
+      { id: 'we2', exerciseId: 'squat', sets: [wset({ id: 'b', weight_kg: 10, reps: 1 })] },
+      { id: 'we3', exerciseId: 'ohp', sets: [wset({ id: 'c', weight_kg: 10, reps: 1 })] },
+    ]);
+    const priors = new Map([
+      ['bench', EMPTY_RECORDS],
+      ['squat', { weightKg: 500, e1rmKg: 500, volumeKg: 5000, reps: 50 }],
+      ['ohp', EMPTY_RECORDS],
+    ]);
+    expect(countRecordExercises(w, priors)).toBe(2);
+    expect(countRecordExercises(w, null)).toBe(0);
+    expect(hasBeaten(EMPTY_RECORDS)).toBe(false);
+  });
+});
+
+describe('formatRecordCount', () => {
+  it('is null for none, singular for one, plural otherwise', () => {
+    expect(formatRecordCount(0)).toBeNull();
+    expect(formatRecordCount(1)).toBe('1 record');
+    expect(formatRecordCount(2)).toBe('2 records');
+  });
+});
+
+describe('formatSetRecordNote', () => {
+  const s = { weight_kg: 75, reps: 8 };
+  it('names each kind in kg and lb', () => {
+    expect(formatSetRecordNote('weight', s, 'kg', false)).toBe('Heaviest 75 kg');
+    expect(formatSetRecordNote('weight', { weight_kg: 100, reps: 1 }, 'lb', false)).toBe('Heaviest 220.46 lb');
+    expect(formatSetRecordNote('e1rm', s, 'kg', false)).toBe('Est. 1RM 95 kg');
+    expect(formatSetRecordNote('volume', { weight_kg: 100, reps: 12 }, 'kg', false)).toBe('Best set 1,200 kg');
+    expect(formatSetRecordNote('reps', { weight_kg: 50, reps: 12 }, 'kg', false)).toBe('Most reps 12');
+  });
+  it('adds /side for per-side exercises', () => {
+    expect(formatSetRecordNote('weight', s, 'kg', true)).toBe('Heaviest 75 kg/side');
+    expect(formatSetRecordNote('reps', s, 'kg', true)).toBe('Most reps 8/side');
   });
 });

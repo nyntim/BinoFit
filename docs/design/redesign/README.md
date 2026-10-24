@@ -70,19 +70,19 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 | Board | Canvas page | Route or component | Build directions | Status |
 |---|---|---|---|---|
-| `TrnTab` | Training / Workouts | `app/(tabs)/training.tsx` | [training.md#trntab-training-tab-workout-running](training.md#trntab-training-tab-workout-running) | Restyle + new (D5) |
-| `TrnSession` | Training / Workouts | `app/workout/session.tsx`, `WorkoutEditor`, `RestBanner` | [training.md#trnsession-live-session](training.md#trnsession-live-session) | Restyle + new (D5) |
-| `TrnSetType` | Training / Workouts | `components/workouts/SetTypeSheet.tsx` | [training.md#trnsettype-set-type-sheet](training.md#trnsettype-set-type-sheet) | Restyle |
-| `TrnStale` | Training / Workouts | `hooks/useStaleSessionPrompt.ts` | [training.md#trnstale-still-training](training.md#trnstale-still-training) | Optional (D6) |
-| `TrnWorkout` | Training / Workouts | `app/workout/[id].tsx` | [training.md#trnworkout-finished-workout](training.md#trnworkout-finished-workout) | Restyle + new (D3, D5) |
-| `TrnHistory` | Training / Workouts | `app/workout/history.tsx` | [training.md#trnhistory-all-workouts](training.md#trnhistory-all-workouts) | Restyle |
-| `TrnRoutine` | Training / Workouts | `app/workout/routine.tsx` | [training.md#trnroutine-routine](training.md#trnroutine-routine) | Restyle |
-| `TrnLogPast` | Training / Workouts | `app/workout/log.tsx` | [training.md#trnlogpast-log-past-workout](training.md#trnlogpast-log-past-workout) | Restyle |
-| `TrnLibrary` | Training / Exercises | `app/workout/exercises.tsx` | [training.md#trnlibrary-exercise-library](training.md#trnlibrary-exercise-library) | Restyle |
-| `TrnPicker` | Training / Exercises | `app/workout/exercises.tsx?pick=1` | [training.md#trnpicker-add-exercises](training.md#trnpicker-add-exercises) | Restyle + new (D7) |
-| `TrnBuildEquip` | Training / Exercises | `app/workout/new-exercise.tsx` | [training.md#trnbuildequip--trnbuildmuscles--trnbuildreview-exercise-builder](training.md#trnbuildequip--trnbuildmuscles--trnbuildreview-exercise-builder) | Restyle |
-| `TrnBuildMuscles` | Training / Exercises | `app/workout/new-exercise.tsx` | same section | Restyle |
-| `TrnBuildReview` | Training / Exercises | `app/workout/new-exercise.tsx` | same section | Restyle |
+| `TrnTab` | Training / Workouts | `app/(tabs)/training.tsx` | [training.md#trntab-training-tab-workout-running](training.md#trntab-training-tab-workout-running) | Built |
+| `TrnSession` | Training / Workouts | `app/workout/session.tsx`, `WorkoutEditor`, `RestBanner` | [training.md#trnsession-live-session](training.md#trnsession-live-session) | Built |
+| `TrnSetType` | Training / Workouts | `components/workouts/SetTypeSheet.tsx` | [training.md#trnsettype-set-type-sheet](training.md#trnsettype-set-type-sheet) | Built |
+| `TrnStale` | Training / Workouts | `hooks/useStaleSessionPrompt.ts` | [training.md#trnstale-still-training](training.md#trnstale-still-training) | Built (native Alert, D6) |
+| `TrnWorkout` | Training / Workouts | `app/workout/[id].tsx` | [training.md#trnworkout-finished-workout](training.md#trnworkout-finished-workout) | Built |
+| `TrnHistory` | Training / Workouts | `app/workout/history.tsx` | [training.md#trnhistory-all-workouts](training.md#trnhistory-all-workouts) | Built |
+| `TrnRoutine` | Training / Workouts | `app/workout/routine.tsx` | [training.md#trnroutine-routine](training.md#trnroutine-routine) | Built |
+| `TrnLogPast` | Training / Workouts | `app/workout/log.tsx` | [training.md#trnlogpast-log-past-workout](training.md#trnlogpast-log-past-workout) | Built |
+| `TrnLibrary` | Training / Exercises | `app/workout/exercises.tsx` | [training.md#trnlibrary-exercise-library](training.md#trnlibrary-exercise-library) | Built |
+| `TrnPicker` | Training / Exercises | `app/workout/exercises.tsx?pick=1` | [training.md#trnpicker-add-exercises](training.md#trnpicker-add-exercises) | Built |
+| `TrnBuildEquip` | Training / Exercises | `app/workout/new-exercise.tsx` | [training.md#trnbuildequip--trnbuildmuscles--trnbuildreview-exercise-builder](training.md#trnbuildequip--trnbuildmuscles--trnbuildreview-exercise-builder) | Built |
+| `TrnBuildMuscles` | Training / Exercises | `app/workout/new-exercise.tsx` | same section | Built |
+| `TrnBuildReview` | Training / Exercises | `app/workout/new-exercise.tsx` | same section | Built |
 
 ### Progress
 

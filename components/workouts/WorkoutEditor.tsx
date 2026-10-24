@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { AddExercisesButton } from '@/components/workouts/AddExercisesButton';
 import { ExerciseBlock } from '@/components/workouts/ExerciseBlock';
+import { ExerciseSummaryCard } from '@/components/workouts/ExerciseSummaryCard';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
 import { RestPickerSheet } from '@/components/workouts/RestPickerSheet';
 import { SetRow } from '@/components/workouts/SetRow';
@@ -16,27 +18,23 @@ import { restChoiceLabel } from '@/lib/workouts/rest-timer';
 import { exerciseDisplayName } from '@/lib/workouts/exercise-catalog';
 import {
   applySchedule,
+  badgeIfNormal,
   cellPatch,
+  liveFocus,
   setBadges,
   setColumns,
   type CellKey,
 } from '@/lib/workouts/editor-state';
 import { formatShortDate, setupDetailLine } from '@/lib/workouts/format';
-import { formatPreviousSet, previousFor } from '@/lib/workouts/prefill';
-import {
-  bestNewRecords,
-  EMPTY_RECORDS,
-  formatRecordSummary,
-  newRecordsFor,
-  recordSetFromWorkoutSet,
-} from '@/lib/workouts/records';
+import { DEFAULT_REST_SECONDS, formatPreviousSet, previousFor } from '@/lib/workouts/prefill';
+import { formatRecordSummary, workoutRecords } from '@/lib/workouts/records';
 
 type Props = {
   editor: Editor;
   mode: EditorMode;
   /** Opens the exercise picker (flush the editor first). */
   onAddExercises: () => void;
-  /** Rendered after "+ Add exercises" (e.g. the session's Discard). */
+  /** Rendered with "Add exercises" (e.g. the session's Discard, beside it in live mode). */
   footer?: ReactNode;
   /** Hide the name / date card (the live session shows its own header). Default true. */
   showMeta?: boolean;
@@ -52,8 +50,8 @@ type Props = {
  */
 export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMeta = true, header, onToggled }: Props) {
   const { weightUnit: unit, showEffort, effortMetric, restTimerEnabled } = usePreferences();
-  const tint = useThemeColor({}, 'tint');
   const muted = useThemeColor({}, 'icon');
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [exerciseMenu, setExerciseMenu] = useState<string | null>(null);
   const [restMenu, setRestMenu] = useState<string | null>(null);
   const [setMenu, setSetMenu] = useState<string | null>(null);
@@ -68,7 +66,14 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
   if (!workout) return null;
   const live = mode === 'live';
 
-  const menuSet = setMenu ? workout.exercises.flatMap((e) => e.sets).find((s) => s.id === setMenu) : undefined;
+  const menuSetExercise = setMenu ? workout.exercises.find((e) => e.sets.some((s) => s.id === setMenu)) : undefined;
+  const menuSet = menuSetExercise?.sets.find((s) => s.id === setMenu);
+  const menuSetIndex = menuSetExercise && menuSet ? menuSetExercise.sets.indexOf(menuSet) : -1;
+  const menuSetBadge = menuSetExercise && menuSetIndex >= 0 ? setBadges(menuSetExercise.sets)[menuSetIndex] : undefined;
+  const menuSetName = menuSetExercise ? (menuSetExercise.exercise ? exerciseDisplayName(menuSetExercise.exercise) : menuSetExercise.exercise_name) : '';
+  const menuSetValue = menuSetExercise && menuSet
+    ? formatPreviousSet(menuSet, menuSetExercise.exercise?.log_type ?? 'weight_reps', !!menuSetExercise.exercise?.per_side, unit)
+    : null;
   const menuExercise = exerciseMenu ? workout.exercises.find((e) => e.id === exerciseMenu) : undefined;
   const restExercise = restMenu ? workout.exercises.find((e) => e.id === restMenu) : undefined;
 
@@ -78,6 +83,10 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
       { text: 'Remove', style: 'destructive', onPress: () => editor.removeExercise(id) },
     ]);
   };
+
+  const records = workoutRecords(workout, editor.priorRecords);
+  const focus = live ? liveFocus(workout) : null;
+  const addExercises = <AddExercisesButton onPress={onAddExercises} variant={live ? 'plain' : 'dashed'} />;
 
   return (
     <ScrollView
@@ -113,51 +122,45 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
               ? restChoiceLabel(0)
               : `Rest ${restChoiceLabel(ex.rest_seconds)}`
             : null;
-        const rawLogType = ex.exercise?.log_type ?? null;
-        const priorForEx =
-          rawLogType === 'weight_reps' && editor.priorRecords !== null
-            ? (editor.priorRecords.get(ex.exercise_id) ?? EMPTY_RECORDS)
-            : null;
-        const workoutAt = workout.started_at ?? workout.created_at;
-        const recordSets =
-          priorForEx !== null
-            ? ex.sets.map((s) =>
-                recordSetFromWorkoutSet({
-                  set: s,
-                  exerciseId: ex.exercise_id,
-                  at: workoutAt,
-                  logType: rawLogType,
-                  perSide,
-                })
-              )
-            : null;
-        const recordSummary =
-          mode === 'edit' && recordSets !== null && priorForEx !== null
-            ? formatRecordSummary(bestNewRecords(recordSets, priorForEx), unit, perSide)
-            : null;
+        const result = records.get(ex.id);
+        const recordSummary = mode === 'edit' && result ? formatRecordSummary(result.beaten, unit, perSide) : null;
+        const tag = logType === 'distance_duration' ? 'Cardio' : logType === 'duration' ? 'Time' : null;
+
+        if (focus?.upcomingIds.has(ex.id) && !expanded.has(ex.id)) {
+          return (
+            <ExerciseSummaryCard
+              key={ex.id}
+              name={title}
+              done={ex.sets.filter((s) => s.completed_at).length}
+              total={ex.sets.length}
+              last={formatPreviousSet(previousFor(0, prevSets), logType, perSide, unit)}
+              onPress={() => setExpanded((prev) => new Set(prev).add(ex.id))}
+            />
+          );
+        }
         return (
           <ExerciseBlock
             key={ex.id}
             title={title}
             setupNotes={ex.exercise ? setupDetailLine(ex.exercise, unit) : null}
             restLabel={restLabel}
+            tag={tag}
             onOptions={() => setExerciseMenu(ex.id)}
           >
             {recordSummary ? (
-              <Text
-                accessibilityLabel={recordSummary.replace(/^PR\b/, 'Personal record')}
-                style={[styles.recordLine, { color: muted }]}
-              >
-                {recordSummary}
-              </Text>
+              <View style={styles.recordWrap}>
+                <Text
+                  accessibilityLabel={recordSummary.replace(/^PR\b/, 'Personal record')}
+                  style={[styles.recordLine, { color: muted }]}
+                >
+                  {recordSummary}
+                </Text>
+              </View>
             ) : null}
             <SetTableHeader columns={columns} />
             {ex.sets.map((s, i) => {
               const prev = previousFor(i, prevSets);
-              const isPr =
-                recordSets !== null && priorForEx !== null
-                  ? newRecordsFor(recordSets[i], priorForEx).length > 0
-                  : false;
+              const isPr = !!result?.setKinds.has(s.id);
               return (
                 <SetRow
                   key={s.id}
@@ -168,6 +171,7 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
                   previousSet={prev}
                   previousText={formatPreviousSet(prev, logType, perSide, unit)}
                   personalRecord={isPr}
+                  active={focus?.activeSetId === s.id}
                   onChangeCell={(key: CellKey, text: string) => {
                     const patch = cellPatch(key, text, unit);
                     if (patch) editor.updateSet(s.id, patch);
@@ -184,24 +188,43 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
                 />
               );
             })}
-            <Pressable
-              onPress={() => editor.addSet(ex.id)}
-              accessibilityRole="button"
+            <Button
+              variant="ghost"
+              label="+ Add set"
               accessibilityLabel={`Add set to ${title}`}
-              style={styles.addSet}
-            >
-              <Text style={[styles.addSetText, { color: tint }]}>+ Add set</Text>
-            </Pressable>
+              fullWidth
+              onPress={() => editor.addSet(ex.id)}
+            />
           </ExerciseBlock>
         );
       })}
 
-      <AddExercisesButton onPress={onAddExercises} />
-      {footer}
+      {live ? (
+        <View style={styles.footerRow}>
+          {addExercises}
+          {footer}
+        </View>
+      ) : (
+        <>
+          {addExercises}
+          {footer}
+        </>
+      )}
 
       <SetTypeSheet
         visible={!!menuSet}
         current={menuSet?.set_type ?? 'normal'}
+        title={menuSetBadge?.accessibilityLabel ?? 'Set'}
+        subtitle={menuSetValue ? `${menuSetName} · ${menuSetValue}` : menuSetName}
+        normalBadge={menuSetExercise && menuSetIndex >= 0 ? badgeIfNormal(menuSetExercise.sets, menuSetIndex) : '1'}
+        restLabel={
+          menuSetExercise ? restChoiceLabel(menuSetExercise.rest_seconds ?? DEFAULT_REST_SECONDS) : null
+        }
+        onRest={
+          live && restTimerEnabled && menuSetExercise
+            ? () => setRestMenu(menuSetExercise.id)
+            : undefined
+        }
         onSelect={(t) => menuSet && editor.setSetType(menuSet.id, t)}
         onDelete={() => menuSet && editor.deleteSet(menuSet.id)}
         onClose={() => setSetMenu(null)}
@@ -241,7 +264,7 @@ export function WorkoutEditorBody({ editor, mode, onAddExercises, footer, showMe
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
+  recordWrap: { paddingHorizontal: 18, paddingBottom: 6 },
   recordLine: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  addSet: { minHeight: 44, justifyContent: 'center' },
-  addSetText: { fontSize: 15, fontWeight: '600' },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

@@ -156,3 +156,60 @@ describe('getPriorRecordSets', () => {
     expect(res.map((r) => r.setId)).toEqual([valid.sId]);
   });
 });
+
+describe('getWorkoutRecordCounts', () => {
+  const wk = (id: string, at: string, exerciseId = 'ex1', weightKg = 100, reps = 5): any => ({
+    id,
+    started_at: at,
+    created_at: at,
+    exercises: [
+      {
+        id: `l-${id}`,
+        exercise_id: exerciseId,
+        exercise: { log_type: 'weight_reps', per_side: 0 },
+        sets: [{ id: `s-${id}`, set_type: 'normal', weight_kg: weightKg, reps, completed_at: at, position: 0 }],
+      },
+    ],
+  });
+  const seed = (id: string, at: string, weightKg: number, extra: Parameters<typeof insertSetFixture>[0] = {}) =>
+    insertSetFixture({ workoutId: id, startedAt: at, createdAt: at, weightKg, reps: 5, completedAt: at, ...extra });
+
+  it('returns an empty map for no workouts without touching the database', async () => {
+    const spy = jest.spyOn(mem, 'getAllAsync');
+    expect((await rh.getWorkoutRecordCounts([])).size).toBe(0);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('counts an exercise that beats earlier workouts and omits workouts without records', async () => {
+    seed('w-old', '2026-01-02T10:00:00.000Z', 100);
+    seed('w-mid', '2026-01-03T10:00:00.000Z', 110);
+    seed('w-new', '2026-01-04T10:00:00.000Z', 105);
+    const counts = await rh.getWorkoutRecordCounts([
+      wk('w-new', '2026-01-04T10:00:00.000Z', 'ex1', 105),
+      wk('w-mid', '2026-01-03T10:00:00.000Z', 'ex1', 110),
+      wk('w-old', '2026-01-02T10:00:00.000Z', 'ex1', 100),
+    ]);
+    expect(counts.get('w-old')).toBe(1);
+    expect(counts.get('w-mid')).toBe(1);
+    expect(counts.has('w-new')).toBe(false);
+  });
+
+  it('does not treat a workout\'s own sets or an equal start time as prior', async () => {
+    seed('w-a', '2026-01-02T10:00:00.000Z', 100);
+    seed('w-b', '2026-01-02T10:00:00.000Z', 100);
+    const counts = await rh.getWorkoutRecordCounts([
+      wk('w-b', '2026-01-02T10:00:00.000Z'),
+      wk('w-a', '2026-01-02T10:00:00.000Z'),
+    ]);
+    expect(counts.get('w-a')).toBe(1);
+    expect(counts.get('w-b')).toBe(1);
+  });
+
+  it('ignores deleted workouts and tombstoned sets as history', async () => {
+    seed('w-del', '2026-01-02T10:00:00.000Z', 500, { workoutDeletedAt: '2026-01-03T00:00:00.000Z' });
+    seed('w-tomb', '2026-01-02T11:00:00.000Z', 500, { setDeletedAt: '2026-01-03T00:00:00.000Z' });
+    seed('w-cur', '2026-01-04T10:00:00.000Z', 100);
+    const counts = await rh.getWorkoutRecordCounts([wk('w-cur', '2026-01-04T10:00:00.000Z')]);
+    expect(counts.get('w-cur')).toBe(1);
+  });
+});

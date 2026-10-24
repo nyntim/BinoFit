@@ -1,7 +1,7 @@
 // Batched read of prior eligible weight_reps sets from earlier done workouts.
 import { getDatabase } from '@/lib/database';
-import type { ExerciseLogType, SetType } from '@/lib/types';
-import type { RecordSet } from '@/lib/workouts/records';
+import type { ExerciseLogType, SetType, WorkoutWithExercises } from '@/lib/types';
+import { countRecordExercises, recordsByExercise, type RecordSet } from '@/lib/workouts/records';
 
 const CHUNK = 400;
 
@@ -89,4 +89,31 @@ export async function getPriorRecordSets(
     logType: r.log_type,
     perSide: Boolean(r.per_side),
   }));
+}
+
+/**
+ * Records each given done workout set, as the number of exercises that beat the history before it.
+ * One batched query anchored on the newest workout; each workout then keeps only sets that started
+ * strictly before it. Workouts with no record are left out of the map.
+ */
+export async function getWorkoutRecordCounts(workouts: WorkoutWithExercises[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (workouts.length === 0) return counts;
+  const atOf = (w: WorkoutWithExercises) => w.started_at ?? w.created_at;
+  const newest = workouts.reduce((a, b) => (atOf(b) > atOf(a) ? b : a));
+  const ids = new Set<string>();
+  for (const w of workouts) {
+    for (const ex of w.exercises ?? []) {
+      if (ex.exercise?.log_type === 'weight_reps') ids.add(ex.exercise_id);
+    }
+  }
+  if (ids.size === 0) return counts;
+  const prior = await getPriorRecordSets([...ids], { excludeWorkoutId: newest.id, before: atOf(newest) });
+  for (const w of workouts) {
+    const at = atOf(w);
+    const before = prior.filter((s) => s.at < at && s.workoutId !== w.id);
+    const n = countRecordExercises(w, recordsByExercise(before));
+    if (n > 0) counts.set(w.id, n);
+  }
+  return counts;
 }

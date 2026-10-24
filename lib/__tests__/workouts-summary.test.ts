@@ -6,7 +6,12 @@ import {
   groupByMonth,
   pairRows,
   setsPerMuscle,
+  subtitleWithoutDate,
   summarizeWeek,
+  weekActivity,
+  weekActivityLabel,
+  workoutStats,
+  formatWorkoutMeta,
   summarizeWorkout,
   weekRange,
   workoutTitle,
@@ -459,3 +464,69 @@ describe('formatMuscleSetCount', () => {
   });
 });
 
+
+describe('weekActivity', () => {
+  const range = { start: '2025-10-13', end: '2025-10-19' };
+  it('starts on Monday and marks done days', () => {
+    const days = weekActivity(range, ['2025-10-13', '2025-10-15'], '2025-10-16', false);
+    expect(days.map((d) => d.letter).join('')).toBe('MTWTFSS');
+    expect(days.map((d) => d.state)).toEqual(['done', 'rest', 'done', 'rest', 'rest', 'rest', 'rest']);
+    expect(days[3].today).toBe(true);
+  });
+  it('handles Sunday as today and ignores dates outside the week', () => {
+    const days = weekActivity(range, ['2025-10-12', '2025-10-20'], '2025-10-19', true);
+    expect(days[6]).toMatchObject({ date: '2025-10-19', today: true, state: 'running' });
+    expect(days.filter((d) => d.state === 'done')).toHaveLength(0);
+  });
+  it('done beats running and running only applies to today', () => {
+    const days = weekActivity(range, ['2025-10-16'], '2025-10-16', true);
+    expect(days[3].state).toBe('done');
+    expect(days.filter((d) => d.state === 'running')).toHaveLength(0);
+  });
+});
+
+describe('weekActivityLabel', () => {
+  const range = { start: '2025-10-13', end: '2025-10-19' };
+  it('phrases zero, one, two and three days', () => {
+    expect(weekActivityLabel(weekActivity(range, [], '2025-10-14', false))).toBe('No workouts yet this week');
+    expect(weekActivityLabel(weekActivity(range, ['2025-10-13'], '2025-10-14', false))).toBe('Trained Monday');
+    expect(weekActivityLabel(weekActivity(range, ['2025-10-13', '2025-10-15'], '2025-10-16', false))).toBe('Trained Monday and Wednesday');
+    expect(weekActivityLabel(weekActivity(range, ['2025-10-13', '2025-10-15', '2025-10-17'], '2025-10-18', false))).toBe('Trained Monday, Wednesday and Friday');
+  });
+  it('adds the workout in progress', () => {
+    expect(weekActivityLabel(weekActivity(range, ['2025-10-13', '2025-10-15'], '2025-10-16', true))).toBe('Trained Monday and Wednesday, workout in progress today');
+    expect(weekActivityLabel(weekActivity(range, [], '2025-10-16', true))).toBe('Workout in progress today');
+  });
+});
+
+describe('subtitleWithoutDate', () => {
+  it('strips the leading date', () => {
+    const multi = summarizeWorkout(wk({}, [link(ex({ name: 'Bench' }), [set({ weight_kg: 50, reps: 5 })])]), 'kg');
+    expect(multi.subtitle).toBe('Wed 15 Oct · Bench');
+    expect(subtitleWithoutDate(multi)).toBe('Bench');
+    const cardio = summarizeWorkout(wk({}, [run()]), 'kg');
+    expect(subtitleWithoutDate(cardio)).toBe('5.00 km · 5:00 /km');
+  });
+  it('is empty when only the date remains', () => {
+    expect(subtitleWithoutDate({ date: '2025-10-15', subtitle: 'Wed 15 Oct' })).toBe('');
+  });
+});
+
+describe('workoutStats', () => {
+  it('counts all sets, warmups, volume and stored duration', () => {
+    const w = wk({ duration_seconds: 3480 }, [
+      strength([set({ set_type: 'warmup', weight_kg: 20, reps: 10 }), set({ weight_kg: 100, reps: 10 })]),
+    ]);
+    expect(workoutStats(w)).toEqual({ volumeKg: 1000, sets: 2, warmups: 1, durationSeconds: 3480 });
+  });
+});
+
+describe('formatWorkoutMeta', () => {
+  it('joins date, start time and duration', () => {
+    const start = new Date(2025, 9, 15, 17, 12).toISOString();
+    expect(formatWorkoutMeta(wk({ started_at: start, duration_seconds: 3480 }))).toBe('Wed 15 Oct · 5:12 PM · 58 min');
+  });
+  it('leaves out an unknown start and a zero duration', () => {
+    expect(formatWorkoutMeta(wk({}))).toBe('Wed 15 Oct');
+  });
+});

@@ -64,6 +64,18 @@ export function isStale(w: WorkoutWithExercises, now: Date): boolean {
 }
 
 /**
+ * The "Still training?" body: "Push day has been open for 7 hours. Your last set was at 6:12 PM."
+ * `lastTicked` is the latest ticked set, or null when none is ticked.
+ */
+export function staleMessage(w: WorkoutWithExercises, now: Date, lastTicked: Date | null): string {
+  const name = w.name?.trim() || 'This workout';
+  const opened = new Date(w.started_at ?? w.created_at).getTime();
+  const hours = Math.max(1, Math.floor((now.getTime() - opened) / (60 * 60 * 1000)) || 1);
+  const open = `${name} has been open for ${hours} ${hours === 1 ? 'hour' : 'hours'}.`;
+  return lastTicked ? `${open} Your last set was at ${format(lastTicked, 'h:mm a')}.` : `${open} No sets ticked yet.`;
+}
+
+/**
  * Finishes a live workout. 'gone': the workout is missing or no longer active. 'empty': no set is ticked, nothing changed. 'needs-confirm': sets with
  * values are not ticked and `discardUnticked` is false, nothing changed. 'finished': empty sets
  * (and, with `discardUnticked`, unticked ones) are dropped, the workout is done, ends at `endAt`

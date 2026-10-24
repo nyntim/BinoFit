@@ -7,6 +7,7 @@ export function columnStyle(c: SetColumn) {
   return c.width === 'flex' ? { flex: 1, minWidth: 0 } : { width: c.width };
 }
 
+/** Column captions above the set rows, aligned with the row padding. Hidden from screen readers (cells carry their own labels). */
 export function SetTableHeader({ columns }: { columns: SetColumn[] }) {
   const muted = useThemeColor({}, 'icon');
   return (
@@ -26,6 +27,6 @@ export function SetTableHeader({ columns }: { columns: SetColumn[] }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontSize: 12, fontWeight: '500', letterSpacing: 0.4, textTransform: 'uppercase' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 18, paddingRight: 10, paddingBottom: 4 },
+  label: { fontSize: 12, lineHeight: 16 },
 });

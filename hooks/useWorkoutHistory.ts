@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getRecentDoneWorkouts } from '@/lib/workouts/history';
+import { getWorkoutRecordCounts } from '@/lib/workouts/record-history';
 import { summarizeWorkout } from '@/lib/workouts/summary';
 import type { WorkoutSummary } from '@/lib/types';
 
@@ -10,6 +11,8 @@ export const HISTORY_PAGE_SIZE = 30;
 export type WorkoutHistory = {
   status: 'loading' | 'ready' | 'error';
   items: WorkoutSummary[];
+  /** Exercises that set a record per workout id (workouts with none are absent). */
+  recordCounts: Map<string, number>;
   hasMore: boolean;
   loadingMore: boolean;
   loadMoreFailed: boolean;
@@ -21,6 +24,7 @@ export type WorkoutHistory = {
 export function useWorkoutHistory(): WorkoutHistory {
   const { weightUnit } = usePreferences();
   const [items, setItems] = useState<WorkoutSummary[]>([]);
+  const [recordCounts, setRecordCounts] = useState<Map<string, number>>(new Map());
   const [status, setStatus] = useState<WorkoutHistory['status']>('loading');
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -43,6 +47,12 @@ export function useWorkoutHistory(): WorkoutHistory {
         setItems(rows.map((w) => summarizeWorkout(w, weightUnit)));
         setHasMore(rows.length === count);
         setStatus('ready');
+        // Tags arrive after the rows; a failure just leaves them out
+        getWorkoutRecordCounts(rows)
+          .then((counts) => {
+            if (request === requestRef.current) setRecordCounts(counts);
+          })
+          .catch(() => {});
       })
       .catch(() => {
         if (request !== requestRef.current) return;
@@ -67,6 +77,12 @@ export function useWorkoutHistory(): WorkoutHistory {
           return [...prev, ...rows.filter((w) => !seen.has(w.id)).map((w) => summarizeWorkout(w, weightUnit))];
         });
         setHasMore(rows.length === HISTORY_PAGE_SIZE);
+        getWorkoutRecordCounts(rows)
+          .then((counts) => {
+            if (request !== requestRef.current || counts.size === 0) return;
+            setRecordCounts((prev) => new Map([...prev, ...counts]));
+          })
+          .catch(() => {});
       })
       .catch(() => {
         if (request === requestRef.current) setLoadMoreFailed(true);
@@ -78,5 +94,5 @@ export function useWorkoutHistory(): WorkoutHistory {
       });
   }, [hasMore, status, weightUnit]);
 
-  return { status, items, hasMore, loadingMore, loadMoreFailed, loadMore, reload };
+  return { status, items, recordCounts, hasMore, loadingMore, loadMoreFailed, loadMore, reload };
 }

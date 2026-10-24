@@ -6,13 +6,7 @@ import { getActiveWorkoutState } from '@/lib/workouts/active-workout-store';
 import { getWorkoutWithExercises } from '@/lib/workouts/db';
 import { commitPendingEdits } from '@/lib/workouts/pending-edits';
 import { confirmAndDiscard, confirmAndFinish, type FlowResult } from '@/lib/workouts/finish-flow';
-import { isStale, lastActivityAt, STALE_AFTER_MS } from '@/lib/workouts/session';
-
-function idleText(ms: number): string {
-  const minutes = Math.floor(ms / 60000);
-  if (minutes < 120) return `${minutes} min`;
-  return `${Math.floor(minutes / 60)} h`;
-}
+import { isStale, lastActivityAt, staleMessage, STALE_AFTER_MS } from '@/lib/workouts/session';
 
 /**
  * Asks "Still training?" when the active workout has had no ticked set for 6 h. Checked on launch
@@ -61,7 +55,7 @@ export function useStaleSessionPrompt(): void {
           .finally(done);
       const keepGoing = { text: 'Keep going', onPress: () => { snooze(); done(); } };
       const discard = {
-        text: 'Discard',
+        text: 'Discard workout',
         style: 'destructive' as const,
         onPress: () => {
           commitPendingEdits();
@@ -78,7 +72,7 @@ export function useStaleSessionPrompt(): void {
       alertOpen = true;
       Alert.alert(
         'Still training?',
-        `No set ticked for ${idleText(now.getTime() - last.getTime())}.`,
+        staleMessage(tree, now, hasTicked ? last : null),
         hasTicked ? [finish, keepGoing, discard] : [keepGoing, discard],
         { cancelable: false }
       );

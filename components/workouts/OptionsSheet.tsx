@@ -32,7 +32,8 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
     fn?.();
   };
   const overlay = useThemeColor({}, 'overlay');
-  const card = useThemeColor({}, 'cardBackground');
+  const sheet = useThemeColor({}, 'sheetBackground');
+  const grabber = useThemeColor({}, 'fieldBorder');
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
@@ -42,7 +43,8 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} onDismiss={runPending}>
       <View style={[styles.overlay, { backgroundColor: overlay }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <View style={[styles.sheet, { backgroundColor: card, paddingBottom: 12 + bottom }]}>
+        <View style={[styles.sheet, { backgroundColor: sheet, paddingBottom: 12 + bottom }]}>
+          <View style={[styles.grabber, { backgroundColor: grabber }]} accessible={false} importantForAccessibility="no" />
           {title ? (
             <Text style={[styles.title, { color: muted }]} accessibilityRole="header">
               {title}
@@ -79,15 +81,16 @@ export function OptionsSheet({ visible, title, options, onClose }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 20 },
-  title: { fontSize: 13, fontWeight: '500', textAlign: 'center', paddingVertical: 8 },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 8, paddingHorizontal: 20 },
+  grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3, marginBottom: 4 },
+  title: { fontSize: 12, textAlign: 'center', paddingVertical: 8 },
   option: {
     minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  optionText: { fontSize: 17 },
+  optionText: { fontSize: 15 },
   cancel: { marginTop: 4, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
   cancelText: { fontSize: 17, fontWeight: '600' },
 });

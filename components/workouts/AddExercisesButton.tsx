@@ -1,28 +1,26 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { StyleSheet } from 'react-native';
+import { Button } from '@/components/ui/Button';
 
-export function AddExercisesButton({ onPress }: { onPress: () => void }) {
-  const tint = useThemeColor({}, 'tint');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
+type Props = {
+  onPress: () => void;
+  /** `dashed` is "+ Add exercises" with a dashed outline; `plain` is "Add exercises" beside other actions. */
+  variant?: 'dashed' | 'plain';
+};
+
+export function AddExercisesButton({ onPress, variant = 'dashed' }: Props) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
+    <Button
+      variant="secondary"
+      size="lg"
+      label={variant === 'dashed' ? '+ Add exercises' : 'Add exercises'}
       accessibilityLabel="Add exercises"
-      style={[styles.button, { borderColor: fieldBorder }]}
-    >
-      <Text style={[styles.text, { color: tint }]}>+ Add exercises</Text>
-    </Pressable>
+      onPress={onPress}
+      style={variant === 'dashed' ? styles.dashed : variant === 'plain' ? styles.plain : undefined}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: { fontSize: 15, fontWeight: '600' },
+  dashed: { borderStyle: 'dashed' },
+  plain: { flex: 1, alignSelf: 'auto' },
 });

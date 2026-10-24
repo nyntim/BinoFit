@@ -1,30 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Button } from '@/components/ui/Button';
+import { CelebrationBanner } from '@/components/ui/CelebrationBanner';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { OptionsSheet } from '@/components/workouts/OptionsSheet';
+import { NavIconButton, WorkoutNavBar } from '@/components/workouts/WorkoutNavBar';
 import { WorkoutEditorBody } from '@/components/workouts/WorkoutEditor';
+import { WorkoutSummaryView } from '@/components/workouts/WorkoutSummaryView';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWorkoutEditor } from '@/hooks/useWorkoutEditor';
 import { syncToSupabase } from '@/lib/sync';
 import { deleteWorkout } from '@/lib/workouts/db';
 import { cleanupEmptyEntries } from '@/lib/workouts/drafts';
+import { clearJustFinished, wasJustFinished } from '@/lib/workouts/finish-celebration';
 import { saveAsRoutineWithFeedback } from '@/lib/workouts/routine-flow';
+import { countRecordExercises } from '@/lib/workouts/records';
 
-/** A finished workout: every edit writes through to SQLite and syncs. */
+/**
+ * A finished workout: a read view with its records, and Edit to change it. Every edit writes
+ * through to SQLite and syncs. Right after Finish a banner says the workout was saved.
+ */
 export default function WorkoutDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === 'string' && params.id ? params.id : undefined;
   const editor = useWorkoutEditor(id, 'edit');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // Read once on open: only a workout finished from the live session celebrates
+  const [celebrate, setCelebrate] = useState(() => !!id && wasJustFinished(id));
+  const hapticFired = useRef(false);
 
   const background = useThemeColor({}, 'background');
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
-  const tint = useThemeColor({}, 'tint');
-  const separator = useThemeColor({}, 'separator');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
+
+  // The banner shows once the workout and its prior records are loaded, so its copy is final
+  const bannerReady = celebrate && editor.status === 'ready' && !!editor.workout;
+  useEffect(() => {
+    if (bannerReady && !hapticFired.current) {
+      hapticFired.current = true;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [bannerReady]);
 
   // On leaving: finish pending writes, then drop sets and exercises left empty.
   const flushRef = useRef(editor.flush);
@@ -34,6 +52,7 @@ export default function WorkoutDetailScreen() {
   useEffect(
     () => () => {
       if (!id) return;
+      clearJustFinished(id);
       void flushRef
         .current()
         .then(() => cleanupEmptyEntries(id, new Date()))
@@ -78,54 +97,70 @@ export default function WorkoutDetailScreen() {
 
   let body: React.ReactNode = null;
   if (editor.status === 'missing' || !id) {
-    body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>This workout was deleted.</Text>
-      </View>
-    );
+    body = <EmptyState image={false} title="This workout was deleted." style={styles.message} />;
   } else if (editor.status === 'error') {
     body = (
-      <View style={styles.message}>
-        <Text style={[styles.messageText, { color: muted }]}>Couldn’t load this workout.</Text>
-        <Pressable
-          onPress={() => void editor.reload()}
-          accessibilityRole="button"
-          style={[styles.retry, { borderColor: fieldBorder }]}
-        >
-          <Text style={[styles.retryText, { color: tint }]}>Retry</Text>
-        </Pressable>
-      </View>
+      <EmptyState
+        image={false}
+        title="Couldn’t load this workout."
+        style={styles.message}
+        actions={<Button variant="secondary" label="Retry" onPress={() => void editor.reload()} />}
+      />
     );
   } else if (editor.status === 'ready' && editor.workout) {
-    body = <WorkoutEditorBody editor={editor} mode="edit" onAddExercises={onAddExercises} />;
+    if (editing) {
+      body = (
+        <WorkoutEditorBody
+          editor={editor}
+          mode="edit"
+          onAddExercises={onAddExercises}
+          footer={
+            <Button
+              size="lg"
+              label="Done"
+              onPress={() => {
+                void editor.flush().then(() => setEditing(false));
+              }}
+            />
+          }
+        />
+      );
+    } else {
+      const records = countRecordExercises(editor.workout, editor.priorRecords);
+      body = (
+        <WorkoutSummaryView
+          workout={editor.workout}
+          priorRecords={editor.priorRecords}
+          banner={
+            celebrate ? (
+              <CelebrationBanner
+                title="Workout saved"
+                body={records > 0 ? `${records} new ${records === 1 ? 'record' : 'records'}. Nice work.` : undefined}
+                onDismiss={() => setCelebrate(false)}
+              />
+            ) : null
+          }
+          onSaveAsRoutine={() => void onSaveAsRoutine()}
+          onEdit={() => {
+            setEditing(true);
+            setCelebrate(false);
+          }}
+        />
+      );
+    }
   }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
-        <Pressable
-          onPress={() => {
-            void editor.flush().then(() => router.back());
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.iconButton}
-        >
-          <IconSymbol name="chevron.left" size={22} color={tint} />
-        </Pressable>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header">
-          Workout
-        </Text>
-        <Pressable
-          onPress={() => setMenuOpen(true)}
-          disabled={editor.status !== 'ready'}
-          accessibilityRole="button"
-          accessibilityLabel="More options"
-          style={[styles.iconButton, editor.status !== 'ready' && { opacity: 0.5 }]}
-        >
-          <IconSymbol name="ellipsis" size={22} color={tint} />
-        </Pressable>
-      </View>
+      <WorkoutNavBar
+        label="Back"
+        onBack={() => {
+          void editor.flush().then(() => router.back());
+        }}
+        trailing={
+          <NavIconButton icon="ellipsis" label="More options" disabled={editor.status !== 'ready'} onPress={() => setMenuOpen(true)} />
+        }
+      />
       {body}
       <OptionsSheet
         visible={menuOpen}
@@ -141,24 +176,5 @@ export default function WorkoutDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
-  message: { padding: 16, gap: 16 },
-  messageText: { fontSize: 15 },
-  retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  retryText: { fontSize: 17, fontWeight: '600' },
+  message: { padding: 16 },
 });
