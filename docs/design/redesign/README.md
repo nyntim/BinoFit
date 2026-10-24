@@ -39,12 +39,12 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 | Board | Canvas page | Route | Build directions | Status |
 |---|---|---|---|---|
-| `OnbWelcome` | Onboarding | `app/onboarding/index.tsx` | [onboarding.md#onbwelcome-welcome](onboarding.md#onbwelcome-welcome) | Restyle |
-| `OnbAccount` | Onboarding | `app/onboarding/account.tsx`, `components/auth/AuthForm.tsx` | [onboarding.md#onbaccount-create-account](onboarding.md#onbaccount-create-account) | Restyle |
-| `OnbRestore` | Onboarding | `app/onboarding/index.tsx` restore branch (or new `restore.tsx`) | [onboarding.md#onbrestore-restore-your-data](onboarding.md#onbrestore-restore-your-data) | Restyle + new (D2) |
-| `OnbStats` | Onboarding | `app/onboarding/goals.tsx` step 1 | [onboarding.md#onbstats-about-you](onboarding.md#onbstats-about-you) | Restyle, split step |
-| `OnbTargets` | Onboarding | `app/onboarding/goals.tsx` step 2 | [onboarding.md#onbtargets-daily-targets](onboarding.md#onbtargets-daily-targets) | Restyle + new (D1) |
-| `OnbComplete` | Onboarding | `app/onboarding/complete.tsx` | [onboarding.md#onbcomplete-all-set](onboarding.md#onbcomplete-all-set) | Restyle + new |
+| `OnbWelcome` | Onboarding | `app/onboarding/index.tsx` | [onboarding.md#onbwelcome-welcome](onboarding.md#onbwelcome-welcome) | Built |
+| `OnbAccount` | Onboarding | `app/onboarding/account.tsx`, `components/auth/AuthForm.tsx` | [onboarding.md#onbaccount-create-account](onboarding.md#onbaccount-create-account) | Built |
+| `OnbRestore` | Onboarding | `app/onboarding/index.tsx` restore branch (or new `restore.tsx`) | [onboarding.md#onbrestore-restore-your-data](onboarding.md#onbrestore-restore-your-data) | Built (D2 default; Start fresh pending) |
+| `OnbStats` | Onboarding | `app/onboarding/goals.tsx` step 1 | [onboarding.md#onbstats-about-you](onboarding.md#onbstats-about-you) | Built |
+| `OnbTargets` | Onboarding | `app/onboarding/goals.tsx` step 2 | [onboarding.md#onbtargets-daily-targets](onboarding.md#onbtargets-daily-targets) | Built (D1 default) |
+| `OnbComplete` | Onboarding | `app/onboarding/complete.tsx` | [onboarding.md#onbcomplete-all-set](onboarding.md#onbcomplete-all-set) | Built (first-action cards pending owner, New) |
 
 ### Nutrition
 

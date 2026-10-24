@@ -2,15 +2,21 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Image,
+  Pressable,
   ScrollView,
   StyleSheet,
-  View,
   Text,
-  TouchableOpacity,
+  View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { MacroColors } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
+import { RestoreBackup } from '@/components/onboarding/RestoreBackup';
 import { useAuth } from '@/hooks/useAuth';
 import { retryRestore, signInWithApple } from '@/lib/auth';
 import { routeAfterAuth } from '@/lib/auth-routing';
@@ -23,12 +29,14 @@ import { applyAuthRoute } from '@/components/auth/applyAuthRoute';
 
 export default function WelcomeScreen() {
   const { restart } = useLocalSearchParams<{ restart?: string }>();
-  const text = useThemeColor({}, 'text');
   const icon = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
+  const chartBar = useThemeColor({}, 'chartBar');
+  const tintSoft = useThemeColor({}, 'tintSoft');
   const background = useThemeColor({}, 'background');
-  const separator = useThemeColor({}, 'separator');
-  const { status } = useAuth();
+  const cardBackground = useThemeColor({}, 'cardBackground');
+  const danger = useThemeColor({}, 'danger');
+  const { status, email } = useAuth();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<RestoreProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,132 +96,115 @@ export default function WelcomeScreen() {
     }
   }
 
-  const primary = [styles.button, { backgroundColor: tint }];
-  const ghost = [styles.button, styles.ghost, { borderColor: separator }];
+  if (restart !== '1' && accountsAvailable && signedIn && restorePending) {
+    return (
+      <RestoreBackup
+        email={email}
+        busy={busy}
+        statusText={describeProgress(progress)}
+        message={message}
+        onRestore={handleApple}
+      />
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
-        <View style={styles.content}>
-          <Text style={[styles.emoji]}>🏋️</Text>
-          <Text style={[styles.title, { color: text }]}>Science-Based{'\n'}Fitness</Text>
-          <Text style={[styles.subtitle, { color: icon }]}>
-            Track your nutrition with precision.{'\n'}Built on what the research actually says.
-          </Text>
-        </View>
-        <View style={styles.footer}>
-          {restart === '1' || !accountsAvailable ? (
-            <TouchableOpacity style={primary} onPress={goToGoals} accessibilityRole="button">
-              <Text style={[styles.buttonText, { color: background }]}>Continue</Text>
-            </TouchableOpacity>
-          ) : signedIn && restorePending ? (
-            <TouchableOpacity style={primary} onPress={handleApple} disabled={busy} accessibilityRole="button">
-              <Text style={[styles.buttonText, { color: background }]}>Restore data</Text>
-            </TouchableOpacity>
-          ) : signedIn ? (
-            <TouchableOpacity style={primary} onPress={handleContinueSignedIn} accessibilityRole="button">
-              <Text style={[styles.buttonText, { color: background }]}>Continue</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              {APPLE_SIGN_IN_SUPPORTED && (
-                <View style={styles.apple}>
-                  <AppleSignInButton type="signUp" onPress={handleApple} disabled={busy} />
-                </View>
-              )}
-              <TouchableOpacity
-                style={primary}
-                onPress={() => goToAccount('signUp')}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.buttonText, { color: background }]}>Sign up with email</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[...ghost, styles.gap]} onPress={goToGoals} disabled={busy} accessibilityRole="button">
-                <Text style={[styles.ghostText, { color: text }]}>Continue without an account</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondary}
-                onPress={() => goToAccount('signIn')}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.secondaryText, { color: tint }]}>Already have an account? Sign in</Text>
-              </TouchableOpacity>
-            </>
-          )}
-          {busy && (
-            <View style={styles.status} accessibilityLiveRegion="polite">
-              <ActivityIndicator color={tint} />
-              <Text style={[styles.statusText, { color: icon }]}>{describeProgress(progress)}</Text>
+    <View style={[styles.container, { backgroundColor: background }]}>
+      <View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={StyleSheet.absoluteFill}
+      >
+        <View style={[styles.circleLarge, { backgroundColor: tintSoft }]} />
+        <View style={[styles.circleSmall, { backgroundColor: tintSoft }]} />
+      </View>
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
+          <View style={styles.hero}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.dino}
+              accessibilityRole="image"
+              accessibilityLabel="BinoFit dinosaur"
+            />
+            <ThemedText type="heading" accessibilityRole="header" style={styles.headline}>
+              Eat, train and watch it add up.
+            </ThemedText>
+            <ThemedText style={[styles.body, { color: icon }]}>
+              Log a meal in seconds, run your workouts and see the weeks take shape. No account needed to start.
+            </ThemedText>
+            <View style={styles.chips}>
+              <Chip label="Nutrition" dot={MacroColors.protein} surface="card" />
+              <Chip label="Training" dot={tint} surface="card" />
+              <Chip label="Progress" dot={chartBar} surface="card" />
             </View>
-          )}
-          {!busy && message && (
-            <Text style={[styles.statusText, styles.message, { color: icon }]} accessibilityLiveRegion="polite">
-              {message}
-            </Text>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          </View>
+          <View style={styles.spacer} />
+          <View style={styles.actions}>
+            {restart === '1' || !accountsAvailable ? (
+              <Button label="Continue" size="lg" onPress={goToGoals} />
+            ) : signedIn ? (
+              <Button label="Continue" size="lg" onPress={handleContinueSignedIn} />
+            ) : (
+              <>
+                {APPLE_SIGN_IN_SUPPORTED && <AppleSignInButton type="signUp" onPress={handleApple} disabled={busy} />}
+                <Button
+                  label="Sign up with email"
+                  size="lg"
+                  variant="secondary"
+                  style={{ backgroundColor: cardBackground }}
+                  onPress={() => goToAccount('signUp')}
+                  disabled={busy}
+                />
+                <Button label="Continue without an account" size="lg" variant="ghost" onPress={goToGoals} disabled={busy} />
+                <Pressable
+                  style={styles.signIn}
+                  onPress={() => goToAccount('signIn')}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Already have an account? Sign in"
+                  accessibilityState={{ disabled: busy }}
+                >
+                  <Text style={[styles.signInText, { color: icon }]}>
+                    Already have an account? <Text style={[styles.signInLink, { color: tint }]}>Sign in</Text>
+                  </Text>
+                </Pressable>
+              </>
+            )}
+            {busy && (
+              <View style={styles.status} accessibilityLiveRegion="polite">
+                <ActivityIndicator color={tint} />
+                <ThemedText type="label" style={{ color: icon }}>{describeProgress(progress)}</ThemedText>
+              </View>
+            )}
+            {!busy && message && (
+              <ThemedText type="label" style={[styles.message, { color: danger }]} accessibilityLiveRegion="polite">
+                {message}
+              </ThemedText>
+            )}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: { flexGrow: 1 },
-  ghost: { borderWidth: 1 },
-  ghostText: { fontSize: 17, fontWeight: '600' },
-  gap: { marginTop: 8 },
-  content: {
-    flex: 1,
-    minHeight: 280,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 44,
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 17,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  button: {
-    minHeight: 48,
-    borderRadius: 18,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondary: {
-    minHeight: 44,
-    marginTop: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: { fontSize: 15, fontWeight: '600' },
-  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
-  statusText: { fontSize: 13, lineHeight: 18 },
-  message: { textAlign: 'center', marginTop: 4 },
-  apple: { marginBottom: 8 },
-  buttonText: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
+  container: { flex: 1, overflow: 'hidden' },
+  circleLarge: { position: 'absolute', top: -120, left: -80, width: 560, height: 560, borderRadius: 280, opacity: 0.7 },
+  circleSmall: { position: 'absolute', top: 140, right: -140, width: 320, height: 320, borderRadius: 160 },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 24, gap: 28 },
+  hero: { gap: 16 },
+  dino: { width: 132, height: 132 },
+  headline: { fontSize: 40, lineHeight: 43, letterSpacing: -0.8 },
+  body: { fontSize: 17, lineHeight: 24 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  spacer: { flex: 1 },
+  actions: { gap: 10 },
+  signIn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  signInText: { fontSize: 13, fontWeight: '500' },
+  signInLink: { fontWeight: '600' },
+  status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  message: { textAlign: 'center' },
 });

@@ -25,10 +25,12 @@
 
 Offered first in onboarding (`app/onboarding/index.tsx`, `app/onboarding/account.tsx`) and in Settings (`components/settings/AccountSection.tsx`, modal `app/account.tsx`). Hook: `useAuth`.
 
-- Shared form `components/auth/AuthForm.tsx` (modes signUp, signIn, resetRequest, resetVerify, changePassword, confirmEmail). Validation and error copy are in `lib/auth-validation.ts`. Navigation after auth is the pure `routeAfterAuth` in `lib/auth-routing.ts`.
+- Shared form `components/auth/AuthForm.tsx` (modes signUp, signIn, resetRequest, resetVerify, changePassword, confirmEmail). The sign-up and sign-in modes also offer the Apple button, below the submit after an "or" divider. Validation and error copy are in `lib/auth-validation.ts`. Navigation after auth is the pure `routeAfterAuth` in `lib/auth-routing.ts`.
 - `signUpWithEmail()` converts the anonymous user in place with `updateUser({ email, password })` + `refreshSession()` (same uid: no ticket, merge or restore). With "Confirm email" on it returns `confirmEmail`, and `verifyEmailCode()` finishes with `verifyOtp(type 'email_change')`.
 - `signInWithEmail()`, `verifyPasswordReset()` (recovery code) and `signInWithApple()` all go through `signInWithMerge(obtainSession)`: make a merge ticket as the anonymous user, sign in, redeem the ticket (the existing account wins), then `restoreFromAccount()` in `lib/restore.ts`.
 - `AuthState.method` is `'apple' | 'email' | null`.
+- Onboarding screens: the welcome offers Apple, email sign up, continuing without an account and sign in. A signed-in install with `getRestorePending()` true renders `components/onboarding/RestoreBackup.tsx` instead (Restore data retries the restore; it lists what a restore brings back, with no counts). `account.tsx` shows the step header (`OnboardingHeader`, step 1) and links to Terms and Privacy Policy.
+- Onboarding setup (`app/onboarding/goals.tsx`) has two steps in one route: About you (units, weight, height, activity, with Skip) and Daily targets (calories, macros, live percent of calories and energy split). Save order is unchanged: goals, profile (skipped on a restart with nothing changed), a weight entry for a changed weight, then `syncToSupabase()`. Pure helpers are in `lib/onboarding-setup.ts`.
 
 ## Restore
 

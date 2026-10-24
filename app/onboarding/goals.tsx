@@ -1,262 +1,253 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
+  AccessibilityInfo,
+  Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  findNodeHandle,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AboutYouStep } from '@/components/onboarding/AboutYouStep';
+import { DailyTargetsStep, type TargetsDraft } from '@/components/onboarding/DailyTargetsStep';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
+import { Button } from '@/components/ui/Button';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { usePreferences } from '@/hooks/usePreferences';
+import { setWeightUnit } from '@/lib/app-preferences';
+import {
+  convertStatsDraft,
+  statsDraftFrom,
+  validateStats,
+  type StatsDraft,
+  type StatsOriginal,
+} from '@/lib/onboarding-setup';
 import { getUserGoals, getUserProfile, saveUserGoals, saveUserProfile } from '@/lib/storage';
 import { syncToSupabase } from '@/lib/sync';
-import { getLatestWeightEntry, saveWeightEntry, weightInputToKg, weightRangeMessage } from '@/lib/weight';
+import { getLatestWeightEntry, saveWeightEntry } from '@/lib/weight';
 
-import { formatWeight } from '@/lib/units';
-import type { UserProfile } from '@/lib/types';
+type Step = 'stats' | 'targets';
+type StatsError = { field: 'weight' | 'height'; message: string };
 
-type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+const GOALS_ERROR = 'Please fill in all calorie and macro goals.';
+const EMPTY_STATS: StatsDraft = { weight: '', heightCm: '', feet: '', inches: '', activity: null };
 
-const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: string }[] = [
-  { value: 'sedentary', label: 'Sedentary', description: 'Desk job, little exercise' },
-  { value: 'light', label: 'Light', description: '1–3 days/week' },
-  { value: 'moderate', label: 'Moderate', description: '3–5 days/week' },
-  { value: 'active', label: 'Active', description: '6–7 days/week' },
-  { value: 'very_active', label: 'Very Active', description: 'Physical job + training' },
-];
-
+/** Onboarding setup: About you, then Daily targets. One route so validation, the loaded snapshot and the save order stay together. */
 export default function GoalsScreen() {
   const { restart } = useLocalSearchParams<{ restart?: string }>();
   const background = useThemeColor({}, 'background');
-  const cardBackground = useThemeColor({}, 'cardBackground');
-  const icon = useThemeColor({}, 'icon');
-  const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const colors = { background, cardBackground, icon, text, tint };
-
-  const [calories, setCalories] = useState('2000');
-  const [protein, setProtein] = useState('150');
-  const [carbs, setCarbs] = useState('200');
-  const [fat, setFat] = useState('65');
   const { weightUnit } = usePreferences();
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>('moderate');
 
+  const [targets, setTargets] = useState<TargetsDraft>({ calories: '2000', protein: '150', carbs: '200', fat: '65' });
+  const [stats, setStats] = useState<StatsDraft>(EMPTY_STATS);
+  const [step, setStep] = useState<Step>('stats');
+  const [statsError, setStatsError] = useState<StatsError | null>(null);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const busy = useRef(false);
-  const original = useRef<{ profile: UserProfile | null; weight: string; weightKg: number | null } | null>(null);
+  const original = useRef<StatsOriginal | null>(null);
+  const statsRef = useRef(stats);
+  // Read through refs so a unit change never reloads the screen and wipes typed values.
+  const unitRef = useRef(weightUnit);
+  const previousUnit = useRef(weightUnit);
+  const scrollRef = useRef<ScrollView>(null);
+  const headingRef = useRef<View>(null);
+  const firstStep = useRef(true);
+
+  useEffect(() => {
+    statsRef.current = stats;
+    unitRef.current = weightUnit;
+  });
+
   useEffect(() => {
     let active = true;
     Promise.all([getUserGoals(), getUserProfile(), getLatestWeightEntry()]).then(([goals, profile, latest]) => {
       if (!active) return;
-      if (goals) { setCalories(String(goals.calorie_goal)); setProtein(String(goals.protein_goal)); setCarbs(String(goals.carb_goal)); setFat(String(goals.fat_goal)); }
+      if (goals) {
+        setTargets({
+          calories: String(goals.calorie_goal),
+          protein: String(goals.protein_goal),
+          carbs: String(goals.carb_goal),
+          fat: String(goals.fat_goal),
+        });
+      }
       const kg = latest?.weight_kg ?? profile?.weight ?? null;
-      const displayed = kg === null ? '' : formatWeight(kg, weightUnit);
-      setWeight(displayed); setHeight(profile?.height == null ? '' : String(profile.height));
-      setActivityLevel(profile?.activity_level ?? (restart === '1' ? null : 'moderate'));
-      original.current = { profile, weight: displayed, weightKg: kg };
+      const draft = statsDraftFrom(profile, kg, unitRef.current, profile?.activity_level ?? (restart === '1' ? null : 'moderate'));
+      original.current = { profile, draft, weightKg: kg };
+      setStats(draft);
       setReady(true);
     }).catch(() => Alert.alert('Could not load setup', 'Return to Settings and try again.'));
     return () => { active = false; };
-  }, [restart, weightUnit]);
+  }, [restart]);
 
-  async function handleNext() {
-    if (!ready || busy.current) return;
-    const cal = Number(calories);
-    const prot = Number(protein);
-    const carb = Number(carbs);
-    const f = Number(fat);
+  // The Imperial / Metric control writes the preference; the draft follows it here.
+  useEffect(() => {
+    const from = previousUnit.current;
+    if (from === weightUnit) return;
+    previousUnit.current = weightUnit;
+    setStatsError(null);
+    if (!original.current) return;
+    const converted = convertStatsDraft(statsRef.current, original.current, from, weightUnit);
+    original.current = converted.original;
+    setStats(converted.draft);
+  }, [weightUnit]);
+
+  // New step: top of the page, screen reader on the new heading.
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    const node = findNodeHandle(headingRef.current);
+    if (node) AccessibilityInfo.setAccessibilityFocus(node);
+  }, [step]);
+
+  // Android back on Daily targets returns to About you instead of leaving setup.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (step !== 'targets') return false;
+        setStep('stats');
+        return true;
+      });
+      return () => subscription.remove();
+    }, [step]),
+  );
+
+  function changeStats(patch: Partial<StatsDraft>) {
+    setStats((prev) => ({ ...prev, ...patch }));
+    setStatsError(null);
+  }
+
+  function changeTargets(name: keyof TargetsDraft, value: string) {
+    setTargets((prev) => ({ ...prev, [name]: value }));
+    setGoalsError(null);
+  }
+
+  function handleContinue() {
+    if (!ready || !original.current) return;
+    const result = validateStats(stats, original.current, weightUnit);
+    if (!result.ok) {
+      setStatsError({ field: result.field, message: result.message });
+      return;
+    }
+    setStatsError(null);
+    setStep('targets');
+  }
+
+  function handleSkip() {
+    if (original.current) setStats(original.current.draft);
+    setStatsError(null);
+    setStep('targets');
+  }
+
+  async function handleSave() {
+    const base = original.current;
+    if (!ready || !base || busy.current) return;
+    const cal = Number(targets.calories);
+    const prot = Number(targets.protein);
+    const carb = Number(targets.carbs);
+    const f = Number(targets.fat);
 
     if (![cal, prot, carb, f].every((v) => Number.isFinite(v) && v > 0)) {
-      Alert.alert('Missing fields', 'Please fill in all calorie and macro goals.');
+      setGoalsError(GOALS_ERROR);
       return;
     }
 
-    // Preserve the saved kg value before validating rounded display text at either limit.
-    const unchangedWeight = original.current !== null && weight === original.current.weight;
-    let weightKg: number | null = unchangedWeight ? original.current!.weightKg : null;
-    if (!unchangedWeight && weight.trim()) {
-      weightKg = weightInputToKg(weight, weightUnit);
-      if (weightKg === null) {
-        Alert.alert('Invalid weight', weightRangeMessage(weightUnit));
-        return;
-      }
+    const result = validateStats(stats, base, weightUnit);
+    if (!result.ok) {
+      setStatsError({ field: result.field, message: result.message });
+      setStep('stats');
+      return;
     }
+    const { weightKg, heightCm } = result;
+    const weightUntouched = stats.weight === base.draft.weight;
 
-    const heightCm = height.trim() ? Number(height) : null;
-    if (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 0)) { Alert.alert('Invalid height', 'Enter a positive height in cm.'); return; }
     busy.current = true;
+    setSaving(true);
     try {
-    await saveUserGoals({
-      calorie_goal: cal,
-      protein_goal: prot,
-      carb_goal: carb,
-      fat_goal: f,
-    });
+      await saveUserGoals({
+        calorie_goal: cal,
+        protein_goal: prot,
+        carb_goal: carb,
+        fat_goal: f,
+      });
 
-    const unchangedProfile = restart === '1' && unchangedWeight
-      && height === (original.current?.profile?.height == null ? '' : String(original.current.profile.height))
-      && activityLevel === (original.current?.profile?.activity_level ?? null);
-    if (!unchangedProfile) await saveUserProfile({
-      weight: weightKg ?? original.current?.weightKg ?? null,
-      height: heightCm,
-      activity_level: activityLevel,
-    });
+      const unchangedProfile = restart === '1' && weightUntouched && !result.heightChanged
+        && stats.activity === (base.profile?.activity_level ?? null);
+      if (!unchangedProfile) await saveUserProfile({
+        weight: weightKg ?? base.weightKg ?? null,
+        height: heightCm,
+        activity_level: stats.activity,
+      });
 
-    if (weightKg !== null && !unchangedWeight) {
-      await saveWeightEntry({ weight_kg: weightKg });
+      if (weightKg !== null && !weightUntouched) {
+        await saveWeightEntry({ weight_kg: weightKg });
+      }
+      syncToSupabase();
+
+      router.push({ pathname: '/onboarding/complete', params: { restart } });
+    } catch {
+      Alert.alert('Could not save setup', 'Your entries are still here. Try again.');
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
-    syncToSupabase();
-
-    router.push({ pathname: '/onboarding/complete', params: { restart } });
-    } catch { Alert.alert('Could not save setup', 'Your entries are still here. Try again.'); }
-    finally { busy.current = false; }
   }
 
-  const inputStyle = [
-    styles.input,
-    { backgroundColor: colors.cardBackground, color: colors.text },
-  ];
-
-  const labelStyle = [styles.label, { color: colors.text }];
-  const hintStyle = [styles.hint, { color: colors.icon }];
+  const onStats = step === 'stats';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.title, { color: colors.text }]}>Set Your Goals</Text>
-          <Text style={[styles.subtitle, { color: colors.icon }]}>
-            You can always update these in Settings.
-          </Text>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily Targets</Text>
-
-            <Text style={labelStyle}>Calories</Text>
-            <TextInput
-              style={inputStyle}
-              value={calories}
-              onChangeText={setCalories}
-              keyboardType="numeric"
-              placeholder="e.g. 2000"
-              placeholderTextColor={colors.icon}
+    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
+      <Stack.Screen options={{ gestureEnabled: onStats && !saving }} />
+      <OnboardingHeader
+        step={onStats ? 2 : 3}
+        onBack={onStats ? (router.canGoBack() ? () => router.back() : undefined) : () => setStep('stats')}
+        backDisabled={saving}
+        trailing={
+          onStats ? (
+            <Pressable onPress={handleSkip} style={styles.skip} accessibilityRole="button" accessibilityLabel="Skip">
+              <Text style={[styles.skipText, { color: tint }]}>Skip</Text>
+            </Pressable>
+          ) : null
+        }
+      />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {onStats ? (
+            <AboutYouStep
+              headingRef={headingRef}
+              unit={weightUnit}
+              onUnitChange={(unit) => void setWeightUnit(unit).catch(() => undefined)}
+              draft={stats}
+              onChange={changeStats}
+              error={statsError}
             />
-
-            <Text style={labelStyle}>Protein (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={protein}
-              onChangeText={setProtein}
-              keyboardType="numeric"
-              placeholder="e.g. 150"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Carbohydrates (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={carbs}
-              onChangeText={setCarbs}
-              keyboardType="numeric"
-              placeholder="e.g. 200"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Fat (g)</Text>
-            <TextInput
-              style={inputStyle}
-              value={fat}
-              onChangeText={setFat}
-              keyboardType="numeric"
-              placeholder="e.g. 65"
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Personal Stats{' '}
-              <Text style={[styles.optional, { color: colors.icon }]}>(optional)</Text>
-            </Text>
-
-            <Text style={labelStyle}>Weight ({weightUnit})</Text>
-            <TextInput
-              style={[inputStyle, styles.tabular]}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="decimal-pad"
-              placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Height (cm)</Text>
-            <TextInput
-              style={inputStyle}
-              value={height}
-              onChangeText={setHeight}
-              keyboardType="decimal-pad"
-              placeholder="e.g. 175"
-              placeholderTextColor={colors.icon}
-            />
-
-            <Text style={labelStyle}>Activity Level</Text>
-            <View style={styles.activityGrid}>
-              {ACTIVITY_OPTIONS.map((opt) => {
-                const selected = activityLevel === opt.value;
-                return (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.activityOption,
-                      {
-                        backgroundColor: selected ? colors.tint : colors.cardBackground,
-                      },
-                    ]}
-                    onPress={() => setActivityLevel(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.activityLabel,
-                        { color: selected ? colors.background : colors.text },
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.activityDesc,
-                        { color: selected ? colors.background : colors.icon },
-                      ]}
-                    >
-                      {opt.description}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={hintStyle}>Used for goal suggestions in future updates.</Text>
-          </View>
+          ) : (
+            <DailyTargetsStep headingRef={headingRef} values={targets} onChange={changeTargets} error={goalsError} />
+          )}
         </ScrollView>
-
-        <View style={[styles.footer, { backgroundColor: colors.background }]}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.tint }]}
-            onPress={handleNext}
-            disabled={!ready}
-          >
-            <Text style={[styles.buttonText, { color: colors.background }]}>Continue</Text>
-          </TouchableOpacity>
+        <View style={[styles.footer, { backgroundColor: background }]}>
+          {onStats ? (
+            <Button label="Continue" size="lg" onPress={handleContinue} disabled={!ready} />
+          ) : (
+            <Button label="Save targets" size="lg" onPress={handleSave} loading={saving} disabled={!ready} />
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -264,39 +255,10 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabular: { fontVariant: ['tabular-nums'] },
   container: { flex: 1 },
   flex: { flex: 1 },
-  scroll: { padding: 24, paddingBottom: 0 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 15, marginBottom: 28 },
-  section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
-  optional: { fontWeight: '400', fontSize: 14 },
-  label: { fontSize: 14, fontWeight: '500', marginBottom: 6, marginTop: 12 },
-  hint: { fontSize: 12, marginTop: 8 },
-  input: {
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  activityGrid: { gap: 8 },
-  activityOption: {
-    borderRadius: 10,
-    padding: 12,
-  },
-  activityLabel: { fontSize: 15, fontWeight: '600' },
-  activityDesc: { fontSize: 12, marginTop: 2 },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 24,
-  },
-  button: {
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  buttonText: { fontSize: 17, fontWeight: '600' },
+  scroll: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
+  skip: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  skipText: { fontSize: 17, fontWeight: '600' },
 });

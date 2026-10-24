@@ -11,7 +11,7 @@ Device-only, in AsyncStorage (`lib/storage.ts`): appearance, weight unit, effort
 
 ## Units
 
-`lib/units.ts` is pure. Weight is stored in kg and distance in metres; display follows the unit (kg with km, lb with mi). Fresh users default to lb/mi; preserve saved kg or lb preferences.
+`lib/units.ts` is pure. Weight is stored in kg and distance in metres; display follows the unit (kg with km, lb with mi). Fresh users default to lb/mi; preserve saved kg or lb preferences. The onboarding About you step has an Imperial / Metric control that writes this preference through `setWeightUnit`, takes height as ft and in when Imperial (stored in cm) and converts typed weight and height when the unit changes.
 
 ## Settings
 

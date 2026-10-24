@@ -28,5 +28,5 @@ The UI keeps one entry per day.
 
 - Progress tab: `components/progress/WeightCard.tsx` + `WeightEntrySheet.tsx` (`hooks/useWeightEntries.ts`). The card shows the current trend value, a neutral chip with the range change (`trendChange`, for example "−2.1 lb in 29 days"), the weekly rate caption, the chart (raw dots and the trend for the selected range), a Log weight button and up to 5 recent entries with their source (Logged or Apple Health); tapping an entry opens edit mode. Nothing is coloured by direction.
 - `WeightEntrySheet` uses `SheetHeader` (Cancel, title, Save). Log mode is titled "Log weight" and has the date row and, on iOS only, the Apple Health notice. Edit mode is titled with the entry date, shows "unit · logged at time", no date row, and Delete entry (same confirmation and tombstone). The Time row, ±0.1 buttons and "Last entry" line from the board are not built.
-- Settings weight field and the onboarding goals weight field.
+- Settings weight field and the onboarding About you weight field.
 - Calorie chart weight overlay and expenditure estimate: see [progress.md](progress.md).

@@ -222,6 +222,8 @@ Shared primitives live in `components/ui/` and map one to one to the classes in 
 | `EmptyState` | Dinosaur, title (header), body, actions; card or plain |
 | `CelebrationBanner` | Ember icon, title, body, optional Dismiss; announced; static with Reduce Motion |
 
+Onboarding step header (`components/onboarding/OnboardingHeader.tsx`): Back (chevron and label), a 120 pt three-segment progress line (a `progressbar` reading "Step N of 3"), and an optional trailing Skip. Used by the account, About you and Daily targets steps.
+
 Older components now built on them: `PillSwitch` and `RangeChips` (`SegmentedControl`), `ChipToggle` (`Chip`), `MacroBar` (label and grams over a `ProgressBar` on `track`).
 
 - **Settings pages:** `SettingsPage` is the push page for every Settings screen: a back row named for the previous screen ("Back to Training"), a large title, scrolling content on a 16 gutter with 12 gaps, an optional trailing action and an optional `StickyFooter`. Lists are `ListGroup`; grouped values are `Card`s.

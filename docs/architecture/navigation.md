@@ -5,7 +5,7 @@ Expo Router v6 with file-based routing. Every route outside the tabs is register
 ## Routes (`app/`)
 
 - `(tabs)/`: bottom tabs `index` (Nutrition dashboard), `training`, `progress`, `settings`. All four always show.
-- `onboarding/`: `index` (welcome, account offered first), `account`, `goals`, `complete`. See [auth.md](auth.md) and [preferences.md](preferences.md).
+- `onboarding/`: `index` (welcome, account offered first), `account`, `goals` (two internal steps: About you, then Daily targets), `complete`. See [auth.md](auth.md) and [preferences.md](preferences.md).
 - Nutrition: `food-search.tsx`, `food-batch-review.tsx` (multi-select review modal opened from food search), `serving-picker.tsx`, `custom-food.tsx`, `barcode-scanner.tsx`, `day-detail.tsx`. See [nutrition.md](nutrition.md).
 - `settings/`: the Settings destinations (Profile, Nutrition, Training, Preferences, Notifications, Account, Integrations, Data and privacy, About, Support and their sub pages). See [preferences.md](preferences.md).
 - `account.tsx`: account modal. `spotify-auth.tsx`: Spotify sign-in landing route.
