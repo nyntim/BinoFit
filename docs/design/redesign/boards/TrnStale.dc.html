@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Still training?</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" aria-hidden="true">
+    <h1 class="h-large">Today</h1>
+    <div class="card" style="height: 90px"></div>
+    <div class="card" style="height: 176px"></div>
+    <div class="card" style="height: 140px"></div>
+  </div>
+  <div class="scrim"></div>
+
+  <div role="alertdialog" aria-labelledby="st-t" aria-describedby="st-d" class="card stack g16" style="position: absolute; left: 24px; right: 24px; top: 210px; padding: 24px 20px 16px; border-radius: 28px; gap: 16px; box-shadow: 0 20px 50px rgba(14,14,16,0.3)">
+    <div class="stack g10 center">
+      <span class="ico" style="width: 56px; height: 56px; border-radius: 18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2M9 2h6"></path></svg>
+      </span>
+      <span id="st-t" class="h-xl" style="font-size: 24px">Still training?</span>
+      <span id="st-d" class="t-body muted">Push day has been open for 7 hours. Your last set was at 6:12 PM.</span>
+    </div>
+    <div class="stack g8">
+      <a href="TrnWorkout.dc.html" class="btn btn-lg btn-primary">Finish at last set</a>
+      <a href="TrnSession.dc.html" class="btn btn-lg btn-secondary">Keep going</a>
+      <button type="button" class="btn btn-lg btn-danger">Discard workout</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

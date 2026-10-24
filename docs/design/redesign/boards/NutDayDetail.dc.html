@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Past day</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="PrgMain.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Progress</a>
+      <span></span>
+      <div class="hstack end g4">
+        <button type="button" class="icon-btn clear" aria-label="Previous day" style="color: var(--tint)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+        <button type="button" class="icon-btn clear" aria-label="Next day" style="color: var(--tint)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      </div>
+    </div>
+    <div class="stack g4">
+      <h1 class="h-large">Tue 20 Oct</h1>
+      <span class="t-label muted">Day summary</span>
+    </div>
+
+    <div class="card pad stack g14">
+      <div class="between" style="align-items: flex-end">
+        <div class="stack"><span class="t-cap">Eaten</span><span class="rnum" style="font-size: 34px">2,180</span></div>
+        <div class="stack" style="align-items: flex-end"><span class="t-cap">Goal</span><span class="semi num">2,250 cal</span></div>
+      </div>
+      <div class="bar thick"><i style="width: 97%"></i></div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+          <div class="stack g6">
+            <span class="hstack g6 t-cap"><span class="dot" style="width: 8px; height: 8px; background: {{m.color}}"></span>{{m.label}}</span>
+            <span class="semi num">{{m.value}} <span class="t-cap">/ {{m.goal}} g</span></span>
+            <div class="bar" style="height: 5px"><i style="width: {{m.pct}}; background: {{m.color}}"></i></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="list">
+      <sc-for list="{{meals}}" as="meal" hint-placeholder-count="3">
+        <div class="stack" style="padding: 12px 18px; border-top: {{meal.border}}">
+          <div class="between"><span class="t-title">{{meal.name}}</span><span class="semi num">{{meal.cal}} cal</span></div>
+          <span class="t-cap" style="margin-top: 2px">{{meal.items}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="card pad-s hstack g12">
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg></span>
+      <span class="stack grow g4"><span class="t-body semi">Legs</span><span class="t-cap num">52 min · 14,438 lb</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const macros = [
+      { label: 'Protein', value: 162, goal: 169, pct: '96%', color: 'var(--protein)' },
+      { label: 'Carbs', value: 231, goal: 253, pct: '91%', color: 'var(--carbs)' },
+      { label: 'Fat', value: 66, goal: 63, pct: '100%', color: 'var(--fat)' }
+    ];
+    const meals = [
+      { name: 'Breakfast', cal: '520', items: 'Oats, banana, whey protein' },
+      { name: 'Lunch', cal: '760', items: 'Turkey sandwich, apple, yogurt' },
+      { name: 'Pre-workout', cal: '220', items: 'Rice cakes, peanut butter' },
+      { name: 'Meal 4', cal: '680', items: 'Steak, rice, broccoli' }
+    ].map((m, i) => ({ ...m, border: i === 0 ? 'none' : '1px solid var(--sep)' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, macros, meals };
+  }
+}
+</script>
+</body>
+</html>

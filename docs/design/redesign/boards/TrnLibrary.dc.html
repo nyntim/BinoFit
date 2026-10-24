@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exercise library</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="TrnTab.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Training</a>
+      <span></span>
+      <a href="TrnBuildEquip.dc.html" class="icon-btn tinted end" aria-label="New exercise"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></a>
+    </div>
+    <h1 class="h-large">Exercises</h1>
+    <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search exercises</div>
+    <div class="stack g8">
+      <div class="chips" role="radiogroup" aria-label="Muscle group" style="margin-right: -16px">
+        <button type="button" role="radio" aria-checked="false" class="chip">All</button>
+        <button type="button" role="radio" aria-checked="true" class="chip on">Chest</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Shoulders</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Triceps</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Biceps</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Lats</button>
+      </div>
+      <div class="chips" role="radiogroup" aria-label="Brand" style="margin-right: -16px">
+        <button type="button" role="radio" aria-checked="true" class="chip small" style="background: var(--text); color: var(--bg)">All brands</button>
+        <button type="button" role="radio" aria-checked="false" class="chip small">Hammer Strength</button>
+        <button type="button" role="radio" aria-checked="false" class="chip small">Life Fitness</button>
+        <button type="button" role="radio" aria-checked="false" class="chip small">Matrix</button>
+      </div>
+    </div>
+
+    <a href="TrnBuildEquip.dc.html" class="card pad-s hstack g12" style="text-decoration: none; color: var(--text); background: var(--tint-soft); box-shadow: none">
+      <span class="ico" style="background: var(--tint); color: var(--on-tint)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+      <span class="stack grow g4"><span class="t-body semi">New exercise</span><span class="t-cap">Add the machine, its brand and your seat settings</span></span>
+    </a>
+
+    <div class="stack g8">
+      <span class="sec">Yours</span>
+      <div class="list">
+        <div class="row" style="min-height: 64px"><span class="stack grow g4"><span class="t-body semi">Chest Press · Hammer Strength</span><span class="t-cap">Seat 4, back pad 2</span></span><span class="tag tinted">Machine</span></div>
+      </div>
+    </div>
+    <div class="stack g8">
+      <span class="sec">Chest</span>
+      <div class="list">
+        <sc-for list="{{seed}}" as="e" hint-placeholder-count="5">
+          <div class="row" style="min-height: 56px"><span class="stack grow g4"><span class="t-body">{{e.name}}</span><span class="t-cap">{{e.muscles}}</span></span><span class="tag">{{e.eq}}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const seed = [
+      { name: 'Barbell bench press', muscles: 'Chest · Triceps, Shoulders', eq: 'Barbell' },
+      { name: 'Incline barbell bench press', muscles: 'Chest · Shoulders, Triceps', eq: 'Barbell' },
+      { name: 'Dumbbell bench press', muscles: 'Chest · Triceps', eq: 'Dumbbell' },
+      { name: 'Dumbbell fly', muscles: 'Chest', eq: 'Dumbbell' },
+      { name: 'Push-up', muscles: 'Chest · Triceps', eq: 'Bodyweight' }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, seed };
+  }
+}
+</script>
+</body>
+</html>

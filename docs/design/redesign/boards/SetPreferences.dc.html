@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Preferences</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Preferences</h1>
+
+    <div class="stack g6">
+      <span class="sec">Appearance</span>
+      <div class="card pad" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px" role="radiogroup" aria-label="Appearance">
+        <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+          <button type="button" role="radio" aria-checked="{{m.checked}}" style="border: none; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); font: 600 13px var(--sans)">
+            <span style="width: 100%; height: 118px; border-radius: 16px; overflow: hidden; border: {{m.border}}; display: flex">
+              <span style="flex: 1; background: {{m.left}}; padding: 12px 8px; display: flex; flex-direction: column; gap: 6px"><span style="height: 10px; width: 70%; border-radius: 4px; background: {{m.leftInk}}"></span><span style="height: 28px; border-radius: 7px; background: {{m.leftCard}}"></span><span style="height: 18px; border-radius: 6px; background: {{m.leftCard}}"></span></span>
+              <span style="flex: {{m.split}}; background: {{m.right}}; padding: 12px 8px; display: flex; flex-direction: column; gap: 6px"><span style="height: 10px; width: 70%; border-radius: 4px; background: {{m.rightInk}}"></span><span style="height: 28px; border-radius: 7px; background: {{m.rightCard}}"></span><span style="height: 18px; border-radius: 6px; background: {{m.rightCard}}"></span></span>
+            </span>
+            <span class="hstack g6"><span class="check {{m.on}}" style="width: 20px; height: 20px"><sc-if value="{{m.sel}}" hint-placeholder-val="{{false}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if></span>{{m.label}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="stack g6">
+      <span class="sec">Units</span>
+      <div class="card pad stack g10">
+        <div class="seg" style="grid-template-columns: repeat(2, minmax(0, 1fr))" role="radiogroup" aria-label="Units">
+          <button type="button" role="radio" aria-checked="false">Metric</button>
+          <button type="button" role="radio" aria-checked="true" class="on">Imperial</button>
+        </div>
+        <span class="t-cap">Imperial shows lb, mi, ft and in. Metric shows kg, km and cm. Your data is the same either way.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const L = { bg: '#F4F0E8', card: '#FBF9F5', ink: '#1A1A22' }; const D = { bg: '#0E0E10', card: '#242428', ink: '#EDEDF0' };
+    const modes = [
+      { label: 'System', a: L, b: D, split: 1 },
+      { label: 'Light', a: L, b: L, split: 0 },
+      { label: 'Dark', a: D, b: D, split: 0 }
+    ].map((m) => {
+      const sel = m.label === 'System';
+      return { label: m.label, sel, on: sel ? 'on' : '', checked: sel ? 'true' : 'false', border: sel ? '2.5px solid var(--tint)' : '1px solid var(--field)', left: m.a.bg, leftCard: m.a.card, leftInk: m.a.ink, right: m.b.bg, rightCard: m.b.card, rightInk: m.b.ink, split: m.split };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, modes };
+  }
+}
+</script>
+</body>
+</html>

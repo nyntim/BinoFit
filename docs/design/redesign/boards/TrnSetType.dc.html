@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set type</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="stack g12" style="padding: 54px 16px" aria-hidden="true">
+    <div class="hstack g8"><span class="icon-btn"></span><span class="t-title grow">Push day</span><span class="btn btn-primary">Finish</span></div>
+    <div style="height: 64px; border-radius: 18px; background: var(--text)"></div>
+    <div class="card" style="height: 300px"></div>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="sheet" role="dialog" aria-label="Set 3 options">
+    <div class="grabber"></div>
+    <div class="stack g4"><span class="t-title">Set 3</span><span class="t-cap">Barbell bench press · 165 × 7</span></div>
+    <div class="nested" style="overflow: hidden" role="radiogroup" aria-label="Set type">
+      <sc-for list="{{types}}" as="t" hint-placeholder-count="4">
+        <button type="button" role="radio" aria-checked="{{t.checked}}" class="hstack g12" style="width: 100%; min-height: 60px; padding: 8px 16px; border: none; border-top: {{t.border}}; background: {{t.bg}}; color: var(--text); font-family: var(--sans); text-align: left">
+          <span style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; background: {{t.badgeBg}}; color: {{t.badgeFg}}">{{t.badge}}</span>
+          <span class="stack grow g4"><span class="t-body semi">{{t.name}}</span><span class="t-cap">{{t.desc}}</span></span>
+          <sc-if value="{{t.selected}}" hint-placeholder-val="{{false}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tint)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div class="nested" style="overflow: hidden">
+      <button type="button" class="hstack g12" style="width: 100%; min-height: 52px; padding: 8px 16px; border: none; background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="grow">Rest after this exercise</span><span class="muted num">2:00</span>
+      </button>
+      <button type="button" class="hstack g12" style="width: 100%; min-height: 52px; padding: 8px 16px; border: none; border-top: 1px solid var(--sep); background: transparent; color: var(--danger); font: 600 15px var(--sans); text-align: left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>Delete set
+      </button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const types = [
+      { name: 'Normal', badge: '3', desc: 'A working set, counted in volume' },
+      { name: 'Warmup', badge: 'W', desc: 'Not counted in volume or records' },
+      { name: 'Drop set', badge: 'D', desc: 'Lighter weight straight after' },
+      { name: 'Failure', badge: 'F', desc: 'Taken to failure' }
+    ].map((t, i) => {
+      const s = i === 0;
+      return { ...t, selected: s, checked: s ? 'true' : 'false', bg: s ? 'var(--tint-soft)' : 'transparent', border: i === 0 ? 'none' : '1px solid var(--sep)', badgeBg: s ? 'var(--tint)' : 'var(--card)', badgeFg: s ? 'var(--on-tint)' : 'var(--text)' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, types };
+  }
+}
+</script>
+</body>
+</html>

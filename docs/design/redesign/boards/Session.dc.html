@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live session</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 62px 16px 0; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: flex; align-items: center; gap: 8px">
+    <button type="button" aria-label="Minimize workout" style="width: 44px; height: 44px; border: none; border-radius: 22px; background: {{c.card2}}; color: {{c.text}}; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <div style="display: flex; flex-direction: column; flex-grow: 1; min-width: 0">
+      <span style="font-size: 17px; font-weight: 600">Push day</span>
+      <span style="font-size: 13px; font-weight: 500; color: {{c.icon}}; font-variant-numeric: tabular-nums">42:10 · 9 of 16 sets</span>
+    </div>
+    <button type="button" style="height: 44px; padding: 0 18px; border: none; border-radius: 14px; background: {{c.tint}}; color: {{c.onTint}}; font: 600 15px -apple-system, system-ui, sans-serif">Finish</button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 22px; background: {{c.text}}; color: {{c.bg}}">
+    <div style="display: flex; align-items: baseline; justify-content: space-between">
+      <span style="font-size: 13px; font-weight: 600; opacity: 0.8">Rest</span>
+      <span role="timer" aria-label="1 minute 24 seconds of rest left" style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 40px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; font-variant-numeric: tabular-nums">1:24</span>
+    </div>
+    <div style="height: 6px; border-radius: 3px; background: {{c.restTrack}}; overflow: hidden"><div style="width: 53%; height: 6px; border-radius: 3px; background: {{c.bg}}"></div></div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <button type="button" aria-label="Subtract 15 seconds" style="height: 44px; border: none; border-radius: 12px; background: {{c.restTrack}}; color: {{c.bg}}; font: 600 15px -apple-system, system-ui, sans-serif">−15s</button>
+      <button type="button" aria-label="Add 15 seconds" style="height: 44px; border: none; border-radius: 12px; background: {{c.restTrack}}; color: {{c.bg}}; font: 600 15px -apple-system, system-ui, sans-serif">+15s</button>
+      <button type="button" style="height: 44px; border: none; border-radius: 12px; background: {{c.bg}}; color: {{c.text}}; font: 600 15px -apple-system, system-ui, sans-serif">Skip</button>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; padding: 16px 0 6px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 18px 10px">
+      <span style="font-size: 17px; font-weight: 600">Barbell bench press</span>
+      <span style="font-size: 13px; color: {{c.icon}}">Bench 3, feet flat, grip on the rings</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px 52px 48px; gap: 6px; align-items: center; padding: 0 12px 6px 18px; font-size: 12px; font-weight: 500; color: {{c.icon}}">
+      <span>Set</span><span>Previous</span><span style="text-align: center">lb</span><span style="text-align: center">Reps</span><span style="text-align: center">Done</span>
+    </div>
+    <sc-for list="{{sets}}" as="s" hint-placeholder-count="4">
+      <div style="display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px 52px 48px; gap: 6px; align-items: center; min-height: 48px; padding: 2px 12px 2px 18px; background: {{s.rowBg}}">
+        <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 700; color: {{s.labelColor}}">
+          {{s.label}}
+          <sc-if value="{{s.record}}" hint-placeholder-val="{{false}}">
+            <svg role="img" aria-label="New record" width="13" height="13" viewBox="0 0 24 24" fill="{{c.ember}}" stroke="{{c.ember}}" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg>
+          </sc-if>
+        </span>
+        <span style="font-size: 13px; color: {{c.icon}}; font-variant-numeric: tabular-nums">{{s.prev}}</span>
+        <span style="height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: {{s.cellBg}}; border: {{s.cellBorder}}; box-sizing: border-box; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums">{{s.weight}}</span>
+        <span style="height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: {{s.cellBg}}; box-sizing: border-box; font-size: 15px; font-weight: 600; color: {{s.repsColor}}; font-variant-numeric: tabular-nums">{{s.reps}}</span>
+        <button type="button" aria-label="{{s.doneLabel}}" aria-pressed="{{s.doneStr}}" style="width: 44px; height: 44px; border: none; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center">
+          <span style="width: 30px; height: 30px; border-radius: 15px; box-sizing: border-box; background: {{s.tickBg}}; border: {{s.tickBorder}}; color: {{c.onTint}}; display: flex; align-items: center; justify-content: center">
+            <sc-if value="{{s.done}}" hint-placeholder-val="{{true}}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+            </sc-if>
+          </span>
+        </button>
+      </div>
+    </sc-for>
+    <button type="button" style="margin: 6px 12px 4px; height: 44px; border: none; border-radius: 12px; background: transparent; color: {{c.tint}}; font: 600 15px -apple-system, system-ui, sans-serif">Add set</button>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px 10px 18px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+      <span style="font-size: 15px; font-weight: 600">Incline dumbbell press</span>
+      <span style="font-size: 13px; color: {{c.icon}}; font-variant-numeric: tabular-nums">Up next · 3 sets · last 60 × 10</span>
+    </div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{c.icon}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+  </div>
+
+  <button type="button" style="height: 48px; border: 1px solid {{c.field}}; border-radius: 14px; background: transparent; color: {{c.tint}}; font: 600 15px -apple-system, system-ui, sans-serif">Add exercises</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', card2: '#242428', text: '#EDEDF0', icon: '#9A9AA3', sep: 'rgba(237,237,240,0.10)', field: 'rgba(237,237,240,0.28)', track: 'rgba(237,237,240,0.14)', restTrack: 'rgba(14,14,16,0.16)', shadow: 'none', ember: '#FF8A3D', tint: a[1], tintSoft: a[3], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', card2: '#EDE8DE', text: '#1A1A22', icon: '#5E5E6E', sep: '#E2DDD2', field: '#D9D3C7', track: '#E4DFD4', restTrack: 'rgba(244,240,232,0.18)', shadow: '0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)', ember: '#C2410C', tint: a[0], tintSoft: a[2], onTint: '#FBF9F5' };
+    const raw = [
+      { label: 'W', prev: '95 × 10', weight: '95', reps: '10', done: true, warm: true },
+      { label: '1', prev: '160 × 8', weight: '165', reps: '8', done: true, record: true },
+      { label: '2', prev: '160 × 8', weight: '165', reps: '8', done: true },
+      { label: '3', prev: '160 × 7', weight: '165', reps: '7', done: false, active: true }
+    ];
+    const sets = raw.map((s) => ({
+      ...s,
+      record: !!s.record,
+      labelColor: s.warm ? c.icon : c.text,
+      rowBg: s.active ? c.tintSoft : 'transparent',
+      cellBg: s.done ? 'transparent' : c.card,
+      cellBorder: s.active ? '2px solid ' + c.tint : 'none',
+      repsColor: s.done ? c.text : c.icon,
+      tickBg: s.done ? c.tint : 'transparent',
+      tickBorder: s.done ? 'none' : '2px solid ' + c.field,
+      doneLabel: 'Set ' + s.label + ' done',
+      doneStr: s.done ? 'true' : 'false'
+    }));
+    return { c, sets };
+  }
+}
+</script>
+</body>
+</html>

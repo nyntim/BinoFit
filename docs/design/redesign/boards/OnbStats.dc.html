@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About you</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="stack" style="position: absolute; inset: 0; padding: 54px 20px 34px; gap: 18px">
+    <div class="between">
+      <a href="OnbAccount.dc.html" class="back" style="text-decoration: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back
+      </a>
+      <div role="progressbar" aria-label="Step 2 of 3" aria-valuenow="2" aria-valuemin="1" aria-valuemax="3" class="hstack g4" style="width: 120px">
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--tint)"></span>
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--tint)"></span>
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--track)"></span>
+      </div>
+      <a href="OnbTargets.dc.html" class="link" style="text-decoration: none; display: inline-flex; align-items: center">Skip</a>
+    </div>
+
+    <div class="stack g6">
+      <h1 class="h-xl">A little about you</h1>
+      <p class="t-body muted" style="margin: 0">We use this to suggest targets. Skip anything you'd rather not share.</p>
+    </div>
+
+    <div class="seg" style="grid-template-columns: repeat(2, minmax(0, 1fr))" role="radiogroup" aria-label="Units">
+      <button type="button" role="radio" aria-checked="true" class="on">Imperial</button>
+      <button type="button" role="radio" aria-checked="false">Metric</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div class="card pad-s stack g4">
+        <label for="wt" class="lbl">Weight</label>
+        <div class="hstack g6"><input id="wt" class="field big" value="172" style="border: none; padding: 0; height: 40px; background: transparent; width: 90px"><span class="muted t-body">lb</span></div>
+      </div>
+      <div class="card pad-s stack g4">
+        <span class="lbl">Height</span>
+        <div class="hstack g6"><span class="rnum" style="font-size: 24px">5</span><span class="muted t-body">ft</span><span class="rnum" style="font-size: 24px; margin-left: 6px">10</span><span class="muted t-body">in</span></div>
+      </div>
+    </div>
+
+    <div class="stack g8">
+      <span class="sec">How active are you?</span>
+      <div class="list" role="radiogroup" aria-label="Activity level">
+        <sc-for list="{{levels}}" as="l" hint-placeholder-count="5">
+          <button type="button" role="radio" aria-checked="{{l.checked}}" class="row" style="width: 100%; border: none; border-top: {{l.border}}; background: {{l.bg}}; text-align: left; color: var(--text); font-family: var(--sans)">
+            <span class="stack grow g4"><span class="semi" style="font-size: 15px">{{l.name}}</span><span class="t-cap">{{l.desc}}</span></span>
+            <span class="check {{l.on}}">
+              <sc-if value="{{l.selected}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <a href="OnbTargets.dc.html" class="btn btn-lg btn-primary">Continue</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const pick = (this.state && this.state.pick) || 'Moderate';
+    const raw = [
+      ['Sedentary', 'Desk job, little exercise'],
+      ['Light', 'On your feet some, or 1 to 2 workouts a week'],
+      ['Moderate', '3 to 4 workouts a week'],
+      ['Active', '5 or more workouts a week'],
+      ['Very active', 'Physical job plus training']
+    ];
+    const levels = raw.map(([name, desc], i) => {
+      const s = name === pick;
+      return { name, desc, selected: s, on: s ? 'on' : '', checked: s ? 'true' : 'false', bg: s ? 'var(--tint-soft)' : 'transparent', border: i === 0 ? 'none' : '1px solid var(--sep)' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, levels };
+  }
+}
+</script>
+</body>
+</html>

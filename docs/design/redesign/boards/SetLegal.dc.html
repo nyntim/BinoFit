@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Privacy policy</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px; gap: 18px">
+    <div class="navbar">
+      <a href="SetData.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+      <span></span><span></span>
+    </div>
+    <div class="stack g6">
+      <h1 class="h-large">Privacy policy</h1>
+      <span class="t-label muted">Last updated [DATE]</span>
+    </div>
+
+    <div class="card pad stack g10" style="background: var(--tint-soft); box-shadow: none">
+      <span class="t-label semi tint">The short version</span>
+      <sc-for list="{{summary}}" as="s" hint-placeholder-count="3">
+        <div class="hstack g10" style="align-items: flex-start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tint)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-top: 3px; flex-shrink: 0"><path d="M5 12.5l4.5 4.5L19 7"></path></svg><span class="t-body">{{s}}</span></div>
+      </sc-for>
+    </div>
+
+    <sc-for list="{{sections}}" as="sec" hint-placeholder-count="3">
+      <div class="stack g6" style="max-width: 358px">
+        <h2 class="t-title" style="margin: 0">{{sec.h}}</h2>
+        <p class="t-body muted" style="margin: 0">[Policy text for this section]</p>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const summary = ['[Summary point: what stays on your phone]', '[Summary point: what is backed up]', '[Summary point: food search and barcode lookups]'];
+    const sections = [{ h: 'Data on your phone' }, { h: 'Backup and accounts' }, { h: 'Food search and barcode lookups' }, { h: 'Your choices' }];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, summary, sections };
+  }
+}
+</script>
+</body>
+</html>

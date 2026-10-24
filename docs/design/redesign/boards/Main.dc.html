@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BinoFit foundations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3D4B7A}a:hover{color:#2E3960}
+</style>
+</helmet>
+<div style="width: 1240px; height: 900px; box-sizing: border-box; padding: 56px 64px; background: #F4F0E8; color: #1A1A22; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 40px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-size: 13px; font-weight: 500; color: #5E5E6E; letter-spacing: 0.4px; text-transform: uppercase">BinoFit foundations</span>
+      <h1 style="margin: 0; font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 52px; font-weight: 800; letter-spacing: -1px; line-height: 1.05">Lifted paper, precise ink, a little ember.</h1>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 999px; background: #FBE6D9; color: #C2410C; font-size: 13px; font-weight: 600">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-2.9 7-7 0-3.3-2.2-5.6-3.6-7.2-.4 1.9-1.4 3-2.6 3.4.3-3.2-1.2-6.4-4-8.2.2 3.4-1.6 5.6-3.1 7.4C4.6 11.8 5 13.4 5 15c0 4.1 3 7 7 7z"></path></svg>
+      6 days logged
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; flex-grow: 1">
+
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 24px; border-radius: 22px; background: #FBF9F5; box-shadow: 0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 600">Color</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 12px; color: #5E5E6E">Surfaces, light</span>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+          <div style="height: 44px; border-radius: 10px; background: #F4F0E8; border: 1px solid #E2DDD2"></div>
+          <div style="height: 44px; border-radius: 10px; background: #FBF9F5; border: 1px solid #E2DDD2"></div>
+          <div style="height: 44px; border-radius: 10px; background: #EDE8DE"></div>
+          <div style="height: 44px; border-radius: 10px; background: #5E5E6E"></div>
+          <div style="height: 44px; border-radius: 10px; background: #1A1A22"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; font-size: 11px; color: #5E5E6E">
+          <span>Page</span><span>Card</span><span>Nested</span><span>Ink 2</span><span>Ink</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 12px; color: #5E5E6E">Surfaces, dark (Graphite)</span>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+          <div style="height: 44px; border-radius: 10px; background: #0E0E10"></div>
+          <div style="height: 44px; border-radius: 10px; background: #1A1A1D"></div>
+          <div style="height: 44px; border-radius: 10px; background: #242428"></div>
+          <div style="height: 44px; border-radius: 10px; background: #9A9AA3"></div>
+          <div style="height: 44px; border-radius: 10px; background: #EDEDF0; border: 1px solid #E2DDD2"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <span style="font-size: 12px; color: #5E5E6E">Meaning</span>
+        <div style="display: flex; align-items: center; gap: 10px"><div style="width: 28px; height: 28px; border-radius: 8px; background: {{accent}}"></div><span style="font-size: 13px; font-weight: 500">Tint</span><span style="font-size: 12px; color: #5E5E6E">actions, selection, focus</span></div>
+        <div style="display: flex; align-items: center; gap: 10px"><div style="width: 28px; height: 28px; border-radius: 8px; background: #C2410C"></div><span style="font-size: 13px; font-weight: 500">Ember</span><span style="font-size: 12px; color: #5E5E6E">acknowledging effort</span></div>
+        <div style="display: flex; align-items: center; gap: 10px"><div style="display: flex; gap: 3px"><div style="width: 12px; height: 28px; border-radius: 4px; background: #E74C3C"></div><div style="width: 12px; height: 28px; border-radius: 4px; background: #F39C12"></div><div style="width: 12px; height: 28px; border-radius: 4px; background: #3498DB"></div></div><span style="font-size: 13px; font-weight: 500">Macros</span><span style="font-size: 12px; color: #5E5E6E">protein, carbs, fat</span></div>
+        <div style="display: flex; align-items: center; gap: 10px"><div style="display: flex; gap: 3px"><div style="width: 20px; height: 28px; border-radius: 6px; background: #B3261E"></div><div style="width: 20px; height: 28px; border-radius: 6px; background: #1E7A45"></div></div><span style="font-size: 13px; font-weight: 500">Status</span><span style="font-size: 12px; color: #5E5E6E">errors, confirmations</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 22px; background: #FBF9F5; box-shadow: 0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 600">Type</h2>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 64px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums">1,640</span>
+        <span style="font-size: 12px; color: #5E5E6E">Hero, rounded 64 / 800, tabular</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 34px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums">165 × 8</span>
+        <span style="font-size: 12px; color: #5E5E6E">Display, rounded 34 / 700</span>
+      </div>
+      <div style="height: 1px; background: #E2DDD2"></div>
+      <span style="font-size: 22px; font-weight: 600">Headline 22 / 600</span>
+      <span style="font-size: 17px; font-weight: 600">Title 17 / 600</span>
+      <span style="font-size: 15px; font-weight: 400; line-height: 1.5">Body 15 / 400. Greek yogurt with granola and honey.</span>
+      <span style="font-size: 13px; font-weight: 500; color: #5E5E6E">Label 13 / 500 · 1 cup (245 g)</span>
+      <span style="font-size: 12px; color: #5E5E6E">Caption 12 / 400 · 8:42 AM</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 22px; background: #FBF9F5; box-shadow: 0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 600">Components and states</h2>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+        <button type="button" style="min-height: 44px; padding: 0 20px; border: none; border-radius: 14px; background: {{accent}}; color: #FBF9F5; font: 600 15px -apple-system, system-ui, sans-serif">Add food</button>
+        <button type="button" style="min-height: 44px; padding: 0 18px; border: 1px solid #D9D3C7; border-radius: 14px; background: transparent; color: {{accent}}; font: 600 15px -apple-system, system-ui, sans-serif">Scan</button>
+        <button type="button" style="min-height: 44px; padding: 0 12px; border: none; background: transparent; color: #B3261E; font: 600 15px -apple-system, system-ui, sans-serif">Delete</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="f1" style="font-size: 13px; font-weight: 500; color: #5E5E6E">Focused</label>
+        <input id="f1" value="2,200" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 2px solid {{accent}}; background: #FBF9F5; color: #1A1A22; font: 500 15px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="f2" style="font-size: 13px; font-weight: 500; color: #5E5E6E">Error</label>
+        <input id="f2" value="16o" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 2px solid #B3261E; background: #FBF9F5; color: #1A1A22; font: 500 15px -apple-system, system-ui, sans-serif">
+        <span style="font-size: 12px; color: #B3261E">Enter a number, like 160.</span>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap">
+        <span style="padding: 7px 14px; border-radius: 999px; background: {{accent}}; color: #FBF9F5; font-size: 13px; font-weight: 600">30D</span>
+        <span style="padding: 7px 14px; border-radius: 999px; background: #EDE8DE; color: #5E5E6E; font-size: 13px; font-weight: 500">90D</span>
+        <span style="display: inline-flex; gap: 6px; align-items: center; padding: 7px 12px; border-radius: 999px; background: #FBE6D9; color: #C2410C; font-size: 13px; font-weight: 600">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg>
+          New record
+        </span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500"><span>Protein</span><span style="font-variant-numeric: tabular-nums">112 / 160 g</span></div>
+        <div style="height: 8px; border-radius: 4px; background: #E4DFD4; overflow: hidden"><div style="width: 70%; height: 8px; border-radius: 4px; background: #E74C3C"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3D4B7A","options":["#3D4B7A","#6A4C7D","#2F5D50"]},"$preview":{"width":1240,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#3D4B7A' };
+  }
+}
+</script>
+</body>
+</html>

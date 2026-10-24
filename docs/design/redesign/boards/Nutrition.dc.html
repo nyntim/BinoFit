@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nutrition today</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 62px 16px 0; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 13px; font-weight: 500; color: {{c.icon}}">Thursday, 23 October</span>
+      <h1 style="margin: 0; font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1">Today</h1>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 11px; border-radius: 999px; background: {{c.emberSoft}}; color: {{c.ember}}; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-2.9 7-7 0-3.3-2.2-5.6-3.6-7.2-.4 1.9-1.4 3-2.6 3.4.3-3.2-1.2-6.4-4-8.2.2 3.4-1.6 5.6-3.1 7.4C4.6 11.8 5 13.4 5 15c0 4.1 3 7 7 7z"></path></svg>
+        6
+      </span>
+      <button type="button" aria-label="Add food" style="width: 44px; height: 44px; border: none; border-radius: 22px; background: {{c.tint}}; color: {{c.onTint}}; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 20px; padding: 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div role="img" aria-label="1,640 of 2,200 calories eaten" style="position: relative; width: 132px; height: 132px; flex-shrink: 0">
+      <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+        <circle cx="66" cy="66" r="57" fill="none" stroke="{{c.track}}" stroke-width="13"></circle>
+        <circle cx="66" cy="66" r="57" fill="none" stroke="{{c.tint}}" stroke-width="13" stroke-linecap="round" stroke-dasharray="266.8 358.1" transform="rotate(-90 66 66)"></circle>
+      </svg>
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center">
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums">1,640</span>
+        <span style="font-size: 12px; color: {{c.icon}}">of 2,200 cal</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px; flex-grow: 1">
+      <div style="display: flex; flex-direction: column; gap: 1px">
+        <span style="font-size: 12px; color: {{c.icon}}">Left</span>
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums">560</span>
+      </div>
+      <div style="height: 1px; background: {{c.sep}}"></div>
+      <div style="display: flex; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 1px">
+          <span style="font-size: 12px; color: {{c.icon}}">Burned</span>
+          <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums">310</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1px">
+          <span style="font-size: 12px; color: {{c.icon}}">Meals</span>
+          <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums">3 of 4</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500">
+          <span>{{m.label}}</span>
+          <span style="font-variant-numeric: tabular-nums"><span style="font-weight: 700">{{m.value}}</span><span style="color: {{c.icon}}"> / {{m.goal}} g</span></span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: {{c.track}}; overflow: hidden"><div style="width: {{m.pct}}; height: 8px; border-radius: 4px; background: {{m.color}}"></div></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}; overflow: hidden">
+    <sc-for list="{{meals}}" as="meal" hint-placeholder-count="4">
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px 10px 20px; border-top: {{meal.border}}">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0">
+          <span style="font-size: 15px; font-weight: 600">{{meal.name}}</span>
+          <span style="font-size: 13px; color: {{c.icon}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{meal.items}}</span>
+        </div>
+        <sc-if value="{{meal.logged}}" hint-placeholder-val="{{true}}">
+          <span style="font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">{{meal.cal}}</span>
+        </sc-if>
+        <sc-if value="{{meal.empty}}" hint-placeholder-val="{{false}}">
+          <button type="button" aria-label="Add food to {{meal.name}}" style="width: 44px; height: 44px; border: none; border-radius: 14px; background: {{c.tintSoft}}; color: {{c.tint}}; display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          </button>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+
+  <nav aria-label="Tabs" style="position: absolute; left: 24px; right: 24px; bottom: 28px; height: 64px; box-sizing: border-box; padding: 8px; border-radius: 32px; background: {{c.nav}}; border: 1px solid {{c.navBorder}}; backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 28px rgba(14,14,16,0.12); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+    <button type="button" aria-label="Nutrition" aria-current="page" style="border: none; border-radius: 24px; background: {{c.tintSoft}}; color: {{c.tint}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5"></path></svg>
+    </button>
+    <button type="button" aria-label="Training" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg>
+    </button>
+    <button type="button" aria-label="Progress" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"></path></svg>
+    </button>
+    <button type="button" aria-label="Settings" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+    </button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', card2: '#242428', text: '#EDEDF0', icon: '#9A9AA3', sep: 'rgba(237,237,240,0.10)', track: 'rgba(237,237,240,0.14)', shadow: 'none', ember: '#FF8A3D', emberSoft: 'rgba(255,138,61,0.14)', nav: 'rgba(36,36,40,0.72)', navBorder: 'rgba(237,237,240,0.12)', tint: a[1], tintSoft: a[3], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', card2: '#EDE8DE', text: '#1A1A22', icon: '#5E5E6E', sep: '#E2DDD2', track: '#E4DFD4', shadow: '0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)', ember: '#C2410C', emberSoft: '#FBE6D9', nav: 'rgba(251,249,245,0.72)', navBorder: 'rgba(26,26,34,0.08)', tint: a[0], tintSoft: a[2], onTint: '#FBF9F5' };
+    const macros = [
+      { label: 'Protein', value: 112, goal: 160, pct: '70%', color: '#E74C3C' },
+      { label: 'Carbs', value: 180, goal: 240, pct: '75%', color: '#F39C12' },
+      { label: 'Fat', value: 52, goal: 70, pct: '74%', color: '#3498DB' }
+    ];
+    const rows = [
+      { name: 'Meal 1', items: 'Greek yogurt, granola, blueberries', cal: '420', logged: true },
+      { name: 'Meal 2', items: 'Chicken rice bowl, side salad', cal: '680', logged: true },
+      { name: 'Meal 3', items: 'Salmon, roast potatoes, green beans', cal: '540', logged: true },
+      { name: 'Meal 4', items: 'Nothing yet', logged: false }
+    ];
+    const meals = rows.map((m, i) => ({ ...m, empty: !m.logged, border: i === 0 ? 'none' : '1px solid ' + c.sep }));
+    return { c, macros, meals };
+  }
+}
+</script>
+</body>
+</html>

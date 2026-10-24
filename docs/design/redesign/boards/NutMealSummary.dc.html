@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Meal nutrition summary</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1100px">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <span></span>
+      <span class="nav-title">Nutrition</span>
+      <a href="NutDashboard.dc.html" class="link end" style="text-decoration: none; display: inline-flex; align-items: center">Done</a>
+    </div>
+    <div class="scroll">
+      <div class="stack g6">
+        <div class="hstack g10"><h1 class="h-xl">Meal 2</h1><span class="tag tinted">Eaten</span></div>
+        <span class="t-label muted">Fri 23 Oct · 2 foods</span>
+      </div>
+
+      <div class="card pad stack g14">
+        <div class="hstack" style="gap: 18px">
+          <div role="img" aria-label="680 of 700 calories for this meal" style="position: relative; width: 104px; height: 104px; flex-shrink: 0">
+            <svg width="104" height="104" viewBox="0 0 104 104" aria-hidden="true">
+              <circle cx="52" cy="52" r="45" fill="none" stroke="var(--track)" stroke-width="11"></circle>
+              <circle cx="52" cy="52" r="45" fill="none" stroke="var(--tint)" stroke-width="11" stroke-linecap="round" stroke-dasharray="274.7 282.7" transform="rotate(-90 52 52)"></circle>
+            </svg>
+            <div class="stack center" style="position: absolute; inset: 0; justify-content: center"><span class="rnum" style="font-size: 24px">680</span><span class="t-cap">cal</span></div>
+          </div>
+          <div class="stack g4 grow">
+            <span class="t-cap">Meal target</span>
+            <span class="rnum" style="font-size: 22px">700 cal</span>
+            <span class="t-label muted">20 left</span>
+          </div>
+        </div>
+        <div class="stack g6">
+          <div role="img" aria-label="Energy from protein 31 percent, carbs 44 percent, fat 25 percent" style="display: flex; gap: 3px; height: 10px">
+            <div style="flex: 31 1 0; border-radius: 4px; background: var(--protein)"></div>
+            <div style="flex: 44 1 0; border-radius: 4px; background: var(--carbs)"></div>
+            <div style="flex: 25 1 0; border-radius: 4px; background: var(--fat)"></div>
+          </div>
+          <div class="hstack g14 t-cap num"><span>Protein 31%</span><span>Carbs 44%</span><span>Fat 25%</span></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{tiles}}" as="t" hint-placeholder-count="3">
+          <div class="card stack g6" style="padding: 14px 12px">
+            <span class="hstack g6 t-cap"><span class="dot" style="width: 8px; height: 8px; background: {{t.color}}"></span>{{t.label}}</span>
+            <span class="rnum" style="font-size: 22px">{{t.value}}<span class="t-label muted" style="font-family: var(--sans); font-weight: 500"> g</span></span>
+            <div class="bar" style="height: 6px"><i style="width: {{t.pct}}; background: {{t.color}}"></i></div>
+            <span class="t-cap num">of {{t.goal}} g</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="card" style="overflow: hidden">
+        <div class="between" style="padding: 16px 18px 8px"><span class="t-title">Nutrients</span><span class="t-cap">Per this meal</span></div>
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+          <div style="padding: 6px 18px 10px; border-top: 1px solid var(--sep)">
+            <div class="between" style="min-height: 34px"><span class="t-label semi">{{g.name}}</span><span class="tag {{g.tagClass}}">{{g.coverage}}</span></div>
+            <sc-for list="{{g.items}}" as="n" hint-placeholder-count="3">
+              <div class="between" style="min-height: 30px"><span class="t-body muted">{{n.name}}</span><span class="t-body num semi" style="color: {{n.color}}">{{n.value}}</span></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const tiles = [
+      { label: 'Protein', value: '52.0', goal: '50', pct: '100%', color: 'var(--protein)' },
+      { label: 'Carbs', value: '74.0', goal: '85', pct: '87%', color: 'var(--carbs)' },
+      { label: 'Fat', value: '18.0', goal: '22', pct: '82%', color: 'var(--fat)' }
+    ];
+    const known = 'var(--text)'; const unknown = 'var(--icon)';
+    const groups = [
+      { name: 'Carbohydrates', coverage: 'Complete', tagClass: 'tinted', items: [{ name: 'Fiber', value: '8.2 g', color: known }, { name: 'Sugars', value: '6.4 g', color: known }, { name: 'Added sugar', value: '1.1 g', color: known }] },
+      { name: 'Minerals', coverage: '1 of 2 foods', tagClass: '', items: [{ name: 'Sodium', value: '980 mg', color: known }, { name: 'Potassium', value: '1,120 mg', color: known }, { name: 'Iron', value: '3.1 mg', color: known }] },
+      { name: 'Vitamins', coverage: 'Unknown', tagClass: '', items: [{ name: 'Vitamin C', value: 'Unknown', color: unknown }, { name: 'Vitamin D', value: 'Unknown', color: unknown }, { name: 'Vitamin B12', value: 'Unknown', color: unknown }] }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, tiles, groups };
+  }
+}
+</script>
+</body>
+</html>

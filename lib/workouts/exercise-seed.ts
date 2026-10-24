@@ -10,7 +10,7 @@ export const EXERCISE_SEED_VERSION_KEY = 'exercise_seed_version';
 export type SeedExercise = {
   id: string;
   name: string;
-  /** Spec group (docs/phase-4-training.md). Equals MUSCLE_REGION[primary[0]]. */
+  /** Library group (docs/decisions/0007-exercise-library-and-builder.md). Equals MUSCLE_REGION[primary[0]]. */
   group: Exclude<Region, 'All'>;
   log_type: ExerciseLogType;
   primary_muscles: MuscleGroup[];

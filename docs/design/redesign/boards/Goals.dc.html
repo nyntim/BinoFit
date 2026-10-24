@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily goals form</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+input:focus{outline:none}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 54px 16px 34px; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr) 96px; align-items: center; min-height: 44px">
+    <button type="button" style="justify-self: start; display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 8px 0 0; border: none; background: transparent; color: {{c.tint}}; font: 400 17px -apple-system, system-ui, sans-serif">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+      Settings
+    </button>
+    <span style="justify-self: center; font-size: 17px; font-weight: 600">Daily goals</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <label for="cal" style="padding-left: 4px; font-size: 13px; font-weight: 600; color: {{c.icon}}">Calories</label>
+    <div style="display: flex; align-items: center; height: 56px; box-sizing: border-box; padding: 0 16px; border-radius: 16px; background: {{c.card}}; border: 2px solid {{c.tint}}">
+      <input id="cal" value="2,200" inputmode="numeric" style="flex-grow: 1; min-width: 0; border: none; background: transparent; color: {{c.text}}; font: 800 24px ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+      <span style="font-size: 15px; color: {{c.icon}}">cal</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <span style="padding-left: 4px; font-size: 13px; font-weight: 600; color: {{c.icon}}">Macros</span>
+    <div style="display: flex; flex-direction: column; border-radius: 16px; background: {{c.card}}; overflow: hidden">
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 12px 6px 16px">
+        <span style="width: 10px; height: 10px; border-radius: 5px; background: #E74C3C"></span>
+        <label for="p" style="flex-grow: 1; font-size: 15px">Protein</label>
+        <input id="p" value="160" inputmode="numeric" style="width: 72px; height: 40px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; border: 1px solid {{c.field}}; background: transparent; color: {{c.text}}; text-align: right; font: 600 15px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+        <span style="width: 12px; font-size: 13px; color: {{c.icon}}">g</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 6px 12px 10px 16px; border-top: 1px solid {{c.sep}}">
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 40px">
+          <span style="width: 10px; height: 10px; border-radius: 5px; background: #F39C12"></span>
+          <label for="cb" style="flex-grow: 1; font-size: 15px">Carbs</label>
+          <input id="cb" value="24o" aria-invalid="true" aria-describedby="cb-err" style="width: 72px; height: 40px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; border: 2px solid {{c.danger}}; background: transparent; color: {{c.text}}; text-align: right; font: 600 15px -apple-system, system-ui, sans-serif">
+          <span style="width: 12px; font-size: 13px; color: {{c.icon}}">g</span>
+        </div>
+        <span id="cb-err" style="display: inline-flex; align-items: center; gap: 6px; padding-left: 22px; font-size: 13px; color: {{c.danger}}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>
+          Enter a number, like 240.
+        </span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 12px 6px 16px; border-top: 1px solid {{c.sep}}">
+        <span style="width: 10px; height: 10px; border-radius: 5px; background: #3498DB"></span>
+        <label for="f" style="flex-grow: 1; font-size: 15px">Fat</label>
+        <input id="f" value="70" inputmode="numeric" style="width: 72px; height: 40px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; border: 1px solid {{c.field}}; background: transparent; color: {{c.text}}; text-align: right; font: 600 15px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+        <span style="width: 12px; font-size: 13px; color: {{c.icon}}">g</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px; background: {{c.card}}">
+    <span style="font-size: 13px; font-weight: 600; color: {{c.icon}}">Energy split</span>
+    <div role="img" aria-label="Protein 29 percent, carbs 43 percent, fat 28 percent" style="display: flex; gap: 3px; height: 10px">
+      <div style="flex: 29 1 0; border-radius: 4px; background: #E74C3C"></div>
+      <div style="flex: 43 1 0; border-radius: 4px; background: #F39C12"></div>
+      <div style="flex: 28 1 0; border-radius: 4px; background: #3498DB"></div>
+    </div>
+    <div style="display: flex; gap: 14px; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums"><span>Protein 29%</span><span>Carbs 43%</span><span>Fat 28%</span></div>
+    <span style="font-size: 13px; color: {{c.icon}}">Macros add up to 2,230 cal, 30 more than the calorie goal.</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; border-radius: 16px; background: {{c.card}}; overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px">
+      <span id="t1" style="flex-grow: 1; font-size: 15px">Different goals on weekends</span>
+      <button type="button" role="switch" aria-checked="true" aria-labelledby="t1" style="width: 52px; height: 32px; border: none; border-radius: 16px; background: {{c.tint}}; padding: 3px; display: flex; justify-content: flex-end">
+        <span style="width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF"></span>
+      </button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 16px; border-top: 1px solid {{c.sep}}; opacity: 0.5">
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+        <span id="t2" style="font-size: 15px">Adjust to calories burned</span>
+        <span style="font-size: 12px; color: {{c.icon}}">Needs Apple Health access</span>
+      </div>
+      <button type="button" role="switch" aria-checked="false" aria-disabled="true" aria-labelledby="t2" style="width: 52px; height: 32px; border: none; border-radius: 16px; background: {{c.card2}}; padding: 3px; display: flex; justify-content: flex-start">
+        <span style="width: 26px; height: 26px; border-radius: 13px; background: {{c.knobOff}}"></span>
+      </button>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1"></div>
+  <button type="button" aria-disabled="true" style="height: 52px; border: none; border-radius: 16px; background: {{c.tint}}; color: {{c.onTint}}; opacity: 0.5; font: 600 16px -apple-system, system-ui, sans-serif">Save goals</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = this.props.dark ?? true;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', card2: '#3A3A40', text: '#EDEDF0', icon: '#9A9AA3', sep: 'rgba(237,237,240,0.10)', field: 'rgba(237,237,240,0.28)', danger: '#FF8A80', knobOff: '#9A9AA3', tint: a[1], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', card2: '#DCD6CB', text: '#1A1A22', icon: '#5E5E6E', sep: '#E2DDD2', field: '#D9D3C7', danger: '#B3261E', knobOff: '#FBF9F5', tint: a[0], onTint: '#FBF9F5' };
+    return { c };
+  }
+}
+</script>
+</body>
+</html>

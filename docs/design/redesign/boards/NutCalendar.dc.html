@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Month calendar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" aria-hidden="true">
+    <h1 class="h-large">Today</h1>
+    <div class="card" style="height: 90px"></div>
+    <div class="card" style="height: 176px"></div>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="sheet" role="dialog" aria-label="Calendar" style="gap: 12px">
+    <div class="grabber"></div>
+    <div class="between">
+      <button type="button" class="icon-btn" aria-label="Previous month"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+      <span class="rnum" style="font-size: 20px">October 2026</span>
+      <button type="button" class="icon-btn" aria-label="Next month"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center" class="t-cap">
+      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 4px">
+      <sc-for list="{{cells}}" as="c" hint-placeholder-count="35">
+        <button type="button" aria-label="{{c.aria}}" style="height: 48px; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; visibility: {{c.vis}}; font-family: var(--sans)">
+          <span class="num" style="width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: {{c.weight}}; background: {{c.bg}}; color: {{c.fg}}">{{c.n}}</span>
+          <span class="hstack g4" style="height: 5px"><span style="width: 5px; height: 5px; border-radius: 3px; background: {{c.food}}"></span><span style="width: 5px; height: 5px; border-radius: 3px; background: {{c.train}}"></span></span>
+        </button>
+      </sc-for>
+    </div>
+    <div class="hstack g14 t-cap" style="justify-content: center">
+      <span class="hstack g6"><span class="dot" style="width: 7px; height: 7px; background: var(--tint)"></span>Logged food</span>
+      <span class="hstack g6"><span class="dot" style="width: 7px; height: 7px; background: var(--ember)"></span>Trained</span>
+    </div>
+    <div class="nested hstack g12" style="padding: 12px 14px">
+      <span class="stack grow g4"><span class="t-label semi">Fri 23 Oct</span><span class="t-cap num">1,100 cal eaten · Push day, 58 min</span></span>
+      <a href="NutDashboard.dc.html" class="btn btn-sm btn-primary">Go to day</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const trained = [2, 5, 7, 9, 12, 14, 16, 19, 21, 23];
+    const missed = [4, 11, 18];
+    const cells = [];
+    for (let i = 0; i < 3; i++) cells.push({ n: '', vis: 'hidden', aria: '', bg: 'transparent', fg: 'var(--text)', food: 'transparent', train: 'transparent', weight: 500 });
+    for (let d = 1; d <= 31; d++) {
+      const past = d <= 23; const sel = d === 23;
+      const food = past && missed.indexOf(d) < 0; const tr = trained.indexOf(d) >= 0;
+      cells.push({ n: d, vis: 'visible', aria: d + ' October' + (food ? ', food logged' : '') + (tr ? ', trained' : ''), bg: sel ? 'var(--tint)' : 'transparent', fg: sel ? 'var(--on-tint)' : (past ? 'var(--text)' : 'var(--icon)'), weight: sel ? 700 : 500, food: food ? 'var(--tint)' : 'transparent', train: tr ? 'var(--ember)' : 'transparent' });
+    }
+    cells.push({ n: '', vis: 'hidden', aria: '', bg: 'transparent', fg: 'var(--text)', food: 'transparent', train: 'transparent', weight: 500 });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, cells };
+  }
+}
+</script>
+</body>
+</html>

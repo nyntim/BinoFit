@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nutrition dashboard</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1640px">
+  <div class="scroll">
+    <div class="stack g4">
+      <div class="between">
+        <span class="t-label muted">Friday, 23 October</span>
+        <div class="hstack g8">
+          <span class="hstack g4 t-cap" aria-label="Backed up"><span class="dot" style="width: 8px; height: 8px; background: var(--success)"></span>Synced</span>
+          <a href="PrgMain.dc.html" class="chip small ember-chip" style="text-decoration: none" aria-label="6 day logging streak">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-2.9 7-7 0-3.3-2.2-5.6-3.6-7.2-.4 1.9-1.4 3-2.6 3.4.3-3.2-1.2-6.4-4-8.2.2 3.4-1.6 5.6-3.1 7.4C4.6 11.8 5 13.4 5 15c0 4.1 3 7 7 7z"></path></svg>6 days
+          </a>
+        </div>
+      </div>
+      <div class="between">
+        <h1 class="h-large">Today</h1>
+        <div class="hstack g8">
+          <a href="NutEdit.dc.html" class="btn btn-sm btn-soft" style="min-height: 44px; padding: 0 16px">Edit</a>
+          <a href="SetNutrition.dc.html" class="icon-btn" aria-label="Nutrition settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 10px 8px 8px">
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) 36px; align-items: center">
+        <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+          <button type="button" aria-label="{{d.aria}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; border: none; background: transparent; padding: 4px 0; color: var(--text); font-family: var(--sans)">
+            <span class="t-cap" style="color: {{d.labelColor}}">{{d.day}}</span>
+            <span class="num" style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; background: {{d.bg}}; color: {{d.fg}}">{{d.date}}</span>
+            <span class="hstack g4" style="height: 6px"><span style="width: 5px; height: 5px; border-radius: 3px; background: {{d.food}}"></span><span style="width: 5px; height: 5px; border-radius: 3px; background: {{d.train}}"></span></span>
+          </button>
+        </sc-for>
+        <a href="NutCalendar.dc.html" class="icon-btn clear" aria-label="Open month calendar" style="width: 36px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="card pad hstack" style="gap: 20px">
+      <div role="img" aria-label="1,100 of 2,250 calories eaten" style="position: relative; width: 136px; height: 136px; flex-shrink: 0">
+        <svg width="136" height="136" viewBox="0 0 136 136" aria-hidden="true">
+          <circle cx="68" cy="68" r="59" fill="none" stroke="var(--track)" stroke-width="13"></circle>
+          <circle cx="68" cy="68" r="59" fill="none" stroke="var(--tint)" stroke-width="13" stroke-linecap="round" stroke-dasharray="181.2 370.7" transform="rotate(-90 68 68)"></circle>
+        </svg>
+        <div class="stack center" style="position: absolute; inset: 0; justify-content: center">
+          <span class="rnum" style="font-size: 30px">1,100</span>
+          <span class="t-cap">of 2,250 cal</span>
+        </div>
+      </div>
+      <div class="stack grow g10">
+        <div class="stack"><span class="t-cap">Left</span><span class="rnum" style="font-size: 26px">1,150</span></div>
+        <div class="sep"></div>
+        <div class="hstack g18">
+          <div class="stack"><span class="t-cap">Burned</span><span class="semi num">310</span></div>
+          <div class="stack"><span class="t-cap">Planned</span><span class="semi num">540</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad stack g12">
+      <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+        <div class="stack g6">
+          <div class="between t-label"><span>{{m.label}}</span><span class="num"><span class="bold">{{m.value}}</span><span class="muted"> / {{m.goal}} g</span></span></div>
+          <div class="bar"><i style="width: {{m.pct}}; background: {{m.color}}"></i></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <a href="TrnWorkout.dc.html" class="card pad-s hstack g12" style="text-decoration: none; color: var(--text)">
+      <span class="ico" style="width: 40px; height: 40px; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg></span>
+      <span class="stack grow g4"><span class="t-title">Push day</span><span class="t-cap num">58 min · 12,450 lb · 310 cal burned</span></span>
+      <span class="tag ember-tag">2 records</span>
+    </a>
+
+    <div class="card pad-s stack g10">
+      <div class="between">
+        <span class="stack"><span class="t-title">Water</span><span class="t-cap num">1.25 of 2.5 L</span></span>
+        <div class="hstack g8">
+          <button type="button" class="btn btn-sm btn-soft">+ 250 ml</button>
+          <a href="NutWater.dc.html" class="icon-btn" aria-label="Add a drink" style="width: 36px; height: 36px; border-radius: 11px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          </a>
+        </div>
+      </div>
+      <div class="hstack g4" role="img" aria-label="5 of 10 glasses">
+        <sc-for list="{{glasses}}" as="g" hint-placeholder-count="10"><span style="flex: 1; height: 22px; border-radius: 6px; background: {{g}}"></span></sc-for>
+      </div>
+    </div>
+
+    <div class="between" style="padding: 4px 4px 0">
+      <span class="t-label muted">New food is</span>
+      <div class="seg" style="grid-template-columns: repeat(2, 92px)" role="radiogroup" aria-label="Default status for new food">
+        <button type="button" role="radio" aria-checked="true" class="on">Eaten</button>
+        <button type="button" role="radio" aria-checked="false">Planned</button>
+      </div>
+    </div>
+
+    <sc-for list="{{meals}}" as="meal" hint-placeholder-count="4">
+      <div class="card" style="overflow: hidden; border: {{meal.outline}}">
+        <a href="NutMealSummary.dc.html" class="hstack g10" style="padding: 14px 12px 10px 18px; text-decoration: none; color: var(--text)">
+          <span class="stack grow g4">
+            <span class="hstack g8"><span class="t-title">{{meal.name}}</span><span class="tag {{meal.tagClass}}">{{meal.status}}</span></span>
+            <span class="t-cap num">{{meal.summary}}</span>
+          </span>
+          <span class="rnum" style="font-size: 20px">{{meal.cal}}</span>
+        </a>
+        <sc-for list="{{meal.foods}}" as="f" hint-placeholder-count="2">
+          <div class="hstack g12" style="min-height: 52px; padding: 6px 18px; border-top: 1px solid var(--sep)">
+            <span class="stack grow g4"><span class="t-body ellipsis">{{f.name}}</span><span class="t-cap">{{f.serving}}</span></span>
+            <span class="t-label num semi">{{f.cal}}</span>
+          </div>
+        </sc-for>
+        <a href="NutSearch.dc.html" class="hstack g8 tint semi" style="min-height: 48px; padding: 0 18px; border-top: 1px solid var(--sep); text-decoration: none; font-size: 15px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add food
+        </a>
+      </div>
+    </sc-for>
+  </div>
+  <div class="tabwrap"><dc-import name="CmpTabBar" active="nutrition" workout="{{no}}" dark="{{dark}}" accent="{{accent}}" hint-size="342px,128px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const days = [['Mon', 19, 1, 1], ['Tue', 20, 1, 0], ['Wed', 21, 1, 1], ['Thu', 22, 1, 0], ['Fri', 23, 1, 1], ['Sat', 24, 0, 0], ['Sun', 25, 0, 0]];
+    const week = days.map(([day, date, food, train]) => {
+      const sel = date === 23;
+      return { day, date, aria: day + ' ' + date + ' October' + (food ? ', food logged' : '') + (train ? ', trained' : ''), bg: sel ? 'var(--tint)' : 'transparent', fg: sel ? 'var(--on-tint)' : (date > 23 ? 'var(--icon)' : 'var(--text)'), labelColor: sel ? 'var(--tint)' : 'var(--icon)', food: food ? 'var(--tint)' : 'transparent', train: train ? 'var(--ember)' : 'transparent' };
+    });
+    const macros = [
+      { label: 'Protein', value: 80, goal: 169, pct: '47%', color: 'var(--protein)' },
+      { label: 'Carbs', value: 126, goal: 253, pct: '50%', color: 'var(--carbs)' },
+      { label: 'Fat', value: 29, goal: 63, pct: '46%', color: 'var(--fat)' }
+    ];
+    const glasses = Array.from({ length: 10 }, (_, i) => (i < 5 ? 'var(--fat)' : 'var(--track)'));
+    const meals = [
+      { name: 'Meal 1', status: 'Eaten', cal: '420', summary: 'P 28 · C 52 · F 11', foods: [{ name: 'Greek yogurt, plain, 2%', serving: '1 cup (245 g)', cal: '180' }, { name: 'Granola with honey', serving: '1/2 cup (60 g)', cal: '240' }] },
+      { name: 'Meal 2', status: 'Eaten', cal: '680', summary: 'P 52 · C 74 · F 18', foods: [{ name: 'Chicken rice bowl', serving: '1 bowl (420 g)', cal: '610' }, { name: 'Side salad, vinaigrette', serving: '1 cup', cal: '70' }] },
+      { name: 'Meal 3', status: 'Planned', cal: '540', summary: 'P 38 · C 50 · F 19', planned: true, foods: [{ name: 'Salmon fillet, baked', serving: '5 oz (140 g)', cal: '290' }, { name: 'Roast potatoes', serving: '200 g', cal: '250' }] },
+      { name: 'Meal 4', status: 'Eaten', cal: '0', summary: 'No food logged', foods: [] }
+    ].map((m) => ({ ...m, tagClass: m.planned ? '' : 'tinted', outline: m.planned ? '1.5px dashed var(--field)' : 'none' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, no: false, week, macros, glasses, meals };
+  }
+}
+</script>
+</body>
+</html>

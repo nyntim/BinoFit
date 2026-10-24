@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food search</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="NutDashboard.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="stack center"><span class="t-title">Add to Meal 2</span><span class="t-cap">Fri 23 Oct · Eaten</span></span>
+      <a href="NutSearchMulti.dc.html" class="link end" style="text-decoration: none; display: inline-flex; align-items: center">Select</a>
+    </div>
+    <div class="stack g12" style="padding: 4px 16px 0">
+      <div class="hstack g8">
+        <div class="search grow" style="border: 2px solid var(--tint); background: var(--card); color: var(--text)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <span class="grow">greek yog</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--icon)" aria-label="Clear search" role="img"><circle cx="12" cy="12" r="9" opacity="0.35"></circle><path d="M9 9l6 6M15 9l-6 6" stroke="var(--card)" stroke-width="2" stroke-linecap="round"></path></svg>
+        </div>
+        <a href="NutScanner.dc.html" class="icon-btn tinted" aria-label="Scan barcode" style="border-radius: 14px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 9v6M11 9v6M14 9v6M17 9v6"></path></svg>
+        </a>
+      </div>
+      <div class="chips" role="radiogroup" aria-label="Sort">
+        <button type="button" role="radio" aria-checked="true" class="chip on">Best match</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Recent</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Frequent</button>
+        <button type="button" role="radio" aria-checked="false" class="chip">Branded</button>
+      </div>
+    </div>
+
+    <div class="stack g10" style="padding: 14px 16px 40px">
+      <div class="list">
+        <sc-for list="{{foods}}" as="f" hint-placeholder-count="6">
+          <div class="row" style="min-height: 62px; padding-right: 8px">
+            <a href="NutServing.dc.html" class="hstack g12 grow" style="text-decoration: none; color: var(--text); min-height: 48px">
+            <span class="stack grow g4">
+              <span class="t-body ellipsis">{{f.name}}</span>
+              <span class="hstack g6"><span class="tag {{f.tagClass}}">{{f.source}}</span><span class="t-cap ellipsis">{{f.serving}}</span></span>
+            </span>
+            <span class="stack" style="align-items: flex-end"><span class="semi num">{{f.cal}}</span><span class="t-cap">cal</span></span>
+            </a>
+            <button type="button" aria-label="Quick add {{f.name}}" class="icon-btn" style="width: 40px; height: 40px; border-radius: 12px; background: var(--tint-soft); color: var(--tint)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+          </div>
+        </sc-for>
+      </div>
+      <div class="hstack g8 t-cap" style="justify-content: center; padding: 6px 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path></svg>Searching branded foods…
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const foods = [
+      { name: 'Greek yogurt, plain, 2%', source: 'Recent', serving: '1 cup (245 g)', cal: '180', recent: true },
+      { name: 'Greek yogurt, plain, nonfat', source: 'USDA', serving: '1 container (170 g)', cal: '100' },
+      { name: 'Greek yogurt, vanilla, low fat', source: 'USDA', serving: '1 cup (227 g)', cal: '216' },
+      { name: 'Fage Total 0% Greek Yogurt', source: 'Open Food Facts', serving: '1 cup (227 g)', cal: '130' },
+      { name: 'Chobani Greek Yogurt, Strawberry', source: 'Open Food Facts', serving: '1 container (150 g)', cal: '120' },
+      { name: 'Overnight oats with Greek yogurt', source: 'Custom', serving: '1 jar (300 g)', cal: '410' }
+    ].map((f) => ({ ...f, tagClass: f.recent ? 'tinted' : '' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, foods };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Send feedback</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetSupport.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Support</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Send feedback</h1>
+
+    <div class="seg" style="grid-template-columns: repeat(2, minmax(0, 1fr))" role="radiogroup" aria-label="Type">
+      <button type="button" role="radio" aria-checked="true" class="on">Idea</button>
+      <button type="button" role="radio" aria-checked="false">Problem</button>
+    </div>
+
+    <div class="stack g6">
+      <label for="msg" class="lbl">Your message</label>
+      <textarea id="msg" class="field focus" style="height: 180px; padding: 14px; resize: none; line-height: 1.45; font-weight: 400">It would be great to copy yesterday's breakfast in one tap. I eat the same thing most mornings.</textarea>
+      <span class="t-cap" style="text-align: right">92 / 2,000</span>
+    </div>
+
+    <div class="nested hstack g10" style="padding: 12px 14px; align-items: flex-start">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="margin-top: 2px; flex-shrink: 0"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5h.01"></path></svg>
+      <span class="t-label muted">Only your message, app version and build are included. No logs or diagnostics are attached.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <button type="button" class="btn btn-lg btn-primary">Send</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

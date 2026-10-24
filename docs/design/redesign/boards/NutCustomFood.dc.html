@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Custom food</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1040px">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="NutSearchEmpty.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="nav-title">New food</span>
+      <a href="NutServing.dc.html" class="link end" style="text-decoration: none; display: inline-flex; align-items: center">Save</a>
+    </div>
+    <div class="scroll">
+      <div class="stack g8">
+        <span class="sec">Food</span>
+        <div class="card pad stack g14">
+          <div class="stack g6"><label for="nm" class="lbl">Name</label><input id="nm" class="field" value="Grandma's lasagna"></div>
+          <div class="stack g6"><label for="br" class="lbl">Brand <span style="font-weight: 400">(optional)</span></label><input id="br" class="field" placeholder="Brand"></div>
+          <div class="stack g6">
+            <label for="sv" class="lbl">Serving size</label>
+            <input id="sv" class="field error" placeholder="Like 1 piece (300 g)" aria-invalid="true" aria-describedby="sv-err">
+            <span id="sv-err" class="err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>Add a serving size so amounts make sense.</span>
+          </div>
+          <div class="hstack g8"><span class="tag">Barcode</span><span class="t-label num">0 12345 67890 5</span></div>
+        </div>
+      </div>
+
+      <div class="stack g8">
+        <span class="sec">Nutrition per serving</span>
+        <div class="card pad stack g14">
+          <div class="stack g6"><label for="kc" class="lbl">Calories</label><div class="hstack g8"><input id="kc" class="field big" value="520" style="width: 140px"><span class="muted">cal</span></div></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+            <div class="stack g6"><label for="p" class="lbl hstack g6"><span class="dot" style="width: 8px; height: 8px; background: var(--protein)"></span>Protein</label><input id="p" class="field num" value="32"></div>
+            <div class="stack g6"><label for="c" class="lbl hstack g6"><span class="dot" style="width: 8px; height: 8px; background: var(--carbs)"></span>Carbs</label><input id="c" class="field num" value="44"></div>
+            <div class="stack g6"><label for="f" class="lbl hstack g6"><span class="dot" style="width: 8px; height: 8px; background: var(--fat)"></span>Fat</label><input id="f" class="field num" value="24"></div>
+          </div>
+          <span class="t-cap">Macros add up to 520 cal. Grams per serving.</span>
+        </div>
+      </div>
+
+      <div class="stack g8">
+        <span class="sec">More nutrients (optional)</span>
+        <div class="list">
+          <button type="button" class="row" style="width: 100%; border: none; background: transparent; color: var(--text); font-family: var(--sans); text-align: left" aria-expanded="true">
+            <span class="grow t-body semi">Carbohydrates</span><span class="t-cap">2 of 3</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
+          </button>
+          <div class="stack g8" style="padding: 4px 16px 14px">
+            <div class="hstack g10"><label for="fb" class="grow t-body muted">Fiber</label><input id="fb" class="field mini num" value="4"><span class="t-label muted" style="width: 22px">g</span></div>
+            <div class="hstack g10"><label for="sg" class="grow t-body muted">Sugars</label><input id="sg" class="field mini num" value="9"><span class="t-label muted" style="width: 22px">g</span></div>
+            <div class="hstack g10"><label for="as" class="grow t-body muted">Added sugar</label><input id="as" class="field mini num" placeholder="Unknown"><span class="t-label muted" style="width: 22px">g</span></div>
+          </div>
+          <div class="row" style="border-top: 1px solid var(--sep)"><span class="grow t-body semi">Fats and cholesterol</span><span class="t-cap">0 of 5</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+          <div class="row"><span class="grow t-body semi">Minerals</span><span class="t-cap">1 of 9</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+          <div class="row"><span class="grow t-body semi">Vitamins</span><span class="t-cap">0 of 13</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div>
+        </div>
+        <span class="t-cap" style="padding: 0 4px">Blank means unknown, not zero.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

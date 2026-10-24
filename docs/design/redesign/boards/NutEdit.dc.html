@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edit meals</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-bottom: 140px">
+    <div class="between">
+      <h1 class="h-large">Edit meals</h1>
+      <a href="NutDashboard.dc.html" class="link" style="text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+    </div>
+    <p class="t-body muted" style="margin: -4px 0 0">Rename, reorder or remove meals. Changes apply from today.</p>
+
+    <div class="stack g10">
+      <sc-for list="{{meals}}" as="m" hint-placeholder-count="4">
+        <div class="card stack g8" style="padding: 12px 12px 12px 6px">
+          <div class="hstack g6">
+            <button type="button" aria-label="Reorder {{m.label}}" class="icon-btn clear" style="width: 36px; cursor: grab">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>
+            </button>
+            <label class="grow" style="display: block"><span style="position: absolute; left: -9999px">Meal name</span><input class="field {{m.fieldClass}}" value="{{m.value}}" placeholder="Meal name"></label>
+            <button type="button" aria-label="Remove {{m.label}}" class="icon-btn clear danger">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8"></path></svg>
+            </button>
+          </div>
+          <sc-if value="{{m.error}}" hint-placeholder-val="{{false}}">
+            <span class="err" style="padding-left: 42px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>Give this meal a name.</span>
+          </sc-if>
+          <a href="NutMealSheet.dc.html" class="hstack g8" style="padding-left: 42px; text-decoration: none; color: var(--icon); font-size: 13px; min-height: 32px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+            <span class="grow">{{m.detail}}</span>
+            <span class="tint semi">Targets and reminder</span>
+          </a>
+        </div>
+      </sc-for>
+      <button type="button" class="btn btn-lg btn-secondary" style="border-style: dashed">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add meal
+      </button>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 34px; background: var(--card); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: 12px">
+    <span class="err grow">Fix 1 error to save</span>
+    <button type="button" class="btn btn-primary dim" aria-disabled="true" style="min-width: 110px">Done</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const meals = [
+      { value: 'Breakfast', label: 'Breakfast', detail: 'Reminder 7:30 AM · 500 cal' },
+      { value: 'Lunch', label: 'Lunch', detail: 'Reminder 12:30 PM · 700 cal' },
+      { value: 'Pre-workout', label: 'Pre-workout', detail: 'No reminder' },
+      { value: '', label: 'Meal 4', detail: 'No reminder', error: true }
+    ].map((m) => ({ ...m, error: !!m.error, fieldClass: m.error ? 'error' : '' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, meals };
+  }
+}
+</script>
+</body>
+</html>

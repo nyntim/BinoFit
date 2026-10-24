@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Training tab</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1560px">
+  <div class="scroll" style="padding-bottom: 200px">
+    <div class="between">
+      <h1 class="h-large">Training</h1>
+      <a href="SetTraining.dc.html" class="icon-btn" aria-label="Training settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+      </a>
+    </div>
+
+    <a href="TrnSession.dc.html" class="card hstack g14" style="padding: 16px 16px 16px 20px; background: var(--tint); color: var(--on-tint); text-decoration: none; box-shadow: none">
+      <span class="stack grow g4"><span style="font-size: 13px; font-weight: 600; opacity: 0.8">In progress</span><span class="t-title" style="font-size: 20px">Push day</span><span class="num" style="font-size: 13px; opacity: 0.85">42:10 · 3 of 10 sets</span></span>
+      <span class="btn" style="background: var(--on-tint); color: var(--tint)">Resume</span>
+    </a>
+
+    <div class="card pad stack g14">
+      <div class="between"><span class="t-title">This week</span><span class="t-cap">Mon 19 to Sun 25 Oct</span></div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <div class="stack"><span class="rnum" style="font-size: 26px">2</span><span class="t-cap">sessions</span></div>
+        <div class="stack"><span class="rnum" style="font-size: 26px">21,255</span><span class="t-cap">lb volume</span></div>
+        <div class="stack"><span class="rnum" style="font-size: 26px">2h 00m</span><span class="t-cap">time</span></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px" role="img" aria-label="Trained Monday and Wednesday, workout in progress today">
+        <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+          <div class="stack g4 center"><span style="width: 100%; height: 30px; border-radius: 9px; background: {{d.bg}}; border: {{d.border}}"></span><span class="t-cap">{{d.l}}</span></div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="card pad stack g12">
+      <div class="between"><span class="t-title">Sets this week</span><a href="SetTargets.dc.html" class="tint semi t-label" style="text-decoration: none">Targets</a></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px">
+        <sc-for list="{{regions}}" as="r" hint-placeholder-count="8">
+          <div class="stack g6">
+            <div class="between t-label"><span>{{r.label}}</span><span class="num hstack g4"><sc-if value="{{r.met}}" hint-placeholder-val="{{false}}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--tint)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Target met" role="img"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if><span class="bold">{{r.value}}</span><span class="muted">/{{r.goal}}</span></span></div>
+            <div class="bar" style="height: 6px"><i style="width: {{r.pct}}; background: {{r.color}}"></i></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="card" style="overflow: hidden">
+      <div class="between" style="padding: 16px 18px 6px"><span class="t-title">Routines</span><a href="TrnRoutine.dc.html" class="tint semi t-label" style="text-decoration: none">New routine</a></div>
+      <sc-for list="{{routines}}" as="r" hint-placeholder-count="3">
+        <div class="hstack g12" style="min-height: 64px; padding: 8px 12px 8px 18px; border-top: {{r.border}}">
+          <a href="TrnRoutine.dc.html" class="stack grow g4" style="text-decoration: none; color: var(--text)"><span class="t-body semi">{{r.name}}</span><span class="t-cap ellipsis">{{r.detail}}</span></a>
+          <a href="TrnSession.dc.html" class="btn btn-sm btn-soft">Start</a>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="card" style="overflow: hidden">
+      <div class="between" style="padding: 16px 18px 6px"><span class="t-title">History</span><a href="TrnHistory.dc.html" class="tint semi t-label" style="text-decoration: none">All workouts</a></div>
+      <sc-for list="{{history}}" as="h" hint-placeholder-count="3">
+        <a href="TrnWorkout.dc.html" class="hstack g12" style="min-height: 64px; padding: 8px 18px; border-top: 1px solid var(--sep); text-decoration: none; color: var(--text)">
+          <span class="stack grow g4"><span class="hstack g8"><span class="t-body semi">{{h.name}}</span><sc-if value="{{h.pr}}" hint-placeholder-val="{{false}}"><span class="tag ember-tag">{{h.prText}}</span></sc-if></span><span class="t-cap ellipsis">{{h.detail}}</span></span>
+          <span class="stack" style="align-items: flex-end"><span class="semi num">{{h.time}}</span><span class="t-cap num">{{h.vol}}</span></span>
+        </a>
+      </sc-for>
+    </div>
+
+    <div class="list">
+      <a href="TrnLibrary.dc.html" class="row tap" style="text-decoration: none; color: var(--text)"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg></span><span class="grow t-body">Exercises</span></a>
+      <a href="TrnLogPast.dc.html" class="row tap" style="text-decoration: none; color: var(--text)"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg></span><span class="grow t-body">Log past workout</span></a>
+    </div>
+  </div>
+  <div class="tabwrap"><dc-import name="CmpTabBar" active="training" workout="{{yes}}" dark="{{dark}}" accent="{{accent}}" hint-size="342px,128px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const week = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => {
+      const done = i === 0 || i === 2; const today = i === 4;
+      return { l, bg: done ? 'var(--tint)' : (today ? 'var(--tint-soft)' : 'var(--card2)'), border: today ? '2px dashed var(--tint)' : 'none' };
+    });
+    const regions = [['Chest', 12, 14], ['Shoulders', 9, 10], ['Triceps', 8, 8], ['Biceps', 9, 8], ['Lats', 6, 12], ['Quads', 10, 10], ['Hamstrings', 4, 8], ['Glutes', 7, 8]].map(([label, value, goal]) => ({
+      label, value, goal, met: value >= goal, pct: Math.min(100, Math.round((value / goal) * 100)) + '%', color: 'var(--tint)'
+    }));
+    const routines = [
+      { name: 'Push day', detail: 'Bench press, Overhead press, Incline DB press, +3' },
+      { name: 'Pull day', detail: 'Deadlift, Pull-up, Barbell row, +2' },
+      { name: 'Legs', detail: 'Back squat, Romanian deadlift, Leg press, +3' }
+    ].map((r, i) => ({ ...r, border: i === 0 ? 'none' : '1px solid var(--sep)' }));
+    const history = [
+      { name: 'Pull day', detail: 'Wed 21 Oct · Deadlift, Pull-up, Barbell row', time: '1h 03m', vol: '9,275 lb', pr: true, prText: '1 record' },
+      { name: 'Push day', detail: 'Mon 19 Oct · Bench press, Overhead press', time: '57 min', vol: '11,980 lb', pr: false },
+      { name: 'Legs', detail: 'Fri 16 Oct · Back squat, Romanian deadlift', time: '52 min', vol: '14,438 lb', pr: false }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, yes: true, week, regions, routines, history };
+  }
+}
+</script>
+</body>
+</html>

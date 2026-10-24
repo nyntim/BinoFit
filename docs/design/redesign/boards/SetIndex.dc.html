@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="gap: 12px">
+    <h1 class="h-large">Settings</h1>
+    <a href="SetAccount.dc.html" class="card pad-s hstack g12" style="text-decoration: none; color: var(--text)">
+      <img src="/_blob/2e9acac9534fc515aaef20e5d777951d" alt="" style="width: 48px; height: 48px">
+      <span class="stack grow g4"><span class="t-title">sam@example.com</span><span class="t-cap hstack g6"><span class="dot" style="width: 7px; height: 7px; background: var(--success)"></span>Backed up 2 min ago</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </a>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+      <div class="stack g6">
+        <span class="sec">{{g.name}}</span>
+        <div class="list">
+          <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3">
+            <a href="{{r.href}}" class="row tap" style="text-decoration: none; color: var(--text); min-height: 50px">
+              <span class="ico" style="background: {{r.bg}}; color: {{r.fg}}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg></span>
+              <span class="grow t-body">{{r.label}}</span>
+              <span class="t-cap">{{r.detail}}</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div class="tabwrap"><dc-import name="CmpTabBar" active="more" workout="{{no}}" dark="{{dark}}" accent="{{accent}}" hint-size="342px,128px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const t = { bg: 'var(--tint-soft)', fg: 'var(--tint)' };
+    const e = { bg: 'var(--ember-soft)', fg: 'var(--ember)' };
+    const n = { bg: 'var(--card2)', fg: 'var(--icon)' };
+    const groups = [
+      { name: 'You', rows: [
+        { label: 'Profile', detail: '172 lb', href: 'SetProfile.dc.html', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0', ...t },
+        { label: 'Nutrition', detail: '2,250 cal', href: 'SetNutrition.dc.html', icon: 'M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5', ...t },
+        { label: 'Training', detail: 'RIR', href: 'SetTraining.dc.html', icon: 'M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11', ...t }
+      ] },
+      { name: 'App', rows: [
+        { label: 'Preferences', detail: 'Imperial', href: 'SetPreferences.dc.html', icon: 'M4 7h9M17 7h3M4 17h3M11 17h9', ...n },
+        { label: 'Notifications', detail: '2 reminders', href: 'SetNotifications.dc.html', icon: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4', ...e },
+        { label: 'Integrations', detail: 'Health, Spotify', href: 'SetIntegrations.dc.html', icon: 'M9 7H6a4 4 0 0 0 0 8h3M15 7h3a4 4 0 0 1 0 8h-3M8 11h8', ...n }
+      ] },
+      { name: 'Account and data', rows: [
+        { label: 'Account', detail: '', href: 'SetAccount.dc.html', icon: 'M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z', ...n },
+        { label: 'Data and privacy', detail: '', href: 'SetData.dc.html', icon: 'M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3', ...n }
+      ] },
+      { name: 'Help', rows: [
+        { label: 'Support', detail: '', href: 'SetSupport.dc.html', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17h.01', ...n },
+        { label: 'About', detail: '', href: 'SetAbout.dc.html', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01', ...n }
+      ] }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, no: false, groups };
+  }
+}
+</script>
+</body>
+</html>

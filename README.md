@@ -87,7 +87,7 @@ hooks/        Custom React hooks
 context/      React context providers
 constants/    Theme palette and fonts
 supabase/     Database schema and row-level security
-docs/         Phase plans and approved design mockups
+docs/         Architecture notes, decision records (ADRs) and design references
 ```
 
 ## Tech stack
@@ -102,7 +102,8 @@ docs/         Phase plans and approved design mockups
 
 - `CLAUDE.md` and `AGENTS.md`: architecture notes and conventions
 - `PRODUCT.md`, `DESIGN.md`: product voice and design system
-- `docs/`: per-phase plans (foundation through progress)
+- `docs/architecture/`: how each area works today
+- `docs/decisions/`: decision records explaining why
 
 ## License
 

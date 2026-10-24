@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review selected foods</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="NutSearchMulti.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Search</a>
+      <span class="nav-title">Review</span>
+      <button type="button" class="link end" style="font-weight: 400; color: var(--danger)">Clear all</button>
+    </div>
+    <div class="scroll" style="padding-bottom: 150px">
+      <div class="stack g4">
+        <h1 class="h-xl" style="font-size: 26px">3 foods for Meal 2</h1>
+        <span class="t-label muted">Fri 23 Oct · Eaten</span>
+      </div>
+
+      <sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+        <div class="card pad-s stack g10">
+          <div class="hstack g10">
+            <span class="stack grow g4"><span class="t-body semi ellipsis">{{it.name}}</span><span class="t-cap num">{{it.macros}}</span></span>
+            <span class="rnum" style="font-size: 20px">{{it.cal}}</span>
+            <button type="button" aria-label="Remove {{it.name}}" class="icon-btn clear" style="width: 36px; height: 36px; margin-right: -6px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+            </button>
+          </div>
+          <div class="hstack g8">
+            <div class="stepper"><button type="button" aria-label="Less">−</button><span class="num">{{it.amount}}</span><button type="button" aria-label="More">+</button></div>
+            <button type="button" class="btn btn-sm btn-secondary grow" style="justify-content: space-between; color: var(--text)">{{it.unit}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 34px; background: var(--card); border-top: 1px solid var(--sep)" class="stack g10">
+      <div class="between"><span class="t-label muted">Total</span><span class="num"><span class="rnum" style="font-size: 20px">540</span> <span class="t-cap">cal · P 60 · C 56 · F 9</span></span></div>
+      <a href="NutDashboard.dc.html" class="btn btn-lg btn-primary">Log 3 foods</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const items = [
+      { name: 'Chicken breast, grilled', cal: '280', amount: '6', unit: 'oz', macros: 'P 52 · C 0 · F 6' },
+      { name: 'Rice, white, cooked', cal: '205', amount: '1', unit: 'cup (158 g)', macros: 'P 4 · C 45 · F 0' },
+      { name: 'Broccoli, steamed', cal: '55', amount: '1', unit: 'cup (156 g)', macros: 'P 4 · C 11 · F 1' }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, items };
+  }
+}
+</script>
+</body>
+</html>

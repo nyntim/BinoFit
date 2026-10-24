@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Account</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Account</h1>
+
+    <div class="card pad stack g12">
+      <div class="hstack g12">
+        <span class="ico" style="width: 44px; height: 44px; border-radius: 22px; font: 800 18px var(--round)">S</span>
+        <span class="stack grow g4"><span class="t-title">sam@example.com</span><span class="t-cap">Signed in with email</span></span>
+      </div>
+      <div class="nested hstack g10" style="padding: 10px 12px">
+        <span class="dot" style="width: 8px; height: 8px; background: var(--success)"></span>
+        <span class="grow t-label">Backed up 2 min ago</span>
+        <button type="button" class="btn btn-sm btn-ghost">Sync now</button>
+      </div>
+    </div>
+
+    <div class="list">
+      <button type="button" class="row tap" style="width: 100%; border: none; background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left"><span class="grow">Change password</span></button>
+      <button type="button" class="row tap" style="width: 100%; border: none; border-top: 1px solid var(--sep); background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left"><span class="grow">Sign out</span></button>
+    </div>
+    <span class="t-cap" style="padding: 0 4px; margin-top: -6px">Signing out removes your log from this phone. Your backup stays in your account.</span>
+
+    <div class="stack g6" style="margin-top: 8px">
+      <span class="sec">Delete</span>
+      <div class="list">
+        <button type="button" class="row" style="width: 100%; border: none; background: transparent; color: var(--danger); font: 600 15px var(--sans); text-align: left"><span class="grow">Delete account and backup</span></button>
+        <button type="button" class="row" style="width: 100%; border: none; border-top: 1px solid var(--sep); background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left"><span class="grow">Remove data from this phone only</span></button>
+      </div>
+      <span class="t-cap" style="padding: 0 4px">Deleting is permanent. Export your data first from Data and privacy.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

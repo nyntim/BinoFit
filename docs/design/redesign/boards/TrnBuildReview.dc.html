@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exercise builder, review</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="TrnLibrary.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="nav-title t-label muted" style="font-size: 13px">Review</span>
+      <span></span>
+    </div>
+    <div style="height: 4px; margin: 0 16px; border-radius: 2px; background: var(--tint)" role="progressbar" aria-valuenow="7" aria-valuemin="1" aria-valuemax="7" aria-label="Step 7 of 7"></div>
+
+    <div class="stack g14" style="padding: 22px 16px 0">
+      <div class="card stack g12" style="padding: 20px">
+        <div class="hstack g12">
+          <span class="ico" style="width: 52px; height: 52px; border-radius: 16px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V4h6v16M10 8h8v12M4 12h6M14 12h4"></path></svg></span>
+          <span class="stack grow g4"><span class="h-xl" style="font-size: 22px">Chest Press</span><span class="t-label muted">Hammer Strength</span></span>
+          <span class="tag tinted">Machine</span>
+        </div>
+        <div class="hstack g6" style="flex-wrap: wrap"><span class="chip small on">Chest</span><span class="chip small">Triceps</span><span class="chip small">Shoulders</span></div>
+      </div>
+
+      <div class="list">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+          <a href="TrnBuildEquip.dc.html" class="row tap" style="text-decoration: none; color: var(--text); min-height: 54px">
+            <span class="t-body muted" style="width: 112px">{{r.k}}</span><span class="grow t-body semi">{{r.v}}</span>
+          </a>
+        </sc-for>
+      </div>
+      <span class="t-cap" style="padding: 0 4px">Tap any line to change it. Setup notes show under the name in every workout.</span>
+    </div>
+
+    <div style="position: absolute; left: 16px; right: 16px; bottom: 34px">
+      <a href="TrnLibrary.dc.html" class="btn btn-lg btn-primary">Save exercise</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const rows = [
+      { k: 'Equipment', v: 'Machine' },
+      { k: 'Brand', v: 'Hammer Strength' },
+      { k: 'Loading', v: 'Plate-loaded, 25 lb sled' },
+      { k: 'Log as', v: 'Weight × reps' },
+      { k: 'Setup', v: 'Seat 4, back pad 2' }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, rows };
+  }
+}
+</script>
+</body>
+</html>

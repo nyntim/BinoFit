@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Select multiple foods</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="NutSearch.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="t-title nav-title">3 selected</span>
+      <span></span>
+    </div>
+    <div class="stack g12" style="padding: 4px 16px 0">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <span class="grow" style="color: var(--text)">chicken</span>
+      </div>
+    </div>
+    <div style="padding: 14px 16px 0">
+      <div class="list">
+        <sc-for list="{{foods}}" as="f" hint-placeholder-count="7">
+          <button type="button" role="checkbox" aria-checked="{{f.checked}}" class="row" style="width: 100%; border: none; border-top: {{f.border}}; background: {{f.bg}}; text-align: left; color: var(--text); font-family: var(--sans); min-height: 60px">
+            <span class="check {{f.on}}">
+              <sc-if value="{{f.selected}}" hint-placeholder-val="{{false}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if>
+            </span>
+            <span class="stack grow g4"><span class="t-body ellipsis">{{f.name}}</span><span class="t-cap">{{f.serving}}</span></span>
+            <span class="semi num">{{f.cal}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="position: absolute; left: 16px; right: 16px; bottom: 34px; padding: 10px 10px 10px 18px; border-radius: 20px; background: var(--text); color: var(--bg); display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(14,14,16,0.25)">
+      <span class="stack grow"><span class="semi" style="font-size: 15px">3 foods</span><span class="num" style="font-size: 12px; opacity: 0.75">540 cal · P 60 · C 56 · F 9</span></span>
+      <a href="NutBatch.dc.html" class="btn" style="background: var(--bg); color: var(--text)">Review</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const foods = [
+      { name: 'Chicken breast, grilled', serving: '6 oz (170 g)', cal: '280', s: 1 },
+      { name: 'Chicken thigh, roasted, skinless', serving: '1 thigh (52 g)', cal: '109', s: 0 },
+      { name: 'Rice, white, cooked', serving: '1 cup (158 g)', cal: '205', s: 1 },
+      { name: 'Chicken noodle soup', serving: '1 cup (241 g)', cal: '62', s: 0 },
+      { name: 'Chicken caesar wrap', serving: '1 wrap (250 g)', cal: '590', s: 0 },
+      { name: 'Broccoli, steamed', serving: '1 cup (156 g)', cal: '55', s: 1 },
+      { name: 'Teriyaki sauce', serving: '2 tbsp (36 g)', cal: '30', s: 0 }
+    ].map((f, i) => {
+      const s = f.s === 1;
+      return { ...f, selected: s, on: s ? 'on' : '', checked: s ? 'true' : 'false', bg: s ? 'var(--tint-soft)' : 'transparent', border: i === 0 ? 'none' : '1px solid var(--sep)' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, foods };
+  }
+}
+</script>
+</body>
+</html>

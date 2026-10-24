@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tab bar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}</style>
+</helmet>
+<div class="th {{theme}}" style="position: relative; width: 342px; height: 128px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px">
+  <sc-if value="{{workout}}" hint-placeholder-val="{{false}}">
+    <a href="TrnSession.dc.html" aria-label="Resume Push day, 42 minutes, rest 1:24 left" style="display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 8px 0 16px; border-radius: 27px; background: var(--nav); border: 1px solid var(--nav-border); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 24px rgba(14,14,16,0.10); color: var(--text); text-decoration: none">
+      <span style="width: 10px; height: 10px; border-radius: 5px; background: var(--tint)"></span>
+      <span class="stack grow"><span class="semi" style="font-size: 15px">Push day</span><span class="t-cap num">42:10 · Rest 1:24</span></span>
+      <span style="width: 40px; height: 40px; border-radius: 20px; background: var(--tint); color: var(--on-tint); display: flex; align-items: center; justify-content: center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
+      </span>
+    </a>
+  </sc-if>
+  <nav aria-label="Tabs" style="height: 64px; padding: 8px; border-radius: 32px; background: var(--nav); border: 1px solid var(--nav-border); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 28px rgba(14,14,16,0.12); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+    <a href="NutDashboard.dc.html" aria-label="Nutrition" aria-current="{{n.cur}}" style="border-radius: 24px; background: {{n.bg}}; color: {{n.fg}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5"></path></svg>
+    </a>
+    <a href="TrnTab.dc.html" aria-label="Training" aria-current="{{t.cur}}" style="border-radius: 24px; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg>
+    </a>
+    <a href="PrgMain.dc.html" aria-label="Progress" aria-current="{{p.cur}}" style="border-radius: 24px; background: {{p.bg}}; color: {{p.fg}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"></path></svg>
+    </a>
+    <a href="SetIndex.dc.html" aria-label="More" aria-current="{{m.cur}}" style="border-radius: 24px; background: {{m.bg}}; color: {{m.fg}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["nutrition","training","progress","more"],"default":"nutrition"},"workout":{"editor":"boolean","default":true},"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":342,"height":128}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const act = this.props.active || 'nutrition';
+    const t = (k) => ({ bg: act === k ? 'var(--tint-soft)' : 'transparent', fg: act === k ? 'var(--tint)' : 'var(--icon)', cur: act === k ? 'page' : 'false' });
+    return {
+      theme: (this.props.dark ? 'dark ' : '') + (this.props.accent || 'Indigo').toLowerCase(),
+      workout: this.props.workout ?? true,
+      n: t('nutrition'), t: t('training'), p: t('progress'), m: t('more')
+    };
+  }
+}
+</script>
+</body>
+</html>

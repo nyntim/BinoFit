@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nutrition at the largest text size</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 62px 16px 0; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+    <h1 style="margin: 0; font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 52px; font-weight: 800; line-height: 1.05">Today</h1>
+    <button type="button" aria-label="Add food" style="width: 56px; height: 56px; flex-shrink: 0; border: none; border-radius: 28px; background: {{c.tint}}; color: {{c.onTint}}; display: flex; align-items: center; justify-content: center">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+    </button>
+  </div>
+  <span style="margin-top: -8px; font-size: 26px; font-weight: 500; color: {{c.icon}}">Thu 23 Oct</span>
+
+  <div role="img" aria-label="1,640 of 2,200 calories eaten, 560 left" style="display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums">1,640</span>
+    <span style="font-size: 28px; color: {{c.icon}}; line-height: 1.2">of 2,200 cal · 560 left</span>
+    <div style="height: 14px; border-radius: 7px; background: {{c.track}}; overflow: hidden"><div style="width: 74.5%; height: 14px; border-radius: 7px; background: {{c.tint}}"></div></div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 28px; font-weight: 600; line-height: 1.2">Protein</span>
+      <span style="font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums">112 <span style="color: {{c.icon}}">of 160 g</span></span>
+      <div style="height: 12px; border-radius: 6px; background: {{c.track}}; overflow: hidden"><div style="width: 70%; height: 12px; border-radius: 6px; background: #E74C3C"></div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 28px; font-weight: 600; line-height: 1.2">Carbs</span>
+      <span style="font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums">180 <span style="color: {{c.icon}}">of 240 g</span></span>
+      <div style="height: 12px; border-radius: 6px; background: {{c.track}}; overflow: hidden"><div style="width: 75%; height: 12px; border-radius: 6px; background: #F39C12"></div></div>
+    </div>
+  </div>
+
+  <nav aria-label="Tabs" style="position: absolute; left: 24px; right: 24px; bottom: 28px; height: 64px; box-sizing: border-box; padding: 8px; border-radius: 32px; background: {{c.navOpaque}}; border: 1px solid {{c.navBorder}}; box-shadow: 0 8px 28px rgba(14,14,16,0.12); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+    <button type="button" aria-label="Nutrition" aria-current="page" style="border: none; border-radius: 24px; background: {{c.tintSoft}}; color: {{c.tint}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5"></path></svg>
+    </button>
+    <button type="button" aria-label="Training" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg>
+    </button>
+    <button type="button" aria-label="Progress" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"></path></svg>
+    </button>
+    <button type="button" aria-label="Settings" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+    </button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', text: '#EDEDF0', icon: '#9A9AA3', track: 'rgba(237,237,240,0.14)', shadow: 'none', navOpaque: '#242428', navBorder: 'rgba(237,237,240,0.12)', tint: a[1], tintSoft: a[3], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', text: '#1A1A22', icon: '#5E5E6E', track: '#E4DFD4', shadow: '0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)', navOpaque: '#FBF9F5', navBorder: 'rgba(26,26,34,0.10)', tint: a[0], tintSoft: a[2], onTint: '#FBF9F5' };
+    return { c };
+  }
+}
+</script>
+</body>
+</html>

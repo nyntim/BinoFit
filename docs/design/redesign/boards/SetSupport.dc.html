@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Support</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Support</h1>
+    <p class="t-body muted" style="margin: -4px 0 0">Tell us what's working and what isn't.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <a href="SetFeedback.dc.html" class="card stack g12" style="padding: 18px 16px; text-decoration: none; color: var(--text); min-height: 132px">
+        <span class="ico" style="width: 40px; height: 40px; border-radius: 12px; background: var(--danger-soft); color: var(--danger)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01"></path></svg></span>
+        <span class="stack g4"><span class="t-title">Report a problem</span><span class="t-cap">Something broke or looks wrong</span></span>
+      </a>
+      <a href="SetFeedback.dc.html" class="card stack g12" style="padding: 18px 16px; text-decoration: none; color: var(--text); min-height: 132px">
+        <span class="ico" style="width: 40px; height: 40px; border-radius: 12px; background: var(--ember-soft); color: var(--ember)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg></span>
+        <span class="stack g4"><span class="t-title">Send feedback</span><span class="t-cap">Ideas, wishes, what you love</span></span>
+      </a>
+    </div>
+
+    <div class="card pad stack g10">
+      <span class="t-label muted semi">What to include</span>
+      <sc-for list="{{tips}}" as="t" hint-placeholder-count="4">
+        <div class="hstack g10" style="align-items: flex-start"><span class="dot" style="width: 6px; height: 6px; margin-top: 8px; background: var(--tint)"></span><span class="t-body">{{t}}</span></div>
+      </sc-for>
+      <span class="t-cap">Share only what you're comfortable sharing.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const tips = ['What you were doing when it happened', 'What you expected to see', 'The food or exercise name, if it matters', 'A screenshot, if you can'];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, tips };
+  }
+}
+</script>
+</body>
+</html>

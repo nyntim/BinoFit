@@ -337,12 +337,12 @@ Mirrors the Postgres schema above with an additional `synced BOOLEAN DEFAULT FAL
 
 - **Clean, modern mobile aesthetic.** Generous whitespace, clear typography, restrained color palette. No visual clutter.
 - **Speed over friction.** Logging a meal should never take more than 3 taps + search. No unnecessary confirmation dialogs.
-- **Progress-forward UI.** The dashboard should feel motivating and rewarding, not shaming. Colors and copy reflect encouragement.
+- **Calm but warm.** Acknowledge effort and progress without judging food or the body, and never pressure. See `PRODUCT.md` and ADR 0015.
 - **No dark patterns.** No forced upgrade prompts, no ads, no deceptive UI. Account prompts are soft and skippable for a first session.
 - **Platform-appropriate feel.** The app should feel at home on iOS, Android, and web without looking like a lowest-common-denominator cross-platform app.
 - **Accessible.** Text sizing respects system accessibility settings. Touch targets meet platform minimums. Color choices maintain contrast ratios.
 
-A Frontend PRD defines individual screens, component inventory, and the design system in detail.
+`PRODUCT.md` and `DESIGN.md` own product principles and the design system; where they differ from this section, they win.
 
 ---
 
