@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Progress, 30 days</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 62px 16px 0; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <h1 style="margin: 0; font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1">Progress</h1>
+
+  <div role="radiogroup" aria-label="Range" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: {{c.card2}}">
+    <sc-for list="{{ranges}}" as="r" hint-placeholder-count="4">
+      <button type="button" role="radio" aria-checked="{{r.checked}}" style="height: 36px; border: none; border-radius: 10px; background: {{r.bg}}; color: {{r.fg}}; box-shadow: {{r.shadow}}; font: 600 13px -apple-system, system-ui, sans-serif">{{r.label}}</button>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 13px; font-weight: 600; color: {{c.icon}}">Calories, daily average</span>
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums">2,080</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-top: 2px">
+        <span style="font-size: 12px; color: {{c.icon}}">Mon 20 Oct</span>
+        <span style="font-size: 15px; font-weight: 700; color: {{c.tint}}; font-variant-numeric: tabular-nums">2,310</span>
+      </div>
+    </div>
+    <div role="img" aria-label="Daily calories for the last 30 days. Average 2,080 against a 2,200 goal." style="position: relative; height: 120px; display: flex; align-items: flex-end; gap: 3px">
+      <div style="position: absolute; left: 0; right: 0; bottom: 88px; border-top: 1.5px dashed {{c.goal}}"></div>
+      <span style="position: absolute; right: 0; bottom: 92px; font-size: 11px; font-weight: 500; color: {{c.icon}}; background: {{c.card}}; padding-left: 4px">Goal 2,200</span>
+      <sc-for list="{{bars}}" as="b" hint-placeholder-count="30">
+        <div style="flex: 1 1 0; height: {{b.h}}; border-radius: 3px 3px 1px 1px; background: {{b.color}}; opacity: {{b.opacity}}"></div>
+      </sc-for>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 12px; color: {{c.icon}}"><span>24 Sep</span><span>Today</span></div>
+    <span style="font-size: 12px; color: {{c.icon}}">26 logged days, today excluded</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 13px; font-weight: 600; color: {{c.icon}}">Weight trend</span>
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums">172.4 <span style="font-size: 15px; font-weight: 600; color: {{c.icon}}">lb</span></span>
+      </div>
+      <span style="margin-top: 4px; padding: 5px 10px; border-radius: 999px; background: {{c.card2}}; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">−2.1 lb in 30 days</span>
+    </div>
+    <svg role="img" aria-label="Weight entries and a smoothed trend from 174.5 to 172.4 pounds" width="318" height="88" viewBox="0 0 318 88">
+      <sc-for list="{{dots}}" as="d" hint-placeholder-count="20">
+        <circle cx="{{d.x}}" cy="{{d.y}}" r="3" fill="{{d.fill}}" stroke="{{c.icon}}" stroke-width="1.5"></circle>
+      </sc-for>
+      <path d="{{trend}}" fill="none" stroke="{{c.tint}}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 22px; background: {{c.card}}; box-shadow: {{c.shadow}}">
+    <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1">
+      <span style="font-size: 13px; font-weight: 600; color: {{c.icon}}">Training</span>
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">3.5 sessions a week</span>
+    </div>
+    <div aria-hidden="true" style="display: flex; align-items: flex-end; gap: 4px; height: 36px">
+      <div style="width: 10px; height: 27px; border-radius: 3px; background: {{c.bar}}"></div>
+      <div style="width: 10px; height: 36px; border-radius: 3px; background: {{c.bar}}"></div>
+      <div style="width: 10px; height: 27px; border-radius: 3px; background: {{c.bar}}"></div>
+      <div style="width: 10px; height: 27px; border-radius: 3px; background: {{c.tint}}"></div>
+    </div>
+  </div>
+
+  <nav aria-label="Tabs" style="position: absolute; left: 24px; right: 24px; bottom: 28px; height: 64px; box-sizing: border-box; padding: 8px; border-radius: 32px; background: {{c.nav}}; border: 1px solid {{c.navBorder}}; backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 28px rgba(14,14,16,0.12); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+    <button type="button" aria-label="Nutrition" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5"></path></svg>
+    </button>
+    <button type="button" aria-label="Training" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg>
+    </button>
+    <button type="button" aria-label="Progress" aria-current="page" style="border: none; border-radius: 24px; background: {{c.tintSoft}}; color: {{c.tint}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"></path></svg>
+    </button>
+    <button type="button" aria-label="Settings" style="border: none; border-radius: 24px; background: transparent; color: {{c.icon}}; display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg>
+    </button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', card2: '#242428', text: '#EDEDF0', icon: '#9A9AA3', bar: '#5A5A62', goal: 'rgba(237,237,240,0.45)', shadow: 'none', nav: 'rgba(36,36,40,0.72)', navBorder: 'rgba(237,237,240,0.12)', raised: '#3A3A40', tint: a[1], tintSoft: a[3], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', card2: '#EDE8DE', text: '#1A1A22', icon: '#5E5E6E', bar: '#A9A4A0', goal: 'rgba(26,26,34,0.40)', shadow: '0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)', nav: 'rgba(251,249,245,0.72)', navBorder: 'rgba(26,26,34,0.08)', raised: '#FBF9F5', tint: a[0], tintSoft: a[2], onTint: '#FBF9F5' };
+    const ranges = ['7D', '30D', '90D', 'All'].map((label) => {
+      const on = label === '30D';
+      return { label, checked: on ? 'true' : 'false', bg: on ? c.raised : 'transparent', fg: on ? c.text : c.icon, shadow: on && !dark ? '0 1px 3px rgba(26,26,34,0.12)' : 'none' };
+    });
+    const kcal = [2140, 1980, 2260, 0, 2050, 2390, 1870, 2120, 2210, 1950, 0, 2300, 2080, 1990, 2170, 2240, 1900, 2060, 0, 2150, 2010, 2310, 2280, 1940, 2110, 2200, 2310, 2020, 1890, 1640];
+    const bars = kcal.map((v, i) => ({
+      h: (v === 0 ? 3 : Math.round((v / 3000) * 120)) + 'px',
+      color: i === 26 ? c.tint : c.bar,
+      opacity: v === 0 ? 0.35 : (i === 29 ? 0.5 : 1)
+    }));
+    const w = [174.5, 174.9, 174.2, 174.0, 174.4, 173.8, 173.9, 173.5, 173.7, 173.2, 173.4, 173.0, 173.1, 172.8, 173.0, 172.6, 172.9, 172.5, 172.6, 172.4];
+    const sx = (i) => +(6 + i * (306 / (w.length - 1))).toFixed(1);
+    const sy = (v) => +(8 + ((175.2 - v) / 3.2) * 72).toFixed(1);
+    const dots = w.map((v, i) => ({ x: sx(i), y: sy(v), fill: i % 4 === 3 ? c.card : c.icon }));
+    const avg = w.map((_, i) => { const s = w.slice(Math.max(0, i - 4), i + 1); return s.reduce((p, q) => p + q, 0) / s.length; });
+    const trend = avg.map((v, i) => (i === 0 ? 'M' : 'L') + sx(i) + ' ' + sy(v)).join(' ');
+    return { c, ranges, bars, dots, trend };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exercise builder, equipment</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="TrnLibrary.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="nav-title t-label muted" style="font-size: 13px">Step 1 of 7</span>
+      <span></span>
+    </div>
+    <div style="height: 4px; margin: 0 16px; border-radius: 2px; background: var(--track)" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="7" aria-label="Step 1 of 7"><div style="width: 14%; height: 4px; border-radius: 2px; background: var(--tint)"></div></div>
+
+    <div class="stack g18" style="padding: 22px 16px 0">
+      <div class="stack g6">
+        <h1 class="h-xl">What equipment is it?</h1>
+        <span class="t-body muted">This decides the next questions, like brand and how it loads.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px" role="radiogroup" aria-label="Equipment">
+        <sc-for list="{{opts}}" as="o" hint-placeholder-count="7">
+          <button type="button" role="radio" aria-checked="{{o.checked}}" style="height: 96px; border-radius: 18px; border: {{o.border}}; background: {{o.bg}}; color: var(--text); display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 14px 16px; font: 600 15px var(--sans); box-shadow: var(--shadow)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{o.iconColor}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{o.icon}}"></path></svg>
+            {{o.label}}
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="hstack g10" style="position: absolute; left: 16px; right: 16px; bottom: 34px">
+      <a href="TrnBuildMuscles.dc.html" class="btn btn-lg btn-primary" style="flex: 1">Next</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const raw = [
+      ['Machine', 'M4 20V4h6v16M10 8h8v12M4 12h6M14 12h4'],
+      ['Cable', 'M12 2v10M8 12h8l-1 4H9zM12 16v6'],
+      ['Barbell', 'M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8'],
+      ['Dumbbell', 'M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11'],
+      ['Bodyweight', 'M12 5a2 2 0 1 0 0-.01M8 22l2-8-3-3 5-2 5 2-3 3 2 8'],
+      ['Cardio machine', 'M3 18h18M6 18l3-9h6l2 9M9 9V5h4'],
+      ['Other', 'M5 12h.01M12 12h.01M19 12h.01']
+    ];
+    const opts = raw.map(([label, icon]) => {
+      const on = label === 'Machine';
+      return { label, icon, checked: on ? 'true' : 'false', bg: on ? 'var(--tint-soft)' : 'var(--card)', border: on ? '2px solid var(--tint)' : '2px solid transparent', iconColor: on ? 'var(--tint)' : 'var(--icon)' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, opts };
+  }
+}
+</script>
+</body>
+</html>

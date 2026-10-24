@@ -1,6 +1,6 @@
 # Progress tab
 
-Plan: `docs/phase-5-progress.md` (builds on Training C1, C2, C4 for tombstones, units and the weight log). Approved mockups: `docs/design/progress/` (build UI to match them; its README maps screens to chunks). Components live in `components/progress/`.
+Decisions: ADRs 0009, 0012 and 0013 in `docs/decisions/`. Historical mockups: `docs/design/progress/`. Components live in `components/progress/`.
 
 ## Nutrition data
 

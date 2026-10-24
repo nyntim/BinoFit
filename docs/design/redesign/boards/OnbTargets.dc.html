@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily targets</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="stack" style="position: absolute; inset: 0; padding: 54px 20px 34px; gap: 16px">
+    <div class="between">
+      <a href="OnbStats.dc.html" class="back" style="text-decoration: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back
+      </a>
+      <div role="progressbar" aria-label="Step 3 of 3" aria-valuenow="3" aria-valuemin="1" aria-valuemax="3" class="hstack g4" style="width: 120px">
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--tint)"></span>
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--tint)"></span>
+        <span style="flex: 1; height: 4px; border-radius: 2px; background: var(--tint)"></span>
+      </div>
+      <span style="width: 64px"></span>
+    </div>
+
+    <div class="stack g6">
+      <h1 class="h-xl">Your daily targets</h1>
+      <p class="t-body muted" style="margin: 0">A starting point from what you told us. Adjust anything.</p>
+    </div>
+
+    <div class="card pad stack g10">
+      <div class="between">
+        <label for="kc" class="lbl">Calories</label>
+        <span class="tag tinted">Suggested</span>
+      </div>
+      <div class="hstack g8"><input id="kc" class="field big" value="2,250" style="border: none; background: transparent; padding: 0; height: 44px; font-size: 40px; width: 150px"><span class="muted t-body">cal a day</span></div>
+      <span class="t-cap">For 172 lb, 5 ft 10 in and moderate activity, to maintain weight.</span>
+    </div>
+
+    <div class="card stack" style="padding: 6px 0">
+      <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+        <div class="row" style="padding: 8px 14px 8px 18px; border-top: {{m.border}}">
+          <span class="dot" style="background: {{m.color}}"></span>
+          <span class="stack grow g4"><span class="t-body semi">{{m.label}}</span><span class="t-cap num">{{m.share}} of calories</span></span>
+          <label class="hstack g6"><span style="position: absolute; left: -9999px">{{m.label}} grams</span><input class="field mini num" value="{{m.grams}}"><span class="t-label muted" style="width: 10px">g</span></label>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="stack g8">
+      <div role="img" aria-label="Protein 30 percent, carbs 45 percent, fat 25 percent" style="display: flex; gap: 3px; height: 10px">
+        <div style="flex: 30 1 0; border-radius: 4px; background: var(--protein)"></div>
+        <div style="flex: 45 1 0; border-radius: 4px; background: var(--carbs)"></div>
+        <div style="flex: 25 1 0; border-radius: 4px; background: var(--fat)"></div>
+      </div>
+      <span class="t-cap">Macros add up to 2,250 cal. You can change targets any time in Settings.</span>
+    </div>
+
+    <div class="spacer"></div>
+    <a href="OnbComplete.dc.html" class="btn btn-lg btn-primary">Save targets</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const macros = [
+      { label: 'Protein', grams: '169', share: '30%', color: 'var(--protein)' },
+      { label: 'Carbs', grams: '253', share: '45%', color: 'var(--carbs)' },
+      { label: 'Fat', grams: '63', share: '25%', color: 'var(--fat)' }
+    ].map((m, i) => ({ ...m, border: i === 0 ? 'none' : '1px solid var(--sep)' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, macros };
+  }
+}
+</script>
+</body>
+</html>

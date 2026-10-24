@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weekly volume targets</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1000px">
+  <div class="scroll" style="padding-top: 54px; padding-bottom: 120px">
+    <div class="navbar">
+      <a href="SetTraining.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Training</a>
+      <span></span><span></span>
+    </div>
+    <div class="stack g6">
+      <h1 class="h-large" style="font-size: 30px">Weekly volume targets</h1>
+      <span class="t-body muted">Working sets per muscle each week. Optional: enter 1 to 40, or leave blank.</span>
+    </div>
+    <button type="button" class="btn btn-soft" style="align-self: flex-start">Use recommended</button>
+
+    <div class="list">
+      <div class="hstack g12 t-cap" style="padding: 10px 16px 4px"><span class="grow">Region</span><span style="width: 70px; text-align: right">This week</span><span style="width: 76px; text-align: right">Target</span></div>
+      <sc-for list="{{regions}}" as="r" hint-placeholder-count="10">
+        <div class="stack" style="padding: 4px 16px; border-top: 1px solid var(--sep)">
+          <div class="hstack g12" style="min-height: 48px">
+            <label for="{{r.id}}" class="grow t-body">{{r.label}}</label>
+            <span class="num t-label muted" style="width: 70px; text-align: right">{{r.week}}</span>
+            <input id="{{r.id}}" class="field mini num {{r.cls}}" value="{{r.target}}" placeholder="–">
+          </div>
+          <sc-if value="{{r.error}}" hint-placeholder-val="{{false}}"><span class="err" style="padding-bottom: 8px">Enter 1 to 40 sets.</span></sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 34px; background: var(--card); border-top: 1px solid var(--sep); display: flex; gap: 10px">
+    <a href="SetTraining.dc.html" class="btn btn-lg btn-secondary" style="width: 120px">Cancel</a>
+    <button type="button" class="btn btn-lg btn-primary dim" aria-disabled="true" style="flex: 1; width: auto">Save</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const regions = [['Chest', 12, '14'], ['Shoulders', 9, '10'], ['Triceps', 8, '8'], ['Biceps', 9, '8'], ['Lats', 6, '12'], ['Traps', 3, ''], ['Quads', 10, '10'], ['Hamstrings', 4, '8'], ['Glutes', 7, '8'], ['Calves', 0, '45']].map(([label, week, target], i) => {
+      const error = label === 'Calves';
+      return { id: 'r' + i, label, week, target, error, cls: error ? 'error' : '' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, regions };
+  }
+}
+</script>
+</body>
+</html>

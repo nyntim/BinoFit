@@ -19,8 +19,8 @@ Needs approval: yes | no — <reason>
 - `CLAUDE.md`: rules for every change, overview and storage layers
 - `docs/architecture/`: the per-area doc for each area the plan touches (listed in the Where to look table in `CLAUDE.md`). List any doc that needs updating in the plan's **Files**.
 - `PRD_v2.md`: feature requirements (section 4) and roadmap (section 9)
-- `PRODUCT.md` and `DESIGN.md`: product voice and design tokens
-- `docs/phase-*.md`: earlier phase specs
+- `PRODUCT.md` and `DESIGN.md`: product principles, design invariants and the current baseline
+- `docs/decisions/`: decision records; check the index for decisions the plan touches, and propose a new ADR when the plan makes or reverses one
 - `lib/types.ts`, `lib/database-connection.ts` (SQLite schema), `supabase/schema.sql`: the data model
 - The existing code you plan to touch
 

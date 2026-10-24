@@ -1,6 +1,6 @@
 # Competitor references
 
-Screenshots of other training apps, kept as inspiration for BinoFit. These are for reference only. Build to the approved mockups in `docs/design/` and the plan in `docs/phase-4-training.md`.
+Screenshots of other training apps, kept as inspiration for BinoFit. These are inspiration only; see `PRODUCT.md` and `DESIGN.md` for direction and `docs/decisions/0007-exercise-library-and-builder.md` for the builder decision.
 
 ## Create Exercise (custom exercise builder)
 

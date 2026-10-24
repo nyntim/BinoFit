@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nutrition settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 1000px">
+  <div class="scroll" style="padding-top: 54px; padding-bottom: 120px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Nutrition</h1>
+
+    <div class="stack g6">
+      <span class="sec">Daily goals</span>
+      <div class="card pad stack g14">
+        <div class="stack g6"><label for="kc" class="lbl">Calories</label><div class="hstack g8"><input id="kc" class="field big" value="2,250" style="width: 150px"><span class="muted">cal</span></div></div>
+        <div class="sep"></div>
+        <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+          <div class="stack g6">
+            <div class="hstack g12"><span class="dot" style="background: {{m.color}}"></span><label for="{{m.id}}" class="grow t-body">{{m.label}}</label><span class="t-cap num">{{m.share}}</span><input id="{{m.id}}" class="field mini num {{m.cls}}" value="{{m.value}}"><span class="t-label muted" style="width: 10px">g</span></div>
+            <sc-if value="{{m.error}}" hint-placeholder-val="{{false}}"><span class="err" style="padding-left: 22px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>Enter a number, like 250.</span></sc-if>
+          </div>
+        </sc-for>
+        <div role="img" aria-label="Energy split" style="display: flex; gap: 3px; height: 8px">
+          <div style="flex: 30 1 0; border-radius: 4px; background: var(--protein)"></div>
+          <div style="flex: 45 1 0; border-radius: 4px; background: var(--carbs); opacity: 0.35"></div>
+          <div style="flex: 25 1 0; border-radius: 4px; background: var(--fat)"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack g6">
+      <span class="sec">Meals</span>
+      <div class="list">
+        <sc-for list="{{meals}}" as="m" hint-placeholder-count="4">
+          <div class="row"><span class="grow t-body">{{m.name}}</span><span class="t-cap num">{{m.detail}}</span></div>
+        </sc-for>
+        <a href="NutEdit.dc.html" class="row tap" style="text-decoration: none; color: var(--tint); font-weight: 600"><span class="grow t-body" style="font-weight: 600">Manage meals and reminders</span></a>
+      </div>
+      <span class="t-cap" style="padding: 0 4px">Rename, reorder and set per-meal targets. The default for new food lives on the Nutrition tab.</span>
+    </div>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 34px; background: var(--card); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: 12px">
+    <span class="err grow">Fix 1 field to save</span>
+    <button type="button" class="btn btn-primary dim" aria-disabled="true" style="min-width: 120px">Save goals</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const macros = [
+      { id: 'p', label: 'Protein', value: '169', share: '30%', color: 'var(--protein)' },
+      { id: 'c', label: 'Carbs', value: '25o', share: '–', color: 'var(--carbs)', error: true },
+      { id: 'f', label: 'Fat', value: '63', share: '25%', color: 'var(--fat)' }
+    ].map((m) => ({ ...m, error: !!m.error, cls: m.error ? 'error' : '' }));
+    const meals = [
+      { name: 'Breakfast', detail: '7:30 AM · 500 cal' },
+      { name: 'Lunch', detail: '12:30 PM · 700 cal' },
+      { name: 'Pre-workout', detail: 'No reminder' },
+      { name: 'Dinner', detail: '7:00 PM' }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, macros, meals };
+  }
+}
+</script>
+</body>
+</html>

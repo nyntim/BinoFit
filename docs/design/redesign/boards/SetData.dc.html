@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Data and privacy</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Data and privacy</h1>
+    <p class="t-body muted" style="margin: -4px 0 0">Your log lives on this phone first. Here's what's backed up and what stays put.</p>
+
+    <div class="card pad stack g10">
+      <span class="t-label muted semi">Backup coverage</span>
+      <sc-for list="{{backup}}" as="b" hint-placeholder-count="5">
+        <div class="hstack g10" style="min-height: 30px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{b.color}}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{b.icon}}"></path></svg>
+          <span class="grow t-body">{{b.label}}</span><span class="t-cap">{{b.state}}</span>
+        </div>
+      </sc-for>
+      <div class="nested between" style="padding: 10px 12px"><span class="t-label">Unsynced changes</span><span class="t-label num semi">0</span></div>
+    </div>
+
+    <div class="list">
+      <button type="button" class="row tap" style="width: 100%; border: none; background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left; min-height: 60px"><span class="stack grow g4"><span>Export data</span><span class="t-cap">CSV of food, workouts and weight</span></span></button>
+      <button type="button" class="row tap" style="width: 100%; border: none; border-top: 1px solid var(--sep); background: transparent; color: var(--text); font: 400 15px var(--sans); text-align: left; min-height: 60px"><span class="stack grow g4"><span>Restart setup</span><span class="t-cap">Review setup with your saved values. Keeps your history.</span></span></button>
+      <a href="SetLegal.dc.html" class="row tap" style="text-decoration: none; color: var(--text); min-height: 52px"><span class="grow t-body">Privacy policy</span></a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const yes = 'M5 12.5l4.5 4.5L19 7'; const no = 'M5 12h14';
+    const backup = [
+      ['Food logs, meals and custom foods', 'Backed up', 1],
+      ['Goals and profile', 'Backed up', 1],
+      ['Workouts, routines and exercises', 'Backed up', 1],
+      ['Weight', 'Backed up', 1],
+      ['Units, appearance and reminders', 'This phone only', 0]
+    ].map(([label, state, ok]) => ({ label, state, icon: ok ? yes : no, color: ok ? 'var(--tint)' : 'var(--icon)' }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, backup };
+  }
+}
+</script>
+</body>
+</html>

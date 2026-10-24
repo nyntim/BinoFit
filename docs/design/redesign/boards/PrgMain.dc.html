@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Progress</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}" style="height: 2060px">
+  <div class="scroll" style="padding-bottom: 160px">
+    <h1 class="h-large">Progress</h1>
+    <div class="seg" style="grid-template-columns: repeat(4, minmax(0, 1fr))" role="radiogroup" aria-label="Range">
+      <button type="button" role="radio" aria-checked="false">7D</button>
+      <button type="button" role="radio" aria-checked="true" class="on">30D</button>
+      <button type="button" role="radio" aria-checked="false">90D</button>
+      <button type="button" role="radio" aria-checked="false">All</button>
+    </div>
+
+    <div class="card pad stack g12">
+      <div class="between" style="align-items: flex-start">
+        <div class="stack"><span class="t-label muted semi">Calories, daily average</span><span class="rnum" style="font-size: 34px">2,080</span></div>
+        <button type="button" class="chip small" aria-pressed="false" style="margin-top: 4px">+ Weight</button>
+      </div>
+      <div role="img" aria-label="Daily calories for the last 30 days, average 2,080 against a 2,250 goal" style="position: relative; height: 128px; display: flex; align-items: flex-end; gap: 3px">
+        <div style="position: absolute; left: 0; right: 0; bottom: 96px; border-top: 1.5px dashed var(--icon); opacity: 0.6"></div>
+        <span class="t-cap" style="position: absolute; right: 0; bottom: 100px; background: var(--card); padding-left: 4px">Goal 2,250</span>
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="30"><div style="flex: 1 1 0; height: {{b.h}}; border-radius: 3px 3px 1px 1px; background: {{b.c}}; opacity: {{b.o}}"></div></sc-for>
+      </div>
+      <div class="between t-cap"><span>24 Sep</span><span>Today</span></div>
+      <span class="t-cap">26 logged days in the last 30, today excluded</span>
+    </div>
+
+    <div class="card pad stack g12">
+      <span class="t-label muted semi">Macros, daily average</span>
+      <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+        <div class="stack g6">
+          <div class="between t-label"><span>{{m.label}}</span><span class="num"><span class="bold">{{m.v}}</span><span class="muted"> / {{m.g}} g</span></span></div>
+          <div class="bar"><i style="width: {{m.p}}; background: {{m.c}}"></i></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="card pad stack g14">
+      <span class="t-label muted semi">Consistency</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <div class="stack g4" style="padding: 12px; border-radius: 14px; background: var(--ember-soft)"><span class="t-cap" style="color: var(--ember)">Current</span><span class="rnum" style="font-size: 24px; color: var(--ember)">6 days</span></div>
+        <div class="nested stack g4" style="padding: 12px"><span class="t-cap">Longest</span><span class="rnum" style="font-size: 24px">21 days</span></div>
+        <div class="nested stack g4" style="padding: 12px"><span class="t-cap">Logged</span><span class="rnum" style="font-size: 24px">26/30</span></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px" role="img" aria-label="26 of the last 30 days logged">
+        <sc-for list="{{grid}}" as="g" hint-placeholder-count="30"><span style="aspect-ratio: 1; border-radius: 6px; background: {{g.bg}}; border: {{g.border}}"></span></sc-for>
+      </div>
+    </div>
+
+    <div class="card pad stack g10">
+      <div class="between" style="align-items: flex-start">
+        <div class="stack"><span class="t-label muted semi">Weight trend</span><span class="rnum" style="font-size: 30px">172.4 <span class="t-body muted" style="font-family: var(--sans); font-weight: 500">lb</span></span></div>
+        <span class="chip small num" style="margin-top: 4px">−2.1 lb in 30 days</span>
+      </div>
+      <svg role="img" aria-label="Weight entries and trend from 174.5 to 172.4 pounds" width="318" height="96" viewBox="0 0 318 96">
+        <sc-for list="{{dots}}" as="d" hint-placeholder-count="20"><circle cx="{{d.x}}" cy="{{d.y}}" r="3.2" fill="{{d.fill}}" stroke="var(--icon)" stroke-width="1.5"></circle></sc-for>
+        <path d="{{trend}}" fill="none" stroke="var(--tint)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <div class="hstack g14 t-cap"><span class="hstack g6"><span class="dot" style="width: 8px; height: 8px; background: var(--icon)"></span>Logged</span><span class="hstack g6"><span class="dot" style="width: 8px; height: 8px; border: 1.5px solid var(--icon)"></span>Apple Health</span><span class="hstack g6"><span style="width: 14px; height: 3px; border-radius: 2px; background: var(--tint)"></span>Trend</span></div>
+      <a href="PrgWeightSheet.dc.html" class="btn btn-soft">Log weight</a>
+    </div>
+
+    <div class="card pad stack g12">
+      <div class="between"><span class="t-label muted semi">Training</span>
+        <div class="seg" style="grid-template-columns: repeat(2, 76px); padding: 3px" role="radiogroup" aria-label="Training metric"><button type="button" role="radio" aria-checked="true" class="on" style="height: 30px">Sessions</button><button type="button" role="radio" aria-checked="false" style="height: 30px">Volume</button></div>
+      </div>
+      <div class="hstack g18"><div class="stack"><span class="rnum" style="font-size: 26px">3.5</span><span class="t-cap">sessions a week</span></div><div class="stack"><span class="rnum" style="font-size: 26px">56 min</span><span class="t-cap">average session</span></div></div>
+      <div role="img" aria-label="Sessions per week: 3, 4, 4, 3, and 3 so far" style="display: flex; align-items: flex-end; gap: 10px; height: 84px">
+        <sc-for list="{{weeks}}" as="w" hint-placeholder-count="5"><div class="stack g4 center" style="flex: 1"><div style="width: 100%; height: {{w.h}}; border-radius: 8px; background: {{w.c}}"></div><span class="t-cap">{{w.l}}</span></div></sc-for>
+      </div>
+    </div>
+
+    <div class="card" style="overflow: hidden">
+      <div style="padding: 16px 18px 6px" class="t-label muted semi">Recent records</div>
+      <sc-for list="{{records}}" as="r" hint-placeholder-count="3">
+        <div class="hstack g12" style="min-height: 56px; padding: 8px 18px; border-top: 1px solid var(--sep)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--ember)" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg>
+          <span class="stack grow g4"><span class="t-body semi">{{r.name}}</span><span class="t-cap">{{r.kind}} · {{r.date}}</span></span>
+          <span class="semi num">{{r.v}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div class="tabwrap"><dc-import name="CmpTabBar" active="progress" workout="{{no}}" dark="{{dark}}" accent="{{accent}}" hint-size="342px,128px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":2060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const kcal = [2140, 1980, 2260, 0, 2050, 2390, 1870, 2120, 2210, 1950, 0, 2300, 2080, 1990, 2170, 2240, 1900, 2060, 0, 2150, 2010, 2310, 2280, 1940, 2110, 2200, 2310, 2020, 1890, 1100];
+    const bars = kcal.map((v, i) => ({ h: (v === 0 ? 3 : Math.round((v / 3000) * 128)) + 'px', c: i === 27 ? 'var(--tint)' : 'var(--bar)', o: v === 0 ? 0.35 : (i === 29 ? 0.5 : 1) }));
+    const macros = [
+      { label: 'Protein', v: 152, g: 169, p: '90%', c: 'var(--protein)' },
+      { label: 'Carbs', v: 228, g: 253, p: '90%', c: 'var(--carbs)' },
+      { label: 'Fat', v: 61, g: 63, p: '97%', c: 'var(--fat)' }
+    ];
+    const grid = kcal.map((v, i) => ({ bg: v === 0 ? 'var(--card2)' : (i >= 24 ? 'var(--ember)' : 'var(--tint)'), border: i === 29 ? '2px solid var(--text)' : 'none' }));
+    const w = [174.5, 174.9, 174.2, 174.0, 174.4, 173.8, 173.9, 173.5, 173.7, 173.2, 173.4, 173.0, 173.1, 172.8, 173.0, 172.6, 172.9, 172.5, 172.6, 172.4];
+    const sx = (i) => +(6 + i * (306 / (w.length - 1))).toFixed(1);
+    const sy = (v) => +(8 + ((175.2 - v) / 3.2) * 80).toFixed(1);
+    const dots = w.map((v, i) => ({ x: sx(i), y: sy(v), fill: i % 4 === 3 ? 'var(--card)' : 'var(--icon)' }));
+    const avg = w.map((_, i) => { const s = w.slice(Math.max(0, i - 4), i + 1); return s.reduce((p, q) => p + q, 0) / s.length; });
+    const trend = avg.map((v, i) => (i === 0 ? 'M' : 'L') + sx(i) + ' ' + sy(v)).join(' ');
+    const weeks = [['21 Sep', 3], ['28 Sep', 4], ['5 Oct', 4], ['12 Oct', 3], ['19 Oct', 3]].map(([l, n], i) => ({ l, h: Math.round((n / 4) * 64) + 'px', c: i === 4 ? 'var(--tint)' : 'var(--bar)' }));
+    const records = [
+      { name: 'Barbell bench press', kind: 'Heaviest for 8 reps', date: 'Fri 23 Oct', v: '165 × 8' },
+      { name: 'Overhead press', kind: 'Estimated 1RM', date: 'Fri 23 Oct', v: '128 lb' },
+      { name: 'Deadlift', kind: 'Heaviest weight', date: 'Wed 21 Oct', v: '315 lb' }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, no: false, bars, macros, grid, dots, trend, weeks, records };
+  }
+}
+</script>
+</body>
+</html>

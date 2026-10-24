@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live session</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="stack" style="position: absolute; top: 0; left: 0; right: 0; padding: 54px 16px 10px; gap: 10px; background: var(--bg); z-index: 2">
+    <div class="hstack g8">
+      <a href="TrnTab.dc.html" class="icon-btn" aria-label="Minimize workout"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></a>
+      <span class="stack grow"><span class="t-title">Push day</span><span class="t-label muted num">42:10 · 3 of 10 sets</span></span>
+      <a href="TrnWorkout.dc.html" class="btn btn-primary">Finish</a>
+    </div>
+    <div class="hstack g12" style="padding: 10px 10px 10px 16px; border-radius: 18px; background: var(--text); color: var(--bg)">
+      <span class="stack grow"><span style="font-size: 12px; font-weight: 600; opacity: 0.75">Rest · Barbell bench press</span><span role="timer" aria-label="1 minute 24 seconds of rest left" class="rnum" style="font-size: 30px; line-height: 1.1">1:24</span></span>
+      <button type="button" aria-label="Subtract 15 seconds" class="btn btn-sm" style="background: rgba(127,127,127,0.25); color: var(--bg); min-height: 44px">−15</button>
+      <button type="button" aria-label="Add 15 seconds" class="btn btn-sm" style="background: rgba(127,127,127,0.25); color: var(--bg); min-height: 44px">+15</button>
+      <button type="button" class="btn btn-sm" style="background: var(--bg); color: var(--text); min-height: 44px">Skip</button>
+    </div>
+  </div>
+
+  <div class="stack g12" style="position: absolute; top: 196px; left: 0; right: 0; bottom: 0; padding: 4px 16px 40px; overflow: hidden">
+    <div class="card" style="padding: 14px 0 6px">
+      <div class="hstack g8" style="padding: 0 8px 8px 18px">
+        <span class="stack grow g4"><span class="t-title">Barbell bench press</span><span class="t-cap">Bench 3, feet flat, grip on the rings</span></span>
+        <button type="button" class="icon-btn clear" aria-label="Exercise options"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+      </div>
+      <div style="display: grid; grid-template-columns: 36px minmax(0, 1fr) 60px 46px 40px 44px; gap: 6px; align-items: center; padding: 0 10px 4px 18px" class="t-cap">
+        <span>Set</span><span>Previous</span><span style="text-align: center">lb</span><span style="text-align: center">Reps</span><span style="text-align: center">RIR</span><span></span>
+      </div>
+      <sc-for list="{{sets}}" as="s" hint-placeholder-count="4">
+        <div style="display: grid; grid-template-columns: 36px minmax(0, 1fr) 60px 46px 40px 44px; gap: 6px; align-items: center; min-height: 48px; padding: 0 10px 0 18px; background: {{s.rowBg}}">
+          <a href="TrnSetType.dc.html" class="hstack g4" style="text-decoration: none; font-size: 15px; font-weight: 700; color: {{s.labelColor}}" aria-label="Set {{s.label}} type">{{s.label}}<sc-if value="{{s.record}}" hint-placeholder-val="{{false}}"><svg role="img" aria-label="New record" width="12" height="12" viewBox="0 0 24 24" fill="var(--ember)"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg></sc-if></a>
+          <span class="t-label muted num">{{s.prev}}</span>
+          <span class="num" style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; background: {{s.cellBg}}; border: {{s.cellBorder}}">{{s.weight}}</span>
+          <span class="num" style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; background: {{s.cellBg}}; color: {{s.repsColor}}">{{s.reps}}</span>
+          <span class="num" style="height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; color: var(--icon); background: {{s.cellBg}}">{{s.rir}}</span>
+          <button type="button" aria-label="{{s.doneLabel}}" aria-pressed="{{s.doneStr}}" style="width: 44px; height: 44px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0">
+            <span class="check {{s.on}}" style="width: 30px; height: 30px; border-radius: 15px"><sc-if value="{{s.done}}" hint-placeholder-val="{{true}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg></sc-if></span>
+          </button>
+        </div>
+      </sc-for>
+      <button type="button" class="btn btn-ghost" style="width: 100%">+ Add set</button>
+    </div>
+
+    <div class="card pad-s hstack g12">
+      <span class="stack grow g4"><span class="t-body semi">Overhead press</span><span class="t-cap num">0 of 3 sets · last 115 × 8</span></span>
+      <span class="hstack g4" aria-hidden="true"><span class="dot" style="background: var(--track)"></span><span class="dot" style="background: var(--track)"></span><span class="dot" style="background: var(--track)"></span></span>
+    </div>
+    <div class="card pad-s hstack g12">
+      <span class="stack grow g4"><span class="t-body semi">Incline dumbbell press</span><span class="t-cap num">0 of 3 sets · last 60 × 10</span></span>
+      <span class="hstack g4" aria-hidden="true"><span class="dot" style="background: var(--track)"></span><span class="dot" style="background: var(--track)"></span><span class="dot" style="background: var(--track)"></span></span>
+    </div>
+    <div class="hstack g8">
+      <a href="TrnPicker.dc.html" class="btn btn-lg btn-secondary" style="flex: 1">Add exercises</a>
+      <button type="button" class="btn btn-lg btn-danger" style="width: auto; padding: 0 16px">Discard</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const raw = [
+      { label: 'W', prev: '95 × 10', weight: '95', reps: '10', rir: '', done: true, warm: true },
+      { label: '1', prev: '160 × 8', weight: '165', reps: '8', rir: '2', done: true, record: true },
+      { label: '2', prev: '160 × 8', weight: '165', reps: '8', rir: '1', done: true },
+      { label: '3', prev: '160 × 7', weight: '165', reps: '7', rir: '–', done: false, active: true }
+    ];
+    const sets = raw.map((s) => ({
+      ...s, record: !!s.record,
+      labelColor: s.warm ? 'var(--icon)' : 'var(--text)',
+      rowBg: s.active ? 'var(--tint-soft)' : 'transparent',
+      cellBg: s.done ? 'transparent' : 'var(--card)',
+      cellBorder: s.active ? '2px solid var(--tint)' : 'none',
+      repsColor: s.done ? 'var(--text)' : 'var(--icon)',
+      on: s.done ? 'on' : '',
+      doneLabel: 'Set ' + s.label + ' done', doneStr: s.done ? 'true' : 'false'
+    }));
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, sets };
+  }
+}
+</script>
+</body>
+</html>

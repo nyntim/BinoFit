@@ -4,9 +4,10 @@ Instructions for AI coding agents working in this repository.
 
 ## Project context
 Read `CLAUDE.md` first. Despite its name, it is the general project guide: commands, a short overview, the rules for every change, commit rules, and an index of per-area docs in `docs/architecture/`. All of it applies to any agent. Read the area doc before changing that area. Then read:
-- `PRODUCT.md`: who the app is for, and its voice ("sharp, precise, quiet")
-- `DESIGN.md`: design tokens and component specs
+- `PRODUCT.md`: who the app is for, and its voice ("calm, capable, warm")
+- `DESIGN.md`: design invariants, the current baseline system and open questions
 - `PRD_v2.md`: feature requirements and roadmap
+- `docs/decisions/`: decision records (ADRs) explaining why things are the way they are
 
 ## Agent roles
 This repo defines a team of agent roles in [`docs/agents/`](docs/agents/README.md):

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exercise builder, muscles</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="TrnLibrary.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="nav-title t-label muted" style="font-size: 13px">Step 5 of 7</span>
+      <span></span>
+    </div>
+    <div style="height: 4px; margin: 0 16px; border-radius: 2px; background: var(--track)" role="progressbar" aria-valuenow="5" aria-valuemin="1" aria-valuemax="7" aria-label="Step 5 of 7"><div style="width: 71%; height: 4px; border-radius: 2px; background: var(--tint)"></div></div>
+
+    <div class="stack g18" style="padding: 22px 16px 0">
+      <div class="stack g6">
+        <h1 class="h-xl">Which muscles does it work?</h1>
+        <span class="t-body muted">Chest Press · Hammer Strength. Pick one main muscle, then any helpers.</span>
+      </div>
+      <div class="stack g10">
+        <span class="sec">Main muscle</span>
+        <div class="hstack g8" style="flex-wrap: wrap" role="radiogroup" aria-label="Main muscle">
+          <sc-for list="{{primary}}" as="m" hint-placeholder-count="10">
+            <button type="button" role="radio" aria-checked="{{m.checked}}" class="chip {{m.cls}}" style="height: 40px; padding: 0 16px; font-size: 15px">{{m.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div class="stack g10">
+        <span class="sec">Also works (optional)</span>
+        <div class="hstack g8" style="flex-wrap: wrap" role="group" aria-label="Secondary muscles">
+          <sc-for list="{{secondary}}" as="m" hint-placeholder-count="10">
+            <button type="button" aria-pressed="{{m.checked}}" class="chip" style="height: 40px; padding: 0 16px; font-size: 15px; background: {{m.bg}}; color: {{m.fg}}; border: {{m.border}}">{{m.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div class="hstack g10" style="position: absolute; left: 16px; right: 16px; bottom: 34px">
+      <a href="TrnBuildEquip.dc.html" class="btn btn-lg btn-secondary" style="width: 110px">Back</a>
+      <a href="TrnBuildReview.dc.html" class="btn btn-lg btn-primary" style="flex: 1; width: auto">Next</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const names = ['Chest', 'Shoulders', 'Triceps', 'Biceps', 'Lats', 'Traps', 'Quads', 'Hamstrings', 'Glutes', 'Abdominals'];
+    const primary = names.map((label) => { const on = label === 'Chest'; return { label, cls: on ? 'on' : '', checked: on ? 'true' : 'false' }; });
+    const secondary = names.filter((n) => n !== 'Chest').map((label) => {
+      const on = label === 'Triceps' || label === 'Shoulders';
+      return { label, checked: on ? 'true' : 'false', bg: on ? 'var(--tint-soft)' : 'var(--card2)', fg: on ? 'var(--tint)' : 'var(--icon)', border: on ? '1.5px solid var(--tint)' : '1.5px solid transparent' };
+    });
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, primary, secondary };
+  }
+}
+</script>
+</body>
+</html>

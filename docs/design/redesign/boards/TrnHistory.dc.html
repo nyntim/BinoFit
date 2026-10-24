@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>All workouts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="TrnTab.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Training</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">All workouts</h1>
+
+    <sc-for list="{{months}}" as="mo" hint-placeholder-count="2">
+      <div class="stack g8">
+        <div class="between" style="padding: 0 4px"><span class="sec" style="padding: 0">{{mo.name}}</span><span class="t-cap num">{{mo.summary}}</span></div>
+        <div class="list">
+          <sc-for list="{{mo.rows}}" as="h" hint-placeholder-count="3">
+            <a href="TrnWorkout.dc.html" class="hstack g12" style="min-height: 64px; padding: 8px 16px; border-top: {{h.border}}; text-decoration: none; color: var(--text)">
+              <span class="stack center" style="width: 38px"><span class="t-cap">{{h.dow}}</span><span class="rnum" style="font-size: 18px">{{h.day}}</span></span>
+              <span class="stack grow g4"><span class="hstack g8"><span class="t-body semi">{{h.name}}</span><sc-if value="{{h.pr}}" hint-placeholder-val="{{false}}"><span class="tag ember-tag">{{h.prText}}</span></sc-if></span><span class="t-cap ellipsis">{{h.detail}}</span></span>
+              <span class="stack" style="align-items: flex-end"><span class="semi num">{{h.time}}</span><span class="t-cap num">{{h.vol}}</span></span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const rows = (list) => list.map((r, i) => ({ ...r, pr: !!r.prText, border: i === 0 ? 'none' : '1px solid var(--sep)' }));
+    const months = [
+      { name: 'October 2026', summary: '9 workouts', rows: rows([
+        { dow: 'Fri', day: 23, name: 'Push day', detail: 'Bench press, Overhead press, Incline DB press', time: '58 min', vol: '8,320 lb', prText: '2 records' },
+        { dow: 'Wed', day: 21, name: 'Pull day', detail: 'Deadlift, Pull-up, Barbell row', time: '1h 03m', vol: '9,275 lb', prText: '1 record' },
+        { dow: 'Mon', day: 19, name: 'Push day', detail: 'Bench press, Overhead press', time: '57 min', vol: '11,980 lb' },
+        { dow: 'Fri', day: 16, name: 'Legs', detail: 'Back squat, Romanian deadlift, Leg press', time: '52 min', vol: '14,438 lb' },
+        { dow: 'Thu', day: 15, name: 'Run', detail: '5.2 mi · 9:48 /mi', time: '51 min', vol: '' }
+      ]) },
+      { name: 'September 2026', summary: '12 workouts', rows: rows([
+        { dow: 'Tue', day: 29, name: 'Pull day', detail: 'Deadlift, Pull-up, Seated cable row', time: '1h 01m', vol: '8,940 lb' },
+        { dow: 'Sun', day: 27, name: 'Legs', detail: 'Front squat, Hip thrust, Leg curl', time: '49 min', vol: '12,210 lb' }
+      ]) }
+    ];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, months };
+  }
+}
+</script>
+</body>
+</html>

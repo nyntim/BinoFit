@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>All set</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <svg aria-hidden="true" width="390" height="360" viewBox="0 0 390 360" style="position: absolute; top: 40px; left: 0">
+    <circle cx="70" cy="80" r="6" fill="var(--ember)"></circle>
+    <circle cx="320" cy="60" r="5" fill="var(--tint)"></circle>
+    <rect x="300" y="170" width="12" height="5" rx="2.5" fill="var(--carbs)" transform="rotate(30 306 172)"></rect>
+    <rect x="60" y="200" width="12" height="5" rx="2.5" fill="var(--fat)" transform="rotate(-25 66 202)"></rect>
+    <circle cx="110" cy="290" r="4" fill="var(--protein)"></circle>
+    <circle cx="290" cy="280" r="6" fill="var(--ember)" opacity="0.6"></circle>
+    <path d="M40 140l6-6M344 120l6 6M330 240l8 0" stroke="var(--icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.4"></path>
+  </svg>
+  <div class="stack" style="position: absolute; inset: 0; padding: 110px 20px 34px; gap: 22px">
+    <div class="stack g14 center">
+      <div style="width: 148px; height: 148px; border-radius: 74px; background: var(--ember-soft); display: flex; align-items: center; justify-content: center">
+        <img src="/_blob/2e9acac9534fc515aaef20e5d777951d" alt="" style="width: 124px; height: 124px">
+      </div>
+      <h1 style="margin: 0; font: 800 36px/1.1 var(--round); letter-spacing: -0.6px">You're all set</h1>
+      <div class="hstack g8">
+        <span class="chip" style="background: var(--card)"><span class="num semi" style="color: var(--text)">2,250</span> cal</span>
+        <span class="chip" style="background: var(--card)"><span class="num semi" style="color: var(--text)">169 g</span> protein</span>
+      </div>
+    </div>
+
+    <div class="stack g10">
+      <span class="sec">Start with</span>
+      <a href="NutSearch.dc.html" class="card pad-s hstack g14" style="text-decoration: none; color: var(--text); min-height: 72px">
+        <span class="ico" style="width: 44px; height: 44px; border-radius: 13px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 0-4 2.7-4 7s1.8 5 4 5"></path></svg></span>
+        <span class="stack grow g4"><span class="t-title">Log your first food</span><span class="t-cap">Search, scan a barcode or add your own</span></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </a>
+      <a href="TrnSession.dc.html" class="card pad-s hstack g14" style="text-decoration: none; color: var(--text); min-height: 72px">
+        <span class="ico" style="width: 44px; height: 44px; border-radius: 13px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"></path></svg></span>
+        <span class="stack grow g4"><span class="t-title">Start a workout</span><span class="t-cap">Empty session, add exercises as you go</span></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </a>
+    </div>
+
+    <div class="spacer"></div>
+    <a href="NutDashboard.dc.html" class="btn btn-lg btn-primary">Go to Today</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Integrations</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <h1 class="h-large">Integrations</h1>
+
+    <div class="card pad stack g12">
+      <div class="hstack g12">
+        <span class="ico" style="width: 40px; height: 40px; border-radius: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a5 5 0 0 1-.5-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"></path></svg></span>
+        <span class="stack grow g4"><span class="t-title">Cloud sync</span><span class="t-cap">Backs up your log to your account</span></span>
+        <span class="tag tinted">On</span>
+      </div>
+      <div class="nested stack" style="padding: 4px 12px">
+        <div class="between" style="min-height: 38px"><span class="t-label muted">Last successful sync</span><span class="t-label num">7:42 PM</span></div>
+        <div class="between" style="min-height: 38px; border-top: 1px solid var(--sep)"><span class="t-label muted">Pending changes</span><span class="t-label num">0</span></div>
+      </div>
+    </div>
+
+    <div class="card pad stack g12">
+      <div class="hstack g12">
+        <span class="ico" style="width: 40px; height: 40px; border-radius: 12px; background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--sep)"><svg width="20" height="20" viewBox="0 0 24 24" fill="#FF2D55" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9.3C1 8.1 3.2 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.6 0 5.8 3.6 4.3 7.2C19.5 16.4 12 21 12 21z"></path></svg></span>
+        <span class="stack grow g4"><span class="t-title">Apple Health</span><span class="t-cap">Syncs your weight both ways</span></span>
+        <span class="tag tinted">Connected</span>
+      </div>
+      <div class="nested stack" style="padding: 4px 12px">
+        <div class="between" style="min-height: 38px"><span class="t-label muted">Last Health sync</span><span class="t-label num">Today, 7:05 AM</span></div>
+      </div>
+      <div class="hstack g8">
+        <button type="button" class="btn btn-soft" style="flex: 1">Sync now</button>
+        <button type="button" class="btn btn-secondary" style="flex: 1">Permissions</button>
+      </div>
+    </div>
+
+    <div class="card pad stack g12">
+      <div class="hstack g12">
+        <span class="ico" style="width: 40px; height: 40px; border-radius: 20px; background: #1DB954; color: #0E0E10"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9.5c4-1.3 8.5-1 12 1M7 13c3.2-1 6.8-.7 9.5.8M8 16.3c2.5-.7 5-.5 7 .6"></path></svg></span>
+        <span class="stack grow g4"><span class="t-title">Spotify</span><span class="t-cap">Pick a playlist when you start a workout</span></span>
+      </div>
+      <button type="button" class="btn btn-lg btn-secondary">Connect Spotify</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

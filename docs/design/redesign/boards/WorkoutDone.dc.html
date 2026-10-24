@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workout saved</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; padding: 62px 16px 34px; background: {{c.bg}}; color: {{c.text}}; font-family: -apple-system, system-ui, 'SF Pro Text', Roboto, sans-serif; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0 8px; text-align: center">
+    <div style="position: relative; width: 88px; height: 88px">
+      <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true">
+        <circle cx="44" cy="44" r="40" fill="{{c.emberSoft}}"></circle>
+        <g stroke="{{c.ember}}" stroke-width="3" stroke-linecap="round">
+          <path d="M44 4v8M44 76v8M4 44h8M76 44h8M15.7 15.7l5.6 5.6M66.7 66.7l5.6 5.6M15.7 72.3l5.6-5.6M66.7 21.3l5.6-5.6"></path>
+        </g>
+        <path d="M30 45l9 9 19-20" fill="none" stroke="{{c.ember}}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </div>
+    <h1 style="margin: 0; font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.3px">Workout saved</h1>
+    <span style="font-size: 15px; color: {{c.icon}}">Push day · Thu 23 Oct · 58 min</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 18px; background: {{c.card}}">
+      <span style="font-size: 12px; color: {{c.icon}}">Volume</span>
+      <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums">12,450</span>
+      <span style="font-size: 12px; color: {{c.icon}}">lb</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 18px; background: {{c.card}}">
+      <span style="font-size: 12px; color: {{c.icon}}">Sets</span>
+      <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums">16</span>
+      <span style="font-size: 12px; color: {{c.icon}}">2 warmups</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 18px; background: {{c.emberSoft}}; color: {{c.ember}}">
+      <span style="font-size: 12px; font-weight: 600">Records</span>
+      <span style="font-family: ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums">2</span>
+      <span style="font-size: 12px; font-weight: 600">new</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; border-radius: 22px; background: {{c.card}}; overflow: hidden">
+    <span style="padding: 16px 18px 8px; font-size: 13px; font-weight: 600; color: {{c.icon}}">New records</span>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 18px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="{{c.ember}}" stroke="{{c.ember}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1">
+        <span style="font-size: 15px; font-weight: 600">Barbell bench press</span>
+        <span style="font-size: 13px; color: {{c.icon}}">Heaviest set for 8 reps</span>
+      </div>
+      <span style="font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">165 × 8</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 18px; border-top: 1px solid {{c.sep}}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="{{c.ember}}" stroke="{{c.ember}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1">
+        <span style="font-size: 15px; font-weight: 600">Overhead press</span>
+        <span style="font-size: 13px; color: {{c.icon}}">Estimated 1RM, up 5 lb</span>
+      </div>
+      <span style="font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">128 lb</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 22px; background: {{c.card}}">
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <span style="font-size: 13px; font-weight: 600; color: {{c.icon}}">This week</span>
+      <span style="font-size: 13px; font-weight: 500; color: {{c.icon}}; font-variant-numeric: tabular-nums">3 sessions</span>
+    </div>
+    <sc-for list="{{regions}}" as="r" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500">
+          <span>{{r.label}}</span>
+          <span style="font-variant-numeric: tabular-nums">{{r.value}} <span style="color: {{c.icon}}">/ {{r.goal}} sets</span></span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: {{c.track}}; overflow: hidden"><div style="width: {{r.pct}}; height: 8px; border-radius: 4px; background: {{c.tint}}"></div></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="flex-grow: 1"></div>
+  <div style="display: flex; gap: 8px">
+    <button type="button" style="flex-grow: 1; height: 52px; border: 1px solid {{c.field}}; border-radius: 16px; background: transparent; color: {{c.tint}}; font: 600 16px -apple-system, system-ui, sans-serif">Save as routine</button>
+    <button type="button" style="flex-grow: 1; height: 52px; border: none; border-radius: 16px; background: {{c.tint}}; color: {{c.onTint}}; font: 600 16px -apple-system, system-ui, sans-serif">Done</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = {
+      Indigo: ['#3D4B7A', '#8FA3D6', '#E3E6F0', 'rgba(143,163,214,0.16)'],
+      Plum: ['#6A4C7D', '#C3A6D6', '#ECE4F0', 'rgba(195,166,214,0.16)'],
+      Pine: ['#2F5D50', '#8CC7B3', '#E0EBE6', 'rgba(140,199,179,0.16)']
+    };
+    const a = A[this.props.accent] || A.Indigo;
+    const dark = this.props.dark ?? true;
+    const c = dark
+      ? { bg: '#0E0E10', card: '#1A1A1D', card2: '#242428', text: '#EDEDF0', icon: '#9A9AA3', sep: 'rgba(237,237,240,0.10)', field: 'rgba(237,237,240,0.28)', track: 'rgba(237,237,240,0.14)', ember: '#FF8A3D', emberSoft: 'rgba(255,138,61,0.14)', tint: a[1], tintSoft: a[3], onTint: '#0E0E10' }
+      : { bg: '#F4F0E8', card: '#FBF9F5', card2: '#EDE8DE', text: '#1A1A22', icon: '#5E5E6E', sep: '#E2DDD2', field: '#D9D3C7', track: '#E4DFD4', ember: '#C2410C', emberSoft: '#FBE6D9', tint: a[0], tintSoft: a[2], onTint: '#FBF9F5' };
+    const regions = [
+      { label: 'Chest', value: 12, goal: 14, pct: '86%' },
+      { label: 'Shoulders', value: 9, goal: 10, pct: '90%' },
+      { label: 'Triceps', value: 6, goal: 8, pct: '75%' }
+    ];
+    return { c, regions };
+  }
+}
+</script>
+</body>
+</html>

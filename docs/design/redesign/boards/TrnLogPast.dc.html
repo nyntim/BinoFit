@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log past workout</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="modal-under"></div>
+  <div class="modal">
+    <div class="modal-bar">
+      <a href="TrnTab.dc.html" class="link start" style="font-weight: 400; text-decoration: none; display: inline-flex; align-items: center">Cancel</a>
+      <span class="nav-title">Log past workout</span>
+      <a href="TrnWorkout.dc.html" class="link end" style="text-decoration: none; display: inline-flex; align-items: center">Save</a>
+    </div>
+    <div class="scroll">
+      <div class="card" style="overflow: hidden">
+        <div class="hstack g12" style="min-height: 56px; padding: 6px 16px"><label for="wn" class="t-body" style="width: 84px">Name</label><input id="wn" class="field grow" value="Morning run" style="border: none; background: transparent; padding: 0; font-weight: 600"></div>
+        <div class="hstack g12" style="min-height: 52px; padding: 6px 16px; border-top: 1px solid var(--sep)"><span class="t-body grow">Date</span><button type="button" class="btn btn-sm btn-soft" style="font-size: 15px">Thu 22 Oct</button></div>
+        <div class="hstack g12" style="min-height: 52px; padding: 6px 16px; border-top: 1px solid var(--sep)"><span class="t-body grow">Start</span><button type="button" class="btn btn-sm btn-soft num" style="font-size: 15px">6:40 AM</button></div>
+        <div class="hstack g12" style="min-height: 52px; padding: 6px 16px; border-top: 1px solid var(--sep)"><span class="t-body grow">Duration</span><button type="button" class="btn btn-sm btn-soft num" style="font-size: 15px">55 min</button></div>
+      </div>
+
+      <div class="card" style="padding: 14px 0 6px">
+        <div class="between" style="padding: 0 18px 8px"><span class="t-title">Run</span><span class="tag">Cardio</span></div>
+        <div style="display: grid; grid-template-columns: 28px repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 18px 4px" class="t-cap"><span></span><span>Time</span><span>Distance</span><span>Pace</span></div>
+        <div style="display: grid; grid-template-columns: 28px repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; min-height: 48px; padding: 0 18px">
+          <span class="bold">1</span>
+          <input aria-label="Time" class="field num" value="48:00" style="height: 40px; padding: 0 10px">
+          <label class="hstack g4"><input aria-label="Distance in miles" class="field num focus" value="5.0" style="height: 40px; padding: 0 10px"><span class="t-cap">mi</span></label>
+          <span class="rnum" style="font-size: 17px">9:36<span class="t-cap" style="font-family: var(--sans); font-weight: 400"> /mi</span></span>
+        </div>
+        <button type="button" class="btn btn-ghost" style="width: 100%">+ Add set</button>
+      </div>
+
+      <div class="card" style="padding: 14px 0 6px">
+        <div class="between" style="padding: 0 18px 8px"><span class="t-title">Plank</span><span class="tag">Time</span></div>
+        <sc-for list="{{planks}}" as="p" hint-placeholder-count="3">
+          <div class="hstack g12" style="min-height: 46px; padding: 0 18px"><span class="bold" style="width: 16px">{{p.n}}</span><span class="t-cap grow">Previous {{p.prev}}</span><input aria-label="Duration" class="field num" value="{{p.v}}" style="width: 90px; height: 40px; text-align: center"></div>
+        </sc-for>
+        <button type="button" class="btn btn-ghost" style="width: 100%">+ Add set</button>
+      </div>
+
+      <a href="TrnPicker.dc.html" class="btn btn-lg btn-secondary" style="border-style: dashed">+ Add exercises</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    const planks = [{ n: 1, prev: '1:00', v: '1:10' }, { n: 2, prev: '1:00', v: '1:00' }];
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent, planks };
+  }
+}
+</script>
+</body>
+</html>

@@ -20,7 +20,7 @@ Expo Router v6 with file-based routing. Every route outside the tabs is register
 
 ## Liquid Glass
 
-Liquid Glass is limited to the main bottom navigation. Keep native four-tab geometry and its existing system-owned workout accessory. The fallback `components/navigation/TabBarSurface.ios.tsx` owns its material, runtime availability and Reduce Transparency handling. Headers, buttons, sheets, rest controls and keyboard accessories use plain or solid theme surfaces. Do not add shared glass control wrappers. See `docs/design/liquid-glass-audit.md` for the current scope and verification limits.
+Liquid Glass is limited to the main bottom navigation. Keep native four-tab geometry and its existing system-owned workout accessory. The fallback `components/navigation/TabBarSurface.ios.tsx` owns its material, runtime availability and Reduce Transparency handling. Headers, buttons, sheets, rest controls and keyboard accessories use plain or solid theme surfaces. Do not add shared glass control wrappers. See `docs/decisions/0014-material-on-bottom-navigation-only.md` for the rationale and verification limits.
 
 ## Conventions
 

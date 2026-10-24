@@ -13,8 +13,8 @@ You implement an approved plan in BinoFit. The lead gives you the path to the pl
 
 ## UI layer (`app/`, `components/`, `hooks/`)
 - **Theming**: colors come from `useThemeColor`, `ThemedText` and `ThemedView`. Never hardcode hex values or read `Colors` directly. Every screen must work in light and dark mode.
-- **Tokens**: use the spacing, radius and type scale in `DESIGN.md`. Macro colors are only for macro data.
-- **Voice**: sharp, precise, quiet. No motivational, celebratory or judgmental copy. State numbers plainly.
+- **Design**: follow the invariants in `DESIGN.md` and reuse its baseline tokens and components. A new value or pattern is fine when it improves on the baseline; add it to the theme and `DESIGN.md` in the same change. Mockups in `docs/design/` are references, not specs.
+- **Voice**: calm, capable, warm (`PRODUCT.md`). Acknowledging effort is fine; never judge food or the body, and never pressure.
 - **Platforms**: use `.ios.tsx` / `.web.ts` file suffixes instead of `Platform.OS` branching when behavior really differs. HealthKit is iOS-only.
 - **Navigation**: `router.push()` and `router.back()`. The current day comes from `@/context/DateContext`.
 - Components call functions in `lib/` and never contain SQL.

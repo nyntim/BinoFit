@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./bf.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="th phone {{theme}}">
+  <div class="scroll" style="padding-top: 54px">
+    <div class="navbar">
+      <a href="SetIndex.dc.html" class="back start" style="text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Settings</a>
+      <span></span><span></span>
+    </div>
+    <div class="stack g8 center" style="padding: 8px 0 6px">
+      <img src="/_blob/2e9acac9534fc515aaef20e5d777951d" alt="BinoFit app icon" style="width: 104px; height: 104px">
+      <span class="h-xl">BinoFit</span>
+      <span class="t-body muted">Nutrition and training tracking.</span>
+      <span class="t-cap num">Version [VERSION] · Build [BUILD]</span>
+    </div>
+
+    <div class="stack g6">
+      <span class="sec">Food data</span>
+      <div class="list">
+        <div class="row" style="min-height: 64px"><span class="stack grow g4"><span class="t-body semi">USDA FoodData Central</span><span class="t-cap">SR Legacy and Foundation food data</span></span></div>
+        <div class="stack g6" style="padding: 12px 16px; border-top: 1px solid var(--sep)">
+          <span class="t-body semi">Open Food Facts</span>
+          <span class="t-cap">Barcode and branded products, under the Open Database License (ODbL).</span>
+          <div class="hstack g8"><button type="button" class="btn btn-sm btn-soft">Visit source</button><button type="button" class="btn btn-sm btn-ghost">Read the data license</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="list">
+      <a href="SetLegal.dc.html" class="row tap" style="text-decoration: none; color: var(--text)"><span class="grow t-body">Privacy policy</span></a>
+      <a href="SetLegal.dc.html" class="row tap" style="text-decoration: none; color: var(--text)"><span class="grow t-body">Terms of service</span></a>
+    </div>
+    <span class="t-cap" style="text-align: center">Made with care, and a small pink dinosaur.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"accent":{"editor":"enum","options":["Indigo","Plum","Pine"],"default":"Indigo"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark; const accent = this.props.accent || 'Indigo';
+    return { theme: (dark ? 'dark ' : '') + accent.toLowerCase(), dark, accent };
+  }
+}
+</script>
+</body>
+</html>

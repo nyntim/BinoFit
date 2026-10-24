@@ -1,6 +1,6 @@
 # Training (native only)
 
-Plan: `docs/phase-4-training.md`. Approved mockups: `docs/design/training/` (build UI to match them; its README maps screens to chunks). Components live in `components/workouts/`.
+Decisions: ADRs 0005 to 0008 in `docs/decisions/`. Historical mockups: `docs/design/training/`. Components live in `components/workouts/`.
 
 ## Schema and data API
 

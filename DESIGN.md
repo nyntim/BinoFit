@@ -1,6 +1,6 @@
 ---
 name: BinoFit
-description: Calm, precise nutrition tracking for people who care about what they eat, not how the app makes them feel
+description: Calm, capable and warm tracking for nutrition and training, with numbers you can trust
 colors:
   warm-paper: "#F8F5EF"
   card-surface: "#EEEAE2"
@@ -13,6 +13,8 @@ colors:
   carb-signal: "#F39C12"
   fat-signal: "#3498DB"
   success: "#27AE60"
+  danger: "#E74C3C"
+  streak: "#D44F08"
 typography:
   display:
     fontFamily: "System, -apple-system, SF Pro Display, sans-serif"
@@ -58,211 +60,157 @@ spacing:
   lg: "20px"
   xl: "24px"
   xxl: "40px"
-components:
-  button-primary:
-    backgroundColor: "{colors.slate-indigo}"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.lg}"
-    padding: "12px 24px"
-  button-primary-hover:
-    backgroundColor: "#2E3960"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.lg}"
-    padding: "12px 24px"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.slate-indigo}"
-    rounded: "{rounded.md}"
-    padding: "10px 20px"
-  card:
-    backgroundColor: "{colors.card-surface}"
-    textColor: "{colors.ink-primary}"
-    rounded: "{rounded.lg}"
-    padding: "{spacing.lg}"
-  input-field:
-    backgroundColor: "{colors.card-subtle}"
-    textColor: "{colors.ink-primary}"
-    rounded: "{rounded.sm}"
-    padding: "{spacing.md}"
-  chip-filter:
-    backgroundColor: "{colors.card-subtle}"
-    textColor: "{colors.ink-secondary}"
-    rounded: "{rounded.pill}"
-    padding: "6px 14px"
-  chip-filter-active:
-    backgroundColor: "{colors.slate-indigo}"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.pill}"
-    padding: "6px 14px"
 ---
 
-# Design System: BinoFit
+# Design: BinoFit
 
-## 1. Overview
+How BinoFit looks and behaves. Read `PRODUCT.md` first: it sets who the app is for and how it should feel.
 
-**Creative North Star: "The Reference Book"**
+## How to use this document
 
-BinoFit's visual system is built on the premise that a nutrition tracker should feel like a precise, well-worn reference tool: the kind of object that earns authority through consistent legibility and careful restraint, not decoration. Think of a well-printed field guide or a scientific reference manual — warm paper surfaces, high-contrast ink, dense but organized information, and a single annotation color that marks only what demands attention.
+Design guidance has four layers ([ADR 0016](docs/decisions/0016-design-doc-layers.md)), highest first:
 
-The system says nothing about food choices. It presents data and steps aside. Warm off-white surfaces replace clinical whites; a single slate-indigo accent replaces the generic teal of health-tech convention. Surfaces are layered by lightness, not lifted by shadow — sections in a document, not floating cards in an app.
+1. **Principles:** `PRODUCT.md`.
+2. **Invariants:** the short list below. Changing one needs an ADR in `docs/decisions/`.
+3. **Baseline:** the rest of this file and `constants/theme.ts`. It describes the system as it is today. Improve on it freely; when you do, update this file and the theme in the same change.
+4. **References:** mockups in `docs/design/`, screenshots and competitor captures. Inspiration and history, not specs.
 
-This is not a system that rewards itself. Every element present is there because it helps the user understand their nutrition picture faster. Every element removed was asking for attention it had not earned. The Cronometer + Linear lineage means: data density that is organized, not overwhelming, and no decorative chrome of any kind.
+When layers disagree, the higher one wins. Shipped behavior in `docs/architecture/` wins over any mockup.
 
-**Key Characteristics:**
-- Warm paper-like surfaces: the page has texture without texture
-- Single-accent discipline: slate indigo appears on interactive elements and data-primary highlights only
-- Numbers feel authoritative at a glance: tabular figures, weight contrast, clear hierarchy
-- No shadows: surfaces are sections, not floating cards
-- Macro signal colors are semantic, not decorative: protein/carb/fat use color only to differentiate nutrient type
+## Direction
 
-## 2. Colors: The Reference Palette
+The current look is warm paper and precise ink: off-white surfaces, near-black text, one slate indigo accent, flat tonal layers. It reads as trustworthy and calm. It can also read as austere, and it was designed for a nutrition-only app that refused to celebrate anything.
 
-A restrained palette anchored in warm paper neutrals with one precise signal color. The accent appears nowhere decoratively.
+The direction now is to keep the trust and add warmth and life. Open territory, explicitly invited:
 
-### Primary
-- **Slate Indigo** (#3D4B7A / oklch(45% 0.09 265)): The single interactive signal. Used on the calorie ring stroke, active states, pressed elements, and focused inputs. Its rarity is what makes it meaningful. If you are reaching for it outside those contexts, stop.
+- **Color:** more than one accent, for example a distinct accent per area (Nutrition, Training, Progress), richer chart palettes, tinted surfaces.
+- **Depth:** shadows, elevation or layered sheets where they clarify what sits on top. Tonal layering is the default, not a ban.
+- **Type:** expressive display numerals, rounded or custom faces, as long as figures stay tabular where they line up and everything scales with Dynamic Type.
+- **Motion and haptics:** transitions that explain where things came from, feedback that confirms a logged food or ticked set, and brief celebrations for a finished workout or a record.
+- **Illustration and empty states:** character is welcome, especially where there is no data yet.
+- **Data visualization:** new chart forms, annotations and highlights.
+- **Light theme:** warm paper is the baseline, not a requirement.
 
-### Neutral
-- **Warm Paper** (#F8F5EF): Page background. Warm off-white with a faint warm bias. Not the cool gray of iOS system defaults (#f2f2f7). Not clinical white. The warmth reads as paper.
-- **Card Surface** (#EEEAE2): Primary card and section background. Slightly deeper than the page, creating tonal separation without shadow.
-- **Card Subtle** (#E4E0D6): Nested surfaces, input backgrounds, secondary containers.
-- **Ink Primary** (#1A1A22): Body text, headings, primary data values. Near-black with a barely-perceptible cool undertone that sits in harmony with the slate indigo accent.
-- **Ink Secondary** (#606070): Labels, secondary metadata, icons at rest. Legible but recessive.
-- **Separator** (#D6D2C8): Dividers and row borders. Warm neutral; not stark.
+## Invariants
 
-### Signal (Macro Only)
-- **Protein Signal** (#E74C3C): Protein macro visualization exclusively.
-- **Carb Signal** (#F39C12): Carbohydrate macro visualization exclusively.
-- **Fat Signal** (#3498DB): Fat macro visualization exclusively.
-- **Success** (#27AE60): Goal-reached states only.
+1. **Accessible.** Everything in the Accessibility section below.
+2. **Color never judges.** Intake over goal, a heavier weight or a missed day is shown neutrally. Danger red is for errors and destructive actions; success green is for confirmations and completion. Neither is a verdict on food or the body ([ADR 0015](docs/decisions/0015-calm-but-warm-voice.md)).
+3. **Macros keep their identity.** Protein, carbs and fat each have one color used everywhere they appear, and those colors are not reused nearby for unrelated meaning. The exact hues can change.
+4. **Theme through tokens.** Components read colors with `useThemeColor` from `constants/theme.ts`; no hardcoded hex. Every token has a light and a dark value.
+5. **Numbers line up.** Values that sit in columns or change live (calories, grams, sets, timers) use tabular figures.
+6. **Material only on the bottom navigation.** Liquid Glass and blur stay on the main tab bar ([ADR 0014](docs/decisions/0014-material-on-bottom-navigation-only.md)).
+7. **Native foundations.** iOS 26+ uses the native tab bar and system navigation; Android follows Material conventions where they differ.
 
-### Named Rules
-**The One Accent Rule.** Slate indigo appears on interactive elements and calorie ring stroke only. It occupies less than 10% of any given screen. That scarcity is the signal; dilute it and it loses its function.
+## Accessibility
 
-**The Signal Isolation Rule.** Protein red, carb amber, and fat blue are reserved strictly for macro visualization. They never appear on navigation, UI chrome, or decorative elements. Seeing these colors means one thing: macros.
+- **Dynamic Type.** All text scales with the system setting. Layouts wrap or reflow instead of truncating key numbers. Check the largest accessibility size. Cap scaling only on tight chrome (the tab bar) and say why in code.
+- **Screen readers.** Every interactive element has an accessible name and role. Icon buttons always have an `accessibilityLabel`. Charts and rings expose a text summary ("1,640 of 2,200 calories"). Decorative layers are hidden from assistive tech and never intercept touches.
+- **Touch targets.** At least 44 pt on iOS and 48 dp on Android. A smaller visual is fine with an expanded hit area.
+- **Contrast.** WCAG AA in both themes: 4.5:1 for body text, 3:1 for large text, icons, chart marks and control borders.
+- **Not color alone.** State and meaning always have a label, icon or shape as well as a color (macro bars are labeled; errors have text).
+- **Reduce Transparency.** Any material falls back to an opaque theme surface, and starts opaque until the setting is known.
+- **Reduce Motion.** Movement becomes a fade or an instant change. No parallax or looping celebration.
+- **Haptics** are optional reinforcement and follow system settings.
 
-**The Streak Flame Exception.** The streak badge's 12pt flame glyph uses the `streak` token (burnt orange #D44F08 light, #FF8A3D dark), kept visibly darker or redder than carb amber. It is the only orange outside the macro signals: nothing else uses it, and the badge itself stays neutral (no animation, no celebration copy).
+## Baseline
 
-**The Warm Neutral Rule.** In light mode, every neutral surface carries a faint warm bias (minimum chroma 0.005 toward 85 hue). Pure gray (#888888) and pure white (#ffffff) are prohibited. Black (#000000) is prohibited. The palette reads as paper, not a screen.
+### Color
 
-### Dark Mode: Graphite
-Dark mode is a sleek near-black with a faint cool bias that sits with the ink and slate indigo, not warm paper.
-- **Background** #0E0E10, **Card** #1A1A1D, **Nested card** #242428.
-- **Text** #EDEDF0, **Secondary text** #8E8E96, **Separator** rgba(237,237,240,0.10).
-- **Input border** rgba(237,237,240,0.28) and **bar track** rgba(237,237,240,0.14), both stronger than the separator so they stay visible on cards.
-- **Accent** #8FA3D6. Macro signal colors are unchanged. Pure black (#000000) stays prohibited.
+Light theme "Warm Paper", dark theme "Graphite". Source of truth: `constants/theme.ts`.
 
-## 3. Typography
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `background` | #F8F5EF | #0E0E10 | Page background; text on a tint fill |
+| `cardBackground` | #EEEAE2 | #1A1A1D | Cards and sections |
+| `cardSecondary` | #E4E0D6 | #242428 | Nested surfaces: inputs, unselected chips |
+| `text` | #1A1A22 | #EDEDF0 | Primary text and values |
+| `icon` | #606070 | #8E8E96 | Secondary text, metadata, icons at rest |
+| `separator` | #D6D2C8 | 10% text | Row dividers |
+| `fieldBorder` | #D6D2C8 | 28% text | Input borders at rest |
+| `track` | #D6D2C8 | 14% text | Progress tracks |
+| `tint` | #3D4B7A | #8FA3D6 | Primary actions, selection, focus, calorie ring |
+| `success` | #27AE60 | #52D68A | Confirmation, completion |
+| `danger` | #E74C3C | #FF6E6E | Errors, destructive actions |
+| `streak` | #D44F08 | #FF8A3D | Streak flame |
 
-**Primary Font:** System font stack (SF Pro Text on iOS, Roboto on Android, -apple-system on web)
-**Display / Data Font:** System display variant (SF Pro Display on iOS) — leverages system tabular-figure rendering for nutrition values
+Macro colors (`MacroColors`): protein #E74C3C, carbs #F39C12, fat #3498DB, the same in both themes. `TargetTints` are pale versions that preview what a food adds to a target bar. The `nav*` tokens belong to the fallback tab bar.
 
-**Character:** Hierarchy is built entirely through weight contrast and scale. No decorative typefaces, no custom fonts. Numbers at any size should feel precise and authoritative, like a well-typeset almanac entry, not soft or approximate.
+Current habits worth knowing: the tint is the only accent and stays fairly scarce; neutrals in light mode lean warm; pure black and pure white are avoided. Note that danger red currently shares its hex with protein, which the exploration should resolve.
 
-### Hierarchy
-- **Display** (700, 34px, line-height 1.1): Calorie ring center value. The single most important number on the screen. Used only here.
-- **Headline** (700, 22px, line-height 1.2): Calorie summary stats (consumed, remaining, burned). High-emphasis data values where the number is the message.
-- **Title** (600, 17px, line-height 1.3): Card labels, section headers, screen navigation titles, macro totals.
-- **Body** (400, 15px, line-height 1.5): Food log entry names, descriptions, search results. 65 characters max per line.
-- **Label** (500, 13px, line-height 1.4): Date labels, serving amounts, macro gram labels, metadata. The workhorse of dense information.
-- **Caption** (400, 12px, line-height 1.4): Timestamps, stat sub-labels (e.g. "cal" under a calorie number), tertiary data.
+### Typography
 
-### Named Rules
-**The Tabular Figures Rule.** All nutrition data (calorie counts, gram values, percentages) must render with tabular/monospaced figure spacing. Columns of numbers that shift width as values change break the reference-book calm. On iOS, SF Pro Mono or the `tabular-nums` font feature achieves this.
+System fonts (SF Pro on iOS, Roboto on Android). Hierarchy comes from size and weight contrast.
 
-**The Weight Contrast Rule.** Minimum 1.5 weight-step gap between adjacent hierarchy levels. A Title at 600 pairs with Body at 400, never at 500. Flat weight scales read as undifferentiated. Contrast creates structure.
+| Style | Size / weight | Typical use |
+|---|---|---|
+| Display | 34 / 700 | The one hero number on a screen (calorie ring) |
+| Headline | 22 / 600 | Key stats |
+| Title | 17 / 600 | Card titles, section headers, screen titles |
+| Body | 15 / 400 | Food names, descriptions, list content |
+| Label | 13 / 500 | Dates, servings, gram values, metadata |
+| Caption | 12 / 400 | Units, sub-labels, timestamps |
 
-## 4. Elevation
+### Spacing and shape
 
-BinoFit is a flat system. No box shadows or drop shadows on content; material is reserved for the main bottom navigation. Depth is communicated entirely through tonal steps on the warm neutral scale: pages sit at Warm Paper (#F8F5EF), cards at Card Surface (#EEEAE2), nested inputs at Card Subtle (#E4E0D6).
+- Spacing scale: 4, 8, 16, 20, 24, 40. Cards usually pad 20 (16 for supporting cards) with about 14 between cards.
+- Radius scale: 4 (bars), 8 (inputs), 12, 18 (cards, primary buttons), 20 (chips).
+- Prefer the scales. If a design needs a new step, add it to the scale rather than using a one-off value.
 
-The four bottom tabs are the material exception. Preserve native system tab geometry and the existing system-owned workout accessory. The fallback bottom tab shell retains its material, fine border and soft shadow. Headers, toolbars, action groups, rest controls, sheets and keyboard accessories use plain or solid theme surfaces. Do not add glass wrappers, blur or decorative material to them. Content cards, charts, input surfaces, nutrient rows and workout tables remain solid.
+### Surfaces and depth
 
-The iOS fallback `TabBarSurface` uses regular native glass only when both runtime availability checks pass. Start opaque until Reduce Transparency is known, use opaque theme neutrals when enabled or when the query fails, and blur on older iOS when allowed. Default/Android bottom navigation uses its existing theme surface. Foreground text and icons must meet AA contrast in light/dark and forced themes. Decorative tab layers cannot intercept touches or appear to screen readers. Glass and its ancestors stay at full opacity. No new material transitions or motion.
+Content surfaces are flat and separated by tone: page, card, nested surface. No shadows on content today. The fallback tab bar is the one floating element (material, fine border, soft shadow). Overlays use the `overlay` scrim.
 
-All actions retain at least 44pt targets. Nutrition Edit is intentionally a smaller rectangle (32pt visual minimum, 14pt text, existing radius/padding) with an expanded 44pt hit region beside the gear. Sync remains immediately left of streak in its own row. Preserve content hierarchy, spacing and copy. Allow titles and actions to wrap at enlarged text sizes.
+### Icons
 
-This is deliberate. A reference book does not have floating cards. The visual language is sections and ink, not objects and depth. The result is calm at high information density: the eye does not parse overlapping layers, only the data.
+`IconSymbol` maps SF Symbols on iOS to Material Icons elsewhere. Icons at rest use `icon`; active or selected icons use `tint`. Keep one weight per context.
 
-### Named Rules
-**The Flat-By-Default Rule.** When a new surface is needed and a shadow seems tempting, use the next tonal step on the warm-neutral scale. If three tonal steps are exhausted, reconsider whether a new surface is necessary at all. If there is a fourth level of nesting, the layout has a structural problem, not an elevation problem.
+### Motion
 
-## 5. Components
+Minimal today: presses dim to about 85% opacity with no scale; screens use native transitions. Motion should explain (where something came from), confirm (food logged, set ticked) or celebrate (workout finished, new record). Keep feedback short, around 200 to 300 ms, and follow Reduce Motion.
 
-The feel is **precise and functional**: tool-grade clarity, clear affordance, interactions that confirm without performance. Nothing should feel soft, playful, or casual.
+### Components
 
-### Buttons
-- **Shape:** Gently rounded (18px radius, `{rounded.lg}`). Not pill-shaped, not square. Readable without being friendly.
-- **Primary:** Slate indigo background (#3D4B7A), warm paper text (#F8F5EF), 12px vertical / 24px horizontal padding, Title weight (600).
-- **Press / Active:** Darkens to #2E3960. Opacity 0.85 during active press. No scale transform, no bounce.
-- **Ghost:** Transparent background, slate indigo text, 1px separator-colored border (#D6D2C8). Used for secondary actions on shared surfaces.
-- **Focus (WCAG AA):** 2px slate indigo outline, 3px offset. Keyboard and screen-reader accessible on all button variants.
+Defaults as built. Reuse them before making new ones, and change them when a better version is found.
 
-### Cards / Sections
-- **Corner Style:** 18px radius (`{rounded.lg}`)
-- **Background:** Card Surface (#EEEAE2)
-- **Shadow:** None. Tonal contrast with the Warm Paper page background defines the edge.
-- **Border:** None.
-- **Internal Padding:** 20px uniform (`{spacing.lg}`). Secondary/supporting cards use 16px (`{spacing.md}`).
-- **Bottom Margin:** 14px between adjacent cards.
+- **Buttons:** primary is a tint fill with `background`-colored text, 18 radius. Secondary is tint text with an outline or none. Destructive uses `danger`.
+- **Cards:** `cardBackground`, 18 radius, no border or shadow.
+- **Inputs:** `cardSecondary` fill or `fieldBorder` outline, 8 radius; focus shows a tint border.
+- **Chips:** `cardSecondary` at rest, tint fill when selected, pill radius.
+- **Macro bar:** 8 high, 4 radius, `track` behind the macro color, label left and grams right.
+- **Calorie ring:** single tint stroke on `track`, Display number in the middle.
+- **List rows:** separated by a 1 px `separator`; swipe actions for edit and delete.
+- **Sheets and modals:** native presentation; `fullScreenModal` screens pad with safe-area insets (see `CLAUDE.md`).
+- **Bottom navigation:** native on iOS 26+; floating fallback shell elsewhere ([ADR 0014](docs/decisions/0014-material-on-bottom-navigation-only.md)). The live workout shows as the native accessory or a bar above the tabs.
 
-### Inputs / Fields
-- **Style:** Card Subtle (#E4E0D6) background, no border at rest, 8px radius (`{rounded.sm}`). Blends into the card surface it sits on.
-- **Focus:** 1.5px slate indigo border appears. Background shifts to Card Surface (#EEEAE2). No glow, no shadow.
-- **Placeholder:** Ink Secondary (#606070).
-- **Disabled:** 50% opacity. Shape unchanged.
-- **Error:** Border shifts to Danger (#E74C3C). No background fill change.
+### Interaction states
 
-### Chips / Filter Pills
-- **Unselected:** Card Subtle (#E4E0D6) background, Ink Secondary text, 20px radius (`{rounded.pill}`), 6px vertical / 14px horizontal padding.
-- **Selected / Active:** Slate indigo background (#3D4B7A), Warm Paper text. No border in either state.
+| State | Baseline treatment |
+|---|---|
+| Pressed | Dim to about 85% opacity |
+| Focused | Tint border on inputs; visible focus on every control |
+| Selected | Tint fill (chips) or tint icon (tabs) |
+| Disabled | About 50% opacity, shape unchanged |
+| Error | `danger` border plus a message in words |
+| Loading | Activity indicator or placeholder in place of the content |
+| Empty | A short sentence and the next useful action |
+| Success | Brief confirmation; optional haptic |
 
-### Macro Bar
-- **Height:** 8px
-- **Radius:** 4px (`{rounded.sharp}`) — slightly less rounded than cards; precision over softness
-- **Track:** Separator (#D6D2C8). Fill uses the three macro signal colors.
-- **Layout:** Label left, gram value right at Label scale. Bar spans full width below, with 4px gap.
-- **Stack gap:** 4px between protein, carb, and fat bars.
+## Voice and copy
 
-### Calorie Ring
-- **Diameter:** 164px default
-- **Stroke Width:** 14px — substantial enough to read progress at a glance
-- **Track:** Separator (#D6D2C8)
-- **Fill:** Slate indigo (#3D4B7A). One color, not segmented.
-- **Center:** Display-scale calorie number (34px, 700), Caption-scale "cal" label below in Ink Secondary.
+Plain, direct and friendly. Sentence case. Numbers carry units. Say what happened and what to do next.
 
-### Navigation (Bottom Tab Bar)
-- **iOS 26+:** The system owns the Liquid Glass tab bar's geometry, material, selection, animation and content insets. Four icon-only destinations retain the accessible names Nutrition, Training, Progress and Settings. An active workout uses the native bottom accessory. Do not add a custom shell, background, border or shadow to the native bar.
-- **Older iOS and Android fallback shape:** Floating 64px rounded shell, 16px side margins plus safe insets, 8px interior padding and four equal icon-only 48px targets.
-- **Fallback surface:** Blur on older iOS, translucent neutral on Android; opaque neutral when Reduce Transparency is enabled. A fine border and soft shadow separate this navigation overlay from content.
-- **Fallback active state:** Subtle neutral pill and slate indigo outline icon. Inactive icons use Ink Secondary.
-- **Fallback position:** Bottom safe inset plus 8px, with measured screen scroll clearance for the bar and any live-session banner above it.
+- Good: "Workout saved. 2 new records." "No meals logged yet. Add your first food." "Over by 120 cal."
+- Avoid: "Great job staying under!" (judges intake), "Don't break your streak!" (pressure), "Oops! Something went wrong :(" (vague).
 
-### Food Log Row
-- **Name:** Body scale (400, 15px), Ink Primary. Single line with ellipsis truncation.
-- **Serving:** Caption scale (400, 12px), Ink Secondary. Below the name.
-- **Calorie value:** Label scale (700, 13px), Ink Primary, right-aligned.
-- **Row separator:** 1px Separator line. No card wrapping per row.
-- **Swipe-delete action:** Slate indigo background, Warm Paper trash icon. Never red.
+## Open questions
 
-## 6. Do's and Don'ts
+Tracked in #98. [ADR 0017](docs/decisions/0017-lifted-paper-direction.md) answers 2, 5, 6 and 7 and part of 3; the baseline above changes when it is implemented (`docs/design/redesign/`).
 
-### Do:
-- **Do** use Warm Paper (#F8F5EF) for page backgrounds and Card Surface (#EEEAE2) for elevated sections. The warm bias is intentional — it reads as paper, not a screen.
-- **Do** reserve slate indigo exclusively for interactive elements, active states, and the calorie ring. Its scarcity is its power.
-- **Do** use weight contrast of at least 1.5 steps between adjacent hierarchy levels. Title at 600 pairs with Body at 400, never with Label at 500.
-- **Do** apply tabular figure spacing to all numeric nutrition values (calories, grams, percentages). Columns of numbers must not shift width as values change.
-- **Do** convey depth through tonal layering: Warm Paper → Card Surface → Card Subtle. Three tonal steps is the maximum.
-- **Do** use the three macro signal colors exclusively for protein, carbohydrate, and fat visualization. They are semantic identifiers.
-- **Do** match the WCAG AA standard: 4.5:1 contrast ratio for body text and labels, 3:1 for UI components and large text.
-
-### Don't:
-- **Don't** use teal, wellness green, or any health-app-adjacent accent. The outgoing #0a7ea4 is the anti-pattern. It reads as generic health tech at a glance and is explicitly retired.
-- **Don't** use coaching tone, streak celebrations, gamification badges, or behavioral-nudge visual patterns (the Noom / WW anti-reference). The design is neutral about food choices. No red warnings, no green celebrations.
-- **Don't** add shadows to cards or surfaces. Tonal separation is sufficient. If it isn't, the layout has a structural problem.
-- **Don't** apply macro signal colors (protein red, carb amber, fat blue) to navigation, buttons, icons, or any non-macro UI element.
-- **Don't** use identical card grids with icon + heading + text repeated without variation. Each section has a distinct data structure and should look distinct.
-- **Don't** use border-left or border-right stripes greater than 1px as colored accents on list items, cards, or callouts. Use background tints or leading icons instead.
-- **Don't** use pure black (#000000) or pure white (#ffffff). Every light-mode neutral carries a warm bias (minimum chroma 0.005 toward hue 85); dark mode uses the Graphite neutrals.
-- **Don't** default to iOS system grays (#f2f2f7 cards, #ffffff backgrounds) on new screens. BinoFit has its own warm neutral palette — the system grays read as unstyled.
-- **Don't** use motivational copy, gradient text, or binary red/green judgment colors. Color signals actionable data only.
+1. **Accent strategy:** one tint, or an accent per area?
+2. **Danger vs protein:** they share #E74C3C. Which one moves?
+3. **Celebration:** which moments are acknowledged (finished workout, record, steady week, streak), and how much motion and haptics?
+4. **Streak prominence:** keep a small flame badge, or give consistency more presence?
+5. **Depth:** introduce elevation or shadow for sheets, the session bar or hero cards?
+6. **Type:** a distinct numeral face for hero numbers?
+7. **Light theme:** keep warm paper, or move to a cleaner neutral?
+8. **Density:** how much of the nutrient and set data shows by default versus on demand?

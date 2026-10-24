@@ -12,7 +12,7 @@ Read by every `agent-team` role and lead through `agent-team context`, in every 
 ## Docs to read first
 
 - `CLAUDE.md`: rules for every change, overview, and the Where to look index of `docs/architecture/` area docs. Read only the area docs your task touches.
-- `PRODUCT.md` and `DESIGN.md` for UI work; `PRD_v2.md` and `docs/phase-*.md` for planning.
+- `PRODUCT.md` and `DESIGN.md` for UI work; `PRD_v2.md` and `docs/decisions/` for planning.
 
 ## Lead rules
 

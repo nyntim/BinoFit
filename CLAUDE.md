@@ -43,8 +43,9 @@ BinoFit is a local-first Expo / React Native nutrition and training tracker for 
 - **Preferences**: read device preferences with `usePreferences` (`lib/app-preferences.ts`).
 - **`fullScreenModal` safe area**: `SafeAreaView` can report zero insets the first time a native `fullScreenModal` opens on iOS, putting the header under the status bar and Dynamic Island (hit in `barcode-scanner.tsx` and `workout/session.tsx`). In any `fullScreenModal` screen, pad the root `View` with `useSafeAreaInsets()` instead.
 - **Meal names**: meals are user-defined. Resolve names with `nameForDate` / `mealsForDay` from `@/lib/meals` (via `@/hooks/useMealDefinitions`); never hardcode slot labels.
-- **Liquid Glass**: only on the main bottom navigation. Headers, buttons, sheets, rest controls and keyboard accessories use plain or solid theme surfaces; no shared glass wrappers.
-- **Design**: build UI to match the approved mockups in `docs/design/` and the tokens in `DESIGN.md`.
+- **Liquid Glass**: only on the main bottom navigation. Headers, buttons, sheets, rest controls and keyboard accessories use plain or solid theme surfaces; no shared glass wrappers (ADR 0014).
+- **Design**: follow the invariants in `DESIGN.md` and reuse its baseline tokens and components. Improving on the baseline is welcome: add new tokens or patterns to the theme and `DESIGN.md` in the same change. Mockups in `docs/design/` are references, not specs.
+- **Decisions**: a change that makes or reverses a product, architecture or design decision adds an ADR in `docs/decisions/` (template in its README).
 
 ## Where to look
 
@@ -60,6 +61,8 @@ BinoFit is a local-first Expo / React Native nutrition and training tracker for 
 | Training: schema, exercise library, workout editor, records, Training tab, live session, rest timer, routines | `docs/architecture/training.md` |
 | Progress tab, streaks, expenditure, training charts | `docs/architecture/progress.md` |
 | Spotify and Apple Health | `docs/architecture/integrations.md` |
-| Product voice and design tokens | `PRODUCT.md`, `DESIGN.md`, `docs/design/` |
-| Requirements and phase plans | `PRD_v2.md`, `docs/phase-*.md` |
+| Product principles, design system, open design questions | `PRODUCT.md`, `DESIGN.md`, `docs/design/README.md` |
+| Redesign implementation (boards per screen, build directions) | `docs/design/redesign/README.md` |
+| Decision records (why things are the way they are) | `docs/decisions/` |
+| Requirements and roadmap | `PRD_v2.md` |
 | Agent roles and workflows | `docs/agents/README.md`, `docs/agents/ship.md` |
