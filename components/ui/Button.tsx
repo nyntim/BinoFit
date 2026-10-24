@@ -2,7 +2,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressablePro
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger' | 'ink';
+/** `inverse` sits on a tint surface: `onTint` fill with a tint label. */
+export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger' | 'ink' | 'inverse';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 type Props = Omit<PressableProps, 'children' | 'style'> & {
@@ -48,6 +49,7 @@ export function Button({
     ghost: { fill: 'transparent', color: tint, border: undefined },
     danger: { fill: 'transparent', color: danger, border: undefined },
     ink: { fill: ink, color: background, border: undefined },
+    inverse: { fill: onTint, color: tint, border: undefined },
   }[variant];
   const inactive = disabled || loading;
   const stretch = fullWidth ?? size === 'lg';

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '@/constants/theme';
@@ -16,12 +16,14 @@ type Props = TextInputProps & {
   size?: TextFieldSize;
   /** Unit shown inside the field on the right ("g", "kg"). */
   suffix?: string;
+  /** A control inside the field on the right, after the suffix (a password reveal button). Give it its own label. */
+  trailing?: ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
 };
 
 /** Outlined text input (bf.css `.field`, `.focus`, `.error`, `.big`, `.mini`). */
 export const TextField = forwardRef<TextInput, Props>(function TextField(
-  { label, error, hint, size = 'md', suffix, containerStyle, style, onFocus, onBlur, accessibilityLabel, accessibilityHint, editable = true, ...rest },
+  { label, error, hint, size = 'md', suffix, trailing, containerStyle, style, onFocus, onBlur, accessibilityLabel, accessibilityHint, editable = true, ...rest },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -64,6 +66,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
           {...rest}
         />
         {suffix ? <Text style={[styles.suffix, { color: muted }]} accessible={false}>{suffix}</Text> : null}
+        {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       </View>
       {error ? (
         <View style={styles.message} accessibilityLiveRegion="polite">
@@ -89,6 +92,7 @@ const styles = StyleSheet.create({
   bigInput: { fontFamily: Fonts.rounded, fontSize: 24, fontWeight: '800', fontVariant: ['tabular-nums'] },
   miniInput: { textAlign: 'right', fontWeight: '600', fontVariant: ['tabular-nums'], paddingVertical: 6 },
   suffix: { marginLeft: 6, fontSize: 15, fontWeight: '500' },
+  trailing: { marginLeft: 6, marginRight: -6 },
   message: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   messageText: { flexShrink: 1, fontSize: 13 },
   disabled: { opacity: 0.5 },

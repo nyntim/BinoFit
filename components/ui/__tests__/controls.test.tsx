@@ -107,3 +107,27 @@ describe('Stepper', () => {
     expect(onDecrement).not.toHaveBeenCalled();
   });
 });
+
+describe('shared additions', () => {
+  const flat = (style: unknown) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+
+  it('fills a selected ink chip with the text color', async () => {
+    const { Colors } = jest.requireActual<typeof import('@/constants/theme')>('@/constants/theme');
+    await render(<Chip label="All brands" role="radio" tone="ink" selected onPress={jest.fn()} />);
+    const chip = screen.getByRole('radio', { name: 'All brands' });
+    expect(flat(chip.props.style).backgroundColor).toBe(Colors.light.text);
+  });
+
+  it('uses the soft fill for a selected soft chip and a card surface at rest', async () => {
+    const { Colors } = jest.requireActual<typeof import('@/constants/theme')>('@/constants/theme');
+    await render(<><Chip label="Back" tone="soft" selected onPress={jest.fn()} /><Chip label="Training" surface="card" dot="#000000" /></>);
+    expect(flat(screen.getByRole('checkbox', { name: 'Back' }).props.style).backgroundColor).toBe(Colors.light.tintSoft);
+    expect(flat(screen.getByLabelText('Training').props.style).backgroundColor).toBe(Colors.light.cardBackground);
+    expect(screen.getByTestId('chip-dot')).toBeTruthy();
+  });
+
+  it('renders the inverse button', async () => {
+    await render(<Button label="Resume" variant="inverse" onPress={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+  });
+});

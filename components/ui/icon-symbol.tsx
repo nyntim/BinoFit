@@ -51,6 +51,33 @@ const MAPPING = {
   'checkmark.circle.fill': 'check-circle',
   'minus.circle.fill': 'remove-circle',
   'line.3.horizontal': 'drag-handle',
+  // Settings
+  'person.fill': 'person',
+  'slider.horizontal.3': 'tune',
+  'bell': 'notifications-none',
+  'bell.fill': 'notifications',
+  'bell.slash': 'notifications-off',
+  'link': 'link',
+  'lock.shield': 'security',
+  'cylinder.split.1x2': 'storage',
+  'questionmark.circle': 'help-outline',
+  'info.circle': 'info-outline',
+  'icloud.fill': 'cloud',
+  'heart.fill': 'favorite',
+  'lightbulb': 'lightbulb-outline',
+  // Nutrition
+  'barcode.viewfinder': 'qr-code-scanner',
+  'flashlight.on.fill': 'flashlight-on',
+  'drop.fill': 'water-drop',
+  // Training equipment and builder
+  'figure.strengthtraining.traditional': 'fitness-center',
+  'figure.run': 'directions-run',
+  'figure.walk': 'directions-walk',
+  'scalemass': 'monitor-weight',
+  'square.grid.2x2': 'grid-view',
+  // Password reveal
+  'eye': 'visibility',
+  'eye.slash': 'visibility-off',
 } as IconMapping;
 
 /**

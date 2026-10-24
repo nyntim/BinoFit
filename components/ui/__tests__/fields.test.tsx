@@ -62,3 +62,13 @@ describe('SearchField', () => {
     expect(screen.getByLabelText('Search foods')).toBeTruthy();
   });
 });
+
+describe('TextField trailing slot', () => {
+  it('renders a labelled control inside the field', async () => {
+    const { Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native');
+    const onPress = jest.fn();
+    await render(<TextField label="Password" value="" secureTextEntry trailing={<Pressable accessibilityRole="button" accessibilityLabel="Show password" onPress={onPress}><Text>Show</Text></Pressable>} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+    expect(onPress).toHaveBeenCalled();
+  });
+});

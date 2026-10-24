@@ -209,12 +209,12 @@ Shared primitives live in `components/ui/` and map one to one to the classes in 
 | `Card` | `padding` default / compact / none; `tone` default / tint / ember / ink. Default tone carries the light card shadow |
 | `ListGroup`, `ListRow` | Group: card surface, 18 radius, hairline separators. Row: `title`, `subtitle`, `leading`, `trailing` (text or node), `onPress`, `chevron`, `destructive`, min height 52 |
 | `IconTile` | `icon`, `tone` tint / ember / success / neutral / danger, size 32 / 40 / 52; decorative |
-| `Button` | `variant` primary / secondary / soft / ghost / danger / ink, `size` sm / md / lg (lg is full width), `icon`, `disabled`, `loading` (busy); 44 pt target at every size |
-| `Chip` | `selected`, `tone` default / ember, `size` sm / md, `role` radio / checkbox / button; static without `onPress` |
+| `Button` | `variant` primary / secondary / soft / ghost / danger / ink / inverse (on a tint surface), `size` sm / md / lg (lg is full width), `icon`, `disabled`, `loading` (busy); 44 pt target at every size |
+| `Chip` | `selected`, `tone` default / soft / ink / ember (selected look), `size` sm / md, `role` radio / checkbox / button, `dot`, `surface` nested / card; static without `onPress` |
 | `Tag` | `tone` neutral / tint / ember, optional icon |
 | `SegmentedControl` | `options`, `value`, `onChange`; a named radiogroup, selected segment raised |
 | `Stepper` | `value` or inline `children`, labelled minus and plus buttons, per-button disabled |
-| `TextField` | `label`, `error` (danger border, inline message, hint, announced), `hint`, `size` md / big / mini, `suffix` |
+| `TextField` | `label`, `error` (danger border, inline message, hint, announced), `hint`, `size` md / big / mini, `suffix`, `trailing` control |
 | `SearchField` | Nested fill, focus border, "Clear search" button |
 | `ProgressBar` | `value`, `max`, `color`, `preview` segment, height 6 / 8 / 12; over max stays full in the same color |
 | `SheetHeader` | Cancel / title (header) / action, optional grabber and subtitle |
