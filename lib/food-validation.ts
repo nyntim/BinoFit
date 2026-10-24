@@ -86,3 +86,22 @@ export function convertServingAmount(raw: string, from: ServingUnit, to: Serving
   const amount = to === 'default' ? canonical : to === 'grams' ? canonical * baseGrams : canonical * baseGrams / GRAMS_PER_OUNCE;
   return Number.isFinite(amount) ? formatServingAmount(amount) : null;
 }
+
+const SERVING_STEP: Record<ServingUnit, number> = { default: 0.5, grams: 10, oz: 0.5 };
+
+/**
+ * One Stepper press on the amount field: snaps to the unit's step grid (2.25 + 0.5 gives 2.5,
+ * 2.25 - 0.5 gives 2). An invalid or empty amount steps up from nothing and cannot step down.
+ * Null when the result would be 0 or below, which disables the button.
+ */
+export function stepServingAmount(raw: string, unit: ServingUnit, direction: 1 | -1): string | null {
+  const step = SERVING_STEP[unit];
+  const parsed = parseFoodDecimal(raw, 'required');
+  if (!parsed.valid || parsed.value === null) return direction === 1 ? formatServingAmount(step) : null;
+  const ratio = parsed.value / step;
+  // Round away float noise before snapping so 1.5 / 0.5 is exactly 3
+  const clean = Math.round(ratio * 1e9) / 1e9;
+  const snapped = direction === 1 ? Math.floor(clean) + 1 : Math.ceil(clean) - 1;
+  const next = Math.round(snapped * step * 1e9) / 1e9;
+  return next > 0 ? formatServingAmount(next) : null;
+}

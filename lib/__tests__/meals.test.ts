@@ -1,3 +1,4 @@
+import { mealEditDetail } from '@/lib/meals';
 import {
   buildDraft,
   deleteMealMessage,
@@ -243,5 +244,19 @@ describe('reminder time helpers', () => {
     };
     expect(m.isDraftDirty(initial, changed)).toBe(true);
     expect(m.isDraftDirty(initial, { ...initial })).toBe(false);
+  });
+});
+
+
+describe('mealEditDetail', () => {
+  const at = (reminder_time: string | null, calorie_target: number | null) => mealEditDetail({ reminder_time, calorie_target });
+  test('reminder only, target only, both and neither', () => {
+    expect(at('07:30', null)).toMatch(/^Reminder 7:30/);
+    expect(at(null, 500)).toBe('No reminder · 500 cal');
+    expect(at('07:30', 500)).toMatch(/^Reminder 7:30.* · 500 cal$/);
+    expect(at(null, null)).toBe('No reminder');
+  });
+  test('the empty name message is the board copy', () => {
+    expect(validateMealName('  ', [])).toBe('Give this meal a name.');
   });
 });

@@ -20,7 +20,7 @@ export const ORPHAN_MEAL_NAME = 'Other';
 /** Returns an error message, or null when the name is acceptable. `others` are the other meals' names. */
 export function validateMealName(name: string, others: string[]): string | null {
   const trimmed = name.trim();
-  if (trimmed.length === 0) return 'Enter a name';
+  if (trimmed.length === 0) return 'Give this meal a name.';
   if (trimmed.length > MEAL_LIMITS.nameMax) return `Use ${MEAL_LIMITS.nameMax} characters or fewer`;
   const lower = trimmed.toLowerCase();
   if (others.some((o) => o.trim().toLowerCase() === lower)) return 'Another meal has this name';
@@ -232,6 +232,12 @@ export function formatMealTargets(
   if (targets.carb_target != null) parts.push(`Carbs ${r1(totals.carbs)} / ${r1(targets.carb_target)} g`);
   if (targets.fat_target != null) parts.push(`Fat ${r1(totals.fat)} / ${r1(targets.fat_target)} g`);
   return { calories, macros: parts.length > 0 ? parts.join(' · ') : null };
+}
+
+/** Edit-mode detail line: "Reminder 7:30 AM · 500 cal", or "No reminder". The target shows only when set. */
+export function mealEditDetail(def: Pick<DraftMeal, 'reminder_time' | 'calorie_target'>): string {
+  const reminder = def.reminder_time ? `Reminder ${formatReminderTime(def.reminder_time)}` : 'No reminder';
+  return def.calorie_target != null ? `${reminder} · ${Math.round(def.calorie_target)} cal` : reminder;
 }
 
 /** "3 items · 540 cal", or "No food". */

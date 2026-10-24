@@ -50,21 +50,21 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 | Board | Canvas page | Route or component | Build directions | Status |
 |---|---|---|---|---|
-| `NutDashboard` | Nutrition / Today | `app/(tabs)/index.tsx` | [nutrition.md#nutdashboard-nutrition-dashboard-full-scroll](nutrition.md#nutdashboard-nutrition-dashboard-full-scroll) | Restyle + new (D3, D4) |
-| `NutEdit` | Nutrition / Today | Dashboard edit mode (`useMealDraft`, `EditModeBar`) | [nutrition.md#nutedit-edit-meals](nutrition.md#nutedit-edit-meals) | Restyle |
-| `NutMealSheet` | Nutrition / Today | `components/dashboard/MealSettingsSheet.tsx` | [nutrition.md#nutmealsheet-meal-targets-and-reminder](nutrition.md#nutmealsheet-meal-targets-and-reminder) | Restyle |
-| `NutMealSummary` | Nutrition / Today | `components/dashboard/MealNutritionSummary.tsx` | [nutrition.md#nutmealsummary-meal-nutrition-summary](nutrition.md#nutmealsummary-meal-nutrition-summary) | Restyle |
-| `NutCalendar` | Nutrition / Today | `components/CalendarWidget.tsx` month view | [nutrition.md#nutcalendar-month-calendar](nutrition.md#nutcalendar-month-calendar) | Restyle + small new |
-| `NutWater` | Nutrition / Today | `components/dashboard/WaterModals.tsx` | [nutrition.md#nutwater-add-a-drink](nutrition.md#nutwater-add-a-drink) | Restyle |
-| `NutDayDetail` | Nutrition / Today | `app/day-detail.tsx` | [nutrition.md#nutdaydetail-past-day](nutrition.md#nutdaydetail-past-day) | Restyle + new (D5) |
-| `NutSearch` | Nutrition / Logging food | `app/food-search.tsx` | [nutrition.md#nutsearch-food-search](nutrition.md#nutsearch-food-search) | Restyle |
-| `NutSearchMulti` | Nutrition / Logging food | `app/food-search.tsx` selection mode | [nutrition.md#nutsearchmulti-select-multiple](nutrition.md#nutsearchmulti-select-multiple) | Restyle |
-| `NutSearchEmpty` | Nutrition / Logging food | `app/food-search.tsx` empty state | [nutrition.md#nutsearchempty-no-results](nutrition.md#nutsearchempty-no-results) | Restyle |
-| `NutServing` | Nutrition / Logging food | `app/serving-picker.tsx` | [nutrition.md#nutserving-serving-picker](nutrition.md#nutserving-serving-picker) | Restyle |
-| `NutBatch` | Nutrition / Logging food | `app/food-batch-review.tsx` | [nutrition.md#nutbatch-review-selected-foods](nutrition.md#nutbatch-review-selected-foods) | Restyle |
-| `NutScanner` | Nutrition / Logging food | `app/barcode-scanner.tsx` | [nutrition.md#nutscanner-barcode-scanner](nutrition.md#nutscanner-barcode-scanner) | Restyle |
-| `NutScanMiss` | Nutrition / Logging food | `app/barcode-scanner.tsx` not-found state | [nutrition.md#nutscanmiss-barcode-not-found](nutrition.md#nutscanmiss-barcode-not-found) | Restyle |
-| `NutCustomFood` | Nutrition / Logging food | `app/custom-food.tsx` | [nutrition.md#nutcustomfood-custom-food](nutrition.md#nutcustomfood-custom-food) | Restyle |
+| `NutDashboard` | Nutrition / Today | `app/(tabs)/index.tsx` | [nutrition.md#nutdashboard-nutrition-dashboard-full-scroll](nutrition.md#nutdashboard-nutrition-dashboard-full-scroll) | Built (no Burned, D3; water total only, D4, flag off) |
+| `NutEdit` | Nutrition / Today | Dashboard edit mode (`useMealDraft`, `EditModeBar`) | [nutrition.md#nutedit-edit-meals](nutrition.md#nutedit-edit-meals) | Built (Done stays in the top bar) |
+| `NutMealSheet` | Nutrition / Today | `components/dashboard/MealSettingsSheet.tsx` | [nutrition.md#nutmealsheet-meal-targets-and-reminder](nutrition.md#nutmealsheet-meal-targets-and-reminder) | Built |
+| `NutMealSummary` | Nutrition / Today | `components/dashboard/MealNutritionSummary.tsx` | [nutrition.md#nutmealsummary-meal-nutrition-summary](nutrition.md#nutmealsummary-meal-nutrition-summary) | Built |
+| `NutCalendar` | Nutrition / Today | `components/CalendarWidget.tsx` month view | [nutrition.md#nutcalendar-month-calendar](nutrition.md#nutcalendar-month-calendar) | Built (D5) |
+| `NutWater` | Nutrition / Today | `components/dashboard/WaterModals.tsx` | [nutrition.md#nutwater-add-a-drink](nutrition.md#nutwater-add-a-drink) | Built (D4; flag off) |
+| `NutDayDetail` | Nutrition / Today | `app/day-detail.tsx` | [nutrition.md#nutdaydetail-past-day](nutrition.md#nutdaydetail-past-day) | Built (D5) |
+| `NutSearch` | Nutrition / Logging food | `app/food-search.tsx` | [nutrition.md#nutsearch-food-search](nutrition.md#nutsearch-food-search) | Built (no quick-add or Recent tag) |
+| `NutSearchMulti` | Nutrition / Logging food | `app/food-search.tsx` selection mode | [nutrition.md#nutsearchmulti-select-multiple](nutrition.md#nutsearchmulti-select-multiple) | Built |
+| `NutSearchEmpty` | Nutrition / Logging food | `app/food-search.tsx` empty state | [nutrition.md#nutsearchempty-no-results](nutrition.md#nutsearchempty-no-results) | Built |
+| `NutServing` | Nutrition / Logging food | `app/serving-picker.tsx` | [nutrition.md#nutserving-serving-picker](nutrition.md#nutserving-serving-picker) | Built (status is read-only) |
+| `NutBatch` | Nutrition / Logging food | `app/food-batch-review.tsx` | [nutrition.md#nutbatch-review-selected-foods](nutrition.md#nutbatch-review-selected-foods) | Built |
+| `NutScanner` | Nutrition / Logging food | `app/barcode-scanner.tsx` | [nutrition.md#nutscanner-barcode-scanner](nutrition.md#nutscanner-barcode-scanner) | Built |
+| `NutScanMiss` | Nutrition / Logging food | `app/barcode-scanner.tsx` not-found state | [nutrition.md#nutscanmiss-barcode-not-found](nutrition.md#nutscanmiss-barcode-not-found) | Built |
+| `NutCustomFood` | Nutrition / Logging food | `app/custom-food.tsx` | [nutrition.md#nutcustomfood-custom-food](nutrition.md#nutcustomfood-custom-food) | Built |
 
 ### Training
 

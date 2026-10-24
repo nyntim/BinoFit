@@ -9,13 +9,15 @@ jest.mock('@/context/DateContext', () => ({ useDate: () => ({ selectedDate: mock
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: (_: unknown, name: string) => name === 'cardBackground' ? '#eeeeee' : name === 'text' ? '#111111' : '#444444' }));
 jest.mock('expo-router', () => ({ useFocusEffect: (fn: () => () => void) => jest.requireActual<typeof import('react')>('react').useEffect(fn, [fn]) }));
 jest.mock('@/lib/database', () => ({ getLoggedDatesInRange: jest.fn() }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
+let mockSummary: { eatenCalories: number | null; workouts: unknown[]; loading: boolean } = { eatenCalories: 1100, workouts: [], loading: false };
+jest.mock('@/hooks/useDaySummary', () => ({ useDaySummary: () => mockSummary }));
 jest.mock('react-native-calendars', () => ({
-  Calendar: ({ current, dayComponent, onMonthChange }: { current: string; dayComponent: (p: { date: { dateString: string } }) => React.ReactNode; onMonthChange: (d: { dateString: string }) => void }) => {
+  Calendar: ({ current, dayComponent }: { current: string; dayComponent: (p: { date: { dateString: string } }) => React.ReactNode }) => {
     const React = jest.requireActual<typeof import('react')>('react');
-    const { View, Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return React.createElement(View, null,
-      React.createElement(Pressable, { onPress: () => onMonthChange({ dateString: '2026-11-01' }), accessibilityLabel: 'Next month', accessibilityRole: 'button' }, React.createElement(Text, null, 'Next')),
-      dayComponent({ date: { dateString: current.slice(0, 7) + '-15' } }));
+    const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+    return React.createElement(View, null, dayComponent({ date: { dateString: current.slice(0, 7) + '-15' } }));
   },
 }));
 
@@ -30,6 +32,7 @@ beforeEach(() => {
   mockSelectedDate = '2026-10-17';
   mockSetSelectedDate.mockClear();
   foodRead.mockReset().mockResolvedValue([]);
+  mockSummary = { eatenCalories: 1100, workouts: [], loading: false };
 });
 
 test('food, training, combined, today and empty days have distinct semantic labels', async () => {
@@ -40,13 +43,13 @@ test('food, training, combined, today and empty days have distinct semantic labe
   const today = screen.getByRole('button', { name: /Saturday, October 17, 2026, today, food logged, trained/ });
   expect(today.props.accessibilityState.selected).toBe(true);
   expect(screen.getByRole('button', { name: 'Monday, October 12, 2026' })).toBeTruthy();
-  expect(screen.queryByText('Logged')).toBeNull();
+  expect(screen.queryByText('Logged food')).toBeNull();
   expect(screen.queryByText('Trained')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
-  expect(screen.getByText('Logged')).toBeTruthy();
+  expect(screen.getByText('Logged food')).toBeTruthy();
   expect(screen.getByText('Trained')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'Close calendar' }));
-  expect(screen.queryByText('Logged')).toBeNull();
+  expect(screen.queryByText('Logged food')).toBeNull();
   expect(screen.queryByText('Trained')).toBeNull();
 });
 
@@ -55,13 +58,20 @@ test('week selection and month selection use full day buttons and planning limit
   await fireEvent.press(screen.getByRole('button', { name: 'Monday, October 12, 2026' }));
   expect(mockSetSelectedDate).toHaveBeenCalledWith('2026-10-12');
   await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
-  expect(screen.getByText('Logged')).toBeTruthy();
+  expect(screen.getByText('Logged food')).toBeTruthy();
   expect(screen.queryByText('Trained')).toBeNull();
   const monthDay = screen.getAllByRole('button', { name: 'Thursday, October 15, 2026' })[1];
   expect(StyleSheet.flatten(monthDay.props.style).width).toBe(44);
   expect(StyleSheet.flatten(monthDay.props.style).minHeight).toBeGreaterThanOrEqual(44);
+  mockSetSelectedDate.mockClear();
   await fireEvent.press(monthDay);
+  // A month tap previews the day; Go to day applies it and closes the sheet
+  expect(mockSetSelectedDate).not.toHaveBeenCalled();
+  expect(screen.getByText('Thu 15 Oct')).toBeTruthy();
+  expect(screen.getByText('1,100 cal eaten')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Go to day' }));
   expect(mockSetSelectedDate).toHaveBeenCalledWith('2026-10-15');
+  expect(screen.queryByText('Logged food')).toBeNull();
   await first.unmount();
   mockSelectedDate = '2026-10-24';
   const { rerender } = await render(<CalendarWidget today="2026-10-17" />);
@@ -107,4 +117,18 @@ test('historical month uses an uncapped visible-grid range', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
   await waitFor(() => expect(foodRead).toHaveBeenCalledWith('2024-01-29', '2024-03-03'));
   expect(screen.getByRole('button', { name: /February 15, 2024, food logged/ })).toBeTruthy();
+});
+
+test('next month stops at the planning limit and the summary shows a spinner while loading', async () => {
+  mockSelectedDate = '2026-10-17';
+  mockSummary = { eatenCalories: null, workouts: [], loading: true };
+  await render(<CalendarWidget today="2026-10-17" />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Open month calendar' }));
+  expect(screen.getByText('October 2026')).toBeTruthy();
+  expect(screen.queryByText(/cal eaten/)).toBeNull();
+  // November 1 starts after today + 7, so there is nothing to go to
+  expect(screen.getByRole('button', { name: 'Next month' }).props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByRole('button', { name: 'Previous month' }));
+  expect(screen.getByText('September 2026')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Next month' }).props.accessibilityState.disabled).toBe(false);
 });

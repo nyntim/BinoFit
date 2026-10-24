@@ -10,6 +10,12 @@ jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ meal_slot: 'm1'
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Dinner' }) }));
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#444444' }));
 jest.mock('@expo/vector-icons/MaterialIcons', () => 'MaterialIcons');
+jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
+jest.mock('react-native-safe-area-context', () => {
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return { SafeAreaView: View, useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
+});
+jest.mock('@/hooks/useNewFoodStatus', () => ({ useNewFoodStatus: () => 'eaten' }));
 jest.mock('expo-haptics', () => ({ notificationAsync: jest.fn(), NotificationFeedbackType: { Success: 'success' } }));
 jest.mock('@/lib/database', () => ({ addFoodLogsBatch: jest.fn() }));
 jest.mock('@/lib/storage', () => ({ getDefaultLogStatus: async () => 'eaten' }));
@@ -35,11 +41,13 @@ beforeEach(async () => {
 test('renders items and totals; remove updates totals and the Add count', async () => {
   await render(<FoodBatchReviewScreen />);
   expect(screen.getByText('Name a')).toBeTruthy();
-  expect(screen.getByText('150 cal')).toBeTruthy();
-  expect(screen.getByLabelText('Add 2 foods')).toBeTruthy();
+  expect(screen.getByText('2 foods for Dinner')).toBeTruthy();
+  expect(screen.getByText('Tue 20 Oct · Eaten')).toBeTruthy();
+  expect(screen.getByText('cal · P 20 · C 0 · F 0')).toBeTruthy();
+  expect(screen.getByLabelText('Log 2 foods')).toBeTruthy();
   await fireEvent.press(screen.getByLabelText('Remove Name a'));
-  expect(screen.getAllByText('50 cal')).toHaveLength(2);
-  expect(screen.getByLabelText('Add 1 food')).toBeTruthy();
+  expect(screen.getAllByText('50')).toHaveLength(2); // the item and the total
+  expect(screen.getByLabelText('Log 1 food')).toBeTruthy();
 });
 
 test('Add is disabled while an item failed and Try again re-resolves it', async () => {
@@ -48,23 +56,23 @@ test('Add is disabled while an item failed and Try again re-resolves it', async 
   store.toggleSelectedFood(mk('a', 100)); await flush();
   await render(<FoodBatchReviewScreen />);
   expect(screen.getByText("Couldn't load full details.")).toBeTruthy();
-  expect(screen.getByLabelText('Add 1 food').props.accessibilityState.disabled).toBe(true);
+  expect(screen.getByLabelText('Log 1 food').props.accessibilityState.disabled).toBe(true);
   await fireEvent.press(screen.getByText('Try again'));
   await flush();
-  expect(screen.getByLabelText('Add 1 food').props.accessibilityState.disabled).toBe(false);
+  expect(screen.getByLabelText('Log 1 food').props.accessibilityState.disabled).toBe(false);
 });
 
 test('empty draft shows the empty state with Add disabled', async () => {
   await render(<FoodBatchReviewScreen />);
   await act(async () => { store.clearSelectedFoods(); });
   expect(screen.getByText('Back to search')).toBeTruthy();
-  expect(screen.getByLabelText('Add 0 foods').props.accessibilityState.disabled).toBe(true);
+  expect(screen.queryByLabelText(/^Log \d+ foods?$/)).toBeNull();
 });
 
 test('a rejected save shows the banner and keeps the items; retry succeeds and leaves', async () => {
   (addFoodLogsBatch as jest.Mock).mockRejectedValueOnce(new Error('db'));
   await render(<FoodBatchReviewScreen />);
-  await fireEvent.press(screen.getByLabelText('Add 2 foods'));
+  await fireEvent.press(screen.getByLabelText('Log 2 foods'));
   await flush();
   expect(screen.getByText("Couldn't add these foods.")).toBeTruthy();
   expect(screen.getByText('Name a')).toBeTruthy();
@@ -75,8 +83,20 @@ test('a rejected save shows the banner and keeps the items; retry succeeds and l
 
 test('a double press saves once', async () => {
   await render(<FoodBatchReviewScreen />);
-  const add = screen.getByLabelText('Add 2 foods');
+  const add = screen.getByLabelText('Log 2 foods');
   await fireEvent.press(add); await fireEvent.press(add);
   await waitFor(() => expect(mockDismissTo).toHaveBeenCalled());
   expect(addFoodLogsBatch).toHaveBeenCalledTimes(1);
+});
+
+test('the amount stepper changes the amount and Less is disabled at the minimum', async () => {
+  await render(<FoodBatchReviewScreen />);
+  const amount = screen.getByLabelText('Amount for Name a');
+  expect(amount.props.value).toBe('1');
+  await fireEvent.press(screen.getByLabelText('More Name a'));
+  expect(screen.getByLabelText('Amount for Name a').props.value).toBe('1.5');
+  await fireEvent.press(screen.getByLabelText('Less Name a'));
+  await fireEvent.press(screen.getByLabelText('Less Name a'));
+  expect(screen.getByLabelText('Amount for Name a').props.value).toBe('0.5');
+  expect(screen.getAllByLabelText('Less Name a')[0].props.accessibilityState.disabled).toBe(true);
 });

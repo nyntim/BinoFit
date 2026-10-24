@@ -1,8 +1,11 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MacroColors } from '@/constants/theme';
-import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { NUTRIENTS, type NutrientValues } from '@/lib/nutrients';
-import { formatNutrientValue, percent, round1 } from '@/components/serving-picker/format';
+import { formatNutrientValue, round1 } from '@/components/serving-picker/format';
 
 type MacroDetailRow = {
   key: string;
@@ -49,7 +52,7 @@ function buildMacroRows(
 
 export function MacroDetailPanel({
   macro, pro, carb, fat, nutrients,
-  proteinGoal, carbGoal, fatGoal, onClose, colors,
+  proteinGoal, carbGoal, fatGoal, onClose,
 }: {
   macro: 'protein' | 'carbs' | 'fat';
   pro: number;
@@ -60,8 +63,9 @@ export function MacroDetailPanel({
   carbGoal: number | null;
   fatGoal: number | null;
   onClose: () => void;
-  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text' | 'track'>;
 }) {
+  const panel = useThemeColor({}, 'cardSecondary');
+  const icon = useThemeColor({}, 'icon');
   const rows = buildMacroRows(macro, pro, carb, fat, nutrients, proteinGoal, carbGoal, fatGoal);
   // Rows with no data are hidden; a single note says so
   const visibleRows = rows.filter((r) => r.value != null);
@@ -73,35 +77,29 @@ export function MacroDetailPanel({
     : 'Details with no data for this food are hidden';
 
   return (
-    <View style={[styles.macroDetailCard, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
+    <View style={[styles.macroDetailCard, { backgroundColor: panel }]}>
       <View style={styles.macroDetailHeader}>
-        <Text style={[styles.macroDetailTitle, { color: colors.text }]}>{title}</Text>
-        <TouchableOpacity
+        <ThemedText type="label" style={styles.macroDetailTitle}>{title}</ThemedText>
+        <Pressable
           onPress={onClose}
-          hitSlop={14}
+          style={styles.close}
           accessibilityRole="button"
           accessibilityLabel={`Close ${title.toLowerCase()} details`}
         >
-          <Text style={{ color: colors.icon, fontSize: 16 }}>✕</Text>
-        </TouchableOpacity>
+          <IconSymbol name="xmark" size={16} color={icon} />
+        </Pressable>
       </View>
       {visibleRows.map((row) => (
-        <DetailRow key={row.key} row={row} color={color} colors={colors} />
+        <DetailRow key={row.key} row={row} color={color} />
       ))}
       {hiddenCount > 0 ? (
-        <Text style={[styles.macroDetailNote, { color: colors.icon }]}>{hiddenNote}</Text>
+        <ThemedText type="caption" style={styles.macroDetailNote}>{hiddenNote}</ThemedText>
       ) : null}
     </View>
   );
 }
 
-function DetailRow({
-  row, color, colors,
-}: {
-  row: MacroDetailRow;
-  color: string;
-  colors: Pick<typeof Colors.light, 'icon' | 'text' | 'track'>;
-}) {
+function DetailRow({ row, color }: { row: MacroDetailRow; color: string }) {
   const hasValue = row.value != null;
   const indent = row.indent ?? 0;
   const pct = hasValue && row.goal
@@ -117,56 +115,26 @@ function DetailRow({
   return (
     <View style={[styles.detailRow, { paddingLeft: 16 + indent * 16 }]}>
       <View style={styles.detailRowTop}>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <Text style={[styles.detailRowLabel, { color: colors.text, fontWeight: indent === 0 ? '700' : '600' }]}>
-            {row.label}
-          </Text>
-          <Text style={[styles.detailRowValueInline, { color: colors.icon }]}>
-            {'  '}{valueText}
-          </Text>
+        <View style={styles.detailText}>
+          <ThemedText type="label" style={{ fontWeight: indent === 0 ? '700' : '600' }}>{row.label}</ThemedText>
+          <ThemedText type="caption" style={styles.tabular}>{`  ${valueText}`}</ThemedText>
         </View>
-        <Text style={[styles.detailRowPct, { color: colors.icon }]}>{pctText}</Text>
+        <ThemedText type="caption" style={styles.pct}>{pctText}</ThemedText>
       </View>
-      {hasValue && row.goal ? (
-        <View style={[styles.progressBar, { backgroundColor: colors.track }]}>
-          <View style={[styles.progressFill, { width: percent(pct), backgroundColor: color }]} />
-        </View>
-      ) : null}
+      {hasValue && row.goal ? <ProgressBar value={pct} max={1} color={color} height={6} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  macroDetailCard: {
-    marginTop: -8,
-    borderRadius: 18,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  macroDetailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  macroDetailTitle: { fontSize: 14, fontWeight: '700' },
-  macroDetailNote: { fontSize: 12, paddingHorizontal: 16, marginTop: 8 },
+  macroDetailCard: { borderRadius: 14, paddingVertical: 8 },
+  macroDetailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 16, paddingRight: 4 },
+  macroDetailTitle: { fontWeight: '700' },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  macroDetailNote: { paddingHorizontal: 16, marginTop: 4, marginBottom: 4 },
   detailRow: { gap: 4, paddingRight: 16, paddingVertical: 6 },
-  detailRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  detailRowLabel: { fontSize: 13 },
-  detailRowValueInline: { fontSize: 12, fontVariant: ['tabular-nums'] },
-  detailRowPct: { fontSize: 12, fontWeight: '400', minWidth: 36, textAlign: 'right' },
-
-  // Detail progress bars
-  progressBar: { height: 4, borderRadius: 2 },
-  progressFill: { height: 4, borderRadius: 2 },
+  detailRowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  detailText: { flex: 1, flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
+  tabular: { fontVariant: ['tabular-nums'] },
+  pct: { minWidth: 36, textAlign: 'right' },
 });

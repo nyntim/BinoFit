@@ -1,3 +1,4 @@
+import { OZ_TO_ML, formatWater, mlToOz, ozToMl, waterPresets } from '@/lib/units';
 import {
   displayToMetres,
   distanceUnitFor,
@@ -96,5 +97,28 @@ describe('formatPace', () => {
   it('labels per km or per mi', () => {
     expect(formatPace(330, 'kg')).toBe('5:30 /km');
     expect(formatPace(330, 'lb')).toBe('5:30 /mi');
+  });
+});
+
+
+describe('water', () => {
+  test('ml and oz round trip', () => {
+    expect(ozToMl(1)).toBeCloseTo(OZ_TO_ML, 6);
+    expect(ozToMl(mlToOz(500))).toBeCloseTo(500, 2);
+    expect(mlToOz(ozToMl(16))).toBeCloseTo(16, 2);
+  });
+  test('metric switches to litres at 1000 ml', () => {
+    expect(formatWater(mlToOz(999), 'kg')).toBe('999 ml');
+    expect(formatWater(mlToOz(1000), 'kg')).toBe('1 L');
+    expect(formatWater(mlToOz(1250), 'kg')).toBe('1.25 L');
+    expect(formatWater(mlToOz(500), 'kg')).toBe('500 ml');
+  });
+  test('imperial shows ounces', () => {
+    expect(formatWater(40, 'lb')).toBe('40 oz');
+    expect(formatWater(12.5, 'lb')).toBe('12.5 oz');
+  });
+  test('presets follow the unit', () => {
+    expect(waterPresets('kg')).toEqual([250, 330, 500, 750]);
+    expect(waterPresets('lb')).toEqual([8, 12, 16, 24]);
   });
 });

@@ -3,20 +3,15 @@ import {
   AccessibilityInfo,
   StyleSheet,
   View,
-  Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTabBarInset, useTabBarInsetMode } from '@/context/TabBarInsetContext';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { format, parseISO } from 'date-fns';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
-import { MacroColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   getUserGoals,
@@ -31,18 +26,20 @@ import {
   deleteWaterLog,
   countFoodLogsForMeal,
 } from '@/lib/database';
-import { CalorieRing } from '@/components/calorie-ring';
-import { MacroBar } from '@/components/macro-bar';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import { DayWorkouts } from '@/components/dashboard/DayWorkouts';
 import { useDashboardTraining } from '@/hooks/useDashboardTraining';
-import { StreakBadge } from '@/components/StreakBadge';
-import { SyncIndicator } from '@/components/SyncIndicator';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
-import { CalorieStat } from '@/components/dashboard/CalorieStat';
-import { QuickAddButton } from '@/components/dashboard/QuickAddButton';
 import { CustomWaterModal, QuickAddSearchModal } from '@/components/dashboard/WaterModals';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ActivityCard } from '@/components/dashboard/ActivityCard';
+import { CalorieCard } from '@/components/dashboard/CalorieCard';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DefaultStatusRow } from '@/components/dashboard/DefaultStatusRow';
+import { MacroCard } from '@/components/dashboard/MacroCard';
+import { MealCardList } from '@/components/dashboard/MealCardList';
+import { MealEditList } from '@/components/dashboard/MealEditList';
+import { WaterCard } from '@/components/dashboard/WaterCard';
+import { Card } from '@/components/ui/Card';
 import { useDate } from '@/context/DateContext';
 import { useSwipeDayNavigation } from '@/hooks/useSwipeDayNavigation';
 import { useHealthKit } from '@/hooks/use-health-kit';
@@ -50,19 +47,15 @@ import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { WATER_TRACKING_ENABLED } from '@/constants/features';
 import { useMealLogs } from '@/hooks/useMealLogs';
-import { MealSlotCard, MEAL_EDIT_CARD_HEIGHT } from '@/components/dashboard/MealSlotCard';
-import { ReorderableList } from '@/components/dashboard/ReorderableList';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { useMealDraft } from '@/hooks/useMealDraft';
 import { restoreMealReminders } from '@/lib/reminders';
 import { MealNutritionSummary } from '@/components/dashboard/MealNutritionSummary';
-import { isSlotEaten, logsForSlot } from '@/lib/nutrition-totals';
+import { isSlotEaten, logsForSlot, sumPlannedTotals } from '@/lib/nutrition-totals';
 import { syncToSupabase } from '@/lib/sync';
-import { MEAL_LIMITS, deleteMealMessage, mealsForDay } from '@/lib/meals';
+import { deleteMealMessage, mealsForDay } from '@/lib/meals';
 import { openMealEditAfterReload } from '@/lib/meal-settings-entry';
 import { usePreferences } from '@/hooks/usePreferences';
-import { setDefaultLogStatus } from '@/lib/app-preferences';
-import { PillSwitch } from '@/components/settings/PillSwitch';
 import type { FoodLogWithFood, UserGoals, MealSlot, WaterLog, QuickAddDrink } from '@/lib/types';
 
 const DEFAULT_GOALS: UserGoals = {
@@ -81,17 +74,8 @@ const DEFAULT_QUICK_DRINKS: QuickAddDrink[] = [
 
 export default function HomeScreen() {
   const preferences = usePreferences();
-  const [foodDefaultError, setFoodDefaultError] = useState('');
   const background = useThemeColor({}, 'background');
-  const cardBackground = useThemeColor({}, 'cardBackground');
-  const cardSecondary = useThemeColor({}, 'cardSecondary');
-  const danger = useThemeColor({}, 'danger');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
-  const icon = useThemeColor({}, 'icon');
-  const separator = useThemeColor({}, 'separator');
-  const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint };
   const router = useRouter();
   const { editMeals, manageMeals } = useLocalSearchParams<{ editMeals?: string; manageMeals?: string }>();
   const [summarySelection, setSummarySelection] = useState<{ id: MealSlot; date: string } | null>(null);
@@ -112,7 +96,6 @@ export default function HomeScreen() {
 
   const training = useDashboardTraining(selectedDate);
   const today = training.today;
-  const displayDate = format(parseISO(selectedDate), 'EEEE, MMM d');
 
   const [goals, setGoals] = useState<UserGoals>(DEFAULT_GOALS);
   const {
@@ -253,12 +236,6 @@ export default function HomeScreen() {
   // or closing settings cannot reopen a summary that was already dismissed.
   if (summarySelection && !summaryVisible) setSummarySelection(null);
 
-  const draftMeals = mealDraft.draft?.meals;
-  const editItems = useMemo(
-    () => (draftMeals ?? []).map((m) => ({ ...m, label: m.name })),
-    [draftMeals]
-  );
-
   const { start: startMealDraft } = mealDraft;
   const startEditing = useCallback(() => {
     startMealDraft(defs, names, today);
@@ -360,332 +337,121 @@ export default function HomeScreen() {
 
   const handleDeleteLog = (log: FoodLogWithFood) => deleteMealLog(log, () => loadData(true));
 
-  const remaining = Math.max(0, goals.calorie_goal - Math.round(consumed.calories));
+  const planned = useMemo(() => sumPlannedTotals(logs, confirmations), [logs, confirmations]);
+  const errorCount = isEditing ? Object.values(mealDraft.errors).filter(Boolean).length : 0;
+  const showDay = !loading && mealsLoaded;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* The week strip stays mounted (keeps its logged-day dots) and the edit bar covers it */}
-      <View>
-        <View
-          accessibilityElementsHidden={isEditing}
-          importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
-        >
-          <CalendarWidget trainedDates={training.trainedDates} today={today} foodRevision={logs} />
-        </View>
-        {isEditing && (
-          <EditModeBar
-            colors={colors}
-            onCancel={cancelEditing}
-            onDone={finishEditing}
-            hasErrors={mealDraft.hasErrors}
-            saving={mealDraft.saving}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: background }]} edges={['top']}>
+      {isEditing && (
+        <EditModeBar
+          onCancel={cancelEditing}
+          onDone={finishEditing}
+          errorCount={errorCount}
+          saving={mealDraft.saving}
+        />
+      )}
       <GestureDetector gesture={panGesture}>
         <View style={styles.swipeOuter}>
-          <Animated.View style={[styles.swipeInner, animatedStyle]}>
-            <ScrollView
-              ref={dashScrollRef}
-              contentContainerStyle={[
-                styles.scroll,
-                { paddingBottom: 40 + tabBarInset + (isEditing ? keyboardHeight : 0) },
-              ]}
-              contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined}
-              scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}
-              automaticallyAdjustKeyboardInsets={isEditing}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={!scrollLocked}
-              keyboardShouldPersistTaps="handled"
-              scrollEventThrottle={16}
-              onScroll={onDashScroll}
-              onContentSizeChange={onDashContentSizeChange}
+          <ScrollView
+            ref={dashScrollRef}
+            contentContainerStyle={[
+              styles.scroll,
+              { paddingBottom: 40 + tabBarInset + (isEditing ? keyboardHeight : 0) },
+            ]}
+            contentInsetAdjustmentBehavior={nativeTabInsets ? 'automatic' : undefined}
+            scrollIndicatorInsets={nativeTabInsets ? undefined : { bottom: tabBarInset }}
+            automaticallyAdjustKeyboardInsets={isEditing}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={!scrollLocked}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={onDashScroll}
+            onContentSizeChange={onDashContentSizeChange}
+          >
+            <DashboardHeader
+              selectedDate={selectedDate}
+              today={today}
+              streakTrigger={logs.length}
+              isEditing={isEditing}
+              onEdit={startEditing}
+              onOpenSettings={() => { setSummarySelection(null); router.push('/settings/nutrition'); }}
+            />
+
+            {/* The week strip stays mounted while editing (keeps its logged-day dots) but is hidden */}
+            <View
+              style={isEditing ? styles.hidden : undefined}
+              accessibilityElementsHidden={isEditing}
+              importantForAccessibility={isEditing ? 'no-hide-descendants' : 'auto'}
             >
-              <View style={styles.topRow}>
-                <View style={styles.headerTop}>
-                  <Text numberOfLines={1} style={[styles.dateLabel, { color: colors.icon }]}>
-                    {displayDate}{selectedDate === today ? '  · Today' : ''}
-                  </Text>
-                  <View style={styles.badgeRow}>
-                    <SyncIndicator />
-                    <StreakBadge trigger={logs.length} />
-                  </View>
-                </View>
-                <View style={styles.titleRow}>
-                  <Text style={[styles.pageTitle, { color: colors.text }]}>Dashboard</Text>
-                  {!isEditing && <View style={styles.titleActions}>
-                    <TouchableOpacity onPress={startEditing} hitSlop={{ top: 6, bottom: 6 }} style={[styles.editModeBtn, { backgroundColor: colors.cardSecondary }]} accessibilityRole="button" accessibilityLabel="Edit meals">
-                      <Text style={[styles.editModeBtnText, { color: colors.text }]}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { setSummarySelection(null); router.push('/settings/nutrition'); }} style={styles.gearButton} accessibilityRole="button" accessibilityLabel="Nutrition settings">
-                      <IconSymbol name="gear" size={21} color={colors.icon} />
-                    </TouchableOpacity>
-                  </View>}
-                </View>
-              </View>
-
-        {loading || !mealsLoaded ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color={colors.tint} />
-          </View>
-        ) : (
-          <>
-            {/* Calorie ring + remaining */}
-            <View style={[styles.calorieCard, { backgroundColor: colors.cardBackground }]}>
-              <View style={styles.ringRow}>
-                <CalorieRing
-                  consumed={Math.round(consumed.calories)}
-                  goal={goals.calorie_goal}
-                  ringColor={colors.tint}
-                  trackColor={colors.tint + '26'}
-                  textColor={colors.text}
-                  subTextColor={colors.icon}
-                />
-                <View style={styles.calorieSummary}>
-                  <CalorieStat
-                    label="Goal"
-                    value={goals.calorie_goal}
-                    textColor={colors.text}
-                    subColor={colors.icon}
-                  />
-                  <CalorieStat
-                    label="Eaten"
-                    value={Math.round(consumed.calories)}
-                    textColor={colors.text}
-                    subColor={colors.icon}
-                  />
-                  <CalorieStat
-                    label="Remaining"
-                    value={remaining}
-                    textColor={remaining === 0 ? colors.danger : colors.text}
-                    subColor={colors.icon}
-                  />
-                </View>
-              </View>
+              <Card padding="none" style={styles.weekCard}>
+                <CalendarWidget trainedDates={training.trainedDates} today={today} foodRevision={logs} />
+              </Card>
             </View>
 
-            {/* Macro bars */}
-            <View style={[styles.macroCard, { backgroundColor: colors.cardBackground }]}>
-              <MacroBar
-                label="Protein"
-                consumed={Math.round(consumed.protein * 10) / 10}
-                goal={goals.protein_goal}
-                color={MacroColors.protein}
-                textColor={colors.text}
-                subTextColor={colors.icon}
-              />
-              <MacroBar
-                label="Carbs"
-                consumed={Math.round(consumed.carbs * 10) / 10}
-                goal={goals.carb_goal}
-                color={MacroColors.carbs}
-                textColor={colors.text}
-                subTextColor={colors.icon}
-              />
-              <MacroBar
-                label="Fat"
-                consumed={Math.round(consumed.fat * 10) / 10}
-                goal={goals.fat_goal}
-                color={MacroColors.fat}
-                textColor={colors.text}
-                subTextColor={colors.icon}
-              />
-            </View>
-
-            {!isEditing && <DayWorkouts workouts={training.dayWorkouts} />}
-
-            {/* Water Card */}
-            {WATER_TRACKING_ENABLED && (
-            <View style={[styles.waterCard, { backgroundColor: colors.cardBackground }]}>
-              <View style={styles.waterHeader}>
-                <View style={styles.waterHeaderLeft}>
-                  <Text style={[styles.waterLabel, { color: colors.text }]}>Water</Text>
-                  <Text style={[styles.waterProgress, { color: colors.icon }]}>
-                    {Math.round(waterConsumed)} / 128 oz
-                  </Text>
+            <Animated.View style={[styles.day, animatedStyle]}>
+              {!showDay ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color={tint} />
                 </View>
-                <TouchableOpacity
-                  style={[styles.addWaterBtn, { backgroundColor: colors.tint + '18' }]}
-                  onPress={() => setWaterModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="add" size={20} color={colors.tint} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.waterBarBg, { backgroundColor: colors.cardSecondary, borderColor: colors.separator }]}>
-                <View
-                  style={[
-                    styles.waterBarFill,
-                    {
-                      backgroundColor: colors.tint + '50',
-                      width: `${Math.min(100, Math.max(0, (waterConsumed / 128) * 100)) || 0}%`,
-                    },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.quickAddRow}>
-                {quickAddDrinks.map((drink) => (
-                  <QuickAddButton
-                    key={drink.id}
-                    label={drink.name}
-                    onPress={() => handleAddWater(drink.amount, drink.name)}
-                    colors={colors}
-                    isEditing={isEditing}
-                    onRemove={() => handleRemoveQuickAdd(drink.id)}
-                  />
-                ))}
-                {isEditing && quickAddDrinks.length < 3 && (
-                  <TouchableOpacity
-                    style={[styles.addQuickAddBtn, { backgroundColor: colors.cardSecondary, borderColor: colors.separator }]}
-                    onPress={() => setIsAddingQuickAdd(true)}
-                  >
-                    <MaterialIcons name="edit" size={18} color={colors.tint} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {waterLogs.length > 0 && (
-                <View style={styles.logList}>
-                  {waterLogs.map((log) => (
-                    <TouchableOpacity
-                      key={log.id}
-                      style={[styles.logRow, { borderTopColor: colors.separator }]}
-                      onLongPress={() => handleDeleteWaterLog(log)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.logInfo}>
-                        <Text style={[styles.logName, { color: colors.text }]} numberOfLines={1}>
-                          {log.drink_name}
-                        </Text>
-                      </View>
-                      <View style={styles.logRight}>
-                        <Text style={[styles.logCals, { color: colors.text }]}>
-                          {log.amount}
-                        </Text>
-                        <Text style={[styles.logCalsUnit, { color: colors.icon }]}>oz</Text>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteWaterLog(log)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <MaterialIcons name="delete-outline" size={18} color={colors.icon} />
-                        </TouchableOpacity>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-            )}
-
-            {/* Activity Row */}
-            {available && readGranted && selectedDate === today && (
-              <View style={[styles.activityCard, { backgroundColor: colors.cardBackground }]}>
-                <View style={styles.activityRow}>
-                  <View style={styles.activityItem}>
-                    <MaterialIcons name="directions-walk" size={20} color={colors.tint} />
-                    <Text style={[styles.activityText, { color: colors.text }]}>
-                      {activity.steps.toLocaleString()} steps
-                    </Text>
-                  </View>
-                  <View style={[styles.activityDivider, { backgroundColor: colors.separator }]} />
-                  <View style={styles.activityItem}>
-                    <MaterialIcons name="local-fire-department" size={20} color={MacroColors.protein} />
-                    <Text style={[styles.activityText, { color: colors.text }]}>
-                      {Math.round(activity.activeCalories)} cal
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Meals */}
-            {!isEditing && preferences.loaded && (
-              <View style={styles.foodDefault}>
-                <Text style={[styles.foodDefaultLabel, { color: text }]}>Default for new food</Text>
-                <PillSwitch
-                  value={preferences.defaultLogStatus}
-                  options={[{ value: 'eaten', label: 'Eaten' }, { value: 'planned', label: 'Planned' }]}
-                  onChange={(value) => {
-                    void setDefaultLogStatus(value).then(() => setFoodDefaultError('')).catch(() => {
-                      setFoodDefaultError('Couldn’t save the food default. Try again.');
-                    });
-                  }}
-                  accessibilityLabel="Default for new food"
-                />
-                <Text style={[styles.foodDefaultHelp, { color: icon }]}>Planned meals don’t count toward your daily totals until you mark them eaten.</Text>
-                {foodDefaultError ? <Text accessibilityRole="alert" style={{ color: danger }}>{foodDefaultError}</Text> : null}
-              </View>
-            )}
-            {isEditing && mealDraft.draft ? (
-              <>
-                <Text style={[styles.editWarning, { color: colors.text }]}>
-                  Deleting a meal deletes its logged food.
-                </Text>
-                <Text style={[styles.editNote, { color: colors.icon }]}>Changes apply from today.</Text>
-                <ReorderableList
-                  items={editItems}
-                  itemHeight={MEAL_EDIT_CARD_HEIGHT}
-                  gap={14}
-                  iconColor={colors.icon}
-                  onReorder={mealDraft.reorder}
-                  onDragActiveChange={setScrollLocked}
-                  renderItem={(m, handle) => (
-                    <MealSlotCard
-                      mode="edit"
-                      slot={m.id}
-                      index={editItems.findIndex((e) => e.id === m.id)}
-                      label={m.name}
-                      logs={logs}
-                      targets={m}
-                      colors={colors}
-                      nameError={mealDraft.errors[m.id] ?? null}
-                      canDelete={mealDraft.draft!.meals.length > MEAL_LIMITS.min}
-                      dragHandle={handle}
-                      onChangeName={(name) => mealDraft.rename(m.id, name)}
-                      onChangeSettings={(t, r) => {
-                        mealDraft.setTargets(m.id, t);
-                        mealDraft.setReminder(m.id, r);
-                      }}
-                      onDelete={() => confirmDeleteMeal(m.id, m.name)}
+              ) : isEditing && mealDraft.draft ? (
+                <>
+                  {WATER_TRACKING_ENABLED && (
+                    <WaterCard
+                      total={waterConsumed}
+                      logs={waterLogs}
+                      quickAddDrinks={quickAddDrinks}
+                      unit={preferences.weightUnit}
+                      isEditing
+                      onAdd={handleAddWater}
+                      onOpenDrinkSheet={() => setWaterModalVisible(true)}
+                      onDeleteLog={handleDeleteWaterLog}
+                      onRemoveQuickAdd={handleRemoveQuickAdd}
+                      onAddQuickAdd={() => setIsAddingQuickAdd(true)}
                     />
                   )}
-                />
-                {mealDraft.draft.meals.length < MEAL_LIMITS.max && (
-                  <TouchableOpacity
-                    style={[styles.addMealRow, { borderColor: colors.separator }]}
-                    onPress={mealDraft.add}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add meal"
-                  >
-                    <MaterialIcons name="add" size={20} color={colors.tint} />
-                    <Text style={[styles.addMealText, { color: colors.tint }]}>Add meal</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            ) : (
-              meals.map(({ id, name, def, orphan }) => {
-                const slotLogs = logsForSlot(logs, id);
-                const showToggle = slotLogs.length > 0;
-
-                // We need to know if it's explicitly UNCONFIRMED (0) to show the "Planned" state,
-                // otherwise (if it's confirmed or doesn't exist), we show "Eaten".
-                const isExplicitlyPlanned = confirmations.find(c => c.meal_slot === id)?.confirmed === false;
-                const displayConfirmed = !isExplicitlyPlanned;
-
-                return (
-                  <MealSlotCard
-                    key={id}
-                    slot={id}
-                    label={name}
-                    logs={slotLogs}
-                    targets={def}
-                    eaten={displayConfirmed}
-                    showToggle={showToggle}
-                    allowAdd={!orphan}
+                  <MealEditList
+                    meals={mealDraft.draft.meals}
+                    logs={logs}
+                    errors={mealDraft.errors}
+                    onReorder={mealDraft.reorder}
+                    onDragActiveChange={setScrollLocked}
+                    onRename={mealDraft.rename}
+                    onChangeSettings={(id, t, r) => {
+                      mealDraft.setTargets(id, t);
+                      mealDraft.setReminder(id, r);
+                    }}
+                    onDelete={confirmDeleteMeal}
+                    onAdd={mealDraft.add}
+                  />
+                </>
+              ) : (
+                <>
+                  <CalorieCard eaten={Math.round(consumed.calories)} goal={goals.calorie_goal} planned={Math.round(planned.calories)} />
+                  <MacroCard consumed={consumed} goals={goals} />
+                  {!isEditing && <DayWorkouts workouts={training.dayWorkouts} />}
+                  {WATER_TRACKING_ENABLED && (
+                    <WaterCard
+                      total={waterConsumed}
+                      logs={waterLogs}
+                      quickAddDrinks={quickAddDrinks}
+                      unit={preferences.weightUnit}
+                      isEditing={false}
+                      onAdd={handleAddWater}
+                      onOpenDrinkSheet={() => setWaterModalVisible(true)}
+                      onDeleteLog={handleDeleteWaterLog}
+                      onRemoveQuickAdd={handleRemoveQuickAdd}
+                      onAddQuickAdd={() => setIsAddingQuickAdd(true)}
+                    />
+                  )}
+                  {available && readGranted && selectedDate === today && (
+                    <ActivityCard steps={activity.steps} activeCalories={activity.activeCalories} />
+                  )}
+                  {!isEditing && preferences.loaded && <DefaultStatusRow value={preferences.defaultLogStatus} />}
+                  <MealCardList
+                    meals={meals}
+                    logs={logs}
+                    confirmations={confirmations}
                     onShowNutrition={loadedDataDate === selectedDate ? (slot, focusTarget) => {
                       summaryFocusTarget.current = focusTarget ?? null;
                       setSummarySelection({ id: slot, date: selectedDate });
@@ -694,15 +460,11 @@ export default function HomeScreen() {
                     onAdd={handleAddToSlot}
                     onEditLog={handleEditLog}
                     onDeleteLog={handleDeleteLog}
-                    colors={colors}
                   />
-                );
-              })
-            )}
-          </>
-        )}
-        </ScrollView>
-          </Animated.View>
+                </>
+              )}
+            </Animated.View>
+          </ScrollView>
         </View>
       </GestureDetector>
 
@@ -717,14 +479,15 @@ export default function HomeScreen() {
             visible={waterModalVisible}
             onClose={() => setWaterModalVisible(false)}
             onAdd={handleAddWater}
-            colors={colors}
+            unit={preferences.weightUnit}
+            todayTotal={waterConsumed}
           />
 
           <QuickAddSearchModal
             visible={isAddingQuickAdd}
             onClose={() => setIsAddingQuickAdd(false)}
             onSelect={handleAddQuickAdd}
-            colors={colors}
+            unit={preferences.weightUnit}
           />
         </>
       )}
@@ -733,107 +496,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  foodDefault: { gap: 8, marginBottom: 16, alignItems: 'flex-start' },
-  foodDefaultLabel: { fontSize: 14, fontWeight: '600' },
-  foodDefaultHelp: { fontSize: 12, lineHeight: 16 },
   container: { flex: 1 },
   swipeOuter: { flex: 1, overflow: 'hidden' },
-  swipeInner: { flex: 1 },
-  scroll: { padding: 20, paddingBottom: 40 },
-  topRow: { marginBottom: 20 },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
-    maxWidth: '100%',
-    justifyContent: 'flex-end',
-  },
-  dateLabel: { fontSize: 13, fontWeight: '500', flex: 1, minWidth: 0 },
-  pageTitle: { fontSize: 28, fontWeight: '700', flexShrink: 1, minWidth: 0, maxWidth: '100%' },
-  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 'auto' },
-  gearButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  titleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  editWarning: { fontSize: 13, marginBottom: 2 },
-  editNote: { fontSize: 12, marginBottom: 12 },
-  addMealRow: {
-    height: 48,
-    marginTop: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  addMealText: { fontSize: 15, fontWeight: '600' },
-  editModeBtn: {
-    minHeight: 32, justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  editModeBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40, gap: 14 },
+  weekCard: { paddingTop: 10, paddingHorizontal: 8, paddingBottom: 8 },
+  hidden: { display: 'none' },
+  day: { gap: 14 },
   loadingContainer: { paddingTop: 60, alignItems: 'center' },
-  calorieCard: { borderRadius: 18, padding: 20, marginBottom: 14 },
-  ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  calorieSummary: { flex: 1, gap: 12 },
-  macroCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
-  activityCard: { borderRadius: 18, padding: 14, marginBottom: 14 },
-  activityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  activityItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  activityText: { fontSize: 14, fontWeight: '600' },
-  activityDivider: { width: 1, height: 20 },
-  logList: { marginTop: 12, gap: 2 },
-  logRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  logInfo: { flex: 1, marginRight: 8 },
-  logName: { fontSize: 14, fontWeight: '500' },
-  logRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  logCals: { fontSize: 14, fontWeight: '600' },
-  logCalsUnit: { fontSize: 12, marginRight: 6 },
-  waterCard: { borderRadius: 18, padding: 16, marginBottom: 14 },
-  waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  waterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  waterLabel: { fontSize: 16, fontWeight: '600' },
-  waterProgress: { fontSize: 16 },
-  addWaterBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  waterBarBg: { height: 32, borderRadius: 10, borderWidth: 2, overflow: 'hidden' },
-  waterBarFill: { height: '100%', borderRadius: 8 },
-  quickAddRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  addQuickAddBtn: {
-    width: 40,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderStyle: 'dashed',
-  },
 });

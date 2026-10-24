@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   InputAccessoryView,
   Keyboard,
@@ -8,17 +7,24 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { format, isValid, parseISO } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MacroColors } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { StickyFooter } from '@/components/ui/StickyFooter';
 import { BATCH_AMOUNT_ACCESSORY_ID, BatchReviewItem } from '@/components/food-search/BatchReviewItem';
 import { useFoodSelection } from '@/hooks/useFoodSelection';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
+import { useNewFoodStatus } from '@/hooks/useNewFoodStatus';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { batchTotals, canConfirm, selectedCount } from '@/lib/food-selection';
 import {
@@ -31,6 +37,7 @@ import {
 } from '@/lib/food-selection-store';
 import { syncToSupabase } from '@/lib/sync';
 import { homeRouteFor } from '@/lib/tracking-mode';
+import type { MealSlot } from '@/lib/types';
 
 export default function FoodBatchReviewScreen() {
   const { meal_slot, date } = useLocalSearchParams<{ meal_slot: string; date: string }>();
@@ -42,11 +49,11 @@ export default function FoodBatchReviewScreen() {
   const danger = useThemeColor({}, 'danger');
   const icon = useThemeColor({}, 'icon');
   const separator = useThemeColor({}, 'separator');
-  const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const savingRef = useRef(false);
+  const { width } = useWindowDimensions();
 
   const count = selectedCount(selection);
   const totals = batchTotals(selection);
@@ -85,62 +92,45 @@ export default function FoodBatchReviewScreen() {
     ]);
 
   const slotLabel = mealsLoaded ? labelFor(meal_slot, date) : '';
+  const status = useNewFoodStatus(date, meal_slot as MealSlot | undefined);
+  const dateLine = [date && isValid(parseISO(date)) ? format(parseISO(date), 'EEE d MMM') : null, status === 'eaten' ? 'Eaten' : status === 'planned' ? 'Planned' : null].filter(Boolean).join(' · ');
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-      <View style={[styles.header, { borderBottomColor: separator }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.side} hitSlop={8} accessibilityRole="button">
-          <Text style={[styles.headerBtn, { color: tint }]}>Back</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.side} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back to search">
+          <View style={styles.back}>
+            <IconSymbol name="chevron.left" size={22} color={tint} />
+            <Text style={[styles.headerBtn, { color: tint }]}>Search</Text>
+          </View>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: text }]} accessibilityRole="header" numberOfLines={1}>
-          {mealsLoaded ? `Add to ${slotLabel}` : ''}
-        </Text>
+        <ThemedText type="title" style={styles.title} accessibilityRole="header" numberOfLines={1}>Review</ThemedText>
         <View style={[styles.side, styles.sideRight]}>
-          <TouchableOpacity
-            onPress={handleAdd}
-            disabled={!ready}
-            style={[styles.pill, { backgroundColor: tint, opacity: ready || saving ? 1 : 0.4 }]}
-            hitSlop={6}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={`Add ${count} ${count === 1 ? 'food' : 'foods'}`}
-            accessibilityState={{ disabled: !ready, busy: saving }}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={background} />
-            ) : (
-              <Text style={[styles.pillText, { color: background }]}>{`Add ${count}`}</Text>
-            )}
-          </TouchableOpacity>
+          <Button label="Clear all" variant="danger" size="sm" onPress={confirmClearAll} disabled={count === 0} />
         </View>
       </View>
 
       {saveError ? (
-        <View style={[styles.banner, { backgroundColor: cardBackground }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <Text style={[styles.bannerText, { color: text }]}>{"Couldn't add these foods."}</Text>
-          <TouchableOpacity onPress={handleAdd} disabled={!ready} style={styles.bannerBtn} accessibilityRole="button" accessibilityState={{ disabled: !ready }}>
-            <Text style={[styles.bannerRetry, { color: tint }]}>Try again</Text>
-          </TouchableOpacity>
-        </View>
+        <Card padding="compact" style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <IconSymbol name="exclamationmark.circle" size={18} color={danger} />
+          <ThemedText type="label" style={styles.bannerText}>{"Couldn't add these foods."}</ThemedText>
+          <Button label="Try again" variant="ghost" size="sm" onPress={handleAdd} disabled={!ready} />
+        </Card>
       ) : null}
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {count === 0 ? (
           <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: icon }]}>No foods selected</Text>
-            <TouchableOpacity onPress={() => router.back()} style={[styles.emptyBtn, { backgroundColor: tint }]} accessibilityRole="button">
-              <Text style={[styles.pillText, { color: background }]}>Back to search</Text>
-            </TouchableOpacity>
+            <ThemedText type="body" style={{ color: icon }}>No foods selected</ThemedText>
+            <Button label="Back to search" onPress={() => router.back()} />
           </View>
         ) : (
           <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.scroll}>
-            <View style={[styles.totals, { backgroundColor: cardBackground }]}>
-              <Text style={[styles.totalCal, { color: text }]}>{totals.calories} cal</Text>
-              <View style={styles.totalMacros}>
-                <Text style={[styles.totalMacro, { color: MacroColors.protein }]}>P {totals.protein}g</Text>
-                <Text style={[styles.totalMacro, { color: MacroColors.carbs }]}>C {totals.carbs}g</Text>
-                <Text style={[styles.totalMacro, { color: MacroColors.fat }]}>F {totals.fat}g</Text>
-              </View>
+            <View style={styles.heading}>
+              <ThemedText type="heading" style={styles.headline}>
+                {mealsLoaded ? `${count} ${count === 1 ? 'food' : 'foods'} for ${slotLabel}` : `${count} ${count === 1 ? 'food' : 'foods'}`}
+              </ThemedText>
+              {dateLine ? <ThemedText type="label" style={{ color: icon }}>{dateLine}</ThemedText> : null}
             </View>
             {selection.order.map((id) => (
               <BatchReviewItem
@@ -155,12 +145,30 @@ export default function FoodBatchReviewScreen() {
                 onRetry={() => void resolveSelectedFood(id)}
               />
             ))}
-            <TouchableOpacity onPress={confirmClearAll} style={styles.clearAll} accessibilityRole="button">
-              <Text style={[styles.clearAllText, { color: danger }]}>Clear all</Text>
-            </TouchableOpacity>
           </ScrollView>
         )}
       </KeyboardAvoidingView>
+
+      {count > 0 ? (
+        <StickyFooter style={styles.footer}>
+          <View style={[styles.footerContent, { width: width - 32 }]}>
+            <View style={styles.totalRow}>
+              <ThemedText type="label" style={{ color: icon }}>Total</ThemedText>
+              <View style={styles.totalValues}>
+                <ThemedText type="stat" style={styles.totalCal}>{totals.calories}</ThemedText>
+                <ThemedText type="caption" style={styles.tabular}>{`cal · P ${totals.protein} · C ${totals.carbs} · F ${totals.fat}`}</ThemedText>
+              </View>
+            </View>
+            <Button
+              size="lg"
+              label={`Log ${count} ${count === 1 ? 'food' : 'foods'}`}
+              disabled={!ready}
+              loading={saving}
+              onPress={handleAdd}
+            />
+          </View>
+        </StickyFooter>
+      ) : null}
 
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID={BATCH_AMOUNT_ACCESSORY_ID}>
@@ -178,27 +186,25 @@ export default function FoodBatchReviewScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
-  side: { width: 80, minHeight: 44, justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 6 },
+  side: { minWidth: 96, minHeight: 44, justifyContent: 'center' },
   sideRight: { alignItems: 'flex-end' },
-  headerBtn: { fontSize: 16 },
-  title: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600' },
-  pill: { minWidth: 64, minHeight: 34, paddingHorizontal: 18, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  pillText: { fontSize: 15, fontWeight: '600' },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingLeft: 14, paddingRight: 12, borderRadius: 12 },
-  bannerText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  bannerBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
-  bannerRetry: { fontSize: 13, fontWeight: '600' },
-  scroll: { padding: 16, gap: 12, paddingBottom: 40 },
-  totals: { borderRadius: 14, padding: 14, gap: 4 },
-  totalCal: { fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  totalMacros: { flexDirection: 'row', gap: 14 },
-  totalMacro: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  clearAll: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  clearAllText: { fontSize: 15, fontWeight: '500' },
+  back: { flexDirection: 'row', alignItems: 'center', marginLeft: -6 },
+  headerBtn: { fontSize: 17 },
+  title: { flex: 1, textAlign: 'center' },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12 },
+  bannerText: { flex: 1 },
+  scroll: { padding: 16, gap: 12, paddingBottom: 24 },
+  heading: { gap: 4, marginBottom: 4 },
+  headline: { fontSize: 26, lineHeight: 31 },
+  // The footer's action slot sizes to its content, so the column is given the full row width
+  footer: { gap: 0 },
+  footerContent: { gap: 10 },
+  totalRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  totalValues: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, flexShrink: 1 },
+  totalCal: { fontSize: 20, lineHeight: 24 },
+  tabular: { fontVariant: ['tabular-nums'] },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  emptyText: { fontSize: 15 },
-  emptyBtn: { minHeight: 44, paddingHorizontal: 24, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   accessory: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, borderTopWidth: StyleSheet.hairlineWidth },
   accessoryBtn: { minHeight: 44, justifyContent: 'center' },
   accessoryDone: { fontSize: 16, fontWeight: '600' },

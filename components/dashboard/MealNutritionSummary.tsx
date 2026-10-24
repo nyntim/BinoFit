@@ -1,7 +1,12 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
 import { CalorieRing } from '@/components/calorie-ring';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/Card';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SheetHeader } from '@/components/ui/SheetHeader';
+import { Tag } from '@/components/ui/Tag';
 import { MacroColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { hasAnyTarget, type DayMeal } from '@/lib/meals';
@@ -28,7 +33,6 @@ type Props = {
 };
 
 type MacroId = 'protein' | 'carbs' | 'fat';
-type Palette = { text: string; secondary: string; track: string; tile: string };
 
 const MACROS: { id: MacroId; label: string; targetKey: 'protein_target' | 'carb_target' | 'fat_target' }[] = [
   { id: 'protein', label: 'Protein', targetKey: 'protein_target' },
@@ -41,53 +45,49 @@ const GROUPS = [
   { id: 'vitamins', title: 'Vitamins' },
 ] as const;
 
-function MacroTile({ label, color, grams, target, palette }: {
-  label: string; color: string; grams: number; target: number | null | undefined; palette: Palette;
+function MacroTile({ label, color, grams, target }: {
+  label: string; color: string; grams: number; target: number | null | undefined;
 }) {
   const percent = targetPercentage(grams, target);
   const hasTarget = target != null && target > 0;
   const targetText = target == null ? null : target === 0 ? 'Target: 0 g' : `of ${amount(target)} g`;
   const spoken = `${label}, ${amount(grams, 1)} grams${hasTarget ? ` of ${amount(target!)} grams` : ''}${percent != null ? `, ${amount(percent, 0)}% of target` : ''}`;
   return (
-    <View accessible accessibilityLabel={spoken} style={[styles.tile, { backgroundColor: palette.tile }]}>
+    <Card padding="compact" accessible accessibilityLabel={spoken} style={styles.tile}>
       <View style={styles.tileLabel}>
         <View style={[styles.swatch, { backgroundColor: color }]} />
-        <Text style={[styles.label, { color: palette.secondary }]}>{label}</Text>
+        <ThemedText type="caption">{label}</ThemedText>
       </View>
-      <Text style={[styles.title, styles.number, { color: palette.text }]}>{`${amount(grams, 1)} g`}</Text>
-      {targetText && <Text style={[styles.caption, { color: palette.secondary }]}>{targetText}</Text>}
-      {hasTarget && (
-        <View style={[styles.tileTrack, { backgroundColor: palette.track }]}>
-          <View style={[styles.tileFill, { backgroundColor: color, width: `${Math.min(grams / target!, 1) * 100}%` }]} />
-        </View>
-      )}
-      {percent != null && <Text style={[styles.caption, { color: palette.secondary }]}>{`${amount(percent, 0)}% of target`}</Text>}
-    </View>
+      <ThemedText type="stat" style={styles.tileValue}>{`${amount(grams, 1)} g`}</ThemedText>
+      {hasTarget && <ProgressBar value={grams} max={target!} color={color} height={6} />}
+      {targetText && <ThemedText type="caption">{targetText}</ThemedText>}
+    </Card>
   );
 }
 
-function EnergyBar({ shares, palette }: { shares: Record<MacroId, number> | null; palette: Palette }) {
+function EnergyBar({ shares }: { shares: Record<MacroId, number> | null }) {
+  const track = useThemeColor({}, 'track');
   if (!shares) {
     return (
       <View style={styles.energy}>
-        <View style={[styles.bar, { backgroundColor: palette.track }]} />
-        <Text style={[styles.caption, { color: palette.secondary }]}>No macro split yet</Text>
+        <View style={[styles.bar, { backgroundColor: track }]} />
+        <ThemedText type="caption">No macro split yet</ThemedText>
       </View>
     );
   }
+  const spoken = `Energy from protein ${amount(shares.protein, 0)} percent, carbs ${amount(shares.carbs, 0)} percent, fat ${amount(shares.fat, 0)} percent`;
   return (
     <View style={styles.energy}>
-      <View style={[styles.bar, { backgroundColor: palette.track }]}>
+      <View style={styles.bar} accessible accessibilityRole="image" accessibilityLabel={spoken}>
         {MACROS.filter(({ id }) => shares[id] > 0).map(({ id }) => (
-          <View key={id} style={{ flex: shares[id], backgroundColor: MacroColors[id] }} />
+          <View key={id} style={[styles.segment, { flex: shares[id], backgroundColor: MacroColors[id] }]} />
         ))}
       </View>
-      <View style={styles.legend}>
+      <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {MACROS.map(({ id, label }) => (
           <View key={id} style={styles.legendItem}>
             <View style={[styles.swatch, { backgroundColor: MacroColors[id] }]} />
-            <Text style={[styles.caption, { color: palette.secondary }]}>{label}</Text>
-            <Text style={[styles.caption, { color: palette.text }]}>{`${amount(shares[id], 0)}%`}</Text>
+            <ThemedText type="caption">{`${label} ${amount(shares[id], 0)}%`}</ThemedText>
           </View>
         ))}
       </View>
@@ -97,15 +97,12 @@ function EnergyBar({ shares, palette }: { shares: Record<MacroId, number> | null
 
 export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, onDismiss }: Props) {
   const background = useThemeColor({}, 'background');
-  const surface = useThemeColor({}, 'cardBackground');
-  const tile = useThemeColor({}, 'cardSecondary');
   const text = useThemeColor({}, 'text');
   const secondary = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
   const track = useThemeColor({}, 'track');
   const separator = useThemeColor({}, 'separator');
   const insets = useSafeAreaInsets();
-  const palette: Palette = { text, secondary, track, tile };
   const totals = mealNutritionTotals(logs, meal.id);
   const nutrients = slotNutrientTotals(logs, meal.id);
   const split = macroEnergyShares(totals);
@@ -113,71 +110,74 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
   const calorieTarget = targets?.calorie_target;
   const hasRing = calorieTarget != null && calorieTarget > 0;
   const delta = calorieDelta(totals.calories, calorieTarget);
-  const caloriePercent = targetPercentage(totals.calories, calorieTarget);
   const hasNutrients = NUTRIENTS.some((n) => nutrients[n.id].knownCount > 0);
   const planned = !eaten;
+  const foodCount = `${logs.length} ${logs.length === 1 ? 'food' : 'foods'}`;
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} onDismiss={onDismiss}>
       <View accessibilityViewIsModal onAccessibilityEscape={onClose}
         style={[styles.root, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.header}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close nutrition summary" onPress={onClose} style={styles.close}>
-            <Text style={[styles.body, { color: tint }]}>Close</Text>
-          </TouchableOpacity>
-        </View>
+        <SheetHeader title="Nutrition" action={{ label: 'Done', onPress: onClose, accessibilityLabel: 'Close nutrition summary' }} />
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.titleBlock}>
-            <Text style={[styles.eyebrow, { color: secondary }]}>{`Nutrition · ${format(parseISO(date), 'EEEE, MMM d, yyyy')}`}</Text>
-            <Text accessibilityRole="header" style={[styles.headline, { color: text }]}>{meal.name}</Text>
-            <View style={[styles.tag, { backgroundColor: surface }]}>
-              <Text style={[styles.label, { color: secondary }]}>{planned ? 'Planned' : 'Eaten'}</Text>
+            <View style={styles.titleRow}>
+              <ThemedText type="heading" accessibilityRole="header" style={styles.headline}>{meal.name}</ThemedText>
+              <Tag label={planned ? 'Planned' : 'Eaten'} tone={planned ? 'neutral' : 'tint'} />
             </View>
-            {planned && logs.length > 0 && <Text style={[styles.caption, { color: secondary }]}>Not included in consumed totals</Text>}
+            <ThemedText type="label" style={{ color: secondary }}>{`${format(parseISO(date), 'EEE d MMM')} · ${foodCount}`}</ThemedText>
+            {planned && logs.length > 0 && <ThemedText type="caption">Not included in consumed totals</ThemedText>}
           </View>
 
-          <View style={[styles.card, { backgroundColor: surface }]}>
+          <Card style={styles.card}>
             <View style={styles.energyHeader}>
               {hasRing ? (
                 <>
                   <View testID="calorie-ring">
-                    <CalorieRing consumed={totals.calories} goal={calorieTarget} size={136}
+                    <CalorieRing consumed={totals.calories} goal={calorieTarget} size={104} strokeWidth={11} caption="cal"
+                      accessibilityLabel={`${amount(totals.calories, 0)} of ${amount(calorieTarget, 0)} calories for this meal`}
                       ringColor={tint} trackColor={track} textColor={text} subTextColor={secondary} />
                   </View>
                   <View style={styles.energyText}>
-                    {caloriePercent != null && <Text style={[styles.title, styles.number, { color: text }]}>{`${amount(caloriePercent, 0)}% of target`}</Text>}
-                    {delta && <Text style={[styles.caption, { color: secondary }]}>{`${amount(delta.value, 0)} cal ${delta.kind}`}</Text>}
+                    <ThemedText type="caption">Meal target</ThemedText>
+                    <ThemedText type="stat">{`${amount(calorieTarget, 0)} cal`}</ThemedText>
+                    {delta && <ThemedText type="label" style={{ color: secondary }}>{delta.kind === 'over' ? `Over by ${amount(delta.value, 0)}` : `${amount(delta.value, 0)} left`}</ThemedText>}
                   </View>
                 </>
               ) : (
                 <View style={styles.energyText}>
-                  <Text style={[styles.display, styles.number, { color: text }]}>{amount(totals.calories, 0)}</Text>
-                  <Text style={[styles.caption, { color: secondary }]}>{calorieTarget === 0 ? '/ 0 cal' : 'cal'}</Text>
+                  <ThemedText type="hero">{amount(totals.calories, 0)}</ThemedText>
+                  <ThemedText type="caption">{calorieTarget === 0 ? '/ 0 cal' : 'cal'}</ThemedText>
                 </View>
               )}
             </View>
-            <EnergyBar shares={split} palette={palette} />
+            <EnergyBar shares={split} />
+          </Card>
+
+          <View style={styles.tiles}>
+            {MACROS.map(({ id, label, targetKey }) => (
+              <MacroTile key={id} label={label} color={MacroColors[id]} grams={totals[id]} target={targets?.[targetKey]} />
+            ))}
           </View>
 
-          <View style={[styles.card, { backgroundColor: surface }]}>
-            <View style={styles.tiles}>
-              {MACROS.map(({ id, label, targetKey }) => (
-                <MacroTile key={id} label={label} color={MacroColors[id]} grams={totals[id]} target={targets?.[targetKey]} palette={palette} />
-              ))}
+          <Card padding="none">
+            <View style={styles.nutrientsHeader}>
+              <ThemedText type="title" accessibilityRole="header">Nutrients</ThemedText>
+              <ThemedText type="caption">Per this meal</ThemedText>
             </View>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: surface }]}>
-            <Text accessibilityRole="header" style={[styles.title, { color: text }]}>Nutrients</Text>
             {!hasNutrients ? (
-              <Text style={[styles.caption, { color: secondary }]}>No nutrient data available for this meal.</Text>
+              <ThemedText type="caption" style={styles.empty}>No nutrient data available for this meal.</ThemedText>
             ) : GROUPS.map(({ id, title }) => {
               const coverage = nutrientGroupCoverage(nutrients, id);
               return (
-                <View key={id} style={styles.group}>
-                  <View style={styles.groupHeader}>
-                    <Text accessibilityRole="header" style={[styles.title, { color: text }]}>{title}</Text>
-                    <Text style={[styles.caption, { color: secondary }]}>{`${coverage.known} of ${coverage.total} known`}</Text>
+                <View key={id}>
+                  <View style={[styles.groupHeader, { borderTopColor: separator }]}>
+                    <ThemedText type="label" accessibilityRole="header" style={styles.groupTitle}>{title}</ThemedText>
+                    {coverage.known === coverage.total
+                      ? <Tag label="Complete" tone="tint" />
+                      : coverage.known === 0
+                        ? <Tag label="Unknown" />
+                        : <Tag label={`${coverage.known} of ${coverage.total} known`} />}
                   </View>
                   {NUTRIENTS.filter((n) => n.group === id).map((n) => {
                     const value = nutrients[n.id];
@@ -186,32 +186,28 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
                     return (
                       <View key={n.id} style={[styles.nutrient, { borderTopColor: separator }]}>
                         <View style={styles.row}>
-                          <Text style={[styles.body, styles.grow, { color: text }]}>{n.label}</Text>
+                          <ThemedText type="body" style={[styles.grow, { color: secondary }]}>{n.label}</ThemedText>
                           {known ? (
                             <View style={styles.valueRow}>
-                              <Text style={[styles.body, styles.value, styles.number, { color: text }]}>{`${amount(value.total!, 2)} ${n.unit === 'ug' ? 'µg' : n.unit}`}</Text>
-                              {partial && (
-                                <View style={[styles.tag, { backgroundColor: tile }]}>
-                                  <Text style={[styles.label, { color: secondary }]}>Partial</Text>
-                                </View>
-                              )}
+                              <ThemedText type="body" style={styles.value}>{`${amount(value.total!, 2)} ${n.unit === 'ug' ? 'µg' : n.unit}`}</ThemedText>
+                              {partial && <Tag label="Partial" />}
                             </View>
                           ) : (
-                            <Text style={[styles.body, { color: secondary }]}>Not available</Text>
+                            <ThemedText type="body" style={{ color: secondary }}>Unknown</ThemedText>
                           )}
                         </View>
-                        {partial && <Text style={[styles.caption, { color: secondary }]}>{`Data for ${value.knownCount} of ${value.knownCount + value.missingCount} items`}</Text>}
+                        {partial && <ThemedText type="caption">{`Data for ${value.knownCount} of ${value.knownCount + value.missingCount} items`}</ThemedText>}
                       </View>
                     );
                   })}
                 </View>
               );
             })}
-          </View>
+          </Card>
 
           <View style={styles.footer}>
-            <Text style={[styles.caption, { color: secondary }]}>Calculated from grams: protein and carbs 4 cal/g, fat 9 cal/g.</Text>
-            {date < today && hasAnyTarget(targets) && <Text style={[styles.caption, { color: secondary }]}>Targets use current meal settings.</Text>}
+            <ThemedText type="caption">Calculated from grams: protein and carbs 4 cal/g, fat 9 cal/g.</ThemedText>
+            {date < today && hasAnyTarget(targets) && <ThemedText type="caption">Targets use current meal settings.</ThemedText>}
           </View>
         </ScrollView>
       </View>
@@ -221,38 +217,31 @@ export function MealNutritionSummary({ meal, logs, date, today, eaten, onClose, 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingVertical: 8 },
-  close: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  content: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
-  titleBlock: { gap: 6, alignItems: 'flex-start' },
-  eyebrow: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase' },
-  headline: { fontSize: 22, fontWeight: '700' },
-  tag: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  card: { padding: 20, borderRadius: 18, gap: 16 },
+  content: { paddingHorizontal: 16, paddingBottom: 24, gap: 14 },
+  titleBlock: { gap: 6 },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  headline: { flexShrink: 1 },
+  card: { gap: 16 },
   energyHeader: { flexDirection: 'row', alignItems: 'center', gap: 20, flexWrap: 'wrap' },
   energyText: { flex: 1, minWidth: 96, gap: 2 },
-  display: { fontSize: 34, fontWeight: '700' },
   energy: { gap: 8 },
-  bar: { height: 10, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' },
+  bar: { height: 10, flexDirection: 'row', gap: 3 },
+  segment: { borderRadius: 4 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  swatch: { width: 8, height: 8, borderRadius: 2 },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tile: { flexGrow: 1, flexBasis: 96, borderRadius: 12, padding: 12, gap: 4 },
+  swatch: { width: 8, height: 8, borderRadius: 4 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: { flexGrow: 1, flexBasis: 96, gap: 6 },
   tileLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tileTrack: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 2 },
-  tileFill: { height: 4, borderRadius: 2 },
-  group: { gap: 8 },
-  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginTop: 8 },
-  nutrient: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, gap: 4 },
+  tileValue: { fontSize: 22 },
+  nutrientsHeader: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, gap: 2 },
+  empty: { paddingHorizontal: 20, paddingBottom: 18 },
+  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  groupTitle: { fontWeight: '600', flexShrink: 1 },
+  nutrient: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 20, paddingVertical: 10, gap: 4 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  value: { fontWeight: '600' },
+  value: { fontWeight: '600', fontVariant: ['tabular-nums'] },
   grow: { flexShrink: 1 },
   footer: { gap: 4 },
-  title: { fontSize: 17, fontWeight: '700' },
-  label: { fontSize: 13, fontWeight: '500' },
-  caption: { fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
-  body: { fontSize: 15, lineHeight: 23 },
-  number: { fontVariant: ['tabular-nums'] },
 });

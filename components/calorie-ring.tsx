@@ -10,6 +10,11 @@ type Props = {
   trackColor: string;
   textColor: string;
   subTextColor: string;
+  strokeWidth?: number;
+  /** Replaces the default "of {goal} cal" line under the number (the meal summary passes "cal"). */
+  caption?: string;
+  /** Replaces the default "X of Y calories" summary. */
+  accessibilityLabel?: string;
 };
 
 export function CalorieRing({
@@ -20,8 +25,10 @@ export function CalorieRing({
   trackColor,
   textColor,
   subTextColor,
+  strokeWidth = 14,
+  caption,
+  accessibilityLabel,
 }: Props) {
-  const strokeWidth = 14;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(consumed / Math.max(goal, 1), 1);
@@ -33,7 +40,7 @@ export function CalorieRing({
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`${shown.toLocaleString()} of ${goal.toLocaleString()} calories`}
+      accessibilityLabel={accessibilityLabel ?? `${shown.toLocaleString()} of ${goal.toLocaleString()} calories`}
     >
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Circle
@@ -59,17 +66,15 @@ export function CalorieRing({
         />
       </Svg>
       <View style={styles.center}>
-        <Text style={[styles.consumed, { color: textColor }]} numberOfLines={1} adjustsFontSizeToFit>{shown}</Text>
-        <Text style={[styles.label, { color: subTextColor }]}>of {goal}</Text>
-        <Text style={[styles.unit, { color: subTextColor }]}>cal</Text>
+        <Text style={[styles.consumed, { color: textColor }]} numberOfLines={1} adjustsFontSizeToFit>{shown.toLocaleString()}</Text>
+        <Text style={[styles.label, { color: subTextColor }]} numberOfLines={1}>{caption ?? `of ${goal.toLocaleString()} cal`}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center', paddingHorizontal: 20 },
-  consumed: { fontFamily: Fonts.rounded, fontSize: 40, fontWeight: '800', lineHeight: 44, letterSpacing: -1, fontVariant: ['tabular-nums'] },
-  label: { fontSize: 13, fontWeight: '500', marginTop: 2, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 12 },
+  center: { alignItems: 'center', paddingHorizontal: 18 },
+  consumed: { fontFamily: Fonts.rounded, fontSize: 30, fontWeight: '800', lineHeight: 34, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  label: { fontSize: 12, marginTop: 1, fontVariant: ['tabular-nums'] },
 });

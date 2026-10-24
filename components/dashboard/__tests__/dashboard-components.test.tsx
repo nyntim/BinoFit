@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Colors } from '@/constants/theme';
 import { EditModeBar } from '@/components/dashboard/EditModeBar';
 import { FoodLogRow } from '@/components/dashboard/FoodLogRow';
 import { MealSlotCard } from '@/components/dashboard/MealSlotCard';
@@ -15,6 +14,8 @@ jest.mock('@expo/vector-icons/MaterialIcons', () => {
     default: ({ name }: { name: string }) => <RNText>{`icon:${name}`}</RNText>,
   };
 });
+
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
 // The native time picker needs a SafeAreaProvider; it is not under test here.
 jest.mock('@/components/time-picker-sheet', () => ({ TimePickerSheet: () => null }));
@@ -45,8 +46,6 @@ async function bubbleEvent(target: ReturnType<typeof screen.getByText>, name: 'o
   return event;
 }
 
-const colors = Colors.light;
-
 const makeLog = (over: Partial<FoodLogWithFood> = {}): FoodLogWithFood => ({
   id: 'l1',
   date: '2026-01-01',
@@ -68,21 +67,21 @@ const makeLog = (over: Partial<FoodLogWithFood> = {}): FoodLogWithFood => ({
 
 describe('FoodLogRow', () => {
   it('renders the food name, serving text and rounded calories', async () => {
-    await render(<FoodLogRow log={makeLog({ food_calories: 101 })} colors={colors} />);
+    await render(<FoodLogRow log={makeLog({ food_calories: 101 })} />);
     expect(screen.getByText('Oatmeal')).toBeTruthy();
     expect(screen.getByText('152')).toBeTruthy(); // 101 * 1.5 = 151.5 -> 152
     expect(screen.getByText('1.5 × cup')).toBeTruthy();
   });
 
   it('shows no trash icon when onDelete is not provided', async () => {
-    await render(<FoodLogRow log={makeLog()} colors={colors} />);
-    expect(screen.queryByText('icon:delete-outline')).toBeNull();
+    await render(<FoodLogRow log={makeLog()} />);
+    expect(screen.queryByLabelText('Remove Oatmeal')).toBeNull();
   });
 
   it('calls onEdit with the log when the row is pressed', async () => {
     const onEdit = jest.fn();
     const log = makeLog();
-    await render(<FoodLogRow log={log} colors={colors} onEdit={onEdit} />);
+    await render(<FoodLogRow log={log} onEdit={onEdit} />);
     await fireEvent.press(screen.getByText('Oatmeal'));
     expect(onEdit).toHaveBeenCalledWith(log);
   });
@@ -91,8 +90,8 @@ describe('FoodLogRow', () => {
     const onDelete = jest.fn();
     const onEdit = jest.fn();
     const log = makeLog();
-    await render(<FoodLogRow log={log} colors={colors} onEdit={onEdit} onDelete={onDelete} />);
-    await fireEvent.press(screen.getByText('icon:delete-outline'));
+    await render(<FoodLogRow log={log} onEdit={onEdit} onDelete={onDelete} />);
+    await fireEvent.press(screen.getByLabelText('Remove Oatmeal'));
     expect(onDelete).toHaveBeenCalledWith(log);
     expect(onEdit).not.toHaveBeenCalled();
   });
@@ -109,7 +108,6 @@ describe('MealSlotCard', () => {
     onAdd: jest.fn(),
     onEditLog: jest.fn(),
     onDeleteLog: jest.fn(),
-    colors,
   });
 
   it('nutrition has its own action for empty and orphan meals and leaves other controls independent', async () => {
@@ -139,8 +137,8 @@ describe('MealSlotCard', () => {
     const event = await bubbleEvent(header, 'onPress');
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
     expect(onShowNutrition).toHaveBeenCalledTimes(1);
-    const outer = header.parent!.parent!;
-    expect(outer.props.accessible).toBe(false);
+    let outer = header.parent!;
+    while (outer.props.accessible !== false) outer = outer.parent!;
     await bubbleEvent(outer, 'onPress');
     expect(onShowNutrition).toHaveBeenCalledTimes(2);
     onShowNutrition.mockClear();
@@ -218,7 +216,7 @@ describe('MealSlotCard', () => {
       makeLog({ id: 'b', food_name: 'Egg', food_calories: 70, serving_amount: 1 }),
     ];
     await render(<MealSlotCard {...props} logs={logs} eaten={false} />);
-    expect(screen.getByText('222 cal')).toBeTruthy(); // 151.5 + 70 = 221.5 -> 222
+    expect(screen.getByText('222')).toBeTruthy(); // 151.5 + 70 = 221.5 -> 222
     expect(screen.getByText('Egg')).toBeTruthy();
     expect(screen.queryByText('No food logged')).toBeNull();
     await fireEvent.press(screen.getByText('Egg'));
@@ -238,18 +236,31 @@ describe('MealSlotCard targets (view mode)', () => {
     onAdd: jest.fn(),
     onEditLog: jest.fn(),
     onDeleteLog: jest.fn(),
-    colors,
   });
 
   it('shows "x / target cal" and macro targets when set', async () => {
     await render(<MealSlotCard {...props()} targets={targets} />);
-    expect(screen.getByText('320 / 500 cal')).toBeTruthy();
-    expect(screen.getByText('Protein 32 / 40 g')).toBeTruthy();
+    expect(screen.getByText('320 / 500 cal · Protein 32 / 40 g')).toBeTruthy();
+    expect(screen.getAllByText('320')).toHaveLength(2); // header total and the log row
   });
 
   it('keeps plain calories without a calorie target', async () => {
     await render(<MealSlotCard {...props()} targets={{ ...targets, calorie_target: null }} />);
-    expect(screen.getByText('320 cal')).toBeTruthy();
+    expect(screen.getAllByText('320')).toHaveLength(2);
+    expect(screen.getByText('Protein 32 / 40 g')).toBeTruthy();
+  });
+
+  it('summarizes the macros in whole grams when there are no targets', async () => {
+    await render(<MealSlotCard {...props()} targets={null} />);
+    expect(screen.getByText('P 32 · C 64 · F 6')).toBeTruthy();
+  });
+
+  it('shows a pressable Eaten tag that toggles the status', async () => {
+    const p = props();
+    await render(<MealSlotCard {...p} />);
+    expect(screen.getByText('Eaten')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Breakfast, Eaten'));
+    expect(p.onToggle).toHaveBeenCalledWith('breakfast');
   });
 
   it('shows a bell labelled with the reminder time', async () => {
@@ -270,7 +281,6 @@ describe('MealSlotCard edit mode', () => {
     slot: 'breakfast',
     label: 'Breakfast',
     logs: [makeLog({ food_calories: 100, serving_amount: 1 }), makeLog({ id: 'l2', food_calories: 50, serving_amount: 1 })],
-    colors,
     index: 0,
     nameError: null as string | null,
     canDelete: true,
@@ -282,7 +292,7 @@ describe('MealSlotCard edit mode', () => {
 
   it('collapses logs to a summary and hides status, add and log actions', async () => {
     await render(<MealSlotCard {...editProps()} />);
-    expect(screen.getByText('2 items · 150 cal')).toBeTruthy();
+    expect(screen.getByText('No reminder')).toBeTruthy();
     expect(screen.queryByText('Eaten')).toBeNull();
     expect(screen.queryByText('Nutrition')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Nutrition summary for Breakfast' })).toBeNull();
@@ -293,7 +303,7 @@ describe('MealSlotCard edit mode', () => {
   it('shows the name error instead of the summary', async () => {
     await render(<MealSlotCard {...editProps()} nameError="Enter a name" />);
     expect(screen.getByText('Enter a name')).toBeTruthy();
-    expect(screen.queryByText('2 items · 150 cal')).toBeNull();
+    expect(screen.queryByText('No reminder')).toBeNull();
   });
 
   it('edits the name and deletes through callbacks', async () => {
@@ -315,22 +325,21 @@ describe('MealSlotCard edit mode', () => {
   it('shows the reminder time in the caption', async () => {
     const t = { calorie_target: null, protein_target: null, carb_target: null, fat_target: null, reminder_time: '12:30' };
     await render(<MealSlotCard {...editProps()} targets={t} />);
-    expect(screen.getByText(/^2 items · 150 cal · 12:30/)).toBeTruthy();
-    expect(screen.queryByText(/cal · .*reminder/)).toBeNull();
-    expect(screen.getByLabelText(/^2 items · 150 cal, reminder at 12:30/)).toBeTruthy();
+    expect(screen.getByText(/^Reminder 12:30/)).toBeTruthy();
+    expect(screen.queryByText('No reminder')).toBeNull();
   });
 
   it('opens the sheet even when a stored reminder time is malformed', async () => {
     const t = { calorie_target: null, protein_target: null, carb_target: null, fat_target: null, reminder_time: '25:99' };
     await render(<MealSlotCard {...editProps()} targets={t} />);
-    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets and reminder, Breakfast'));
     expect(screen.getByText('Save')).toBeTruthy();
   });
 
   it('saves targets from the sheet', async () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets and reminder, Breakfast'));
     await fireEvent.changeText(screen.getByLabelText('Breakfast calories target'), '500');
     await fireEvent.press(screen.getByText('Save'));
     expect(props.onChangeSettings).toHaveBeenCalledWith(
@@ -342,7 +351,7 @@ describe('MealSlotCard edit mode', () => {
   it('turns a reminder on with a default time once permission is granted', async () => {
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets and reminder, Breakfast'));
     await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
     expect(await screen.findByLabelText(/^Reminder time, /)).toBeTruthy();
     await fireEvent.press(screen.getByText('Save'));
@@ -353,11 +362,11 @@ describe('MealSlotCard edit mode', () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false, canAskAgain: false });
     const props = editProps();
     await render(<MealSlotCard {...props} />);
-    await fireEvent.press(screen.getByLabelText('Targets & reminder, Breakfast'));
+    await fireEvent.press(screen.getByLabelText('Targets and reminder, Breakfast'));
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
     await fireEvent(screen.getByLabelText('Breakfast daily reminder'), 'valueChange', true);
     expect(await screen.findByLabelText('Open settings')).toBeTruthy();
-    expect(announce).toHaveBeenCalledWith('Notifications are turned off for BinoFit.');
+    expect(announce).toHaveBeenCalledWith('Notifications are off for BinoFit.');
     announce.mockRestore();
     expect(screen.queryByLabelText(/^Reminder time, /)).toBeNull();
   });
@@ -365,7 +374,7 @@ describe('MealSlotCard edit mode', () => {
 
 describe('FoodLogRow accessibility', () => {
   it('labels the trash button with the food name', async () => {
-    await render(<FoodLogRow log={makeLog()} colors={colors} onDelete={jest.fn()} />);
+    await render(<FoodLogRow log={makeLog()} onDelete={jest.fn()} />);
     expect(screen.getByLabelText('Remove Oatmeal')).toBeTruthy();
   });
 });
@@ -375,7 +384,7 @@ describe('EditModeBar', () => {
     const onCancel = jest.fn();
     const onDone = jest.fn();
     await render(
-      <EditModeBar colors={colors} onCancel={onCancel} onDone={onDone} hasErrors={false} saving={false} {...over} />
+      <EditModeBar onCancel={onCancel} onDone={onDone} errorCount={0} saving={false} {...over} />
     );
     return { onCancel, onDone };
   };
@@ -386,16 +395,21 @@ describe('EditModeBar', () => {
     await fireEvent.press(screen.getByLabelText('Done editing'));
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onDone).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Fix errors to save')).toBeNull();
+    expect(screen.queryByText(/to save/)).toBeNull();
   });
 
   it('disables Done and explains why when the draft has errors', async () => {
-    const { onDone } = await renderBar({ hasErrors: true });
+    const { onDone } = await renderBar({ errorCount: 1 });
     const done = screen.getByLabelText('Done editing');
     expect(done.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
     await fireEvent.press(done);
     expect(onDone).not.toHaveBeenCalled();
-    expect(screen.getByText('Fix errors to save')).toBeTruthy();
+    expect(screen.getByText('Fix 1 error to save')).toBeTruthy();
+  });
+
+  it('counts several errors', async () => {
+    await renderBar({ errorCount: 2 });
+    expect(screen.getByText('Fix 2 errors to save')).toBeTruthy();
   });
 
   it('disables Done and Cancel without the error note while saving', async () => {
@@ -404,14 +418,14 @@ describe('EditModeBar', () => {
     await fireEvent.press(screen.getByLabelText('Cancel editing'));
     expect(onDone).not.toHaveBeenCalled();
     expect(onCancel).not.toHaveBeenCalled();
-    expect(screen.queryByText('Fix errors to save')).toBeNull();
+    expect(screen.queryByText(/to save/)).toBeNull();
   });
 });
 
 
 test('serving captions round without changing calorie math or the log', async () => {
   const log = makeLog({ serving_amount: 1.234567, food_calories: 1000 });
-  await render(<FoodLogRow log={log} colors={colors} />);
+  await render(<FoodLogRow log={log} />);
   expect(screen.getByText('1.23 × cup')).toBeTruthy();
   expect(screen.getByText('1235')).toBeTruthy();
   expect(log.serving_amount).toBe(1.234567);

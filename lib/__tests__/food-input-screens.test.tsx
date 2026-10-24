@@ -85,16 +85,16 @@ test('untrusted initial amount stays visible and correction saves the canonical 
   await waitFor(() => expect(addFoodLog).toHaveBeenCalledWith(expect.objectContaining({ serving_amount: 2.5, serving_unit: '100g' })));
 });
 
-test('header back is an arrow labelled for where it returns', async () => {
+test('header back names where it returns', async () => {
   const first = await render(<ServingPickerScreen />);
   await screen.findByLabelText('Amount, in servings');
-  expect(screen.queryByText('Back')).toBeNull();
+  expect(screen.getByText('Back')).toBeTruthy();
   expect(screen.getByLabelText('Back')).toBeTruthy();
   await first.unmount();
   mockParams.origin = 'search';
   await render(<ServingPickerScreen />);
   await screen.findByLabelText('Amount, in servings');
-  expect(screen.queryByText('Back')).toBeNull();
+  expect(screen.getByText('Search')).toBeTruthy();
   await fireEvent.press(screen.getByLabelText('Back to search'));
   expect(mockRouter.back).toHaveBeenCalled();
 });
@@ -141,12 +141,10 @@ test('switching units retains quantity and malformed raw text', async () => {
   await render(<ServingPickerScreen />);
   await screen.findByLabelText('Amount, in servings');
   await fireEvent.changeText(screen.getByLabelText('Amount, in servings'), '2.5');
-  await fireEvent.press(screen.getByLabelText(/Serving size, 100g/));
-  await fireEvent.press(screen.getByText('Grams'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Grams' }));
   expect(screen.getByLabelText('Amount, in grams').props.value).toBe('250');
   await fireEvent.changeText(screen.getByLabelText('Amount, in grams'), '1.2.3');
-  await fireEvent.press(screen.getByLabelText(/Serving size, Grams/));
-  await fireEvent.press(screen.getByText('Ounces'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Ounces' }));
   expect(screen.getByLabelText('Amount, in ounces').props.value).toBe('1.2.3');
   expect(screen.getByLabelText('Log to Lunch').props.accessibilityState.disabled).toBe(true);
   expect(addFoodLog).not.toHaveBeenCalled();
@@ -157,8 +155,7 @@ test('switching units preserves an out-of-range number for correction', async ()
   mockParams.initial_amount = '101';
   await render(<ServingPickerScreen />);
   await screen.findByLabelText('Amount, in servings');
-  await fireEvent.press(screen.getByLabelText(/Serving size, 100g/));
-  await fireEvent.press(screen.getByText('Grams'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Grams' }));
   expect(screen.getByLabelText('Amount, in grams').props.value).toBe('101');
 });
 
@@ -196,18 +193,19 @@ test('optional nutrients preserve zero, tiny values and drafts, with invalid col
   await render(<CustomFoodScreen />);
   await fillCustom();
   expect(screen.queryByLabelText('Fiber (g)')).toBeNull();
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  for (const group of ['Other nutrients', 'Minerals', 'Vitamins']) await fireEvent.press(screen.getByLabelText(group));
   await fireEvent.changeText(screen.getByLabelText('Fiber (g)'), '0');
   await fireEvent.changeText(screen.getByLabelText('Vitamin B12 (µg)'), '0.00000001');
   await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '-1');
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  // Collapsing a group with an invalid field keeps its error visible under the header
+  await fireEvent.press(screen.getByLabelText('Minerals'));
   expect(screen.getByText('Iron: enter a finite number of 0 or more.')).toBeTruthy();
   expect(screen.getByLabelText('Save food').props.accessibilityState.disabled).toBe(true);
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.press(screen.getByLabelText('Minerals'));
   expect(screen.getByLabelText('Fiber (g)').props.value).toBe('0');
   expect(screen.getByLabelText('Vitamin B12 (µg)').props.value).toBe('0.00000001');
   await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '');
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.press(screen.getByLabelText('Minerals'));
   await fireEvent.press(screen.getByLabelText('Save food'));
   expect(addCustomFood).toHaveBeenCalledWith(expect.objectContaining({ fiber: 0, b12: 0.00000001, iron: null, sodium: null }));
 });
@@ -217,12 +215,12 @@ test('custom edits prefill zero and tiny nutrients, preserve collapsed values an
   await render(<CustomFoodScreen />);
   await screen.findByLabelText('Name (required)');
   await fireEvent.changeText(screen.getByLabelText('Name (required)'), 'Updated');
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  for (const group of ['Other nutrients', 'Minerals', 'Vitamins']) await fireEvent.press(screen.getByLabelText(group));
   expect(screen.getByLabelText('Fiber (g)').props.value).toBe('0');
   expect(screen.getByLabelText('Vitamin B12 (µg)').props.value).toBe('0.00000001');
   expect(screen.getByLabelText('Sodium (mg)').props.value).toBe('');
   await fireEvent.changeText(screen.getByLabelText('Iron (mg)'), '');
-  await fireEvent.press(screen.getByLabelText('More nutrients'));
+  await fireEvent.press(screen.getByLabelText('Minerals'));
   await fireEvent.press(screen.getByLabelText('Save food'));
   expect(updateCustomFood).toHaveBeenCalledWith('food', expect.objectContaining({ name: 'Updated', fiber: 0, b12: 1e-8, iron: null, sodium: null }));
   expect(mockRouter.back).toHaveBeenCalled();
@@ -276,4 +274,34 @@ test('unbranded OFF foods show a readable source in the serving picker', async (
   await render(<ServingPickerScreen />);
   expect(await screen.findByText('Open Food Facts')).toBeTruthy();
   expect(screen.queryByText('open_food_facts')).toBeNull();
+});
+
+test('the amount stepper steps by half a serving and Less is disabled at the minimum', async () => {
+  await render(<ServingPickerScreen />);
+  const amount = await screen.findByLabelText('Amount, in servings');
+  expect(amount.props.value).toBe('1');
+  await fireEvent.press(screen.getByLabelText('More'));
+  expect(screen.getByLabelText('Amount, in servings').props.value).toBe('1.5');
+  await fireEvent.press(screen.getByLabelText('Less'));
+  await fireEvent.press(screen.getByLabelText('Less'));
+  expect(screen.getByLabelText('Amount, in servings').props.value).toBe('0.5');
+  expect(screen.getByLabelText('Less').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.changeText(screen.getByLabelText('Amount, in servings'), '');
+  expect(screen.getByLabelText('Less').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByLabelText('More'));
+  expect(screen.getByLabelText('Amount, in servings').props.value).toBe('0.5');
+});
+
+test('the status row is a read-only tag: the default for new food, the slot status for an edit', async () => {
+  const first = await render(<ServingPickerScreen />);
+  await screen.findByLabelText('Amount, in servings');
+  await waitFor(() => expect(screen.getByText('Eaten')).toBeTruthy());
+  expect(screen.queryByRole('radio', { name: 'Planned' })).toBeNull();
+  await first.unmount();
+  const { getMealSlotConfirmationsByDate } = jest.requireMock('@/lib/database');
+  getMealSlotConfirmationsByDate.mockResolvedValueOnce([{ meal_slot: 'lunch', confirmed: false }]);
+  mockParams.log_id = 'old';
+  (getFoodLogsWithFoodByDate as jest.Mock).mockResolvedValue([{ id: 'old', serving_amount: 2 }]);
+  await render(<ServingPickerScreen />);
+  await waitFor(() => expect(screen.getByText('Planned')).toBeTruthy());
 });

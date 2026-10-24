@@ -15,6 +15,8 @@ jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => 'black' }));
 jest.mock('@/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0 }));
 jest.mock('@/hooks/useScrollRestore', () => ({ useScrollRestore: () => ({}) }));
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Lunch' }) }));
+jest.mock('@/hooks/useNewFoodStatus', () => ({ useNewFoodStatus: () => 'eaten' }));
+jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
 jest.mock('@/hooks/useFoodSelection', () => ({ useFoodSelection: () => ({ order: [], items: {}, context: null }) }));
 jest.mock('@/lib/food-selection-store', () => ({ beginFoodSelection: jest.fn(), endFoodSelection: jest.fn(), getFoodSelection: () => ({ order: [] }), clearSelectedFoods: jest.fn() }));
 jest.mock('@/lib/food-resolve', () => ({ needsRemoteDetails: () => false }));
@@ -32,13 +34,30 @@ test('waits for remote search before displaying one actionable empty state', asy
   await render(<FoodSearchScreen />);
   await fireEvent.changeText(screen.getByLabelText('Search foods'), 'qwzxv');
   await tick(200);
-  expect(screen.queryByText('No results for "qwzxv"')).toBeNull();
+  expect(screen.queryByText('No matches yet')).toBeNull();
   await tick(600);
-  expect(screen.getAllByText('No results for "qwzxv"')).toHaveLength(1);
+  expect(screen.getAllByText('No matches yet')).toHaveLength(1);
   await fireEvent.press(screen.getByText('+ Create custom food'));
   expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/custom-food', params: { meal_slot: 'lunch', date: '2026-10-23' } });
-  await fireEvent.press(screen.getByText('Scan barcode'));
+  await fireEvent.press(screen.getByText('Create "qwzxv"'));
+  expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/custom-food', params: { meal_slot: 'lunch', date: '2026-10-23', name: 'qwzxv' } });
+  await fireEvent.press(screen.getByText('Scan a barcode'));
   expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/barcode-scanner', params: { meal_slot: 'lunch', date: '2026-10-23' } });
+});
+
+test('a failed branded lookup shows a neutral Retry bar instead of the Load button, and local results stay', async () => {
+  (searchLocal as jest.Mock).mockResolvedValue([{ id: 'local-1', name: 'Local oats', brand: null, serving_units: '100 g', calories: 380, protein: 13, carbs: 66, fat: 7, source: 'usda', updated_at: '' }]);
+  (searchBranded as jest.Mock).mockRejectedValue(new Error('offline'));
+  await render(<FoodSearchScreen />);
+  await fireEvent.changeText(screen.getByLabelText('Search foods'), 'oats');
+  await tick(900);
+  expect(await screen.findByText(/Local oats/)).toBeTruthy();
+  expect(screen.getByText('Branded foods couldn’t load. Local results still work.')).toBeTruthy();
+  expect(screen.queryByText('Load branded foods')).toBeNull();
+  const before = (searchBranded as jest.Mock).mock.calls.length;
+  await fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+  await tick(10);
+  expect((searchBranded as jest.Mock).mock.calls.length).toBeGreaterThan(before);
 });
 
 test('sort changes only reorder loaded rows and keyboard submit immediately searches', async () => {

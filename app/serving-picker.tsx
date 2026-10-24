@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Pressable,
   TextInput,
@@ -13,24 +12,25 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Svg, { Circle, Line } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MacroColors, TargetTints } from '@/constants/theme';
+import { Fonts, MacroColors, TargetTints } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { TimePickerSheet } from '@/components/time-picker-sheet';
-import { Chevron } from '@/components/serving-picker/Chevron';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Stepper } from '@/components/ui/Stepper';
+import { Tag } from '@/components/ui/Tag';
 import { ExpandSection } from '@/components/serving-picker/ExpandSection';
-import { FormRow, formRowStyles } from '@/components/serving-picker/FormRow';
 import { MacroDetailPanel } from '@/components/serving-picker/MacroDetailPanel';
 import { MicroExpandRow } from '@/components/serving-picker/MicroExpandRow';
 import { NutritionRing } from '@/components/serving-picker/NutritionRing';
-import { SectionHeading } from '@/components/serving-picker/SectionHeading';
 import { TargetRow } from '@/components/serving-picker/TargetRow';
-import { UnitPickerModal } from '@/components/serving-picker/UnitPickerModal';
 import { round1 } from '@/components/serving-picker/format';
 import { useMealDefinitions } from '@/hooks/useMealDefinitions';
 import { useServingDayTotals } from '@/hooks/useServingDayTotals';
@@ -44,10 +44,10 @@ import {
   ensureMealSlotStatus,
 } from '@/lib/database';
 import { NUTRIENTS, scaleNutrients } from '@/lib/nutrients';
-import { isSlotEaten } from '@/lib/nutrition-totals';
+import { isSlotEaten, newFoodStatus } from '@/lib/nutrition-totals';
 import { getFullBrandedFood } from '@/lib/food-service';
 import { parseBaseGrams } from '@/lib/serving-units';
-import { validateServing, parseFoodDecimal, servingMultiplier, formatServingAmount, validBaseGrams, type ServingUnit } from '@/lib/food-validation';
+import { validateServing, parseFoodDecimal, servingMultiplier, formatServingAmount, stepServingAmount, validBaseGrams, GRAMS_PER_OUNCE, type ServingUnit } from '@/lib/food-validation';
 import { getUSDAFoodById } from '@/lib/foods-db';
 import type { Food, MealSlot } from '@/lib/types';
 
@@ -66,6 +66,19 @@ function formatTime(d: Date): string {
   return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function Banner({ message, actionLabel, actionAccessibilityLabel, actionDisabled, onAction, polite = true }: {
+  message: string; actionLabel: string; actionAccessibilityLabel?: string; actionDisabled?: boolean; onAction: () => void; polite?: boolean;
+}) {
+  const danger = useThemeColor({}, 'danger');
+  return (
+    <Card padding="compact" style={styles.banner} accessibilityRole="alert" accessibilityLiveRegion={polite ? 'polite' : undefined}>
+      <IconSymbol name="exclamationmark.circle" size={18} color={danger} />
+      <ThemedText type="label" style={styles.bannerText}>{message}</ThemedText>
+      <Button label={actionLabel} variant="ghost" size="sm" accessibilityLabel={actionAccessibilityLabel} disabled={actionDisabled} onPress={onAction} />
+    </Card>
+  );
+}
+
 export default function ServingPickerScreen() {
   const { food_id, meal_slot, date, log_id, initial_amount, origin } = useLocalSearchParams<{
     food_id: string;
@@ -81,13 +94,11 @@ export default function ServingPickerScreen() {
   const cardBackground = useThemeColor({}, 'cardBackground');
   const cardSecondary = useThemeColor({}, 'cardSecondary');
   const danger = useThemeColor({}, 'danger');
-  const fieldBorder = useThemeColor({}, 'fieldBorder');
   const icon = useThemeColor({}, 'icon');
   const separator = useThemeColor({}, 'separator');
   const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
-  const track = useThemeColor({}, 'track');
-  const colors = { background, cardBackground, cardSecondary, danger, fieldBorder, icon, separator, text, tint, track };
+  const timeColors = { background, cardBackground, text, icon, tint };
   const tints = TargetTints[cs ?? 'light'];
 
   const [food, setFood] = useState<Food | null>(null);
@@ -95,10 +106,8 @@ export default function ServingPickerScreen() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [servingAmount, setServingAmount] = useState(initial_amount ?? '1');
   const [servingUnit, setServingUnit] = useState<ServingUnit>('default');
-  const [amountFocused, setAmountFocused] = useState(false);
   const [loggedTime, setLoggedTime] = useState<Date>(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [expandedMacro, setExpandedMacro] = useState<null | 'protein' | 'carbs' | 'fat'>(null);
@@ -203,7 +212,7 @@ export default function ServingPickerScreen() {
     food && baseGrams
       ? (() => {
           const s = 100 / baseGrams;
-          return `Per 100 g · ${Math.round(food.calories * s)} cal · P ${round1(food.protein * s)} g · C ${round1(food.carbs * s)} g · F ${round1(food.fat * s)} g`;
+          return `Per 100 g: ${Math.round(food.calories * s)} cal · P ${round1(food.protein * s)} · C ${round1(food.carbs * s)} · F ${round1(food.fat * s)}`;
         })()
       : null;
 
@@ -214,7 +223,7 @@ export default function ServingPickerScreen() {
     const parsed = parseFoodDecimal(servingAmount, 'required');
     if (validation.valid && parsed.valid && parsed.value !== null) {
       const canonical = servingMultiplier(parsed.value, servingUnit, baseGrams);
-      const amount = unit === 'default' ? canonical : unit === 'grams' ? canonical * baseGrams : canonical * baseGrams / 28.35;
+      const amount = unit === 'default' ? canonical : unit === 'grams' ? canonical * baseGrams : canonical * baseGrams / GRAMS_PER_OUNCE;
       if (Number.isFinite(amount)) setServingAmount(formatServingAmount(amount));
     }
     setServingUnit(unit);
@@ -272,12 +281,6 @@ export default function ServingPickerScreen() {
     setLoadAttempt((n) => n + 1);
   };
 
-  const unitLabel =
-    servingUnit === 'default'
-      ? food?.serving_units ?? 'Serving'
-      : servingUnit === 'grams'
-      ? 'Grams'
-      : 'Ounces';
   const unitSpoken = servingUnit === 'default' ? 'servings' : servingUnit === 'grams' ? 'grams' : 'ounces';
 
 
@@ -287,10 +290,26 @@ export default function ServingPickerScreen() {
     { key: 'fat' as const, label: 'Fat', value: fat, color: MacroColors.fat },
   ];
 
+  const slot = meal_slot as MealSlot;
+  const statusEaten = isEdit ? isSlotEaten(confirmations, slot) : newFoodStatus(confirmations, slot, defaultStatus) === 'eaten';
+  const sourceLabel = food ? foodSourceLabel(food.source) : null;
+  const unitOptions: { unit: ServingUnit; label: string; a11y?: string }[] = food
+    ? [
+        { unit: 'default', label: food.serving_units },
+        ...(baseGrams ? [{ unit: 'grams' as ServingUnit, label: 'g', a11y: 'Grams' }, { unit: 'oz' as ServingUnit, label: 'oz', a11y: 'Ounces' }] : []),
+      ]
+    : [];
+  const stepDown = stepServingAmount(servingAmount, servingUnit, -1);
+  const step = (direction: 1 | -1) => {
+    const next = stepServingAmount(servingAmount, servingUnit, direction);
+    if (next === null) return;
+    setServingAmount(next);
+    setSaveError(null);
+  };
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.headerSide}
@@ -299,101 +318,49 @@ export default function ServingPickerScreen() {
           accessibilityLabel={isEdit ? 'Cancel' : origin === 'search' ? 'Back to search' : 'Back'}
         >
           {isEdit ? (
-            <Text style={[styles.headerBtnText, { color: colors.tint }]}>Cancel</Text>
+            <ThemedText style={[styles.headerBtnText, { color: tint }]}>Cancel</ThemedText>
           ) : (
-            <MaterialIcons name="chevron-left" size={28} color={colors.tint} style={styles.backIcon} />
+            <View style={styles.back}>
+              <IconSymbol name="chevron.left" size={22} color={tint} />
+              <ThemedText style={[styles.headerBtnText, { color: tint }]}>{origin === 'search' ? 'Search' : 'Back'}</ThemedText>
+            </View>
           )}
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-          {isEdit ? 'Edit Serving' : slotLabel}
-        </Text>
+        <ThemedText type="title" style={styles.title} numberOfLines={1} accessibilityRole="header">
+          {isEdit ? 'Edit serving' : slotLabel}
+        </ThemedText>
         <View style={[styles.headerSide, styles.headerSideRight]}>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={!canLog}
-            style={[styles.logPill, { backgroundColor: colors.tint, opacity: canLog || saving ? 1 : 0.4 }]}
-            hitSlop={6}
-            activeOpacity={0.85}
-            accessibilityRole="button"
+          <Button
+            label="Log"
+            size="sm"
             accessibilityLabel={isEdit ? 'Save changes' : `Log to ${slotLabel || "meal"}`}
-            accessibilityState={{ disabled: !canLog, busy: saving }}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <Text style={[styles.logPillText, { color: colors.background }]}>
-                Log
-              </Text>
-            )}
-          </TouchableOpacity>
+            disabled={!canLog}
+            loading={saving}
+            onPress={handleSave}
+          />
         </View>
       </View>
 
-      {saveError ? (
-        <View
-          style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]}
-          accessibilityRole="alert"
-          accessibilityLiveRegion="polite"
-        >
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Circle cx={12} cy={12} r={10} stroke={colors.danger} strokeWidth={2} />
-            <Line x1={12} y1={8} x2={12} y2={12} stroke={colors.danger} strokeWidth={2} strokeLinecap="round" />
-            <Line x1={12} y1={16} x2={12.01} y2={16} stroke={colors.danger} strokeWidth={2} strokeLinecap="round" />
-          </Svg>
-          <Text style={[styles.errorText, { color: colors.text }]}>{saveError}</Text>
-          <TouchableOpacity onPress={handleSave} disabled={!canLog} hitSlop={8} accessibilityRole="button" accessibilityState={{ disabled: !canLog, busy: saving }}>
-            <Text style={[styles.errorRetry, { color: colors.tint }]}>Try again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {definitionRefreshFailed ? (
-        <View style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]} accessibilityRole="alert">
-          <Text style={[styles.errorText, { color: colors.text }]}>Couldn’t refresh this food.</Text>
-          <TouchableOpacity onPress={retryLoad} accessibilityRole="button" style={styles.editRetry}><Text style={{ color: colors.tint }}>Try again</Text></TouchableOpacity>
-        </View>
-      ) : null}
-      {editLoadFailed ? (
-        <View style={[styles.errorBanner, { backgroundColor: colors.cardBackground }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <Text style={[styles.errorText, { color: colors.text }]}>{"Couldn't load this entry."}</Text>
-          <TouchableOpacity onPress={retryLoad} accessibilityRole="button" accessibilityLabel="Retry loading entry" style={styles.editRetry}>
-            <Text style={[styles.errorRetry, { color: colors.tint }]}>Try again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      {saveError ? <Banner message={saveError} actionLabel="Try again" onAction={handleSave} actionDisabled={!canLog} /> : null}
+      {definitionRefreshFailed ? <Banner message="Couldn’t refresh this food." actionLabel="Try again" onAction={retryLoad} polite={false} /> : null}
+      {editLoadFailed ? <Banner message="Couldn't load this entry." actionLabel="Try again" actionAccessibilityLabel="Retry loading entry" onAction={retryLoad} /> : null}
 
       {!food && loadFailed ? (
         <View style={styles.failWrap}>
-          <View style={[styles.failIcon, { backgroundColor: colors.cardBackground }]}>
-            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-              <Circle cx={11} cy={11} r={7} stroke={colors.icon} strokeWidth={2} />
-              <Line x1={21} y1={21} x2={16.65} y2={16.65} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
-              <Line x1={8.5} y1={8.5} x2={13.5} y2={13.5} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
-              <Line x1={13.5} y1={8.5} x2={8.5} y2={13.5} stroke={colors.icon} strokeWidth={2} strokeLinecap="round" />
-            </Svg>
+          <View style={[styles.failIcon, { backgroundColor: cardBackground }]}>
+            <IconSymbol name="magnifyingglass" size={26} color={icon} />
           </View>
-          <Text style={[styles.failTitle, { color: colors.text }]}>{"Couldn't load this food"}</Text>
-          <Text style={[styles.failBody, { color: colors.icon }]}>Check your connection, then try again.</Text>
-          <TouchableOpacity
-            onPress={retryLoad}
-            style={[styles.failBtn, { backgroundColor: colors.tint }]}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.failBtnText, { color: colors.background }]}>Try again</Text>
-          </TouchableOpacity>
+          <ThemedText type="title" style={styles.center}>{"Couldn't load this food"}</ThemedText>
+          <ThemedText type="body" style={[styles.center, { color: icon }]}>Check your connection, then try again.</ThemedText>
+          <Button label="Try again" onPress={retryLoad} />
         </View>
       ) : !food ? (
         <View style={styles.scroll} accessibilityLabel="Loading food" accessibilityState={{ busy: true }}>
-          <View style={[styles.foodCard, styles.skeletonCard, { backgroundColor: colors.cardBackground }]}>
-            <View style={[styles.skeletonBar, { width: '70%', height: 16, backgroundColor: colors.cardSecondary }]} />
-            <View style={[styles.skeletonBar, { width: '35%', height: 12, backgroundColor: colors.cardSecondary }]} />
-          </View>
-          <View style={[styles.skeletonHeading, { width: 64, backgroundColor: colors.cardSecondary }]} />
-          <View style={[styles.skeletonBlock, { height: 152, backgroundColor: colors.cardBackground }]} />
-          <View style={[styles.skeletonHeading, { width: 80, backgroundColor: colors.cardSecondary }]} />
-          <View style={[styles.skeletonBlock, styles.skeletonLoading, { height: 112, backgroundColor: colors.cardBackground }]}>
-            <ActivityIndicator size="small" color={colors.tint} />
-            <Text style={[styles.skeletonText, { color: colors.icon }]}>Loading food</Text>
+          <View style={[styles.skeletonBar, { width: '70%', height: 26, backgroundColor: cardSecondary }]} />
+          <View style={[styles.skeletonBar, { width: '35%', height: 14, backgroundColor: cardSecondary }]} />
+          <View style={[styles.skeletonBlock, { height: 152, backgroundColor: cardBackground }]} />
+          <View style={[styles.skeletonBlock, { height: 112, backgroundColor: cardBackground }]}>
+            <ThemedText type="caption">Loading food</ThemedText>
           </View>
         </View>
       ) : (
@@ -403,91 +370,93 @@ export default function ServingPickerScreen() {
           contentContainerStyle={styles.scroll}
         >
           {/* Food identity */}
-          <View style={[styles.foodCard, { backgroundColor: colors.cardBackground }]}>
-            <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={2}>
-              {food.name}
-            </Text>
-            {food.brand ? (
-              <Text style={[styles.foodBrand, { color: colors.icon }]}>{food.brand}</Text>
-            ) : (
-              <Text style={[styles.foodBrand, { color: colors.icon }]}>
-                {foodSourceLabel(food.source) ?? 'Generic'}
-              </Text>
-            )}
-            {food.source === 'custom' ? (
-              <TouchableOpacity style={styles.editFood} accessibilityRole="button" accessibilityLabel="Edit food" onPress={() => router.push({ pathname: '/custom-food', params: { food_id: food.id, meal_slot, date } })}>
-                <Text style={{ fontSize: 15, color: colors.tint }}>Edit food</Text>
-              </TouchableOpacity>
-            ) : null}
+          <View style={styles.identity}>
+            <ThemedText type="heading" style={styles.foodName} numberOfLines={2}>{food.name}</ThemedText>
+            <View style={styles.metaRow}>
+              {sourceLabel ? <Tag label={sourceLabel} /> : null}
+              <ThemedText type="caption">{food.brand ? food.brand : 'Generic'}</ThemedText>
+              {food.source === 'custom' ? (
+                <Button
+                  label="Edit food"
+                  variant="ghost"
+                  size="sm"
+                  accessibilityLabel="Edit food"
+                  onPress={() => router.push({ pathname: '/custom-food', params: { food_id: food.id, meal_slot, date } })}
+                />
+              ) : null}
+            </View>
           </View>
 
-          {/* Form group card */}
-          <SectionHeading title="SERVING" colors={colors} />
-          <View style={[styles.formCard, { backgroundColor: colors.cardBackground }]}>
-            <Pressable
-              onPress={() => amountRef.current?.focus()}
-              style={[formRowStyles.formRow, formRowStyles.formRowDivider, { borderBottomColor: colors.separator }]}
-              accessible={false}
-            >
-              <View style={styles.amountLabelCol}>
-                <Text style={[formRowStyles.formRowLabel, { color: colors.text }]}>Amount</Text>
-              </View>
-              <TextInput
-                ref={amountRef}
-                value={servingAmount}
-                onChangeText={(t) => {
-                  setServingAmount(t);
-                  setSaveError(null);
-                }}
-                onFocus={() => setAmountFocused(true)}
-                onBlur={() => setAmountFocused(false)}
-                keyboardType="decimal-pad"
-                inputAccessoryViewID={AMOUNT_ACCESSORY_ID}
-                selectTextOnFocus
-                placeholder="0"
-                placeholderTextColor={colors.icon}
-                accessibilityLabel={`Amount, in ${unitSpoken}`}
-                accessibilityHint={validation.error ?? undefined}
-                style={[
-                  styles.amountInput,
-                  {
-                    borderColor: validation.error ? colors.danger : amountFocused ? colors.tint : colors.fieldBorder,
-                    color: colors.tint,
-                  },
-                ]}
-              />
+          {/* Serving */}
+          <Card padding="compact" style={styles.cardGap}>
+            <Pressable onPress={() => amountRef.current?.focus()} style={styles.amountRow} accessible={false}>
+              <ThemedText type="label" style={styles.rowLabel}>Amount</ThemedText>
+              <Stepper
+                decrementLabel="Less"
+                incrementLabel="More"
+                decrementDisabled={stepDown === null}
+                onDecrement={() => step(-1)}
+                onIncrement={() => step(1)}
+              >
+                <TextInput
+                  ref={amountRef}
+                  value={servingAmount}
+                  onChangeText={(t) => {
+                    setServingAmount(t);
+                    setSaveError(null);
+                  }}
+                  keyboardType="decimal-pad"
+                  inputAccessoryViewID={AMOUNT_ACCESSORY_ID}
+                  selectTextOnFocus
+                  placeholder="0"
+                  placeholderTextColor={icon}
+                  accessibilityLabel={`Amount, in ${unitSpoken}`}
+                  accessibilityHint={validation.error ?? undefined}
+                  style={[styles.amountInput, { color: validation.error ? danger : text }]}
+                />
+              </Stepper>
             </Pressable>
-            {validation.error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.amountHint, { color: colors.text, paddingVertical: 8 }]}>{validation.error}</Text> : null}
-            <FormRow
-              label="Serving Size"
-              value={unitLabel}
-              onPress={() => setShowUnitPicker(true)}
-              accessibilityLabel={`Serving size, ${unitLabel}. Change unit`}
-              divider
-              chevron
-              colors={colors}
-            />
-            <FormRow
-              label="Time"
-              value={formatTime(loggedTime)}
-              onPress={() => setShowTimePicker(true)}
-              accessibilityLabel={`Time, ${formatTime(loggedTime)}. Change time`}
-              colors={colors}
-            />
-          </View>
+            {validation.error ? <ThemedText type="label" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: danger }}>{validation.error}</ThemedText> : null}
+            <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Serving size">
+              {unitOptions.map(({ unit, label, a11y }) => (
+                <Chip
+                  key={unit}
+                  role="radio"
+                  label={label}
+                  accessibilityLabel={a11y}
+                  selected={servingUnit === unit}
+                  onPress={() => handleUnitChange(unit)}
+                />
+              ))}
+            </View>
+            <View style={[styles.separator, { backgroundColor: separator }]} />
+            <View style={styles.settingRow}>
+              <ThemedText type="body">Time</ThemedText>
+              <Button
+                label={formatTime(loggedTime)}
+                variant="soft"
+                size="sm"
+                accessibilityLabel={`Time, ${formatTime(loggedTime)}. Change time`}
+                onPress={() => setShowTimePicker(true)}
+              />
+            </View>
+            <View style={styles.settingRow}>
+              <ThemedText type="body">Status</ThemedText>
+              <Tag label={statusEaten ? 'Eaten' : 'Planned'} tone={statusEaten ? 'tint' : 'neutral'} />
+            </View>
+          </Card>
 
           {/* Ring + Macros */}
-          <SectionHeading title="NUTRITION" colors={colors} />
-          <View style={[styles.nutritionCard, { backgroundColor: colors.cardBackground }, expandedMacro && styles.cardOpenBottom]}>
+          <Card padding="compact" style={styles.cardGap}>
             <View style={styles.ringMacroRow}>
-              <NutritionRing cal={cal} protein={pro} carbs={carb} fat={fat} colors={colors} />
+              <NutritionRing cal={cal} protein={pro} carbs={carb} fat={fat} />
               <View style={styles.ringMacroRight}>
                 {macros.map((m) => {
                   const active = expandedMacro === m.key;
                   return (
                     <TouchableOpacity
                       key={m.key}
-                      style={[styles.macroCol, { backgroundColor: active ? m.color + '18' : colors.cardSecondary }]}
+                      style={[styles.macroCol, { backgroundColor: cardSecondary }, active && { borderColor: m.color, borderWidth: 1.5 }]}
                       onPress={() => setExpandedMacro((prev) => (prev === m.key ? null : m.key))}
                       activeOpacity={0.7}
                       accessibilityRole="button"
@@ -496,89 +465,55 @@ export default function ServingPickerScreen() {
                       accessibilityState={{ expanded: active }}
                     >
                       <View style={[styles.macroDot, { backgroundColor: m.color }]} />
-                      <Text style={[styles.macroGrams, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{m.value}g</Text>
-                      <View style={styles.macroLabelRow}>
-                        <Text style={[styles.macroColLabel, { color: colors.icon }]}>{m.label}</Text>
-                        <Chevron size={10} color={colors.icon} up={active} />
-                      </View>
+                      <ThemedText type="body" style={styles.macroGrams} numberOfLines={1} adjustsFontSizeToFit>{`${m.value} g`}</ThemedText>
+                      <ThemedText type="caption">{m.label}</ThemedText>
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
-            {per100 ? (
-              <Text style={[styles.per100, { color: colors.icon, borderTopColor: colors.separator }]}>{per100}</Text>
-            ) : null}
-          </View>
+            {expandedMacro && (
+              <MacroDetailPanel
+                macro={expandedMacro}
+                pro={pro}
+                carb={carb}
+                fat={fat}
+                nutrients={nutrients}
+                proteinGoal={proteinGoal}
+                carbGoal={carbGoal}
+                fatGoal={fatGoal}
+                onClose={() => setExpandedMacro(null)}
+              />
+            )}
+            {per100 ? <ThemedText type="caption" style={styles.tabular}>{per100}</ThemedText> : null}
+          </Card>
 
-          {expandedMacro && (
-            <MacroDetailPanel
-              macro={expandedMacro}
-              pro={pro}
-              carb={carb}
-              fat={fat}
-              nutrients={nutrients}
-              proteinGoal={proteinGoal}
-              carbGoal={carbGoal}
-              fatGoal={fatGoal}
-              onClose={() => setExpandedMacro(null)}
-              colors={colors}
-            />
-          )}
-
-          {/* Targets: what's eaten so far, plus this food */}
+          {/* Your day with this food */}
           {calorieGoal !== null && (
-            <>
-              <SectionHeading title="TARGETS" colors={colors} />
-              <View style={[styles.targetsCard, { backgroundColor: colors.cardBackground }]}>
-                <TargetRow
-                  label="Energy"
-                  eaten={dailyCalories}
-                  add={cal}
-                  goal={calorieGoal}
-                  unit="cal"
-                  color={colors.tint}
-                  tint={tints.energy}
-                  colors={colors}
-                />
-                {proteinGoal !== null && (
-                  <TargetRow
-                    label="Protein"
-                    eaten={dailyProtein}
-                    add={pro}
-                    goal={proteinGoal}
-                    unit="g"
-                    color={MacroColors.protein}
-                    tint={tints.protein}
-                    colors={colors}
-                  />
-                )}
-                {carbGoal !== null && (
-                  <TargetRow
-                    label="Carbs"
-                    eaten={dailyCarbsState}
-                    add={carb}
-                    goal={carbGoal}
-                    unit="g"
-                    color={MacroColors.carbs}
-                    tint={tints.carbs}
-                    colors={colors}
-                  />
-                )}
-                {fatGoal !== null && (
-                  <TargetRow
-                    label="Fat"
-                    eaten={dailyFat}
-                    add={fat}
-                    goal={fatGoal}
-                    unit="g"
-                    color={MacroColors.fat}
-                    tint={tints.fat}
-                    colors={colors}
-                  />
-                )}
+            <Card padding="compact" style={styles.cardGap}>
+              <View style={styles.dayHeader}>
+                <ThemedText type="title">Your day with this</ThemedText>
+                <ThemedText type="caption">Pale = this food</ThemedText>
               </View>
-            </>
+              <TargetRow
+                label="Calories"
+                eaten={dailyCalories}
+                add={cal}
+                goal={calorieGoal}
+                unit="cal"
+                color={tint}
+                tint={tints.energy}
+              />
+              {proteinGoal !== null && (
+                <TargetRow label="Protein" eaten={dailyProtein} add={pro} goal={proteinGoal} unit="g" color={MacroColors.protein} tint={tints.protein} />
+              )}
+              {carbGoal !== null && (
+                <TargetRow label="Carbs" eaten={dailyCarbsState} add={carb} goal={carbGoal} unit="g" color={MacroColors.carbs} tint={tints.carbs} />
+              )}
+              {fatGoal !== null && (
+                <TargetRow label="Fat" eaten={dailyFat} add={fat} goal={fatGoal} unit="g" color={MacroColors.fat} tint={tints.fat} />
+              )}
+            </Card>
           )}
 
           {/* Complete Nutrient Summary */}
@@ -586,12 +521,11 @@ export default function ServingPickerScreen() {
             title="Complete Nutrient Summary"
             expanded={expandNutrients}
             onToggle={() => setExpandNutrients((v) => !v)}
-            colors={colors}
           >
             {NUTRIENTS.filter(({ id }) => nutrients[id] !== null).map(({ id, label, unit }) => (
-              <MicroExpandRow key={id} label={label} value={nutrients[id]} unit={unit === 'ug' ? 'µg' : unit} colors={colors} />
+              <MicroExpandRow key={id} label={label} value={nutrients[id]} unit={unit === 'ug' ? 'µg' : unit} />
             ))}
-            {NUTRIENTS.every(({ id }) => nutrients[id] === null) ? <Text style={{ fontSize: 13, color: colors.icon }}>No nutrient details for this food.</Text> : null}
+            {NUTRIENTS.every(({ id }) => nutrients[id] === null) ? <ThemedText type="caption">No nutrient details for this food.</ThemedText> : null}
           </ExpandSection>
         </ScrollView>
       )}
@@ -599,27 +533,12 @@ export default function ServingPickerScreen() {
       {/* The decimal pad has no return key, so it gets a Done bar */}
       {Platform.OS === 'ios' ? (
         <InputAccessoryView nativeID={AMOUNT_ACCESSORY_ID}>
-          <View style={[styles.accessoryBar, { backgroundColor: colors.cardBackground, borderTopColor: colors.separator }]}>
+          <View style={[styles.accessoryBar, { backgroundColor: cardBackground, borderTopColor: separator }]}>
             <TouchableOpacity onPress={Keyboard.dismiss} style={styles.accessoryAction} hitSlop={8} accessibilityRole="button">
-              <Text style={[styles.accessoryDone, { color: colors.tint }]}>Done</Text>
+              <Text style={[styles.accessoryDone, { color: tint }]}>Done</Text>
             </TouchableOpacity>
           </View>
         </InputAccessoryView>
-      ) : null}
-
-      {food ? (
-        <UnitPickerModal
-          visible={showUnitPicker}
-          servingUnit={servingUnit}
-          baseGrams={baseGrams}
-          foodServingUnits={food.serving_units}
-          onSelectUnit={(unit) => {
-            handleUnitChange(unit);
-            setShowUnitPicker(false);
-          }}
-          onClose={() => setShowUnitPicker(false)}
-          colors={colors}
-        />
       ) : null}
 
       <TimePickerSheet
@@ -627,7 +546,7 @@ export default function ServingPickerScreen() {
         value={loggedTime}
         onChange={setLoggedTime}
         onClose={() => setShowTimePicker(false)}
-        colors={colors}
+        colors={timeColors}
       />
     </SafeAreaView>
   );
@@ -636,137 +555,45 @@ export default function ServingPickerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerSide: { width: 72, minHeight: 44, justifyContent: 'center' },
-  backIcon: { marginLeft: -6 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 6 },
+  headerSide: { minWidth: 84, minHeight: 44, justifyContent: 'center' },
+  back: { flexDirection: 'row', alignItems: 'center', marginLeft: -6 },
   headerSideRight: { alignItems: 'flex-end' },
-  headerBtnText: { fontSize: 16 },
-  title: { fontSize: 17, fontWeight: '600' },
-  logPill: {
-    minWidth: 64,
-    minHeight: 34,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logPillText: { fontSize: 15, fontWeight: '600' },
+  headerBtnText: { fontSize: 17 },
+  title: { flex: 1, textAlign: 'center' },
 
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingLeft: 14,
-    paddingRight: 12,
-    borderRadius: 12,
-  },
-  errorText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  errorRetry: { fontSize: 13, fontWeight: '600' },
-  editRetry: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 12 },
+  bannerText: { flex: 1 },
 
-  failWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 40,
-    paddingBottom: 140,
-  },
-  failIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  failTitle: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
-  failBody: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  failBtn: {
-    marginTop: 12,
-    minHeight: 44,
-    paddingHorizontal: 24,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  failBtnText: { fontSize: 15, fontWeight: '600' },
+  failWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 40, paddingBottom: 140 },
+  failIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  center: { textAlign: 'center' },
 
-  skeletonCard: { gap: 10 },
-  skeletonBar: { borderRadius: 4 },
-  skeletonHeading: { height: 10, borderRadius: 4, marginTop: 14, marginBottom: 6, marginLeft: 4 },
-  skeletonBlock: { borderRadius: 18 },
-  skeletonLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  skeletonText: { fontSize: 13 },
+  skeletonBar: { borderRadius: 6 },
+  skeletonBlock: { borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 
-  scroll: { padding: 16, paddingBottom: 32, gap: 8 },
+  scroll: { padding: 16, paddingBottom: 32, gap: 14 },
 
-  editFood: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  foodCard: { borderRadius: 18, padding: 16 },
-  foodName: { fontSize: 17, fontWeight: '600', marginBottom: 2, lineHeight: 24 },
-  foodBrand: { fontSize: 14, marginBottom: 4 },
+  identity: { gap: 8 },
+  foodName: { fontSize: 26, lineHeight: 31 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
 
-  // Form card
-  formCard: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 4 },
-  amountLabelCol: { gap: 2 },
-  amountHint: { fontSize: 12 },
-  amountInput: {
-    minWidth: 72,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
-  },
+  cardGap: { gap: 12 },
+  amountRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  rowLabel: { fontWeight: '600' },
+  amountInput: { minWidth: 72, paddingVertical: 6, textAlign: 'center', fontFamily: Fonts.rounded, fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  separator: { height: StyleSheet.hairlineWidth },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 },
   accessoryAction: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
-  accessoryBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  accessoryBar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', minHeight: 44, paddingHorizontal: 16, borderTopWidth: StyleSheet.hairlineWidth },
   accessoryDone: { fontSize: 16, fontWeight: '600' },
 
-  // Ring + macros
-  nutritionCard: { borderRadius: 18, padding: 16, gap: 12 },
-  cardOpenBottom: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
   ringMacroRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  ringMacroRight: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 6,
-  },
-  macroCol: { alignItems: 'center', gap: 2, flex: 1, minWidth: 0, borderRadius: 10, padding: 6 },
+  ringMacroRight: { flex: 1, flexDirection: 'row', gap: 6 },
+  macroCol: { alignItems: 'center', gap: 2, flex: 1, minWidth: 0, borderRadius: 14, padding: 8, borderWidth: 1.5, borderColor: 'transparent' },
   macroDot: { width: 8, height: 8, borderRadius: 4 },
-  macroGrams: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  macroLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  macroColLabel: { fontSize: 11 },
-  per100: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 10,
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-  },
-
-  // Targets
-  targetsCard: { borderRadius: 18, padding: 16, gap: 12 },
+  macroGrams: { fontWeight: '600', fontVariant: ['tabular-nums'] },
+  tabular: { fontVariant: ['tabular-nums'] },
+  dayHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
 });

@@ -1,23 +1,23 @@
 import { StyleSheet, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 /** Leading check indicator for a selectable food row. The row carries the accessibility state. */
 export function SelectionCheck({ selected }: { selected: boolean }) {
   const tint = useThemeColor({}, 'tint');
-  const separator = useThemeColor({}, 'separator');
-  const background = useThemeColor({}, 'background');
+  const onTint = useThemeColor({}, 'onTint');
+  const fieldBorder = useThemeColor({}, 'fieldBorder');
   return (
     <View
       accessible={false}
       importantForAccessibility="no-hide-descendants"
-      style={[styles.circle, selected ? { backgroundColor: tint, borderColor: tint } : { borderColor: separator }]}
+      style={[styles.circle, selected ? { backgroundColor: tint, borderColor: tint } : { borderColor: fieldBorder }]}
     >
-      {selected ? <MaterialIcons name="check" size={16} color={background} /> : null}
+      {selected ? <IconSymbol name="checkmark" size={16} color={onTint} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  circle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  circle: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
 });

@@ -1,52 +1,41 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { Colors } from '@/constants/theme';
-import { Chevron } from '@/components/serving-picker/Chevron';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/Card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export function ExpandSection({
-  title, expanded, onToggle, colors, children,
+  title, expanded, onToggle, children,
 }: {
   title: string;
   expanded: boolean;
   onToggle: () => void;
-  colors: Pick<typeof Colors.light, 'cardBackground' | 'icon' | 'separator' | 'text'>;
   children: ReactNode;
 }) {
+  const icon = useThemeColor({}, 'icon');
+  const separator = useThemeColor({}, 'separator');
   return (
-    <View style={[styles.expandCard, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity
-        style={styles.expandHeader}
+    <Card padding="none" style={styles.card}>
+      <Pressable
+        style={({ pressed }) => [styles.header, pressed && styles.pressed]}
         onPress={onToggle}
-        activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={title}
       >
-        <Text style={[styles.expandTitle, { color: colors.text }]}>{title}</Text>
-        <Chevron size={14} color={colors.icon} up={expanded} />
-      </TouchableOpacity>
-      {expanded && (
-        <View style={[styles.expandBody, { borderTopColor: colors.separator }]}>
-          {children}
-        </View>
-      )}
-    </View>
+        <ThemedText type="title" style={styles.title}>{title}</ThemedText>
+        <IconSymbol name={expanded ? 'chevron.up' : 'chevron.down'} size={20} color={icon} />
+      </Pressable>
+      {expanded && <View style={[styles.body, { borderTopColor: separator }]}>{children}</View>}
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  // Expand sections
-  expandCard: { borderRadius: 18, overflow: 'hidden' },
-  expandHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  expandTitle: { fontSize: 15, fontWeight: '700' },
-  expandBody: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    gap: 12,
-  },
+  card: { overflow: 'hidden' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 52, paddingHorizontal: 18, paddingVertical: 8 },
+  title: { flex: 1 },
+  pressed: { opacity: 0.85 },
+  body: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 18, paddingVertical: 14, gap: 12 },
 });

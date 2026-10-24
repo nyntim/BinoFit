@@ -46,7 +46,7 @@ jest.mock('@/hooks/useMealLogs', () => ({ useMealLogs: (date: string) => {
   mockMealState = actual.useMealLogs(date);
   return mockMealState;
 } }));
-jest.mock('@/hooks/useMealDraft', () => ({ useMealDraft: () => ({ start: mockStart, cancel: mockCancel, dirty: false, draft: null }) }));
+jest.mock('@/hooks/useMealDraft', () => ({ useMealDraft: () => ({ start: mockStart, cancel: mockCancel, dirty: false, draft: null, errors: {} }) }));
 jest.mock('@/lib/database', () => ({ getFoodLogsWithFoodByDate: jest.fn(), getMealSlotConfirmationsByDate: jest.fn(), getWaterLogsByDate: jest.fn(), upsertMealSlotConfirmation: jest.fn() }));
 jest.mock('@/lib/storage', () => ({ ...jest.requireActual('@/lib/storage'), getUserGoals: jest.fn(async () => null), getQuickAddDrinks: jest.fn(async () => []) }));
 jest.mock('@/lib/reminders', () => ({ restoreMealReminders: jest.fn() }));
@@ -138,7 +138,7 @@ test('open modal derives live servings, confirmations, names, targets and deleti
   const { rerender } = await render(<HomeScreen />);
   await open();
   await act(async () => mockMealState.setLogs([log('Updated', { serving_amount: .5 })]));
-  expect(screen.getAllByText('50 cal')).toHaveLength(1);
+  expect(screen.getAllByText('50').length).toBeGreaterThan(0);
   expect(screen.getByText('5 g')).toBeTruthy();
   expect(screen.queryByText('Food contributions')).toBeNull();
   await act(async () => mockMealState.setConfirmations([{ id: 'c', date: mockDate, meal_slot: 'lunch', confirmed: false, updated_at: '' }]));
@@ -148,12 +148,12 @@ test('open modal derives live servings, confirmations, names, targets and deleti
   await rerender(<HomeScreen />);
   expect(screen.getAllByText('50 / 25 cal')).toHaveLength(1);
   expect(screen.getByTestId('calorie-ring')).toBeTruthy();
-  expect(screen.getByText('25 cal over')).toBeTruthy();
-  expect(screen.getByText('200% of target')).toBeTruthy();
+  expect(screen.getByText('Over by 25')).toBeTruthy();
+  expect(screen.queryByText(/% of target/)).toBeNull();
   expect(screen.getAllByText('Brunch').length).toBeGreaterThan(0);
   await act(async () => mockMealState.setLogs([]));
   expect(screen.getAllByText('0 / 25 cal')).toHaveLength(1);
-  expect(screen.getByText('25 cal left')).toBeTruthy();
+  expect(screen.getByText('25 left')).toBeTruthy();
   expect(screen.getByText('No macro split yet')).toBeTruthy();
   mockDefs = [];
   await rerender(<HomeScreen />);
@@ -164,7 +164,7 @@ test('orphan meals open with no targets and close when last orphan log disappear
   foodRead.mockResolvedValue([log('Orphan', { meal_slot: 'deleted' })]);
   await render(<HomeScreen />);
   await open('Other');
-  expect(screen.getAllByText('100 cal')).toHaveLength(1);
+  expect(screen.getAllByText('100').length).toBeGreaterThan(0);
   expect(screen.getByText('10 g')).toBeTruthy();
   expect(screen.queryByText('Targets use current meal settings.')).toBeNull();
   await act(async () => mockMealState.setLogs([]));
@@ -182,7 +182,7 @@ test('blur closes summary, invalidates reads, and focus reload reflects saved se
   await rerender(<HomeScreen />);
   await waitFor(() => expect(screen.getByText('Persisted')).toBeTruthy());
   await open();
-  expect(screen.getAllByText('200 cal')).toHaveLength(1);
+  expect(screen.getAllByText('200').length).toBeGreaterThan(0);
   expect(screen.getByText('20 g')).toBeTruthy();
 });
 
@@ -232,7 +232,7 @@ test('dashboard default hydrates and persists rapid selections without altering 
   await reloadPreferences();
   await render(<HomeScreen />);
   await screen.findByText('Food A');
-  const group = screen.getByLabelText('Default for new food');
+  const group = screen.getByLabelText('Default status for new food');
   expect(group).toBeTruthy();
   expect(screen.getByRole('radio', { name: 'Planned', selected: true })).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: 'Eaten' }));
@@ -260,9 +260,9 @@ test('dashboard hides the default until preferences load and while editing meals
   resetPreferences();
   await render(<HomeScreen />);
   await screen.findByText('Food A');
-  expect(screen.queryByLabelText('Default for new food')).toBeNull();
+  expect(screen.queryByLabelText('Default status for new food')).toBeNull();
   await act(async () => { await loadPreferences(); });
-  expect(screen.getByLabelText('Default for new food')).toBeTruthy();
+  expect(screen.getByLabelText('Default status for new food')).toBeTruthy();
   await fireEvent.press(screen.getByLabelText('Edit meals'));
-  expect(screen.queryByLabelText('Default for new food')).toBeNull();
+  expect(screen.queryByLabelText('Default status for new food')).toBeNull();
 });

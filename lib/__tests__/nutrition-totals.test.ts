@@ -1,3 +1,4 @@
+import { newFoodStatus, sumPlannedTotals } from '@/lib/nutrition-totals';
 import { isSlotEaten, logsForSlot, slotCalories, sumEatenTotals } from '@/lib/nutrition-totals';
 
 const log = (meal_slot: any, serving_amount: number, cal = 100, p = 10, c = 20, f = 5) => ({
@@ -122,5 +123,38 @@ describe('nutrient coverage totals', () => {
     expect(sumEatenNutrientTotals(logs, []).fiber.total).toBe(2);
     expect(sumNutrientTotals([]).fiber).toEqual({ total: null, knownCount: 0, missingCount: 0 });
     expect(sumNutrientTotals([nutrientLog({ serving_amount: NaN })]).fiber).toEqual({ total: null, knownCount: 0, missingCount: 1 });
+  });
+});
+
+
+describe('sumPlannedTotals', () => {
+  test('no rows means nothing is planned', () => {
+    expect(sumPlannedTotals([log('lunch', 1)], [])).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+  });
+  test('an explicit unconfirmed slot counts; eaten and missing-row slots do not', () => {
+    const logs = [log('lunch', 2), log('dinner', 1), log('snack', 1)];
+    const confirmations = [conf('lunch', false), conf('dinner', true)];
+    expect(sumPlannedTotals(logs, confirmations)).toEqual({ calories: 200, protein: 20, carbs: 40, fat: 10 });
+  });
+  test('planned plus eaten equals everything logged', () => {
+    const logs = [log('lunch', 2), log('dinner', 1.5), log('snack', 1)];
+    const confirmations = [conf('lunch', false)];
+    const planned = sumPlannedTotals(logs, confirmations);
+    const eaten = sumEatenTotals(logs, confirmations);
+    expect(planned.calories + eaten.calories).toBe(sumEatenTotals(logs, []).calories);
+  });
+});
+
+describe('newFoodStatus', () => {
+  test('an existing row wins over the default in both directions', () => {
+    expect(newFoodStatus([conf('lunch', false)], 'lunch', 'eaten')).toBe('planned');
+    expect(newFoodStatus([conf('lunch', true)], 'lunch', 'planned')).toBe('eaten');
+  });
+  test('with no row for the slot the default applies', () => {
+    expect(newFoodStatus([conf('dinner', false)], 'lunch', 'planned')).toBe('planned');
+    expect(newFoodStatus([], 'lunch', 'eaten')).toBe('eaten');
+  });
+  test('an edit keeps the slot status through isSlotEaten', () => {
+    expect(isSlotEaten([conf('lunch', false)], 'lunch')).toBe(false);
   });
 });

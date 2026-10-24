@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -13,8 +11,15 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { Colors } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Tag } from '@/components/ui/Tag';
+import { TextField } from '@/components/ui/TextField';
+import { MacroColors } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { formatNutritionAmount, macroCalories } from '@/lib/meal-nutrition-summary';
 import { addCustomFood, getFoodById, updateCustomFood } from '@/lib/database';
 import { syncToSupabase } from '@/lib/sync';
 import { NUTRIENTS, normalizeNutrients, type NutrientId } from '@/lib/nutrients';
@@ -33,13 +38,10 @@ export default function CustomFoodScreen() {
   const { meal_slot, date, barcode, food_id } = params;
   const router = useRouter();
   const background = useThemeColor({}, 'background');
-  const cardBackground = useThemeColor({}, 'cardBackground');
   const icon = useThemeColor({}, 'icon');
   const separator = useThemeColor({}, 'separator');
-  const text = useThemeColor({}, 'text');
   const tint = useThemeColor({}, 'tint');
   const danger = useThemeColor({}, 'danger');
-  const colors = { danger, background, cardBackground, icon, separator, text, tint };
 
   const [name, setName] = useState(params.name ?? '');
   const [brand, setBrand] = useState(params.brand ?? '');
@@ -53,7 +55,7 @@ export default function CustomFoodScreen() {
   const [loading, setLoading] = useState(Boolean(food_id));
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [expanded, setExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [nutrientDraft, setNutrientDraft] = useState<Partial<Record<NutrientId, string>>>({});
 
   useEffect(() => {
@@ -109,7 +111,9 @@ export default function CustomFoodScreen() {
       fat: validateNutrient(fat, 'Fat', 'zero'),
     };
     if (!canSave || !name.trim() || !servingUnits.trim() || Object.values(checked).some((value) => !value.valid) || savingRef.current) {
-      if (optionalErrors.length) setExpanded(true);
+      if (optionalErrors.length) {
+        setExpandedGroups((previous) => ({ ...previous, ...Object.fromEntries(optionalErrors.map((nutrient) => [nutrient.group, true])) }));
+      }
       return;
     }
     savingRef.current = true;
@@ -146,80 +150,166 @@ export default function CustomFoodScreen() {
     }
   };
 
+  const GROUPS = [
+    { id: 'extended_macros', title: 'Other nutrients' },
+    { id: 'minerals', title: 'Minerals' },
+    { id: 'vitamins', title: 'Vitamins' },
+  ] as const;
+  const macroValues = [nutrition.protein, nutrition.carbs, nutrition.fat];
+  const anyMacro = [protein, carbs, fat].some((raw) => raw.trim() !== '') && macroValues.every((value) => value.valid);
+  const macroEnergy = anyMacro
+    ? Number(formatNutritionAmount(macroCalories({ protein: nutrition.protein.value ?? 0, carbs: nutrition.carbs.value ?? 0, fat: nutrition.fat.value ?? 0 }), 0)).toLocaleString()
+    : null;
+  const macroFields = [
+    { key: 'protein' as const, label: 'Protein', value: protein, set: setProtein, color: MacroColors.protein },
+    { key: 'carbs' as const, label: 'Carbs', value: carbs, set: setCarbs, color: MacroColors.carbs },
+    { key: 'fat' as const, label: 'Fat', value: fat, set: setFat, color: MacroColors.fat },
+  ];
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.cancelBtn}>
-            <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>{food_id ? 'Edit Food' : 'New Food'}</Text>
-          <TouchableOpacity onPress={handleSave} disabled={!canSave || saving} accessibilityRole="button" accessibilityLabel="Save food" accessibilityState={{ disabled: !canSave || saving, busy: saving }} style={styles.cancelBtn}>
-            <Text style={[styles.saveText, { color: canSave ? colors.tint : colors.icon }]}>
-              {saving ? 'Saving…' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.side}>
+            <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
+          </View>
+          <ThemedText type="title" accessibilityRole="header">{food_id ? 'Edit food' : 'New food'}</ThemedText>
+          <View style={[styles.side, styles.sideEnd]}>
+            <Button
+              label={saving ? 'Saving…' : 'Save'}
+              accessibilityLabel="Save food"
+              variant="ghost"
+              disabled={!canSave}
+              loading={saving}
+              onPress={handleSave}
+            />
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {loading ? <ActivityIndicator color={colors.tint} accessibilityLabel="Loading food" /> : null}
+          {loading ? <ActivityIndicator color={tint} accessibilityLabel="Loading food" /> : null}
           {loadFailed ? (
-            <View accessibilityRole="alert">
-              <Text style={[styles.loadError, { color: colors.text }]}>Couldn’t load this custom food.</Text>
-              <TouchableOpacity style={styles.disclosure} accessibilityRole="button" accessibilityLabel="Retry loading food" onPress={() => { setLoading(true); setLoadFailed(false); setLoadAttempt((attempt) => attempt + 1); }}>
-                <Text style={{ color: colors.tint }}>Try again</Text>
-              </TouchableOpacity>
-            </View>
+            <Card padding="compact" style={styles.loadError} accessibilityRole="alert">
+              <IconSymbol name="exclamationmark.circle" size={18} color={danger} />
+              <ThemedText type="label" style={styles.flex}>Couldn’t load this custom food.</ThemedText>
+              <Button label="Try again" variant="ghost" size="sm" accessibilityLabel="Retry loading food" onPress={() => { setLoading(true); setLoadFailed(false); setLoadAttempt((attempt) => attempt + 1); }} />
+            </Card>
           ) : null}
           {!loading && !loadFailed ? <>
-          {barcode ? (
-            <Text style={[styles.barcodeCaption, { color: colors.icon }]}>Barcode {barcode}</Text>
-          ) : null}
-
-          {/* Basic info */}
-          <Text style={[styles.sectionTitle, { color: colors.icon }]}>FOOD INFO</Text>
-          <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-            <Field label="Name *" onBlur={blur('name')} error={touched.name && !name.trim() ? 'Enter a name.' : undefined} value={name} onChangeText={setName} placeholder="e.g. Greek Yogurt" colors={colors} />
-            <Field label="Brand" value={brand} onChangeText={setBrand} placeholder="Optional" colors={colors} />
-            <Field label="Serving size *" onBlur={blur('servingUnits')} error={touched.servingUnits && !servingUnits.trim() ? 'Enter a serving size.' : undefined} value={servingUnits} onChangeText={setServingUnits} placeholder="e.g. 1 cup (240g)" colors={colors} last />
-          </View>
-
-          {/* Nutrition */}
-          <Text style={[styles.sectionTitle, { color: colors.icon }]}>NUTRITION PER SERVING</Text>
-          <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-            <Field label="Calories *" onBlur={blur('calories')} error={nutrientError('calories', calories)} value={calories} onChangeText={setCalories} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Protein (g)" onBlur={blur('protein')} error={nutrientError('protein', protein)} value={protein} onChangeText={setProtein} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Carbs (g)" onBlur={blur('carbs')} error={nutrientError('carbs', carbs)} value={carbs} onChangeText={setCarbs} placeholder="0" keyboardType="decimal-pad" colors={colors} />
-            <Field label="Fat (g)" onBlur={blur('fat')} error={nutrientError('fat', fat)} value={fat} onChangeText={setFat} placeholder="0" keyboardType="decimal-pad" colors={colors} last />
-          </View>
-          <TouchableOpacity style={[styles.disclosure, { backgroundColor: colors.cardBackground }]} onPress={() => setExpanded((value) => !value)} accessibilityRole="button" accessibilityLabel="More nutrients" accessibilityState={{ expanded }}>
-            <Text style={[styles.disclosureText, { color: colors.text }]}>More nutrients</Text>
-            <Text style={{ color: colors.icon }}>{expanded ? '−' : '+'}</Text>
-          </TouchableOpacity>
-          {!expanded && optionalErrors.length > 0 ? <Text style={[styles.loadError, { color: colors.text }]} accessibilityRole="alert">{optionalErrors.map(({ checked }) => checked.error).join(' ')}</Text> : null}
-          {expanded ? (['extended_macros', 'minerals', 'vitamins'] as const).map((group) => {
-            const nutrients = optionalNutrition.filter((nutrient) => nutrient.group === group);
-            return <View key={group}>
-              <Text style={[styles.sectionTitle, { color: colors.icon }]}>{group === 'extended_macros' ? 'EXTENDED MACROS' : group.toUpperCase()}</Text>
-              <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-                {nutrients.map((nutrient, index) => (
-                  <Field
-                    key={nutrient.id}
-                    label={`${nutrient.label} (${nutrient.unit === 'ug' ? 'µg' : nutrient.unit})`}
-                    value={nutrientDraft[nutrient.id] ?? ''}
-                    onChangeText={(value) => setNutrientDraft((draft) => ({ ...draft, [nutrient.id]: value }))}
-                    onBlur={blur(nutrient.id)}
-                    error={nutrient.checked.error ?? undefined}
-                    placeholder="Optional"
-                    keyboardType="decimal-pad"
-                    colors={colors}
-                    last={index === nutrients.length - 1}
-                  />
-                ))}
+          <ThemedText type="section">Food</ThemedText>
+          <Card padding="compact" style={styles.cardGap}>
+            <TextField
+              label="Name"
+              accessibilityLabel="Name (required)"
+              onBlur={blur('name')}
+              error={touched.name && !name.trim() ? 'Enter a name.' : undefined}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Greek yogurt"
+              returnKeyType="next"
+            />
+            <TextField label="Brand" accessibilityLabel="Brand (optional)" value={brand} onChangeText={setBrand} placeholder="Optional" returnKeyType="next" />
+            <TextField
+              label="Serving size"
+              accessibilityLabel="Serving size (required)"
+              onBlur={blur('servingUnits')}
+              error={touched.servingUnits && !servingUnits.trim() ? 'Add a serving size so amounts make sense.' : undefined}
+              value={servingUnits}
+              onChangeText={setServingUnits}
+              placeholder="Like 1 piece (300 g)"
+              returnKeyType="next"
+            />
+            {barcode ? (
+              <View style={styles.barcodeRow}>
+                <Tag label="Barcode" />
+                <ThemedText type="label" style={styles.tabular}>{barcode}</ThemedText>
               </View>
-            </View>;
-          }) : null}
+            ) : null}
+          </Card>
+
+          <ThemedText type="section">Nutrition per serving</ThemedText>
+          <Card padding="compact" style={styles.cardGap}>
+            <TextField
+              size="big"
+              label="Calories"
+              accessibilityLabel="Calories (required)"
+              suffix="cal"
+              onBlur={blur('calories')}
+              error={nutrientError('calories', calories)}
+              value={calories}
+              onChangeText={setCalories}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              containerStyle={styles.calories}
+            />
+            <View style={styles.macroRow}>
+              {macroFields.map((field) => (
+                <View key={field.key} style={styles.macro}>
+                  <View style={styles.macroLabel}>
+                    <View style={[styles.dot, { backgroundColor: field.color }]} />
+                    <ThemedText type="caption">{field.label}</ThemedText>
+                  </View>
+                  <TextField
+                    accessibilityLabel={`${field.label} (g)`}
+                    suffix="g"
+                    onBlur={blur(field.key)}
+                    error={nutrientError(field.key, field.value)}
+                    value={field.value}
+                    onChangeText={field.set}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              ))}
+            </View>
+            {macroEnergy !== null ? <ThemedText type="caption">{`Macros add up to ${macroEnergy} cal. Grams per serving.`}</ThemedText> : null}
+          </Card>
+
+          <ThemedText type="section">More nutrients (optional)</ThemedText>
+          <Card padding="none">
+            {GROUPS.map(({ id, title }, index) => {
+              const nutrients = optionalNutrition.filter((nutrient) => nutrient.group === id);
+              const open = !!expandedGroups[id];
+              const filled = nutrients.filter((nutrient) => (nutrientDraft[nutrient.id] ?? '').trim() !== '').length;
+              const errors = nutrients.filter((nutrient) => !nutrient.checked.valid);
+              return (
+                <View key={id} style={index > 0 ? [styles.groupDivider, { borderTopColor: separator }] : undefined}>
+                  <Pressable
+                    style={({ pressed }) => [styles.groupHeader, pressed && styles.pressed]}
+                    onPress={() => setExpandedGroups((previous) => ({ ...previous, [id]: !previous[id] }))}
+                    accessibilityRole="button"
+                    accessibilityLabel={title}
+                    accessibilityState={{ expanded: open }}
+                  >
+                    <ThemedText type="body" style={styles.groupTitle}>{title}</ThemedText>
+                    <ThemedText type="caption">{`${filled} of ${nutrients.length}`}</ThemedText>
+                    <IconSymbol name={open ? 'chevron.up' : 'chevron.down'} size={20} color={icon} />
+                  </Pressable>
+                  {!open && errors.length > 0 ? (
+                    <ThemedText type="label" style={[styles.groupError, { color: danger }]} accessibilityRole="alert">{errors.map(({ checked }) => checked.error).join(' ')}</ThemedText>
+                  ) : null}
+                  {open ? nutrients.map((nutrient) => (
+                    <View key={nutrient.id} style={[styles.nutrientRow, { borderTopColor: separator }]}>
+                      <ThemedText type="body" style={[styles.nutrientLabel, { color: icon }]}>{nutrient.label}</ThemedText>
+                      <TextField
+                        size="mini"
+                        accessibilityLabel={`${nutrient.label} (${nutrient.unit === 'ug' ? 'µg' : nutrient.unit})`}
+                        value={nutrientDraft[nutrient.id] ?? ''}
+                        onChangeText={(value) => setNutrientDraft((draft) => ({ ...draft, [nutrient.id]: value }))}
+                        onBlur={blur(nutrient.id)}
+                        error={nutrient.checked.error ?? undefined}
+                        placeholder="Unknown"
+                        keyboardType="decimal-pad"
+                      />
+                      <ThemedText type="caption" style={styles.unit}>{nutrient.unit === 'ug' ? 'µg' : nutrient.unit}</ThemedText>
+                    </View>
+                  )) : null}
+                </View>
+              );
+            })}
+          </Card>
+          <ThemedText type="caption">Blank means unknown, not zero.</ThemedText>
           </> : null}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -227,78 +317,28 @@ export default function CustomFoodScreen() {
   );
 }
 
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = 'default',
-  colors,
-  last = false,
-  error,
-  onBlur,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder: string;
-  keyboardType?: 'default' | 'decimal-pad';
-  colors: Pick<typeof Colors.light, 'separator' | 'text' | 'icon' | 'danger'>;
-  last?: boolean;
-  error?: string;
-  onBlur?: () => void;
-}) {
-  return (
-    <View style={[styles.fieldRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
-      <View style={styles.fieldContent}>
-        <Text style={[styles.fieldLabel, { color: colors.text }]}>{label}</Text>
-        <TextInput
-          style={[styles.fieldInput, { color: colors.text }, error ? { borderWidth: 1.5, borderColor: colors.danger, borderRadius: 8 } : undefined]}
-          accessibilityLabel={label.replace(' *', ' (required)')}
-          accessibilityHint={error}
-          onBlur={onBlur}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.icon}
-          keyboardType={keyboardType}
-          returnKeyType="next"
-        />
-      </View>
-      {error ? <Text style={[styles.fieldError, { color: colors.text }]} accessibilityRole="alert" accessibilityLiveRegion="polite">{error}</Text> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  cancelBtn: { width: 64, minHeight: 44, justifyContent: 'center' },
-  cancelText: { fontSize: 16 },
-  saveText: { fontSize: 16, fontWeight: '600', textAlign: 'right' },
-  title: { fontSize: 17, fontWeight: '600' },
-  scroll: { padding: 20, paddingBottom: 40 },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  barcodeCaption: { fontSize: 12, marginBottom: 12 },
-  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 12, marginBottom: 16 },
-  disclosureText: { fontSize: 15, fontWeight: '600' },
-  loadError: { fontSize: 13, lineHeight: 18, marginBottom: 16 },
-  card: { borderRadius: 14, overflow: 'hidden', marginBottom: 24 },
-  fieldRow: { paddingHorizontal: 16, paddingVertical: 12 },
-  fieldContent: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  fieldError: { fontSize: 13, lineHeight: 18, marginTop: 8 },
-  fieldLabel: { flexGrow: 1, flexShrink: 1, flexBasis: 130, fontSize: 15 },
-  fieldInput: { flexGrow: 1, flexBasis: 100, fontVariant: ['tabular-nums'], minHeight: 44, paddingHorizontal: 8, fontSize: 15, textAlign: 'right' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 4 },
+  side: { minWidth: 84 },
+  sideEnd: { alignItems: 'flex-end' },
+  scroll: { padding: 16, paddingBottom: 40, gap: 14 },
+  flex: { flex: 1 },
+  loadError: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardGap: { gap: 14 },
+  barcodeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tabular: { fontVariant: ['tabular-nums'] },
+  calories: { width: 180, maxWidth: '100%' },
+  macroRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  macro: { flex: 1, minWidth: 96, gap: 4 },
+  macroLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  groupDivider: { borderTopWidth: StyleSheet.hairlineWidth },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 18, paddingVertical: 8 },
+  groupTitle: { flex: 1, fontWeight: '600' },
+  groupError: { paddingHorizontal: 18, paddingBottom: 12 },
+  nutrientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 18, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth },
+  nutrientLabel: { flex: 1 },
+  unit: { width: 28 },
+  pressed: { opacity: 0.85 },
 });

@@ -228,6 +228,9 @@ Older components now built on them: `PillSwitch` and `RangeChips` (`SegmentedCon
 
 - **Settings pages:** `SettingsPage` is the push page for every Settings screen: a back row named for the previous screen ("Back to Training"), a large title, scrolling content on a 16 gutter with 12 gaps, an optional trailing action and an optional `StickyFooter`. Lists are `ListGroup`; grouped values are `Card`s.
 - **Appearance preview tiles:** Preferences reads `Colors.light` and `Colors.dark` directly so each tile shows the other theme. This is the one sanctioned direct read of `Colors`.
+- **Calorie ring:** `CalorieRing` takes `size`, `strokeWidth` (default 14), `caption` (replaces "of N cal", e.g. "cal" on the meal summary) and `accessibilityLabel`. At font scale 1.6 or more the dashboard calorie card drops the ring for a labelled `ProgressBar` so large numbers never truncate.
+- **Status tag on meal cards:** the Eaten / Planned state is a `Tag` (tint when eaten, neutral when planned) wrapped in a `Pressable` with a 44 pt hit area; planned meals also get a dashed `fieldBorder` outline. Over a goal is never red.
+- **Camera chrome:** the barcode scanner is always dark. It builds its palette from the dark tokens through `useThemeColor` props (`Colors.dark.background`, `text`, `track`, `overlay`, `tint`, `icon`), which is the second sanctioned direct read of `Colors`. The miss sheet over it uses the normal themed surfaces.
 - **Calorie ring:** single tint stroke on a track, rounded `hero` number in the middle, a text summary for screen readers ("1,640 of 2,200 calories").
 - **Native controls:** React Native `Switch` with `trackColor={{ true: tint }}`; platform date and time pickers.
 - **Sheets and modals:** native presentation; bottom sheets use `SheetHeader` on `sheetBackground`; `fullScreenModal` screens pad with safe-area insets (see `CLAUDE.md`).

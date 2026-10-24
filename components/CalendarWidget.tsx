@@ -1,12 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { addDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from 'date-fns';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { addDays, addMonths, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from 'date-fns';
 import { Calendar } from 'react-native-calendars';
 import type { DateData } from 'react-native-calendars';
 import { useFocusEffect } from 'expo-router';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useDate } from '@/context/DateContext';
+import { useDaySummary } from '@/hooks/useDaySummary';
 import { getLoggedDatesInRange } from '@/lib/database';
+import { daySummaryLine } from '@/lib/day-summary';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -22,13 +27,14 @@ function ActivityMarkers({ food, trained, foodColor, trainingColor }: {
   </View>;
 }
 
-function DayLabel({ date, selected, today, disabled, food, trained, foodColor, trainingColor, textColor, tint, cardColor, onPress, weekday }: {
-  date: string; selected: boolean; today: boolean; disabled: boolean; food: boolean; trained: boolean;
-  foodColor: string; trainingColor: string; textColor: string; tint: string; cardColor: string;
+function DayLabel({ date, selected, today, disabled, future, food, trained, foodColor, trainingColor, textColor, mutedColor, tint, onTint, onPress, weekday }: {
+  date: string; selected: boolean; today: boolean; disabled: boolean; future: boolean; food: boolean; trained: boolean;
+  foodColor: string; trainingColor: string; textColor: string; mutedColor: string; tint: string; onTint: string;
   onPress: () => void; weekday?: string;
 }) {
   const fullDate = format(parseISO(date), 'EEEE, MMMM d, yyyy');
   const label = [fullDate, today && 'today', food && 'food logged', trained && 'trained'].filter(Boolean).join(', ');
+  const numberColor = selected ? onTint : future ? mutedColor : textColor;
   return <Pressable
     onPress={onPress}
     disabled={disabled}
@@ -37,9 +43,9 @@ function DayLabel({ date, selected, today, disabled, food, trained, foodColor, t
     accessibilityState={{ selected, disabled }}
     style={[styles.dayCell, !weekday && styles.monthDayCell]}
   >
-    {weekday && <Text style={[styles.weekday, { color: selected ? tint : textColor }, disabled && styles.dimmed]}>{weekday}</Text>}
-    <View style={[styles.circle, selected && { backgroundColor: tint }, today && !selected && { borderWidth: 1.5, borderColor: tint }]}>
-      <Text style={[styles.number, { color: selected ? cardColor : today ? tint : textColor }, disabled && styles.dimmed]}>{format(parseISO(date), 'd')}</Text>
+    {weekday && <Text style={[styles.weekday, { color: selected ? tint : mutedColor }, disabled && styles.dimmed]}>{weekday}</Text>}
+    <View style={[styles.circle, !weekday && styles.monthCircle, selected && { backgroundColor: tint }, today && !selected && { borderWidth: 1.5, borderColor: tint }]}>
+      <Text style={[styles.number, { color: numberColor }, disabled && styles.dimmed]}>{format(parseISO(date), 'd')}</Text>
     </View>
     <ActivityMarkers food={food} trained={trained} foodColor={foodColor} trainingColor={trainingColor} />
   </Pressable>;
@@ -48,12 +54,18 @@ function DayLabel({ date, selected, today, disabled, food, trained, foodColor, t
 export function CalendarWidget({ trainedDates = [], today = format(new Date(), 'yyyy-MM-dd'), foodRevision }: Props) {
   const { selectedDate, setSelectedDate } = useDate();
   const overlay = useThemeColor({}, 'overlay');
-  const cardColor = useThemeColor({}, 'cardBackground');
+  const sheetBackground = useThemeColor({}, 'sheetBackground');
+  const cardSecondary = useThemeColor({}, 'cardSecondary');
+  const grabber = useThemeColor({}, 'fieldBorder');
   const textColor = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const separator = useThemeColor({}, 'separator');
+  const onTint = useThemeColor({}, 'onTint');
+  const ember = useThemeColor({}, 'ember');
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
+  const [previewDate, setPreviewDate] = useState(selectedDate);
+  const summary = useDaySummary(modalVisible ? previewDate : null);
   const [visibleMonth, setVisibleMonth] = useState(selectedDate.slice(0, 7) + '-01');
   const [weekFood, setWeekFood] = useState<Set<string>>(new Set());
   const [monthFood, setMonthFood] = useState<Set<string>>(new Set());
@@ -96,61 +108,101 @@ export function CalendarWidget({ trainedDates = [], today = format(new Date(), '
 
   const openMonth = () => {
     setVisibleMonth(selectedDate.slice(0, 7) + '-01');
+    setPreviewDate(selectedDate);
     setModalVisible(true);
   };
-  const select = (date: string, close: boolean) => {
+  // The week strip selects at once; the month sheet previews a day until "Go to day"
+  const select = (date: string) => {
     if (date > maxPlanningDate) return;
     setSelectedDate(date);
-    if (close) setModalVisible(false);
   };
-  const dayProps = (date: string, food: boolean) => ({
-    date, selected: date === selectedDate, today: date === today, disabled: date > maxPlanningDate,
-    food, trained: date <= today && trained.has(date), foodColor: tint, trainingColor: textColor,
-    textColor, tint, cardColor,
+  const preview = (date: string) => {
+    if (date > maxPlanningDate) return;
+    setPreviewDate(date);
+  };
+  const goToDay = () => {
+    if (previewDate > maxPlanningDate) return;
+    setSelectedDate(previewDate);
+    setModalVisible(false);
+  };
+  const dayProps = (date: string, food: boolean, selected: boolean) => ({
+    date, selected, today: date === today, disabled: date > maxPlanningDate, future: date > today,
+    food, trained: date <= today && trained.has(date), foodColor: tint, trainingColor: ember,
+    textColor, mutedColor: muted, tint, onTint,
   });
+  const nextMonth = addMonths(parseISO(visibleMonth), 1);
+  const nextMonthDisabled = format(nextMonth, 'yyyy-MM-dd') > maxPlanningDate;
+  const shiftMonth = (delta: 1 | -1) => setVisibleMonth(format(addMonths(parseISO(visibleMonth), delta), 'yyyy-MM-dd'));
   const legend = <View style={styles.legend}>
-    <View style={styles.legendItem}><ActivityMarkers food trained={false} foodColor={tint} trainingColor={textColor} /><Text style={[styles.legendText, { color: muted }]}>Logged</Text></View>
-    {showTrainingLegend && <View style={styles.legendItem}><ActivityMarkers food={false} trained foodColor={tint} trainingColor={textColor} /><Text style={[styles.legendText, { color: muted }]}>Trained</Text></View>}
+    <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: tint }]} /><Text style={[styles.legendText, { color: muted }]}>Logged food</Text></View>
+    {showTrainingLegend && <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: ember }]} /><Text style={[styles.legendText, { color: muted }]}>Trained</Text></View>}
   </View>;
+  const monthButton = (name: 'chevron.left' | 'chevron.right', label: string, onPress: () => void, disabled = false) => (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={[styles.monthButton, disabled && styles.dimmed]}
+    >
+      <IconSymbol name={name} size={20} color={tint} />
+    </Pressable>
+  );
 
-  return <View style={[styles.container, { backgroundColor: cardColor, borderBottomColor: separator }]}>
+  return <View>
     <View style={styles.weekRow}>
       {DAY_LABELS.map((weekday, i) => {
         const date = format(addDays(weekStart, i), 'yyyy-MM-dd');
-        return <DayLabel key={date} {...dayProps(date, weekFood.has(date))} weekday={weekday} onPress={() => select(date, false)} />;
+        return <DayLabel key={date} {...dayProps(date, weekFood.has(date), date === selectedDate)} weekday={weekday} onPress={() => select(date)} />;
       })}
       <Pressable style={styles.expand} onPress={openMonth} accessibilityRole="button" accessibilityLabel="Open month calendar">
-        <MaterialIcons name="keyboard-arrow-down" size={20} color={muted} />
+        <View style={[styles.expandCircle, { backgroundColor: cardSecondary }]}>
+          <IconSymbol name="chevron.down" size={20} color={muted} />
+        </View>
       </Pressable>
     </View>
     <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
       <View style={[styles.backdrop, { backgroundColor: overlay }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} accessibilityLabel="Close calendar" />
-        <View style={[styles.modalCard, { backgroundColor: cardColor }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: separator }]}>
-            <Text style={[styles.modalTitle, { color: textColor }]}>Select Date</Text>
-            <Pressable style={styles.close} onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Close calendar">
-              <MaterialIcons name="close" size={22} color={muted} />
-            </Pressable>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Close calendar" />
+        <View style={[styles.modalCard, { backgroundColor: sheetBackground, paddingBottom: 16 + insets.bottom }]}>
+          <View style={[styles.grabber, { backgroundColor: grabber }]} accessible={false} importantForAccessibility="no" />
+          <View style={styles.monthHeader}>
+            {monthButton('chevron.left', 'Previous month', () => shiftMonth(-1))}
+            <ThemedText type="stat" style={styles.monthTitle} accessibilityRole="header">{format(parseISO(visibleMonth), 'MMMM yyyy')}</ThemedText>
+            {monthButton('chevron.right', 'Next month', () => shiftMonth(1), nextMonthDisabled)}
           </View>
           <Calendar
             key={visibleMonth.slice(0, 7)}
             current={visibleMonth}
             firstDay={1}
             hideExtraDays={false}
+            hideArrows
+            renderHeader={() => <View />}
             maxDate={maxPlanningDate}
             onMonthChange={(day: DateData) => setVisibleMonth(day.dateString.slice(0, 7) + '-01')}
             dayComponent={({ date }) => {
               if (!date) return null;
-              return <DayLabel {...dayProps(date.dateString, monthFood.has(date.dateString))} onPress={() => select(date.dateString, true)} />;
+              return <DayLabel {...dayProps(date.dateString, monthFood.has(date.dateString), date.dateString === previewDate)} onPress={() => preview(date.dateString)} />;
             }}
             theme={{
-              backgroundColor: cardColor, calendarBackground: cardColor, textSectionTitleColor: muted,
+              backgroundColor: sheetBackground, calendarBackground: sheetBackground, textSectionTitleColor: muted,
               dayTextColor: textColor, todayTextColor: tint, arrowColor: tint,
               monthTextColor: textColor, textDisabledColor: muted,
             }}
           />
           {legend}
+          <View style={[styles.summary, { backgroundColor: cardSecondary }]}>
+            <View style={styles.summaryCopy}>
+              <ThemedText type="label" style={styles.summaryDate}>{format(parseISO(previewDate), 'EEE d MMM')}</ThemedText>
+              {summary.loading ? (
+                <ActivityIndicator size="small" color={tint} style={styles.summarySpinner} />
+              ) : (
+                <ThemedText type="caption">{daySummaryLine(summary.eatenCalories, summary.workouts)}</ThemedText>
+              )}
+            </View>
+            <Button label="Go to day" size="sm" disabled={previewDate > maxPlanningDate} onPress={goToDay} />
+          </View>
         </View>
       </View>
     </Modal>
@@ -158,23 +210,30 @@ export function CalendarWidget({ trainedDates = [], today = format(new Date(), '
 }
 
 const styles = StyleSheet.create({
-  container: { borderBottomWidth: StyleSheet.hairlineWidth },
-  weekRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 8 },
-  dayCell: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  monthDayCell: { flex: 0, width: 44, minWidth: 44 },
+  weekRow: { flexDirection: 'row', alignItems: 'center' },
+  dayCell: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  monthDayCell: { flex: 0, width: 44, minWidth: 44, minHeight: 50 },
   weekday: { fontSize: 11, fontWeight: '500', letterSpacing: 0.2 },
-  circle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  number: { fontSize: 15, fontWeight: '600' },
-  markers: { flexDirection: 'row', gap: 4, height: 4, alignItems: 'center' },
-  markerSlot: { width: 4, height: 4, borderRadius: 2 },
+  circle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  monthCircle: { width: 34, height: 34, borderRadius: 17 },
+  number: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  markers: { flexDirection: 'row', gap: 4, height: 5, alignItems: 'center' },
+  markerSlot: { width: 5, height: 5, borderRadius: 3 },
   dimmed: { opacity: 0.3 },
   expand: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  legend: { flexDirection: 'row', gap: 18, justifyContent: 'center', paddingBottom: 9, paddingTop: 3 },
+  expandCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  legend: { flexDirection: 'row', gap: 18, justifyContent: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 5, height: 5, borderRadius: 3 },
   legendText: { fontSize: 11 },
   backdrop: { flex: 1, justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 20, paddingRight: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  modalTitle: { fontSize: 17, fontWeight: '600' },
-  close: { width: 44, height: 52, alignItems: 'center', justifyContent: 'center' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 8, gap: 12 },
+  grabber: { alignSelf: 'center', width: 36, height: 5, borderRadius: 3 },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  monthTitle: { fontSize: 20, lineHeight: 24 },
+  monthButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 12 },
+  summaryCopy: { flex: 1, minWidth: 0, gap: 2 },
+  summaryDate: { fontWeight: '600' },
+  summarySpinner: { alignSelf: 'flex-start' },
 });

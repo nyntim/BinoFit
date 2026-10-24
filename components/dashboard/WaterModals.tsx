@@ -1,111 +1,154 @@
-import { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import type { Colors } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/Button';
+import { ListGroup, ListRow } from '@/components/ui/ListGroup';
+import { SearchField } from '@/components/ui/SearchField';
+import { SheetHeader } from '@/components/ui/SheetHeader';
+import { TextField } from '@/components/ui/TextField';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { searchLiquids } from '@/lib/database';
-import type { Food, QuickAddDrink } from '@/lib/types';
+import { parseFoodDecimal } from '@/lib/food-validation';
+import { formatWater, mlToOz, waterPresets } from '@/lib/units';
+import type { Food, QuickAddDrink, WeightUnit } from '@/lib/types';
 
-export function CustomWaterModal({
-  visible,
-  onClose,
-  onAdd,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onAdd: (amount: number, name: string) => void;
-  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'cardSecondary' | 'icon' | 'text' | 'tint'>;
-}) {
+const AMOUNT_ERROR = 'Enter an amount above 0.';
+
+const unitLabel = (unit: WeightUnit) => (unit === 'kg' ? 'ml' : 'oz');
+/** Display units (ml or oz) to the stored oz. */
+const toOz = (value: number, unit: WeightUnit) => (unit === 'kg' ? mlToOz(value) : value);
+/** A positive amount in display units, or null. */
+function parseAmount(text: string): number | null {
+  const parsed = parseFoodDecimal(text, 'required');
+  return parsed.valid && parsed.value !== null && parsed.value > 0 ? parsed.value : null;
+}
+
+/** Bottom sheet on the scrim: the grabber header and the body. */
+function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   const overlay = useThemeColor({}, 'overlay');
-  const [amount, setAmount] = useState('8');
-  const [name, setName] = useState('Water');
-
-  const handleAdd = () => {
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount in oz.');
-      return;
-    }
-    onAdd(val, name || 'Water');
-    onClose();
-    setAmount('8');
-    setName('Water');
-  };
-
+  const sheetBackground = useThemeColor({}, 'sheetBackground');
+  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} animationType="fade" transparent>
-      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Add Custom Drink</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.icon }]}>Drink Name</Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Water, Coffee, etc."
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: colors.icon }]}>Amount (oz)</Text>
-            <TextInput
-              style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder="8"
-              placeholderTextColor={colors.icon}
-            />
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.cardSecondary }]}
-              onPress={onClose}
-            >
-              <Text style={[styles.modalBtnText, { color: colors.text }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: colors.tint }]}
-              onPress={handleAdd}
-            >
-              <Text
-                style={[
-                  styles.modalBtnText,
-                  { color: colors.background, fontWeight: '700' },
-                ]}
-              >
-                Add
-              </Text>
-            </TouchableOpacity>
-          </View>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={[styles.overlay, { backgroundColor: overlay }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+        <View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: sheetBackground, paddingBottom: 16 + insets.bottom }]}>
+          {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
+/** The "Add a drink" sheet: quick amounts, an other amount and a drink name. */
+export function CustomWaterModal({
+  visible,
+  onClose,
+  onAdd,
+  unit,
+  todayTotal,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onAdd: (amount: number, name: string) => void;
+  unit: WeightUnit;
+  /** Today's total so far, in oz. */
+  todayTotal: number;
+}) {
+  const presets = waterPresets(unit);
+  const cardSecondary = useThemeColor({}, 'cardSecondary');
+  const tintSoft = useThemeColor({}, 'tintSoft');
+  const tint = useThemeColor({}, 'tint');
+  const icon = useThemeColor({}, 'icon');
+  const [amount, setAmount] = useState(String(presets[0]));
+  const [name, setName] = useState('Water');
+  const [error, setError] = useState<string | null>(null);
+  const parsed = parseAmount(amount);
+
+  const reset = () => {
+    setAmount(String(presets[0]));
+    setName('Water');
+    setError(null);
+  };
+
+  const handleAdd = () => {
+    if (parsed === null) {
+      setError(AMOUNT_ERROR);
+      return;
+    }
+    onAdd(toOz(parsed, unit), name.trim() || 'Water');
+    onClose();
+    reset();
+  };
+
+  const afterThis = formatWater(todayTotal + (parsed === null ? 0 : toOz(parsed, unit)), unit);
+
+  return (
+    <Sheet visible={visible} onClose={onClose}>
+      <SheetHeader grabber title="Add a drink" onCancel={onClose} action={{ label: 'Add', onPress: handleAdd }} />
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <View style={styles.amount}>
+          <View style={styles.amountRow}>
+            <ThemedText type="hero">{parsed === null ? '0' : String(parsed)}</ThemedText>
+            <ThemedText type="title" style={{ color: icon }}>{unitLabel(unit)}</ThemedText>
+          </View>
+          <ThemedText type="caption">{`Today ${formatWater(todayTotal, unit)}, ${afterThis} after this`}</ThemedText>
+        </View>
+
+        <View style={styles.tiles} accessibilityRole="radiogroup" accessibilityLabel="Amount">
+          {presets.map((preset) => {
+            const selected = parsed === preset;
+            return (
+              <Pressable
+                key={preset}
+                onPress={() => { setAmount(String(preset)); setError(null); }}
+                accessibilityRole="radio"
+                accessibilityLabel={`${preset} ${unitLabel(unit)}`}
+                accessibilityState={{ checked: selected, selected }}
+                style={[styles.tile, { backgroundColor: selected ? tintSoft : cardSecondary, borderColor: selected ? tint : 'transparent' }]}
+              >
+                <MaterialIcons name="local-drink" size={22} color={selected ? tint : icon} />
+                <ThemedText type="label" style={styles.tileLabel}>{`${preset} ${unitLabel(unit)}`}</ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <TextField
+          label="Other amount"
+          value={amount}
+          onChangeText={(value) => { setAmount(value); setError(null); }}
+          keyboardType="decimal-pad"
+          suffix={unitLabel(unit)}
+          error={error}
+        />
+        <TextField label="Drink name" value={name} onChangeText={setName} placeholder="Water" />
+      </ScrollView>
+    </Sheet>
+  );
+}
+
+/** Pick a drink from the liquids in the food database and save it as a quick drink. */
 export function QuickAddSearchModal({
   visible,
   onClose,
   onSelect,
-  colors,
+  unit,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (drink: QuickAddDrink) => void;
-  colors: Pick<typeof Colors.light, 'background' | 'cardBackground' | 'icon' | 'separator' | 'text' | 'tint'>;
+  unit: WeightUnit;
 }) {
-  const overlay = useThemeColor({}, 'overlay');
+  const icon = useThemeColor({}, 'icon');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Food[]>([]);
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
-  const [amount, setAmount] = useState('8');
+  const [amount, setAmount] = useState(String(waterPresets(unit)[0]));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible && query.length > 1) {
@@ -115,152 +158,82 @@ export function QuickAddSearchModal({
     }
   }, [query, visible]);
 
-  const handleSelect = (food: Food) => {
-    setSelectedFood(food);
-  };
-
   const handleConfirm = () => {
     if (!selectedFood) return;
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+    const val = parseAmount(amount);
+    if (val === null) {
+      setError(AMOUNT_ERROR);
       return;
     }
+    const oz = toOz(val, unit);
     onSelect({
       id: Crypto.randomUUID(),
-      name: `${val} oz ${selectedFood.name}`,
-      amount: val,
+      name: `${formatWater(oz, unit)} ${selectedFood.name}`,
+      amount: oz,
       food_id: selectedFood.id,
     });
     setQuery('');
     setResults([]);
     setSelectedFood(null);
-    setAmount('8');
+    setAmount(String(waterPresets(unit)[0]));
+    setError(null);
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.modalOverlay, { backgroundColor: overlay }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background, height: '80%' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Quick-Add Drink</Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close quick-add drinks" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialIcons name="close" size={24} color={colors.icon} />
-            </TouchableOpacity>
-          </View>
-
-          {selectedFood ? (
-            <View style={{ gap: 20 }}>
-              <View>
-                <Text style={[styles.inputLabel, { color: colors.icon }]}>Selected Drink</Text>
-                <Text style={[styles.selectedFoodName, { color: colors.text }]}>{selectedFood.name}</Text>
-                <TouchableOpacity onPress={() => setSelectedFood(null)}>
-                  <Text style={{ color: colors.tint, marginTop: 4 }}>Change</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.icon }]}>Quick-Add Amount (oz)</Text>
-                <TextInput
-                  style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="decimal-pad"
-                  placeholder="8"
-                  autoFocus
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: colors.tint }]}
-                onPress={handleConfirm}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.background, fontWeight: '700' }]}>
-                  Confirm
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <TextInput
-                style={[styles.input, { color: colors.text, backgroundColor: colors.cardBackground }]}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search for water, coffee, soda..."
-                placeholderTextColor={colors.icon}
-                autoFocus
-              />
-
-              <ScrollView style={{ flex: 1, marginTop: 12 }}>
-                {results.map((food) => (
-                  <TouchableOpacity
-                    key={food.id}
-                    style={[styles.searchResultItem, { borderBottomColor: colors.separator }]}
-                    onPress={() => handleSelect(food)}
-                  >
-                    <Text style={[styles.resultName, { color: colors.text }]}>{food.name}</Text>
-                    {food.brand && <Text style={[styles.resultBrand, { color: colors.icon }]}>{food.brand}</Text>}
-                  </TouchableOpacity>
-                ))}
-                {query.length > 1 && results.length === 0 && (
-                  <Text style={{ textAlign: 'center', color: colors.icon, marginTop: 20 }}>No liquids found matching &quot;{query}&quot;</Text>
-                )}
-              </ScrollView>
-            </>
-          )}
+    <Sheet visible={visible} onClose={onClose}>
+      <SheetHeader grabber title="Add a quick drink" onCancel={onClose} />
+      {selectedFood ? (
+        <View style={styles.body}>
+          <ListGroup>
+            <ListRow title={selectedFood.name} subtitle={selectedFood.brand ?? undefined} trailing={<Button label="Change" variant="ghost" size="sm" onPress={() => setSelectedFood(null)} />} />
+          </ListGroup>
+          <TextField
+            label="Amount"
+            value={amount}
+            onChangeText={(value) => { setAmount(value); setError(null); }}
+            keyboardType="decimal-pad"
+            suffix={unitLabel(unit)}
+            error={error}
+            autoFocus
+          />
+          <Button label="Confirm" size="lg" onPress={handleConfirm} />
         </View>
-      </View>
-    </Modal>
+      ) : (
+        <View style={styles.body}>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search drinks, like coffee"
+            accessibilityLabel="Search drinks"
+            autoFocus
+          />
+          <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
+            {results.length > 0 && (
+              <ListGroup>
+                {results.map((food) => (
+                  <ListRow key={food.id} title={food.name} subtitle={food.brand ?? undefined} onPress={() => setSelectedFood(food)} />
+                ))}
+              </ListGroup>
+            )}
+            {query.length > 1 && results.length === 0 && (
+              <ThemedText type="caption" style={[styles.empty, { color: icon }]}>{`No liquids found matching "${query}"`}</ThemedText>
+            )}
+          </ScrollView>
+        </View>
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: { width: '100%', borderRadius: 20, padding: 24, gap: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  inputGroup: { gap: 8 },
-  inputLabel: { fontSize: 14, fontWeight: '500' },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  selectedFoodName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  searchResultItem: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  resultName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  resultBrand: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  modalBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBtnText: { fontSize: 16, fontWeight: '600' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '90%' },
+  body: { gap: 16, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
+  amount: { alignItems: 'center', gap: 4 },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: { flexGrow: 1, flexBasis: 72, minHeight: 84, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  tileLabel: { fontWeight: '600' },
+  results: { maxHeight: 360 },
+  empty: { textAlign: 'center', marginTop: 20 },
 });

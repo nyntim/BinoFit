@@ -83,3 +83,27 @@ export function feetInchesToCentimetres(feet: number, inches: number): number | 
   if (!Number.isInteger(feet) || feet < 0 || !Number.isFinite(inches) || inches < 0 || inches >= 12) return null;
   return (feet * 12 + inches) * 2.54;
 }
+
+// ── Water (stored in oz, shown in ml / L or oz) ──────────────────────────────
+
+export const OZ_TO_ML = 29.5735;
+
+export function ozToMl(oz: number): number {
+  return oz * OZ_TO_ML;
+}
+
+export function mlToOz(ml: number): number {
+  return ml / OZ_TO_ML;
+}
+
+/** "1.25 L" from 1000 ml, "500 ml" below it, or "40 oz" for imperial. */
+export function formatWater(oz: number, unit: WeightUnit): string {
+  if (unit === 'lb') return `${trimDecimals(oz)} oz`;
+  const ml = Math.round(ozToMl(oz));
+  return ml >= 1000 ? `${trimDecimals(ml / 1000)} L` : `${ml} ml`;
+}
+
+/** Quick amounts in display units: ml for metric, oz for imperial. */
+export function waterPresets(unit: WeightUnit): number[] {
+  return unit === 'kg' ? [250, 330, 500, 750] : [8, 12, 16, 24];
+}

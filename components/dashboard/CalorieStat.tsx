@@ -1,25 +1,28 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
 
-export function CalorieStat({
-  label,
-  value,
-  textColor,
-  subColor,
-}: {
+type Props = {
   label: string;
   value: number;
-  textColor: string;
-  subColor: string;
-}) {
+  /** `large` is the Left / Over figure; `small` is Goal and Planned. */
+  size?: 'large' | 'small';
+};
+
+/** Caption over value, read as one group: "Left, 1,150 calories". */
+export function CalorieStat({ label, value, size = 'small' }: Props) {
   return (
-    <View>
-      <Text style={[styles.calorieStatValue, { color: textColor }]}>{value.toLocaleString()}</Text>
-      <Text style={[styles.calorieStatLabel, { color: subColor }]}>{label}</Text>
+    <View accessible accessibilityLabel={`${label}, ${value.toLocaleString()} calories`}>
+      <ThemedText type="caption">{label}</ThemedText>
+      {size === 'large' ? (
+        <ThemedText type="stat" style={styles.large}>{value.toLocaleString()}</ThemedText>
+      ) : (
+        <ThemedText type="body" style={styles.small}>{value.toLocaleString()}</ThemedText>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  calorieStatValue: { fontSize: 18, fontWeight: '700' },
-  calorieStatLabel: { fontSize: 12, marginTop: 1 },
+  large: { fontSize: 26, lineHeight: 30 },
+  small: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

@@ -190,7 +190,7 @@ function Row({
           AccessibilityInfo.announceForAccessibility(`${label.trim() || 'Meal'} moved to position ${to + 1} of ${count}`);
         }}
       >
-        <MaterialIcons name="drag-handle" size={24} color={iconColor} />
+        <MaterialIcons name="drag-indicator" size={24} color={iconColor} />
       </View>
     </GestureDetector>
   );

@@ -1,3 +1,4 @@
+import { macroCalories } from '@/lib/meal-nutrition-summary';
 import { calorieDelta, nutrientGroupCoverage, formatNutritionAmount, macroEnergyShares, mealNutritionTotals, targetPercentage } from '@/lib/meal-nutrition-summary';
 import { NUTRIENTS } from '@/lib/nutrients';
 import { logTotals, sumEatenTotals } from '@/lib/nutrition-totals';
@@ -57,4 +58,11 @@ test('calorieDelta reports left or over only for a positive target', () => {
   expect(calorieDelta(100, 100)).toEqual({ kind: 'left', value: 0 });
   expect(calorieDelta(80, 100)).toEqual({ kind: 'left', value: 20 });
   expect(calorieDelta(135, 100)).toEqual({ kind: 'over', value: 35 });
+});
+
+
+test('macroCalories uses 4 / 4 / 9 without rounding', () => {
+  expect(macroCalories({ protein: 10, carbs: 20, fat: 5 })).toBe(165);
+  expect(macroCalories({ protein: 0.5, carbs: 0.25, fat: 0.1 })).toBeCloseTo(3.9, 10);
+  expect(macroCalories({ protein: 0, carbs: 0, fat: 0 })).toBe(0);
 });

@@ -16,6 +16,8 @@ jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({ dispatch: mockDispatch }),
 }));
 jest.mock('@/hooks/useMealDefinitions', () => ({ useMealDefinitions: () => ({ loaded: true, labelFor: () => 'Dinner' }) }));
+jest.mock('@/hooks/useNewFoodStatus', () => ({ useNewFoodStatus: () => 'eaten' }));
+jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
 jest.mock('@/hooks/use-theme-color', () => ({ useThemeColor: () => '#444444' }));
 jest.mock('@expo/vector-icons/MaterialIcons', () => 'MaterialIcons');
 jest.mock('@/lib/database', () => ({ getRecentFoods: jest.fn(), getFrequentFoods: jest.fn(), getFoodById: jest.fn(), cacheRemoteFood: jest.fn(), hasAnyMicros: () => true, addFoodLogsBatch: jest.fn() }));
@@ -33,6 +35,7 @@ const search = async (q = 'food') => {
   await act(async () => { jest.advanceTimersByTime(300); });
 };
 const enterSelect = () => fireEvent.press(screen.getByLabelText('Select multiple'));
+const exitSelect = () => fireEvent.press(screen.getByLabelText('Cancel selection'));
 
 beforeEach(() => {
   jest.useFakeTimers(); jest.clearAllMocks(); mockPrevent = null;
@@ -87,11 +90,12 @@ test('leaving select mode with items prompts; with none it just exits', async ()
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   await render(<FoodSearchScreen />);
   await enterSelect();
-  await enterSelect();
+  expect(screen.getByText('0 selected')).toBeTruthy();
+  await exitSelect();
   expect(screen.queryByText('0 selected')).toBeNull();
   await enterSelect();
   await fireEvent.press(screen.getAllByText('Food 1')[0]);
-  await enterSelect();
+  await exitSelect();
   expect(alert).toHaveBeenCalledWith('Discard selection?', expect.any(String), expect.any(Array));
   expect(screen.getByText('1 selected')).toBeTruthy();
   const discard = (alert.mock.calls[0][2] as { text: string; onPress?: () => void }[]).find((b) => b.text === 'Discard')!;
@@ -111,4 +115,16 @@ test('leaving the screen with a selection asks first', async () => {
   expect(mockDispatch).not.toHaveBeenCalled();
   (alert.mock.calls[0][2] as { text: string; onPress?: () => void }[]).find((b) => b.text === 'Discard')!.onPress!();
   expect(mockDispatch).toHaveBeenCalledWith(action);
+});
+
+test('Clear in the header is disabled at zero and empties the selection', async () => {
+  await render(<FoodSearchScreen />);
+  await enterSelect();
+  expect(screen.getByLabelText('Clear selection').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getAllByText('Food 1')[0]);
+  expect(screen.getByLabelText('Clear selection').props.accessibilityState.disabled).toBe(false);
+  expect(screen.getByText('1 selected')).toBeTruthy();
+  expect(screen.getByText('1 food')).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText('Clear selection'));
+  expect(getFoodSelection().order).toEqual([]);
 });

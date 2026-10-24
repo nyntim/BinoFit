@@ -1,37 +1,28 @@
-import { StyleSheet, Text, View } from 'react-native';
-import type { Colors } from '@/constants/theme';
+import { StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { formatNutrientValue } from '@/components/serving-picker/format';
 
-export function MicroExpandRow({
-  label, value, unit, colors,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-  colors: Pick<typeof Colors.light, 'icon' | 'text'>;
-}) {
+export function MicroExpandRow({ label, value, unit }: { label: string; value: number | null; unit: string }) {
+  const icon = useThemeColor({}, 'icon');
   const hasValue = value != null;
   return (
     <View
-      style={styles.microExpandRow}
+      style={styles.row}
       accessible
       accessibilityLabel={hasValue ? `${label}, ${value} ${unit}` : `${label}, no data`}
     >
-      <Text style={{ fontSize: 14, color: colors.icon, flexShrink: 1 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: hasValue ? '600' : '400', color: hasValue ? colors.text : colors.icon, fontVariant: ['tabular-nums'] }}>
+      <ThemedText type="body" style={[styles.label, { color: icon }]}>{label}</ThemedText>
+      <ThemedText type="body" style={[styles.value, hasValue ? styles.known : { color: icon }]}>
         {hasValue ? `${formatNutrientValue(value!)} ${unit}` : 'No Data'}
-      </Text>
+      </ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Micro expand rows
-  microExpandRow: {
-    gap: 12,
-    flexWrap: 'wrap',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  row: { gap: 12, flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { flexShrink: 1 },
+  value: { fontVariant: ['tabular-nums'] },
+  known: { fontWeight: '600' },
 });

@@ -1,5 +1,5 @@
 import { NUTRIENT_IDS, scaleNutrients, type NutrientId } from '@/lib/nutrients';
-import type { FoodLogWithFood, MealSlot, MealSlotConfirmation } from '@/lib/types';
+import type { FoodLogWithFood, LogStatus, MealSlot, MealSlotConfirmation } from '@/lib/types';
 
 export type NutritionTotals = {
   calories: number;
@@ -50,6 +50,30 @@ export function sumEatenTotals(
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
+}
+
+/** Mirror of `sumEatenTotals`: food_* x serving_amount over logs in planned slots only. */
+export function sumPlannedTotals(
+  logs: (Pick<FoodLogWithFood, 'meal_slot'> & LogMacros)[],
+  confirmations: Pick<MealSlotConfirmation, 'meal_slot' | 'confirmed'>[]
+): NutritionTotals {
+  return sumEatenTotals(
+    logs.filter((log) => !isSlotEaten(confirmations, log.meal_slot)),
+    []
+  );
+}
+
+/**
+ * The status food logged to `slot` will get: an existing status row wins, otherwise the
+ * default applies (what `ensureMealSlotStatus` does when it inserts the default and keeps an existing row).
+ */
+export function newFoodStatus(
+  confirmations: readonly Pick<MealSlotConfirmation, 'meal_slot' | 'confirmed'>[],
+  slot: MealSlot,
+  defaultStatus: LogStatus
+): LogStatus {
+  const conf = confirmations.find((c) => c.meal_slot === slot);
+  return conf ? (conf.confirmed ? 'eaten' : 'planned') : defaultStatus;
 }
 
 /** Logs belonging to one meal slot. */

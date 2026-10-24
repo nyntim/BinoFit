@@ -1,10 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
-import type { Colors } from '@/constants/theme';
-import { formatNum, percent } from '@/components/serving-picker/format';
+import { StyleSheet, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { formatNum } from '@/components/serving-picker/format';
 
-// Already eaten in the macro color, then this food as a pale segment
+/** Already eaten in the macro color, then this food as a pale segment. Over goal stays a full bar. */
 export function TargetRow({
-  label, eaten, add, goal, unit, color, tint, colors,
+  label, eaten, add, goal, unit, color, tint,
 }: {
   label: string;
   eaten: number;
@@ -13,43 +14,33 @@ export function TargetRow({
   unit: string;
   color: string;
   tint: string;
-  colors: Pick<typeof Colors.light, 'text' | 'track'>;
 }) {
-  const g = Math.max(goal, 1);
-  const eatenFrac = Math.min(eaten / g, 1);
-  const addFrac = Math.max(Math.min((eaten + add) / g, 1) - eatenFrac, 0);
   const spokenUnit = unit === 'cal' ? 'calories' : 'grams';
   return (
-    <View
-      style={styles.targetBlock}
-      accessible
-      accessibilityLabel={`${label}, ${formatNum(eaten + add)} of ${formatNum(goal)} ${spokenUnit}`}
-    >
+    <View style={styles.targetBlock}>
       <View style={styles.targetTop}>
-        <Text style={[styles.targetLabel, { color: colors.text }]}>{label}</Text>
-        <View style={styles.targetNums}>
-          <Text style={[styles.targetNum, styles.targetEaten, { color: colors.text }]}>{formatNum(eaten + add)}</Text>
-          <Text style={[styles.targetNum, { color: colors.text }]}>/</Text>
-          <Text style={[styles.targetNum, styles.targetGoal, { color: colors.text }]}>{formatNum(goal)}</Text>
-          <Text style={[styles.targetNum, styles.targetUnit, { color: colors.text }]}>{unit}</Text>
-        </View>
+        <ThemedText type="label">{label}</ThemedText>
+        <ThemedText type="label" style={styles.nums}>
+          <ThemedText type="label" style={styles.bold}>{formatNum(eaten + add)}</ThemedText>
+          {` / ${formatNum(goal)} ${unit}`}
+        </ThemedText>
       </View>
-      <View style={[styles.targetTrack, { backgroundColor: colors.track }]}>
-        <View style={{ width: percent(eatenFrac), backgroundColor: color }} />
-        <View style={{ width: percent(addFrac), backgroundColor: tint }} />
-      </View>
+      <ProgressBar
+        value={eaten}
+        max={Math.max(goal, 1)}
+        preview={add}
+        previewColor={tint}
+        color={color}
+        height={8}
+        accessibilityLabel={`${label}, ${formatNum(eaten + add)} of ${formatNum(goal)} ${spokenUnit} after this food`}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   targetBlock: { gap: 6 },
-  targetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  targetLabel: { fontSize: 12, fontWeight: '600' },
-  targetNums: { flexDirection: 'row', gap: 4 },
-  targetNum: { fontSize: 12, fontVariant: ['tabular-nums'] },
-  targetEaten: { minWidth: 36, textAlign: 'right' },
-  targetGoal: { minWidth: 32, textAlign: 'right' },
-  targetUnit: { minWidth: 22 },
-  targetTrack: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden' },
+  targetTop: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4 },
+  nums: { fontVariant: ['tabular-nums'] },
+  bold: { fontWeight: '700' },
 });
