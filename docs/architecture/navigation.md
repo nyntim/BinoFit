@@ -16,7 +16,7 @@ Expo Router v6 with file-based routing. Every route outside the tabs is register
 `app/(tabs)/_layout.tsx` wraps `components/navigation/TabNavigator` in `DateProvider`.
 
 - iOS 26 and later: `TabNavigator.ios.tsx` uses `NativeTabs` (`expo-router/unstable-native-tabs`) and shows the active workout as `NativeTabs.BottomAccessory` (`<ActiveWorkoutBar nativeAccessory />`).
-- Android and iOS below 26: `JsTabNavigator` renders the custom `FloatingTabBar` (`BottomTabBarProps` from `expo-router/js-tabs`), which draws `ActiveWorkoutBar` above the tabs and hides while the keyboard is open.
+- Android and iOS below 26: `JsTabNavigator` renders the custom `FloatingTabBar` (`BottomTabBarProps` from `expo-router/js-tabs`), which draws `ActiveWorkoutBar` as a solid pill above the 64 pt shell (active tab on a `tintSoft` pill) and hides while the keyboard is open.
 
 ## Liquid Glass
 

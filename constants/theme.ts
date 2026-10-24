@@ -1,54 +1,84 @@
 import { Platform } from 'react-native';
 
-const tintLight = '#3D4B7A';   // slate indigo — DESIGN.md slate-indigo
+const tintLight = '#3D4B7A';   // slate indigo, DESIGN.md slate-indigo
 const tintDark  = '#8FA3D6';   // lighter slate for dark-mode readability
 
 export const Colors = {
   light: {
     text:            '#1A1A22',   // DESIGN.md ink-primary
-    background:      '#F8F5EF',   // DESIGN.md warm-paper
+    background:      '#F4F0E8',   // DESIGN.md lifted paper page
     tint:            tintLight,
-    overlay:         'rgba(26,26,34,0.45)',
-    icon:            '#606070',   // DESIGN.md ink-secondary
-    tabIconDefault:  '#606070',
+    tintSoft:        '#E3E6F0',   // soft buttons, selected rows, icon tiles
+    onTint:          '#FBF9F5',   // text and icons on a tint fill
+    overlay:         'rgba(26,26,34,0.42)',
+    icon:            '#5E5E6E',   // DESIGN.md ink-secondary
+    tabIconDefault:  '#5E5E6E',
     tabIconSelected: tintLight,
-    navSurface:     'rgba(248,245,239,0.94)',
-    navOpaque:      '#F8F5EF',
-    navBorder:      'rgba(61,75,122,0.24)',
-    navActive:      '#D6DBE8',
-    navActivePressed: '#C5CCE0',
+    navSurface:     'rgba(251,249,245,0.74)',
+    navOpaque:      '#FBF9F5',
+    navBorder:      'rgba(26,26,34,0.08)',
+    navActive:      '#E3E6F0',   // tintSoft
+    navActivePressed: '#D6DBE8',
     navShadow:      '#1A1A22',
-    cardBackground:  '#EEEAE2',   // DESIGN.md card-surface
-    cardSecondary:   '#E4E0D6',   // DESIGN.md card-subtle
-    separator:       '#D6D2C8',   // DESIGN.md separator
-    fieldBorder:     '#D6D2C8',   // outlined input at rest
-    track:           '#D6D2C8',   // progress bar track
-    success:         '#27AE60',
-    danger:          '#E74C3C',
-    streak:          '#D44F08',   // streak flame, 3:1+ on cardBackground
+    cardBackground:  '#FBF9F5',   // cards lift above the page
+    cardSecondary:   '#EDE8DE',   // nested surfaces: fields, tracks, chips at rest
+    raised:          '#FBF9F5',   // selected segment, stepper buttons
+    sheetBackground: '#FBF9F5',
+    separator:       '#E2DDD2',
+    fieldBorder:     '#D9D3C7',   // outlined input at rest
+    track:           '#E4DFD4',   // ring and bar tracks
+    chartBar:        '#A9A4A0',   // resting chart bars
+    success:         '#1E7A45',
+    successSoft:     '#DDEFE4',
+    danger:          '#B3261E',
+    dangerSoft:      '#F8E1DE',
+    ember:           '#C2410C',   // acknowledgement only: streaks, records, celebrations
+    emberSoft:       '#FBE6D9',
   },
   dark: {
     text:            '#EDEDF0',   // graphite near-white
     background:      '#0E0E10',   // graphite near-black
     tint:            tintDark,
-    overlay:         'rgba(26,26,34,0.45)',
-    icon:            '#8E8E96',   // cool mid-gray
-    tabIconDefault:  '#8E8E96',
+    tintSoft:        'rgba(143,163,214,0.16)',
+    onTint:          '#0E0E10',
+    overlay:         'rgba(0,0,0,0.55)',
+    icon:            '#9A9AA3',   // cool mid-gray
+    tabIconDefault:  '#9A9AA3',
     tabIconSelected: tintDark,
-    navSurface:     'rgba(26,26,29,0.94)',
-    navOpaque:      '#1A1A1D',
-    navBorder:      'rgba(237,237,240,0.26)',
-    navActive:      '#333D58',
-    navActivePressed: '#424E6B',
+    navSurface:     'rgba(36,36,40,0.74)',
+    navOpaque:      '#242428',
+    navBorder:      'rgba(237,237,240,0.12)',
+    navActive:      'rgba(143,163,214,0.16)',   // tintSoft
+    navActivePressed: 'rgba(143,163,214,0.26)',
     navShadow:      '#000000',
     cardBackground:  '#1A1A1D',   // graphite card
     cardSecondary:   '#242428',   // graphite secondary
+    raised:          '#3A3A40',
+    sheetBackground: '#1F1F23',
     separator:       'rgba(237,237,240,0.10)',  // cool white hairline
     fieldBorder:     'rgba(237,237,240,0.28)',  // stronger so inputs read as tappable
     track:           'rgba(237,237,240,0.14)',  // visible against cardBackground
+    chartBar:        '#5A5A62',
     success:         '#52D68A',   // brighter for dark backgrounds
-    danger:          '#FF6E6E',   // brighter for dark backgrounds
-    streak:          '#FF8A3D',   // streak flame, brighter for dark backgrounds
+    successSoft:     'rgba(82,214,138,0.14)',
+    danger:          '#FF8A80',   // brighter for dark backgrounds
+    dangerSoft:      'rgba(255,138,128,0.14)',
+    ember:           '#FF8A3D',
+    emberSoft:       'rgba(255,138,61,0.14)',
+  },
+};
+
+// Cards lift with a soft shadow in light mode; dark mode gets depth from the lighter surface instead.
+export const Shadows = {
+  light: {
+    card: '0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)',
+    floating: '0 10px 30px rgba(14,14,16,0.25)',
+    segment: '0 1px 3px rgba(26,26,34,0.12)',
+  },
+  dark: {
+    card: 'none',
+    floating: '0 10px 30px rgba(14,14,16,0.25)',
+    segment: '0 1px 3px rgba(0,0,0,0.3)',
   },
 };
 

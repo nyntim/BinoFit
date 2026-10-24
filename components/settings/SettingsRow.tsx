@@ -1,14 +1,29 @@
 import type { ReactNode } from 'react';
-import { Pressable, Text, View, type AccessibilityRole } from 'react-native';
+import { StyleSheet, View, type AccessibilityRole } from 'react-native';
+import { ListRow } from '@/components/ui/ListGroup';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useShadow } from '@/hooks/useShadow';
+
+/** A single settings row on its own list surface. Inside a `ListGroup`, use `ListRow` directly. */
 export function SettingsRow({ label, value, description, onPress, disabled, children, accessibilityRole, selected }: { label: string; value?: string; description?: string; onPress?: () => void; disabled?: boolean; children?: ReactNode; accessibilityRole?: AccessibilityRole; selected?: boolean }) {
-  const text = useThemeColor({}, 'text');
-  const muted = useThemeColor({}, 'icon');
   const card = useThemeColor({}, 'cardBackground');
-  const style = { padding: 16, minHeight: 52, borderRadius: 12, backgroundColor: card, opacity: disabled ? 0.5 : 1 };
-  const content = <>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1, gap: 4 }}><Text style={{ color: text, fontSize: 15 }}>{label}</Text>{description ? <Text style={{ color: muted, fontSize: 13, lineHeight: 18 }}>{description}</Text> : null}{value ? <Text style={{ color: muted, fontSize: 13 }}>{value}</Text> : null}</View>{onPress && accessibilityRole !== 'radio' ? <Text style={{ color: muted }} accessibilityElementsHidden>›</Text> : null}</View>{children}
-  </>;
-  if (!onPress) return <View style={style}>{content}</View>;
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole={accessibilityRole ?? 'button'} accessibilityLabel={accessibilityRole === 'radio' ? label : undefined} accessibilityState={{ disabled: !!disabled, selected }} style={style}>{content}</Pressable>;
+  const tint = useThemeColor({}, 'tint');
+  const shadow = useShadow('card');
+  const radio = accessibilityRole === 'radio';
+  return <View style={[styles.surface, { backgroundColor: card }, shadow !== 'none' ? { boxShadow: shadow } : null]}>
+    <ListRow
+      title={label}
+      subtitle={description}
+      trailing={radio && selected ? <IconSymbol name="checkmark" size={18} color={tint} /> : value}
+      onPress={onPress}
+      disabled={disabled}
+      chevron={!!onPress && !radio}
+      accessibilityRole={onPress ? accessibilityRole ?? 'button' : undefined}
+      accessibilityLabel={radio ? label : undefined}
+      accessibilityState={onPress ? { selected } : undefined}
+    >{children}</ListRow>
+  </View>;
 }
+
+const styles = StyleSheet.create({ surface: { borderRadius: 18 } });

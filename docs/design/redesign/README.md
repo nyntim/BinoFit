@@ -28,12 +28,12 @@ Status: **Restyle** = same behavior, new look. **Restyle + new** = also has a **
 
 ### Foundations
 
-| Board | Canvas page | What it is | Build directions |
-|---|---|---|---|
-| `bf.css` | (file) | Shared theme: tokens, primitives, patterns | [foundations.md](foundations.md) |
-| Foundations (`Main`) | Direction | Palette, type, components and states overview | [foundations.md](foundations.md) sections 1 to 5 |
-| Largest text (`LargeText`) | Direction | Dynamic Type and Reduce Transparency reference | [foundations.md](foundations.md) sections 3 and 8 |
-| Tab bar (`CmpTabBar`) | Components | Fallback tab shell and live workout accessory | [foundations.md](foundations.md) section 7 |
+| Board | Canvas page | What it is | Build directions | Status |
+|---|---|---|---|---|
+| `bf.css` | (file) | Shared theme: tokens, primitives, patterns | [foundations.md](foundations.md) | Built (`constants/theme.ts`, `components/ui/`) |
+| Foundations (`Main`) | Direction | Palette, type, components and states overview | [foundations.md](foundations.md) sections 1 to 5 | Built |
+| Largest text (`LargeText`) | Direction | Dynamic Type and Reduce Transparency reference | [foundations.md](foundations.md) sections 3 and 8 | Reference (checked per screen) |
+| Tab bar (`CmpTabBar`) | Components | Fallback tab shell and live workout accessory | [foundations.md](foundations.md) section 7 | Built |
 
 ### Onboarding
 

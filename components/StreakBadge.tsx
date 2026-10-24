@@ -14,7 +14,7 @@ export const StreakBadge: React.FC<Props> = ({ trigger }) => {
   const separator = useThemeColor({}, 'separator');
   const icon = useThemeColor({}, 'icon');
   const text = useThemeColor({}, 'text');
-  const streak = useThemeColor({}, 'streak');
+  const ember = useThemeColor({}, 'ember');
   const { currentStreak } = useStreak(trigger);
 
   if (currentStreak === 0) {
@@ -31,7 +31,7 @@ export const StreakBadge: React.FC<Props> = ({ trigger }) => {
       accessible
       accessibilityLabel={`${currentStreak} day streak`}
     >
-      <IconSymbol name="flame.fill" size={12} color={streak} />
+      <IconSymbol name="flame.fill" size={12} color={ember} />
       <Text numberOfLines={1} style={[styles.text, { color: text }]}>
         {currentStreak} day streak
       </Text>

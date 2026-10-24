@@ -6,7 +6,7 @@ import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 type IconMapping = Record<Extract<SymbolViewProps['name'], string>,ComponentProps<typeof MaterialIcons>['name']>;
-type IconSymbolName = keyof typeof MAPPING;
+export type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -44,6 +44,13 @@ const MAPPING = {
   'arrow.clockwise': 'refresh',
   'checkmark.circle': 'check-circle',
   'stopwatch': 'timer',
+  // Redesign primitives
+  'xmark.circle.fill': 'cancel',
+  'star.fill': 'star',
+  'exclamationmark.circle': 'error-outline',
+  'checkmark.circle.fill': 'check-circle',
+  'minus.circle.fill': 'remove-circle',
+  'line.3.horizontal': 'drag-handle',
 } as IconMapping;
 
 /**

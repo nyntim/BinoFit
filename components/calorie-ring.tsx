@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { Fonts } from '@/constants/theme';
 
 type Props = {
   consumed: number;
@@ -25,9 +26,15 @@ export function CalorieRing({
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(consumed / Math.max(goal, 1), 1);
   const strokeDashoffset = circumference * (1 - progress);
+  const shown = Math.round(consumed);
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`${shown.toLocaleString()} of ${goal.toLocaleString()} calories`}
+    >
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Circle
           cx={size / 2}
@@ -52,7 +59,7 @@ export function CalorieRing({
         />
       </Svg>
       <View style={styles.center}>
-        <Text style={[styles.consumed, { color: textColor }]}>{Math.round(consumed)}</Text>
+        <Text style={[styles.consumed, { color: textColor }]} numberOfLines={1} adjustsFontSizeToFit>{shown}</Text>
         <Text style={[styles.label, { color: subTextColor }]}>of {goal}</Text>
         <Text style={[styles.unit, { color: subTextColor }]}>cal</Text>
       </View>
@@ -61,8 +68,8 @@ export function CalorieRing({
 }
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center' },
-  consumed: { fontSize: 34, fontWeight: '700', lineHeight: 38 },
-  label: { fontSize: 13, marginTop: 2 },
+  center: { alignItems: 'center', paddingHorizontal: 20 },
+  consumed: { fontFamily: Fonts.rounded, fontSize: 40, fontWeight: '800', lineHeight: 44, letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  label: { fontSize: 13, fontWeight: '500', marginTop: 2, fontVariant: ['tabular-nums'] },
   unit: { fontSize: 12 },
 });

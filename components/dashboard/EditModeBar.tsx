@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Colors } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 const ERROR_TEXT = 'Fix errors to save';
 
@@ -17,6 +18,7 @@ type EditModeBarProps = {
 /** Nav-bar style Cancel / Done shown over the week strip while editing meals. */
 export function EditModeBar({ colors, onCancel, onDone, hasErrors, saving, style }: EditModeBarProps) {
   const doneDisabled = hasErrors || saving;
+  const danger = useThemeColor({}, 'danger');
 
   // accessibilityLiveRegion is Android only; VoiceOver needs an explicit announcement
   useEffect(() => {
@@ -27,7 +29,7 @@ export function EditModeBar({ colors, onCancel, onDone, hasErrors, saving, style
     <View style={[styles.bar, { backgroundColor: colors.cardBackground, borderBottomColor: colors.separator }, style]}>
       {hasErrors && (
         <View style={styles.statusWrap} pointerEvents="none">
-          <Text style={[styles.status, { color: colors.icon }]} numberOfLines={1} accessibilityLiveRegion="polite">
+          <Text style={[styles.status, { color: danger }]} numberOfLines={2} accessibilityLiveRegion="polite">
             {ERROR_TEXT}
           </Text>
         </View>
@@ -40,7 +42,7 @@ export function EditModeBar({ colors, onCancel, onDone, hasErrors, saving, style
         accessibilityLabel="Cancel editing"
         accessibilityState={{ disabled: saving }}
       >
-        <Text style={[styles.cancelText, { color: colors.icon }]}>Cancel</Text>
+        <Text style={[styles.cancelText, { color: colors.tint }]}>Cancel</Text>
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onDone}

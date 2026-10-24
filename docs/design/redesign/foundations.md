@@ -46,7 +46,7 @@ Change existing values and add the new keys below in `Colors.light` and `Colors.
 Cards get a soft shadow in light mode and none in dark mode (depth there comes from the lighter surface).
 
 - Light card shadow: `0 1px 2px rgba(26,26,34,0.05), 0 6px 20px rgba(26,26,34,0.06)`. React Native 0.81 with the New Architecture supports the `boxShadow` style string; use it directly.
-- Add a `Shadows` export in `constants/theme.ts`: `{ light: { card: '<value above>' }, dark: { card: 'none' } }` and a `useCardShadow()` helper (or include it in the `Card` primitive) so screens never hardcode it.
+- Add a `Shadows` export in `constants/theme.ts`: `{ light: { card: '<value above>' }, dark: { card: 'none' } }` and read it with `useShadow('card')` (`hooks/useShadow.ts`; `Card` and `ListGroup` already do) so screens never hardcode it.
 - Floating elements (selection bar, sticky footers, dialogs): `0 10px 30px rgba(14,14,16,0.25)`.
 - Liquid Glass remains bottom-navigation only ([ADR 0014](../../decisions/0014-material-on-bottom-navigation-only.md)). Sheets, banners and footers are solid.
 

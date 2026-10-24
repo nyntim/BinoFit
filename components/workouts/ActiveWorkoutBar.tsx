@@ -33,8 +33,7 @@ export function ActiveWorkoutBar({ detail, nativeAccessory = false }: Props) {
   const text = useThemeColor({}, 'text');
   const muted = useThemeColor({}, 'icon');
   const tint = useThemeColor({}, 'tint');
-  const onTint = useThemeColor({}, 'background');
-  const separator = useThemeColor({}, 'separator');
+  const onTint = useThemeColor({}, 'onTint');
   if (!workout) return null;
 
   const elapsed = formatDuration(elapsedSeconds(workout.started_at, now));
@@ -50,7 +49,7 @@ export function ActiveWorkoutBar({ detail, nativeAccessory = false }: Props) {
       accessibilityRole="button"
       accessibilityLabel="Open workout"
       accessibilityHint={shownDetail?.startsWith('Rest') ? 'Resting. Opens the live session' : 'Opens the live session'}
-      style={[styles.bar, nativeAccessory ? styles.nativeAccessory : { backgroundColor: card, borderTopColor: separator }]}
+      style={[styles.bar, nativeAccessory ? styles.nativeAccessory : { backgroundColor: card }]}
     >
       <View style={[styles.icon, { backgroundColor: tint }]}>
         <IconSymbol name="dumbbell.fill" size={20} color={onTint} />
@@ -73,13 +72,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    minHeight: 56,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 8,
+    paddingRight: 16,
+    paddingVertical: 8,
+    minHeight: 54,
   },
-  nativeAccessory: { borderTopWidth: 0, paddingVertical: 4, minHeight: 44 },
-  icon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  nativeAccessory: { paddingLeft: 16, paddingVertical: 4, minHeight: 44 },
+  icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   texts: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: '600' },
   subtitle: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },

@@ -19,7 +19,7 @@ Settings is a compact directory with focused Profile, Nutrition, Training, Prefe
 
 - About credits Open Food Facts under the Open Database License (ODbL), with accessible source and license links, and USDA FoodData Central. Privacy Policy describes remote search and barcode lookups; Terms names both food sources.
 - `components/settings/UnitsSection.tsx` in Preferences: Metric or Imperial, including height.
-- `components/settings/TrainingSection.tsx` in Training: Effort per set None / RIR / RPE pill (`components/settings/PillSwitch.tsx`), Rest timer switch, Default sets.
+- `components/settings/TrainingSection.tsx` in Training: Effort per set None / RIR / RPE segmented control (`components/settings/PillSwitch.tsx`, a wrapper over `components/ui/SegmentedControl`), Rest timer switch, Default sets.
 - Nutrition Settings (`components/settings/NutritionSection.tsx`) owns Daily Goals and Meals; Save always validates goals. Default for new food is on the Nutrition dashboard instead (see [nutrition.md](nutrition.md)).
 - The weight field shows the latest weight entry and saves an entry only when changed (see [weight.md](weight.md)).
 

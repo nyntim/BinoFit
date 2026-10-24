@@ -9,6 +9,7 @@ import { TabBarSurface } from '@/components/navigation/TabBarSurface';
 import { useSetTabBarInset } from '@/context/TabBarInsetContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useActiveWorkout } from '@/hooks/useActiveWorkout';
+import { useShadow } from '@/hooks/useShadow';
 
 const tabs = {
   index: { label: 'Nutrition', icon: 'restaurant-outline' },
@@ -25,7 +26,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   const [lastHeight, setLastHeight] = useState(72 + safe.bottom);
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const surface = useThemeColor({}, 'cardBackground');
-  const shadow = useThemeColor({}, 'navShadow');
+  const border = useThemeColor({}, 'navBorder');
+  const shadow = useShadow('floating');
   const active = useThemeColor({}, 'navActive');
   const activePressed = useThemeColor({}, 'navActivePressed');
   const icon = useThemeColor({}, 'icon');
@@ -53,8 +55,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
       }}
     >
       <View pointerEvents="box-none" style={styles.stack}>
-        {workout ? <View style={[styles.session, { backgroundColor: surface }]}><ActiveWorkoutBar /></View> : null}
-        <View style={[styles.shadow, { shadowColor: shadow }]}>
+        {workout ? <View style={[styles.session, { backgroundColor: surface, borderColor: border, boxShadow: shadow }]}><View style={styles.sessionClip}><ActiveWorkoutBar /></View></View> : null}
+        <View style={[styles.shadow, { boxShadow: shadow }]}>
           <TabBarSurface>
             <View style={styles.row}>
               {state.routes.map((route, index) => {
@@ -95,8 +97,10 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 const styles = StyleSheet.create({
   overlay: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center' },
   stack: { width: '100%', maxWidth: 440, gap: 8 },
-  session: { borderRadius: 18, overflow: 'hidden' },
-  shadow: { borderRadius: 32, shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 8 },
+  // Live workout accessory pill above the shell; solid surface, not material
+  session: { minHeight: 54, borderRadius: 27, borderWidth: 1 },
+  sessionClip: { flex: 1, borderRadius: 27, overflow: 'hidden', justifyContent: 'center' },
+  shadow: { borderRadius: 32 },
   row: { height: 64, padding: 8, flexDirection: 'row', alignItems: 'center' },
   item: { flex: 1, height: 48, minWidth: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.7 },
