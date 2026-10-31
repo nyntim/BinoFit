@@ -117,7 +117,7 @@ https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
 ## Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     UI["React Native UI<br/>Expo Router, Reanimated"] --> Logic["Pure logic<br/>totals, units, records"]
     Logic --> DB[("SQLite<br/>source of truth")]
     DB -- "unsynced rows, tombstones" --> Sync["Background sync<br/>fire and forget"]
