@@ -31,7 +31,7 @@ Most trackers make you pick a side: a food logger that ignores your training, or
   </a>
 </p>
 
-<p align="center"><sub>A 40 second walkthrough: a tour of the four tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
+<p align="center"><sub>A 40 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
 
 ## Screenshots
 
