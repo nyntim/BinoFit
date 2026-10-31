@@ -21,7 +21,9 @@
 
 Most trackers make you pick a side: a food logger that ignores your training, or a workout log that has no idea what you ate. BinoFit puts both in one place so you can actually see how they affect each other, and it does it without the streak guilt, red numbers and nagging that make people quit tracking.
 
-> This repo is a showcase. The app's source code is private; here you'll find what BinoFit does, how it looks and why it's built the way it is.
+> This repo is a showcase. The app's source code is private; here you'll find what BinoFit does, how it looks, how it's built and why. It is a solo project, designed and built end to end by [Tim Nguyen](https://github.com/nyntim), running on device and not yet released.
+
+**At a glance:** about 48,000 lines of TypeScript, 3,500+ automated tests, 60 written decision records, 11 database migrations and 320 commits since November 2025.
 
 ## Demo
 
@@ -90,6 +92,45 @@ https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
   </tr>
 </table>
 
+## Tech stack
+
+| Area | What I used |
+|---|---|
+| App | React Native 0.88 and Expo 58 (New Architecture, React Compiler), Expo Router, TypeScript in strict mode |
+| Motion and UI | Reanimated 4, a documented design system with light and dark themes, native iOS Live Activities |
+| On-device data | SQLite (expo-sqlite) with versioned migrations, AsyncStorage for preferences |
+| Backend | Supabase: Postgres, anonymous, email and Apple auth, row-level security |
+| iOS integrations | Apple Health (HealthKit), Live Activities, alternate app icons, notifications |
+| Quality | Jest (266 test suites), ESLint, strict `tsc`, GitHub Actions CI |
+| Data | A bundled food database plus a remote search over about 214k Open Food Facts rows, with relevance tuning |
+
+## Engineering highlights
+
+- **Local-first by design.** The phone is the source of truth. The app opens and logs instantly with no signal and no account wall; every install signs in anonymously and backs up quietly in the background. Rows carry UUIDs and timestamps from day one so sync never required reshaping data. ([ADR 0001](docs/decisions/0001-local-first-storage.md))
+- **Deletes that stay deleted.** Deleting a synced row writes a tombstone instead of calling the server, so a delete made offline cannot be undone by a later restore. ([ADR 0004](docs/decisions/0004-tombstone-deletes.md))
+- **Honest sync model.** Sync pushes local changes and restore pulls them onto a new phone. There is no live two-device sync, and the docs say so.
+- **Security at the database.** Every table is protected by Postgres row-level security, and schema changes ship in numbered migrations that are applied before the client that depends on them.
+- **Native iOS features.** A workout Live Activity keeps the rest timer visible on the lock screen, and Apple Watch heart rate is read from Apple Health and stored as a single average and maximum per workout. ([ADR 0028](docs/decisions/0028-rest-mode-and-live-activity.md), [ADR 0029](docs/decisions/0029-heart-rate-from-apple-health.md))
+- **Tested and documented.** More than 3,500 tests run in CI, pure logic such as totals, unit conversion, records and sync is kept separate from UI so it can be tested directly, and each architectural choice is written down as a decision record.
+- **Built for real use.** User-defined meals instead of fixed slots ([ADR 0002](docs/decisions/0002-user-defined-meals.md)), a 180-exercise library with a guided builder for your own, kg/lb and km/mi units, and CSV export.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    UI["React Native UI<br/>Expo Router, Reanimated"] --> Logic["Pure logic<br/>totals, units, records"]
+    Logic --> DB[("SQLite<br/>source of truth")]
+    DB -- "unsynced rows, tombstones" --> Sync["Background sync<br/>fire and forget"]
+    Sync --> Cloud[("Supabase<br/>Postgres + RLS")]
+    Cloud -- "restore on a new device" --> DB
+    Auth["Anonymous, email<br/>or Apple sign-in"] --> Cloud
+    Health["Apple Health"] <--> UI
+```
+
+## Decision records
+
+Five of the 60 decision records are published in [`docs/decisions`](docs/decisions/README.md): local-first storage, tombstone deletes, user-defined meals, the workout Live Activity and heart rate from Apple Health.
+
 ## Features
 
 **Nutrition**
@@ -146,13 +187,6 @@ And a few lines it doesn't cross:
 - **Acknowledge, don't nag.** It notices a finished workout, a new record or a steady week. It never guilt-trips you or threatens a streak.
 - **Calm by default.** Opening the app should feel like a breath, not a task list.
 
-## Built with
-
-- React Native and Expo, written in TypeScript
-- On-device SQLite, so everything is instant and works offline
-- Cloud sync and backup, with sign-in by email or Apple
-- Native iOS integrations: Apple Health, Live Activities and alternate app icons
-
 ## About
 
-BinoFit is designed and built by [Tim Nguyen](https://github.com/nyntim). Questions, feedback or want to try it? [Open an issue](https://github.com/nyntim/BinoFit/issues).
+BinoFit is a solo project, designed and built end to end by [Tim Nguyen](https://github.com/nyntim), including the product design, the app, the database and the tests. It runs on device and is not yet released. Questions, feedback or want to see the code? [Open an issue](https://github.com/nyntim/BinoFit/issues) or reach out through my GitHub profile.
