@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
 
 </div>
 
-<p align="center"><sub>A 40 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
+<p align="center"><sub>A 45 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard and marking a planned dinner as eaten.</sub></p>
 
 ## Screenshots
 
@@ -79,6 +79,19 @@ https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
     <td align="center"><sub>30 days of calories against the goal</sub></td>
     <td align="center"><sub>Weight with a smoothed trend and weekly rate</sub></td>
     <td align="center"><sub>Sessions per week and recent records</sub></td>
+  </tr>
+</table>
+
+### Planning ahead
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/planned-meal.png" width="250" alt="Planned dinner with a dashed card and lighter calorie ring segment" /></td>
+    <td align="center"><img src="assets/screenshots/planned-meal-dark.png" width="250" alt="Planned dinner in dark mode" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Plan a meal and it shows as a dashed card and a lighter ring segment</sub></td>
+    <td align="center"><sub>Planned food only counts once you mark it eaten</sub></td>
   </tr>
 </table>
 
