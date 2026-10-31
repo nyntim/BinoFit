@@ -25,7 +25,11 @@ Most trackers make you pick a side: a food logger that ignores your training, or
 
 ## Demo
 
+<div align="center">
+
 https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
+
+</div>
 
 <p align="center"><sub>A 40 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
 
