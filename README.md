@@ -27,11 +27,11 @@ Most trackers make you pick a side: a food logger that ignores your training, or
 
 <p align="center">
   <a href="assets/demo.mp4">
-    <img src="assets/demo-poster.png" width="300" alt="Play the BinoFit demo video" />
+    <img src="assets/demo.gif" width="300" alt="BinoFit demo: tour of the tabs, then logging a food" />
   </a>
 </p>
 
-<p align="center"><sub>A 40 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
+<p align="center"><sub>A 40 second walkthrough (<a href="assets/demo.mp4">full quality video</a>): a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard.</sub></p>
 
 ## Screenshots
 
