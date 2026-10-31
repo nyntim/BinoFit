@@ -29,7 +29,7 @@ Most trackers make you pick a side: a food logger that ignores your training, or
 
 <div align="center">
 
-https://github.com/user-attachments/assets/e3463062-9a31-4fbd-9b59-f06c059be303
+https://github.com/user-attachments/assets/50d87ba1-f4f6-4c82-ba89-96e01771c192
 
 </div>
 
