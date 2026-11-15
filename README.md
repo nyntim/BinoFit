@@ -27,81 +27,44 @@ Most trackers make you pick a side: a food logger that ignores your training, or
 
 ## Demo
 
-<div align="center">
+<p align="center">
+  <a href="assets/demo.mp4"><img src="assets/demo-poster.png" width="300" alt="BinoFit demo video: the calculated nutrition plan from guided setup. Select to play." /></a>
+</p>
 
-https://github.com/user-attachments/assets/50d87ba1-f4f6-4c82-ba89-96e01771c192
-
-</div>
-
-<p align="center"><sub>A 45 second walkthrough: a tour of the Nutrition, Training and Progress tabs with 30 days of sample data, then logging a food from search to the updated dashboard and marking a planned dinner as eaten.</sub></p>
+<p align="center"><sub>A one-minute walkthrough on iPhone 17 Pro with synthetic demo data: guided setup estimates maintenance calories and sets targets, then logging a food, marking a planned dinner as eaten, Training with Frequency and Recovery, a live set with the rest timer, and Progress. <a href="assets/demo.mp4">Watch the video (MP4)</a>.</sub></p>
 
 ## Screenshots
 
-### Nutrition
+### Personalized nutrition
 
 <table>
   <tr>
-    <td align="center"><img src="assets/screenshots/dashboard.png" width="250" alt="Nutrition dashboard with calorie ring and macro bars" /></td>
-    <td align="center"><img src="assets/screenshots/food-search.png" width="250" alt="Food search" /></td>
-    <td align="center"><img src="assets/screenshots/serving-picker.png" width="250" alt="Serving picker with nutrition and targets" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Dashboard: calorie ring, macros and the day by meal</sub></td>
-    <td align="center"><sub>Food search: local first, instant results</sub></td>
-    <td align="center"><sub>Serving picker with nutrients and targets</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/activity-estimator.png" width="200" alt="Guided setup step that estimates everyday movement (NEAT) and exercise (EAT)" /><br /><sub>Activity</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/nutrition-dashboard.png" width="200" alt="Nutrition dashboard with the calorie gauge, macros and planned dinner" /><br /><sub>Dashboard</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/food-search.png" width="200" alt="Food search results for Greek yogurt with calories and macros" /><br /><sub>Food search</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/serving-picker.png" width="200" alt="Serving picker showing the food's nutrition against today's targets" /><br /><sub>Serving picker</sub></td>
   </tr>
 </table>
 
-### Training
+### Training and recovery
 
 <table>
   <tr>
-    <td align="center"><img src="assets/screenshots/training.png" width="250" alt="Training tab with weekly summary and history" /></td>
-    <td align="center"><img src="assets/screenshots/live-workout.png" width="250" alt="Live workout with rest timer and PR tags" /></td>
-    <td align="center"><img src="assets/screenshots/exercise-library.png" width="250" alt="Exercise library" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Weekly summary and workout history</sub></td>
-    <td align="center"><sub>Live session with rest timer and PR tags</sub></td>
-    <td align="center"><sub>Exercise library</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/training-overview.png" width="200" alt="Training tab with two-week frequency and per-muscle recovery estimates" /><br /><sub>Frequency and Recovery</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/live-workout.png" width="200" alt="Live workout with completed sets and the rest timer dock" /><br /><sub>Live workout</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/exercise-library.png" width="200" alt="Exercise library filtered to chest, with brand filters and search" /><br /><sub>Exercise library</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/exercise-customization.png" width="200" alt="Editing a personal copy of the built-in barbell bench press" /><br /><sub>Exercise customization</sub></td>
   </tr>
 </table>
 
-### Progress
+### Progress and experience
 
 <table>
   <tr>
-    <td align="center"><img src="assets/screenshots/progress-calories.png" width="250" alt="30 day calorie chart against the goal" /></td>
-    <td align="center"><img src="assets/screenshots/progress-weight.png" width="250" alt="Weight log with smoothed trend and weekly rate" /></td>
-    <td align="center"><img src="assets/screenshots/progress-workouts.png" width="250" alt="Workouts per week and recent records" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>30 days of calories against the goal</sub></td>
-    <td align="center"><sub>Weight with a smoothed trend and weekly rate</sub></td>
-    <td align="center"><sub>Sessions per week and recent records</sub></td>
-  </tr>
-</table>
-
-### Planning ahead
-
-<table>
-  <tr>
-    <td align="center"><img src="assets/screenshots/planned-meal.png" width="250" alt="Planned dinner with a dashed card and lighter calorie ring segment" /></td>
-    <td align="center"><img src="assets/screenshots/planned-meal-dark.png" width="250" alt="Planned dinner in dark mode" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Plan a meal and it shows as a dashed card and a lighter ring segment</sub></td>
-    <td align="center"><sub>Planned food only counts once you mark it eaten</sub></td>
-  </tr>
-</table>
-
-### Dark mode
-
-<table>
-  <tr>
-    <td align="center"><img src="assets/screenshots/dashboard-dark.png" width="250" alt="Nutrition dashboard in dark mode" /></td>
-    <td align="center"><img src="assets/screenshots/training-dark.png" width="250" alt="Training tab in dark mode" /></td>
-    <td align="center"><img src="assets/screenshots/progress-dark.png" width="250" alt="Progress weight card in dark mode" /></td>
+    <td align="center" width="25%"><img src="assets/screenshots/progress-weight.png" width="200" alt="Progress card with the smoothed weight trend and weigh-in log" /><br /><sub>Weight trend</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/progress-nutrition.png" width="200" alt="Thirty-day calorie and macro trends against the goal" /><br /><sub>Nutrition trends</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/dashboard-dark.png" width="200" alt="Nutrition dashboard in dark mode" /><br /><sub>Dark mode</sub></td>
+    <td align="center" width="25%"><img src="assets/screenshots/past-workout-editor.png" width="200" alt="Editing a finished leg workout's date, time and sets" /><br /><sub>Past workout editor</sub></td>
   </tr>
 </table>
 
@@ -148,6 +111,7 @@ Five of the 60 decision records are published in [`docs/decisions`](docs/decisio
 
 **Nutrition**
 
+- Guided six-step setup that estimates maintenance calories (resting energy, digestion, everyday movement and exercise) and suggests calorie and macro targets
 - Calorie ring, macro bars and a meal-by-meal view of the day
 - Your own meals: name them, reorder them, set per-meal targets and reminders
 - Fast food search, barcode scanning and custom foods
@@ -155,6 +119,7 @@ Five of the 60 decision records are published in [`docs/decisions`](docs/decisio
 
 **Training**
 
+- Two-week training frequency and per-muscle recovery estimates from logged sets
 - Live workouts with previous sets prefilled and a rest timer
 - An exercise library plus a guided builder for your own exercises
 - Routines, set types and logging a workout after the fact
