@@ -27,9 +27,11 @@ Most trackers make you pick a side: a food logger that ignores your training, or
 
 ## Demo
 
-<p align="center">
-  <a href="assets/demo.mp4"><img src="assets/demo-poster.png" width="300" alt="BinoFit demo video: the calculated nutrition plan from guided setup. Select to play." /></a>
-</p>
+<div align="center">
+
+https://github.com/user-attachments/assets/72929756-73ac-439c-ba59-ed8b8c31f9a5
+
+</div>
 
 <p align="center"><sub>A one-minute walkthrough on iPhone 17 Pro with synthetic demo data: guided setup estimates maintenance calories and sets targets, then logging a food, marking a planned dinner as eaten, Training with Frequency and Recovery, a live set with the rest timer, and Progress. <a href="assets/demo.mp4">Watch the video (MP4)</a>.</sub></p>
 
